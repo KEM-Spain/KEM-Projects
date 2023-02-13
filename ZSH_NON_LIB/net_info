@@ -121,7 +121,7 @@ arp -e | head -1
 arp -e | tail +2 | sort
 
 printf "\n${WHITE_FG}Enhanced ARP Information ($(which lan_devices))${RESET}\n"
-lan_devices
+lan_devices -i
 
 printf "\n${WHITE_FG}Route ($(which route))${RESET}\n"
 route

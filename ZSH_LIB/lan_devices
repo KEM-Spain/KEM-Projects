@@ -31,9 +31,10 @@ usage () {
 }
 
 #Execution
-[[ ${_DEBUG} -eq 0 ]] && do_smcup
-
 [[ ${1:l} == '-h' ]] && usage
+[[ ${1:l} == '-i' ]] && INLINE=true || INLINE=false
+
+[[ ${_DEBUG} -eq 0 && ${INLINE} == 'false' ]] && do_smcup
 
 MY_IP=$(ip_int)
 MY_MAC=$(get_host_mac)
@@ -86,6 +87,6 @@ for A in ${(on)ARP};do
 	printf "%-18s %-18s %-20s\n" ${IP} ${MAC:u} ${DESC}
 done
 printf "${WHITE_FG}${DEV_CNT} devices found\n${RESET}"
-echo -n "\nPress any key..." && read
+[[ ${INLINE} == 'false' ]] && echo -n "\nPress any key..." && read
 
 exit_leave
