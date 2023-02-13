@@ -1,0 +1,141 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+STRIKE="\033[9m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+
+#Constants
+_LIB=/usr/local/lib
+_DEPTH=1
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+depth_set_level () {
+	((_DEPTH++))
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+find files and/or directories in or below the current directory
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<INT>";;
+		t) echo "<OBJ_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug; when repeated increases level"
+	echo -e "${WHITE_FG}-d${RESET} depth; when repeated increases depth"
+	echo -e "${WHITE_FG}-l${RESET} add listing detail"
+	echo -e "${WHITE_FG}-r${RESET} arg is a regex"
+	echo -e "${WHITE_FG}-t $(opt_type t)${RESET} (f)ile|(d)ir  Default:${WHITE_FG}both${RESET}"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+
+CURDIR=false
+LISTING=false
+OBJ_TYPE=''
+OPTIND=0
+REGEX=false
+
+OPTSTR=":HDdlrt:"
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     d) depth_set_level;;
+     l) LISTING=true;;
+     r) REGEX=true;;
+     t) OBJ_TYPE="-type ${OPTARG}";;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ $# -eq 0 ]] && usage "<SEARCHTERM> required"
+
+MAXDEPTH=${_DEPTH}
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "LISTING:${LISTING}\nMAXDEPTH:${MAXDEPTH}\nREGEX:${REGEX}\nOBJ_TYPE:${OBJ_TYPE:-both}"
+
+if [[ ${REGEX} == 'true' ]];then
+	fc -R #read history
+	RAW_CMD_LINE=("${(f)$(fc -lnr | head -1)}") #parse raw cmdline
+	RAW_ARGS=$(echo ${RAW_CMD_LINE} | rev | cut -d' ' -f1 | rev) #grab the args
+	REGEX_PATTERN="\.\/${RAW_ARGS}" #prepend path as convenience
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "REGEX_PATTERN:${(Q)REGEX_PATTERN}"
+
+	LIST=("${(f)$(eval "sudo find -L . -maxdepth ${MAXDEPTH} -regextype posix-extended -regex '${(Q)REGEX_PATTERN}' ${OBJ_TYPE} | sed -e 's#\./##'")}")
+	[[ ${_DEBUG} -gt 0 ]] && dbg "LIST COUNT:${#LIST}"
+else
+	LIST=("${(f)$(eval "sudo find -L . -maxdepth ${MAXDEPTH} -iname '*${(q)1}*' ${OBJ_TYPE}")}")
+	[[ ${_DEBUG} -gt 0 ]] && dbg "LIST COUNT:${#LIST}"
+fi
+
+if [[ ${LISTING} == 'true' ]];then
+	ls -lAdrt ${LIST}
+else
+	for L in ${LIST};do
+		echo ${L}
+	done
+fi
+
+exit_leave

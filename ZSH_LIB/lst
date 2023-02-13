@@ -1,0 +1,380 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+E_BOLD=$(echo "\033[1m")
+E_ITALIC=$(echo "\033[3m")
+E_RESET=$(echo "\033[m")
+E_REVERSE=$(echo "\033[7m")
+E_STRIKE=$(echo "\033[9m")
+E_UNDER=$(echo "\033[4m")
+
+E_BLACK_FG=$(echo "\033[30m")
+E_BLUE_FG=$(echo "\033[34m")
+E_CYAN_FG=$(echo "\033[36m")
+E_GREEN_FG=$(echo "\033[32m")
+E_MAGENTA_FG=$(echo "\033[35m")
+E_RED_FG=$(echo "\033[31m")
+E_WHITE_FG=$(echo "\033[37m")
+E_YELLOW_FG=$(echo "\033[33m")
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Declarations
+typeset -A SUMMARY
+typeset -a RAWLIST
+typeset -a LOCAL_LIST
+typeset -a MARKED=()
+typeset -A _KNOWN_TYPES=(\
+mscz musescore \
+mscz, musescore-backup \
+zip archive \
+gz archive \
+bz2 archive \
+jar archive \
+mkv video \
+avi video \
+mp4 video \
+deb package \
+tar package \
+json data \
+xml data \
+swp vim-lock \
+)
+
+#Functions
+action_do () {
+	local M
+
+	[[ ${_DEBUG} -gt 0 ]] && echo "No action defined" | dbg
+	msg_box -p -PK "No action has been defined"
+
+	for M in ${MARKED};do
+		list_remove_selected ${M}
+	done
+}
+
+file_type () {
+	local FN=${1}
+	local FILE_DESC
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: FN:${FN}"
+
+	FILE_DESC=${_KNOWN_TYPES[${FN:e}]}
+
+	if [[ -n ${FILE_DESC} ]];then
+		[[ ${_DEBUG} -gt 1 ]] && dbg "${0}: using value from known_types FILE_DESC:${FILE_DESC}"
+		echo ${FILE_DESC}
+	else
+		FILE_DESC=$(file -b ${FN})
+		[[ ${_DEBUG} -gt 1 ]] && dbg "${0}: using info from file -b: FILE_DESC:${FILE_DESC}"
+
+		case ${FILE_DESC:l} in
+			*application*) echo "application";;
+			*audio*) echo "audio";;
+			*bak*) echo "backup";;
+			*bourne*) echo "bash";;
+			*composite*document*) echo "document";;
+			*data*) echo "data";;
+			*directory*) echo "directory";;
+			*drawing*) echo "drawing";;
+			*elf*) echo "elf";;
+			*empty*) echo "(empty-file)";;
+			*expect*) echo "expect script";;
+			*image*) echo "image";;
+			*link*) echo "symbolic link";;
+			*video*) echo "video";;
+			*media*) echo "media";;
+			*no*read*) echo "(no-permissions)";;
+			*pdf*) echo "pdf";;
+			*perl*) echo "perl";;
+			*python*) echo "python";;
+			*ssh*|*rsa*) echo "SSH-key";;
+			*source*) echo "code";;
+			*ruby*) echo "ruby";;
+			*zsh*) echo "zsh";;
+			*script*) echo "script";;
+			*text*) echo "text";;
+			*vim*swap*) echo "vim swap";;
+			*xml*) echo "xml";;
+			*binary*) echo "(binary)";;
+			*socket*) echo "(socket)";;
+			*) echo "undef:$(tr ' ' '_' <<<${FILE_DESC})";;
+		esac
+	fi
+}
+
+get_fn () {
+	local NDX=${1}
+
+	cut -d'|' -f1 <<<${_LIST[${NDX}]:t}
+}
+
+get_type () {
+	local NDX=${1}
+
+	cut -d'|' -f2 <<<${_LIST[${NDX}]}
+}
+
+item_decorate () {
+	local NDX=${1}
+	local TYPE
+
+	TYPE=$(get_type ${NDX})
+
+	[[ ${_DEBUG} -gt 1 ]] && dbg "${0}: NDX:${NDX} TYPE:${TYPE}"
+
+	echo "$(type_color ${TYPE} E)"
+}
+
+type_color () {
+	local TYPE=${1}
+	local STYLE=${2:=A}
+	local COLOR
+	local CTAG
+	local CSTR
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: TYPE:${1} STYLE:${2}"
+
+	case ${TYPE} in
+		*application*) COLOR=CYAN;;
+		*binary*) COLOR=RED;;
+		*directory*) COLOR=CYAN;;
+		*empty*) COLOR=WHITE;;
+		*expect*) COLOR=MAGENTA;;
+		*image*) COLOR=CYAN;;
+		*key*) COLOR=CYAN;;
+		*link*) COLOR=YELLOW;;
+		*musescore*) COLOR=MAGENTA;;
+		*musescore*back*) COLOR=BLUE;;
+		*permission*) COLOR=RED;;
+		*socket*) COLOR=RED;;
+		*undef*) COLOR=RED;;
+		*video*) COLOR=MAGENTA;;
+		*vim*) COLOR=RED;;
+		archive) COLOR=RED;;
+		audio) COLOR=RED;;
+		bash) COLOR=GREEN;;
+		code) COLOR=MAGENTA;;
+		data) COLOR=MAGENTA;;
+		document) COLOR=WHITE;;
+		drawing) COLOR=CYAN;;
+		elf) COLOR=BLUE;;
+		media) COLOR=MAGENTA;;
+		package) COLOR=GREEN;;
+		pdf) COLOR=MAGENTA;;
+		perl) COLOR=MAGENTA;;
+		python) COLOR=CYAN;;
+		ruby) COLOR=RED;;
+		script) COLOR=GREEN;;
+		text) COLOR=WHITE;;
+		vim*swap*) COLOR=BLUE;;
+		xml) COLOR=WHITE;;
+		zsh) COLOR=GREEN;;
+		*) COLOR=YELLOW;;
+	esac
+
+	if [[ ${STYLE} != 'A' ]];then #use ansi with echo
+		CTAG="E_${COLOR}_FG"
+		CSTR="${BOLD}${(P)CTAG}${TYPE}${E_RESET}"
+	else
+		CTAG="${COLOR}_FG"
+		CSTR="${BOLD}${(P)CTAG}${TYPE}${E_RESET}"
+	fi
+
+	[[ ${_DEBUG} -gt 1 ]] && dbg "${0}: TYPE:${TYPE} COLOR:${COLOR}"
+
+	echo ${CSTR}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Show files by type
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		p) echo "<PATTERN>";;
+		t) echo "<TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type p)] [<SEARCHTERM>]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-s${RESET} summarize types"
+	echo -e "${WHITE_FG}-t${RESET} $(opt_type t) limit to file type"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDst:"
+
+SUMMARY_ONLY=false
+TYPE_ONLY=false
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     s) SUMMARY_ONLY=true;;
+     t) TYPE_ONLY=${OPTARG};;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${#} -ne 0 ]] && SEARCHTERM=${1} || SEARCHTERM=''
+
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+PATHLBL=$(path_get_label 40)
+
+[[ ${_DEBUG} -gt 0 ]] && echo "find ${FPATH:q} -maxdepth 1 ${FGLOB} ! -path ${FPATH:q}" | dbg
+RAWLIST=("${(f)$(eval "find ${FPATH:q} -maxdepth 1 ${FGLOB} ! -path ${FPATH:q}")}")
+
+NDX=0
+MAX_FN_LEN=0
+MAX_DESC_LEN=0
+for L in ${(on)RAWLIST};do
+	((NDX++))
+	tput cup 0 0; tput el; printf "\rProcessing line ${WHITE_FG}%-d${RESET} of ${WHITE_FG}%-d${RESET} files ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#RAWLIST} $(( NDX * 100. / ${#RAWLIST} )) >&2
+	DESC=$(file_type ${L})
+	[[ -n ${SEARCHTERM} && ! ${DESC} =~ ${SEARCHTERM} ]] && continue
+	[[ ${TYPE_ONLY} != 'false' && ! ${DESC} =~ ${TYPE_ONLY} ]] && continue
+	LOCAL_LIST+=("${L}|${DESC}")
+	[[ ${#L:t} -gt ${MAX_FN_LEN} ]] && MAX_FN_LEN=${#L}
+	[[ ${#DESC} -gt ${MAX_DESC_LEN} ]] && MAX_DESC_LEN=${#DESC}
+done
+
+if [[ ${_DEBUG} -gt 1 ]];then
+	for L in ${LOCAL_LIST};do
+		echo "LOCAL_LIST: ${L}"
+	done | dbg
+fi
+
+#Verify existence of data
+if ! arr_is_populated "${LOCAL_LIST}";then
+	if [[ ${TYPE_ONLY} != 'false' ]];then
+		exit_leave $(msg_warn "No file types matched:${TYPE_ONLY}")
+	else
+		exit_leave $(msg_warn "No known file types found")
+	fi
+fi
+
+#Summary only (filtered for type if specified)
+if [[ ${SUMMARY_ONLY} == 'true' ]];then
+
+	NDX=0
+	LONGEST=0
+	for L in ${LOCAL_LIST};do
+		((NDX++))
+		TYPE=$(cut -d'|' -f2 <<<${L})
+		[[ ${#TYPE} -gt ${LONGEST} ]] && LONGEST=${#TYPE}
+		if [[ -z ${SUMMARY[${TYPE}]} ]];then
+			SUMMARY[${TYPE}]=1
+		else
+			SUMMARY[${TYPE}]=$(( ${SUMMARY[${TYPE}]} +1 ))
+		fi
+	done
+
+	printf "\n\n%13s ${BOLD}${CYAN_FG}%9s %-5s${RESET}\n" "" "File Type" "Count"
+	printf "%13s ${WHITE_FG}%9s %-5s${RESET}\n" "" "---------" "-----"
+	for K in ${(ok)SUMMARY};do
+		printf "%35s:${WHITE_FG}%-5d${RESET}\n" "$(type_color ${K} E)" ${SUMMARY[${K}]}
+	done
+	printf "\nPress any key to continue..."
+	read -q
+
+	exit_leave 
+fi
+
+#set headings
+list_set_header 'printf "Files found:${WHITE_FG}%-d${RESET}\tPath:${WHITE_FG}%-*s${RESET}\tPage:${WHITE_FG}%-d${RESET} of ${WHITE_FG}%-d${RESET}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${PAGE} ${MAX_PAGES}'
+list_set_header 'printf " "'
+list_set_header 'printf "%*s %-*s  %-*s" 5 "" ${MAX_FN_LEN} "File" ${MAX_DESC_LEN} "Type"'
+list_set_header 'printf "%*s ${MAGENTA_FG}%-*s  %*s${RESET}" 5 "" ${MAX_FN_LEN} "$(str_unicode_line ${MAX_FN_LEN})" ${MAX_DESC_LEN} "$(str_unicode_line ${MAX_DESC_LEN})"'
+
+#set line item
+list_set_line_item '
+printf "%4s) ${BAR}%-*s  %*s${RESET}\n" ${ARRAY_NDX} ${MAX_FN_LEN} "$(get_fn ${ARRAY_NDX})" ${MAX_DESC_LEN} "$(item_decorate ${ARRAY_NDX})"
+'
+list_set_key_msg '
+printf "Press ${WHITE_FG}Home End PgUp PgDn, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}"
+'
+list_set_key_msg '
+printf "Press ${WHITE_FG}Home End PgUp PgDn, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}, <${WHITE_FG}s${RESET}>ort columns"
+'
+list_set_prompt " "
+list_set_action_msgs delete file
+list_set_barlines true
+list_set_selectable false
+list_set_sortable true
+
+while true;do
+	#get selection
+	list_select ${LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_do
+	fi
+done
+
+exit_leave

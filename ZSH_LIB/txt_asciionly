@@ -1,0 +1,50 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+read -r -d '' DESC<<EOF
+Filter any non ascii chars from input
+EOF
+
+#Functions
+usage () {
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo "Usage:${_SCRIPT}"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+#Executions
+[[ ${1} == '-H' ]] && usage
+
+HAS_INPUT=false
+while read -t1 LINE;do
+	HAS_INPUT=true
+	echo ${LINE} | perl -pe 's/[^[:ascii:]]//g' 
+done
+
+[[ ${HAS_INPUT} == 'false' ]] && echo "${RED_FG}No input stream detected${RESET}\n" && usage

@@ -1,0 +1,20 @@
+#!/usr/bin/zsh
+ 
+PART="sd[abc]"
+LIST=($(mount | grep ${PART} | cut -d \  -f1))
+for L in ${LIST};do
+	sudo udisksctl unmount -b ${L}
+done
+
+DISK=$(echo ${L} | sed "s#\(/dev/${PART}\)\(.*\)#\1#g")
+
+if [[ -n ${DISK} ]];then
+	sudo udisksctl power-off -b ${DISK}
+	if [[ $? -eq 0 ]];then
+		echo "External drive was powered down.  It is now safe to unplug the drive"
+	else
+		echo "An error occurred: udiskctl:$?"
+	fi
+else
+	echo "No ${PART} partitions appear to be mounted"
+fi

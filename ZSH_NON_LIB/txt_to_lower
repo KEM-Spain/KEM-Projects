@@ -1,0 +1,32 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+typeset -a LIST
+
+read -r -d '' DESC<<EOF
+Convert text to lowercase
+EOF
+
+if [[ ! -t 0 ]];then
+	{ read LINE }
+	LIST+=${LINE}
+else
+	if [[ ${#} -eq 0 ]];then
+		echo "Usage:${0} <FILE> or <TEXT> | ${0:t}"
+		echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+		exit
+	else
+		LIST=${@}
+	fi
+fi
+
+for L in ${LIST};do
+	echo ${L} | tr '[:upper:]' '[:lower:]'
+done

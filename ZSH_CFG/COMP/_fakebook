@@ -1,0 +1,5 @@
+#compdef fakebook
+
+_arguments \
+'-H[help]' \
+'-D[debug]'

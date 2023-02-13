@@ -1,0 +1,5 @@
+#!/usr/bin/zsh
+echo -n "Perform a low level (dd) copy of /dev/sda to /dev/sdb?"; read -q RESPONSE
+[[ ${RESPONSE} == 'n' ]] && echo "\nOperation cancelled" && exit
+
+dd if=/dev/sda |pv| dd of=/dev/sdb conv=noerror,sync bs=4k

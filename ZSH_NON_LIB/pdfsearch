@@ -1,0 +1,36 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+typeset -a HITS
+
+#Execution
+[[ $# -eq 0 ]] && echo "Usage: ${0:t} <SEARCHTERM>" && exit
+
+FLIST=("${(f)$(find . -maxdepth 10 -name '*pdf' -o -name '*txt')}")
+
+NDX=0
+for F in ${(O)FLIST};do
+	if [[ ${F:e} == "txt" ]];then
+		HITS=("${(f)$(grep --color=never -iH "${@}" ${F})}")
+	elif [[ ${F:e} == "pdf" ]];then
+		HITS=("${(f)$(pdftotext -nopgbrk ${F} - | grep -iw "${@}")}")
+	fi
+	if [[ -n ${HITS[1]} ]];then
+		echo "${GREEN_FG}Found in${RESET}:${WHITE_FG}${F}${RESET}"
+		for H in ${(onu)HITS};do
+			((NDX++))
+			LINE=$(sed 's/\o14//g' <<< ${H})
+			echo "${NDX}) ${(C)LINE}"
+		done
+		echo
+		HITS=()
+	fi
+done

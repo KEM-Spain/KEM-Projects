@@ -1,0 +1,145 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a FONT_LIST
+typeset -a MARKED
+
+#Constants
+_LIB=/usr/local/lib
+_FONTFACEMAP=/usr/share/enscript/afm/font.map
+_ENSCRIPT_DIR=/usr/share/enscript
+_HDR_CFG=myhdr.hdr
+_L_MARGIN=5
+_R_MARGIN=5
+_T_MARGIN=10
+_B_MARGIN=10
+_FONT_WIDTH=10
+_FONT_HEIGHT=10
+
+#Globals
+g_FONT_SIZE="@${_FONT_WIDTH}/${_FONT_HEIGHT}"
+g_FONT_FACE=AvantGarde-Book
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+pick_font () {
+	FONT_LIST=("${(f)$(cut -d' ' -f1 <${_FONTFACEMAP})}")
+	selection_list_set ${FONT_LIST}
+	tput smcup
+	selection_list -x${TOP_WIN_X} -y${TOP_WIN_Y} "<w>Select Font<N>"
+	tput rmcup
+	g_FONT_FACE=${_SELECTION_VALUE}
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: g_FONT_FACE:${g_FONT_FACE}"
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Convert a text file into pdf format using the default font: ${CYAN_FG}${g_FONT_FACE}${RESET}
+\tPage numbering is provided in the header. To change any header defaults,
+\tone must edit the file: ${CYAN_FG}${_ENSCRIPT_DIR}/${_HDR_CFG}${RESET}
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		f) echo "<FILE>";;
+		t) echo "<TEXTFILE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type t)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-e${RESET} edit header config"
+	echo -e "${WHITE_FG}-f${RESET} select font"
+	echo -e "${WHITE_FG}-h${RESET} omit header"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDefh"
+OPTIND=0
+
+PICKG_FONT_FACE=false
+OMIT_HDR=false
+EDIT_HDR=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+	  e) EDIT_HDR=true;;
+	  f) PICKG_FONT_FACE=true;;
+	  h) OMIT_HDR=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ ${EDIT_HDR} == 'true' ]] && sudo vim ${_ENSCRIPT_DIR}/${_HDR_CFG}
+[[ ${PICKG_FONT_FACE} == 'true' ]] && pick_font
+[[ ${OMIT_HDR} == 'true' ]] && HDR_OPT='-B' || HDR_OPT="--fancy-header=${_HDR_CFG:r}"
+[[ ${#} -eq 0 ]] && usage "Missing argument: $(opt_type t)"
+[[ ! -e ${1} ]] && usage "File:${1} not found"
+
+enscript -q --margins=${_L_MARGIN}:${_R_MARGIN}:${_T_MARGIN}:${_B_MARGIN} ${HDR_OPT} -o ${1:r}.ps -f ${g_FONT_FACE}${g_FONT_SIZE} --header-font=${g_FONT_FACE}${g_FONT_SIZE} ${1}
+ps2pdf ${1:r}.ps
+rm -f ${1:r}.ps
+[[ -e ${1:r}.pdf ]] && evince -f ${1:r}.pdf
+
+exit_leave

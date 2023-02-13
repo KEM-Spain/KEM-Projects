@@ -1,0 +1,56 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+E_RESET=$(echo -n "\033[m")
+E_WHITE_FG=$(echo -n "\033[37m")
+E_CYAN_FG=$(echo -n "\033[36m")
+
+cat << DOC1
+=====================
+advanced sed examples
+=====================
+Example 1
+
+sed '/PATTERN_1/,/PATTERN_2/d' FILE # pattern inclusive
+sed '/PATTERN_1/,/PATTERN_2/-1d' FILE # first pattern inclusive - leave last pattern
+
+sed -i "/PATTERN_1/,/PATTERN_2/{PATTERN_1/!{PATTERN_2/!d}}" FILE # pattern non inclusive (between)
+
+Explanation:
+
+/PATTERN_1/,/PATTERN_2/ will match all the text between lines starting with PATTERN_1 to PATTERN_2
+/PATTERN_1/! means do following if start of line is not PATTERN_1
+/PATTERN_2/! means do following if start of line is not PATTERN_2
+
+So overall it is first matching all the lines from PATTERN_1 to PATTERN_2 
+then from those matched lines, finding lines that don't match PATTERN_1 and don't match PATTERN_2 and deleting
+
+Example 2
+sed ':a; N; \$!ba; s/\n/ /g'
+
+This command will progess through entire file, removing all newlines while stringing all lines
+together on a single line of output
+
+1) ${E_WHITE_FG}Create${E_RESET} label ${E_CYAN_FG}:a${E_RESET}
+2) ${E_WHITE_FG}Append${E_RESET} the current and next line to the pattern space via
+${E_CYAN_FG}N${E_RESET}
+3) If we are ${E_WHITE_FG}NOT LAST LINE${E_RESET} ${E_CYAN_FG}\$!${E_RESET}, branch to the
+created label ${E_CYAN_FG}ba${E_RESET}
+4) Finally, the substitution ${E_WHITE_FG}replaces every newline with a space${E_RESET} on the
+pattern space
+DOC1
+
+echo -n "\nPress (a) to read sed advanced tutorial"
+echo -n "\nPress (b) to read sed basic commands tutorial"
+echo -n "\nEnter (a/b/n):"
+read -k1 RESPONSE
+[[ ${RESPONSE} == 'a' ]] && evince -f /usr/local/etc/sed.pdf
+[[ ${RESPONSE} == 'b' ]] && evince -f /usr/local/etc/StreamEditor-BasicCommands.pdf

@@ -1,0 +1,213 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+#Constants
+_LIB=/usr/local/lib
+FUNC_REGEX='^\S*\s() {$\|^function\s*\S*\s{$'
+GREP_BLACKLIST='usage\|parse_opts\|opt_type'
+
+#Declarations
+typeset -a FUNCTIONS
+typeset -aU LOCAL_LIST
+typeset -a _BLACKLIST=(usage\|parse_opts\|opt_type)
+typeset -aU FUNC_MATCH
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+action_do () {
+	local -a FLIST
+	local F
+	local M
+	local -a FUNCTIONS
+
+	for M in ${(on)_MARKED};do
+		for F in ${FUNC_MATCH};do
+			grep -q ${F} ${_LIST[${M}]}
+			[[ ${?} -eq 0 ]] && FUNCTIONS+=$(cut -d '(' -f1 <<<${F})
+		done
+		msg_box -H3 -P"Show function code (y/n)?" -cp "<U>Function List<N>||File:<w>${_LIST[${M}]}<N> (<w>${M}<N> of <w>${#_LIST_SELECTED}<N>)| |$(msg_list ${(o)FUNCTIONS})"
+		if [[ ${_MSG_KEY} == 'y' ]];then
+			for F in ${FUNCTIONS};do
+				print_func ${F} ${_LIST[${M}]}
+			done | less -S -P "Viewing functions within\:$(sed 's/\./\\./' <<<${_LIST[${M}]})" #less hides dots in prompt - must escape
+		fi
+		FUNCTIONS=()
+	done
+ 
+	for M in ${_MARKED};do
+		_MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW} #mark as complete
+	done
+}
+
+print_func () {
+	local FUNC=${1}
+	local FN=${2}
+	
+	perl -ne "print if /^(function)?(\s)?${FUNC}.*\{$/ .. /^\}$/" ${FN} | perl -pe 's/^}$/}\n/g'
+}
+
+str_rep () {
+	local CHAR=${1}
+	local LENGTH=${2}
+	local X
+	local LINE
+
+	[[ ${_DEBUG} -gt 1 ]] && dbg "${WHITE_FG}\nEntered${RESET}:${0} with [${@}]"
+
+	LINE=''
+	for ((X=0;X < ${LENGTH};X++));do
+		LINE=${LINE}''${CHAR}
+	done
+	echo ${LINE}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Displays functions within script file(s)
+\t<PATH> can be fully qualified
+\tIf <PATH> is only a file name, current dir will be assumed
+\t<SEARCHTERM> - limit to function names containing <SEARCHTERM>
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		p) echo "<PATH>";;
+		s) echo "<SEARCHTERM>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type p)] [$(opt_type s)]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HD"
+
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+PATHLBL=$(path_get_label 40)
+
+#Handle SEARCHTERM
+[[ ${#} -ne 0 && ( ${1} =~ '/' || -e ./${1} ) ]] && ARG_IS_PATH=true || ARG_IS_PATH=false
+[[ ${ARG_IS_PATH} == 'true' && ! -e ${1} ]] && usage "Invalid path"
+case ${#} in
+	0) SEARCHTERM='';;
+	1) [[ ${ARG_IS_PATH} == 'false' ]] && SEARCHTERM=${1};;
+	2) [[ ${ARG_IS_PATH} == 'false' ]] && SEARCHTERM=${2};;
+	*) usage "Too many arguments. Max:2";;
+esac
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: Searching FPATH:${FPATH}"
+
+RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 -type f ${FGLOB} ! -path ${FPATH}")}")
+
+for F in ${(o)RAWLIST};do
+	[[ ! $(file ${F}) =~ 'script' && ${F:e} != 'zsh' ]] && continue #only zsh script files
+
+	FUNC_LIST=("${(f)$(grep -P '^\S*\s\(\) {' ${F})}")
+	
+	for S in ${FUNC_LIST};do
+		if [[ ${SEARCHTERM:=null} != 'null' ]];then
+			if [[ ${S} =~ ${SEARCHTERM} ]];then
+				FUNC_MATCH+=${S} # all matching functions
+				LOCAL_LIST+=${F}
+			fi
+		else
+			FUNC_MATCH+=${S} # all unctions
+			LOCAL_LIST+=${F}
+		fi
+	done
+done
+
+if ! arr_is_populated "${LOCAL_LIST}";then
+	exit_leave $(msg_warn "No matches found")
+fi
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d ${RESET}$(str_pluralize file ${#_LIST})  Path:${WHITE_FG}%-*s${RESET} Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${SELECTED_COUNT}'
+if [[ ${SEARCHTERM:=null} != 'null' ]];then
+	list_set_header 'printf "Showing any file than contains a function that matched:${WHITE_FG}%s${RESET}\n" ${SEARCHTERM}'
+fi
+list_add_header_break
+list_set_header_break_offset 0
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${ARRAY_NDX} ${_LIST[${ARRAY_NDX}]}
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to view function(s) (${ITALIC}or exit if none selected${RESET})."
+list_set_clear_ghosts true
+
+while true;do
+	#get selection
+	list_select ${LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	_MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_do
+	fi
+done
+
+exit_leave

@@ -1,0 +1,132 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+#Declarations
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+dismount () {
+	sudo umount /dev/sda1 2>/dev/null
+	sudo umount /dev/sda4 2>/dev/null
+	sleep 1
+	sudo udisksctl power-off -b /dev/sda 2>/dev/null
+}
+
+pre_exit () {
+	[[ ${_DEBUG} -eq 0 ]] && do_smcup
+	msg_box "Waiting for dismount..."
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${WHITE_FG}Would be doing dismount${RESET}" || dismount
+
+	msg_box "Killing nordvpnd..."
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${WHITE_FG}Would be killing nordvpnd${RESET}" || sudo killall nordvpnd
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Reboot or shutdown system
+\tPrior to either, the external drive is powered off and 
+\tproblematic daemons are killed to reduce any delays
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} logout"
+	echo -e "${WHITE_FG}-p${RESET} power off"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDlp"
+
+POWER_OFF=false
+LOGOUT=false
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     p) POWER_OFF=true;;
+     l) LOGOUT=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+if [[ ${POWER_OFF} == 'false' ]];then
+	MSG_OUT="|Reboot, Logout, or Power Off?"
+	msg_box -p -P "(r) to reboot, (l) to logout, (p) to power off, (q) to quit|"  "${MSG_OUT}|$(str_unicode_line ${#MSG_OUT})"
+	MSG_OUT="<r>Rebooting..."
+	[[ ${_MSG_KEY:l} == [qn] || ${_MSG_KEY:l} == 'esc' ]] && exit_leave $(msg_warn "Operation cancelled")
+	[[ ${_MSG_KEY:l} == 'l' ]] && LOGOUT=true && MSG_OUT="<g>Logging out.."
+	[[ ${_MSG_KEY:l} == 'p' ]] && POWER_OFF=true && MSG_OUT="<c>Shutting down..."
+fi
+
+msg_box -x3 -y3    "${MSG_OUT}<N>"
+msg_box -x35 -y150 "${MSG_OUT}<N>"
+msg_box -x35 -y3   "${MSG_OUT}<N>"
+msg_box -x3 -y150  "${MSG_OUT}<N>"
+
+if [[ ${POWER_OFF} == 'true' ]];then
+	sudo shutdown now
+elif [[ ${LOGOUT} == 'true' ]];then
+	gnome-session-quit --logout --no-prompt
+else
+	sudo reboot
+fi
+
+exit_leave

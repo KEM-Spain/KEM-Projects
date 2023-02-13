@@ -1,0 +1,334 @@
+#!/usr/bin/zsh
+#TODO: sorting has strange results - investigate
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A COL_WIDTHS
+typeset -A DESCRIPTIONS
+typeset -A RUN_STATES
+typeset -A STATES
+typeset -A STATE_TABLE=(a alias d disabled e enabled g generated i indirect m masked s static t transient)
+typeset -A UNIT_FILES
+typeset -A _SORT_TABLE
+typeset -a ACTION_TABLE=(enable disable view stop restart)
+typeset -a LOCAL_LIST
+typeset -a MARKED
+typeset -a RAW_LIST
+typeset -a RAW_STATES
+typeset -a STATE_SELECT
+
+#Constants
+_LIB=/usr/local/lib
+_MAX_ITEM_LEN=75
+
+#Globals
+match=? #perl
+mbegin=? #perl
+mend=? #perl
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+action_do () {
+	local M
+	local NDX
+
+	selection_list_set ${ACTION_TABLE}
+	selection_list -x11 -y32 "<w>Select action<N>"
+
+	if [[ ${?} -ne 2 ]];then
+		for M in ${MARKED};do
+			NDX=${_LIST[${M}]}
+			if [[ ${_SELECTION_VALUE} == 'view' ]];then
+				msg_stream "sudo systemctl show ${UNIT_FILES[${NDX}]}"
+			else
+				action_warn ${_SELECTION_VALUE}
+				[[ ${?} -ne 0 ]] && msg_box -p -PK "Operation Cancelled" && return
+				sudo systemctl ${_SELECTION_VALUE} ${UNIT_FILES[${NDX}]} 2>/dev/null
+			fi
+		done
+		upd_unit ${M}
+	fi
+
+	for M in ${MARKED};do
+		MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local M
+	local ACTION=${1}
+	local INFO_MSG
+	
+	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
+	msg_box -p -PC "<I>Please respond<N>|$(str_unicode_line 14)| |${#MARKED} unit files queued for action <w>${ACTION}<N>${INFO_MSG}"
+
+	if [[ ${_MSG_KEY} =~ '(n|esc)' ]];then
+		for M in ${MARKED};do
+			list_remove_selected ${M}
+		done
+		return 1
+	fi
+	return 0
+}
+
+item_decorate () {
+  local NDX=$1
+
+  case ${_LIST_SELECTED[${NDX}]} in
+			 2) echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}viewed${E_RESET}";;
+			 *)      tput el;echo -n ${UNIT_FILES[${_LIST[${NDX}]}]};;
+  esac
+}
+
+upd_unit () {
+	local NDX=${1}
+	local UNIT=${UNIT_FILES[${NDX}]}
+	local STATE
+	local RUN_STATE
+	local UNIT_INFO
+	local DESC
+
+	UNIT_INFO=$(sudo systemctl list-unit-files | tr -s '[:space:]' | grep ${UNIT} 2>/dev/null)
+	RUN_STATE=$(sudo systemctl list-units -all | tr -s '[:space:]' | grep ${UNIT} 2>/dev/null)
+
+	if [[ ${RUNNING} == 'true' ]];then
+		STATE=$(cut -d' ' -f4 <<<${RUN_STATE})
+		DESC=$(cut -d' ' -f5- <<<${RUN_STATE})
+
+		UNIT_FILES[${NDX}]=${UNIT}
+		STATES[${NDX}]=${STATE}
+		DESCRIPTIONS[${NDX}]=${DESC}
+	else
+		STATE=$(cut -d' ' -f2 <<<${UNIT_INFO})
+		RUN_STATE=$(cut -d' ' -f4 <<<${RUN_STATE})
+
+		UNIT_FILES[${NDX}]=${UNIT}
+		STATES[${NDX}]=${STATE}
+		RUN_STATES[${NDX}]=${RUN_STATE}
+	fi
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+View/manage systemd unit files
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+		u) echo "<UNIT_FILE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+	tabs 5
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type u) \n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-R${RESET} daemon-reload"
+	echo -e "${WHITE_FG}-a${RESET} show only alias unit files"
+	echo -e "${WHITE_FG}-d${RESET} show only disabled unit files"
+	echo -e "${WHITE_FG}-e${RESET} show only enabled unit files"
+	echo -e "${WHITE_FG}-g${RESET} show only generated unit files"
+	echo -e "${WHITE_FG}-i${RESET} show only indirect unit files"
+	echo -e "${WHITE_FG}-m${RESET} show only masked unit files"
+	echo -e "${WHITE_FG}-r${RESET} show only running services"
+	echo -e "${WHITE_FG}-s${RESET} show only static unit files"
+	echo -e "${WHITE_FG}-t${RESET} show only transient unit files"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDRadegimrst"
+OPTIND=0
+RUNNING=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     R) sudo systemctl daemon-reload;;
+	  a|d|e|g|i|m|s|t) STATE_SELECT+=${STATE_TABLE[${OPTION}]};;
+	  r) RUNNING=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ -n ${1} ]] && SEARCHTERM=${1} || SEARCHTERM=''
+
+if [[ ${RUNNING} == 'true' ]];then
+	RAW_LIST=("${(f)$(sudo systemctl list-units --all --type=service --state=active | tail -n +2 | head -n -6 | sed 's/^ *//g' | tr -s '[:space:]')}")
+	HDR_TYPE="Running Services"
+
+	NDX=0
+	for L in ${(o)RAW_LIST};do
+		[[ -n ${SEARCHTERM} && (! ${L} =~ ${SEARCHTERM}) ]] && continue
+
+		#echo to translate any hex encoding
+		UNIT=$(cut -d' ' -f1 <<<$(echo ${L}))
+		STATE=$(cut -d' ' -f4 <<<$(echo ${L}))
+		DESC=$(cut -d' ' -f5- <<<$(echo ${L}))
+
+		((NDX++))
+		UNIT_FILES[${NDX}]=${UNIT[1,${_MAX_ITEM_LEN}]}
+		STATES[${NDX}]=${STATE}
+		DESCRIPTIONS[${NDX}]=${DESC[1,${_MAX_ITEM_LEN}]}
+		LOCAL_LIST+=${NDX}
+
+		[[ ${#UNIT_FILES[${NDX}]} -gt ${COL_WIDTHS[UNIT]} ]] && COL_WIDTHS[UNIT]=${#UNIT_FILES[${NDX}]}
+		[[ ${#STATES[${NDX}]} -gt ${COL_WIDTHS[STATE]} ]] && COL_WIDTHS[STATE]=${#STATES[${NDX}]}
+		[[ ${#DESCRIPTIONS[${NDX}]} -gt ${COL_WIDTHS[DESC]} ]] && COL_WIDTHS[DESC]=${#DESCRIPTIONS[${NDX}]}
+	done
+	_SORT_TABLE=(1 UNIT_FILES 2 STATES 3 DESCRIPTIONS)
+else
+	RAW_LIST=("${(f)$(sudo systemctl list-unit-files | tr -s '[:space:]' | tail -n +2 | head -n -2)}")
+	RAW_STATES=("${(f)$(sudo systemctl list-units -all | tr -s '[:space:]' | tail -n +2 | head -n -2)}")
+	HDR_TYPE="Unit Files"
+
+	if [[ -n ${STATE_SELECT} ]];then
+		REGEX="("
+		for ((S=1;S<${#STATE_SELECT};S++));do
+			REGEX+="${STATE_SELECT[${S}]}|"
+		done
+		REGEX+="${STATE_SELECT[${S}]})"
+	fi
+
+	NDX=0
+	for L in ${(o)RAW_LIST};do
+		[[ -n ${SEARCHTERM} && (! ${L} =~ ${SEARCHTERM}) ]] && continue
+
+		#echo to translate any hex encoding
+		UNIT=$(cut -d' ' -f1 <<<$(echo ${L}))
+		STATE=$(cut -d' ' -f2 <<<$(echo ${L}))
+
+		if [[ -n ${STATE_SELECT} ]];then
+			grep -Pq "${REGEX}" <<<${STATE}
+			[[ ${?} -ne 0 ]] && continue
+		fi
+
+		for R in ${(o)RAW_STATES};do
+			[[ ${R} =~ ${UNIT} ]] && RUN_STATE=${R} && break
+		done
+
+		[[ -n ${RUN_STATE} ]] && RUN_STATE=$(cut -d' ' -f4 <<<${RUN_STATE}) || RUN_STATE=''
+
+		((NDX++))
+		UNIT_FILES[${NDX}]=${UNIT[1,${_MAX_ITEM_LEN}]}
+		STATES[${NDX}]=${STATE}
+		RUN_STATES[${NDX}]=${RUN_STATE:=N/A}
+
+		[[ ${#UNIT_FILES[${NDX}]} -gt ${COL_WIDTHS[UNIT]} ]] && COL_WIDTHS[UNIT]=${#UNIT_FILES[${NDX}]}
+		[[ ${#STATES[${NDX}]} -gt ${COL_WIDTHS[STATE]} ]] && COL_WIDTHS[STATE]=${#STATES[${NDX}]}
+		[[ ${#RUN_STATES[${NDX}]} -gt ${COL_WIDTHS[RUN_STATE]} ]] && COL_WIDTHS[RUN_STATE]=${#RUN_STATES[${NDX}]}
+
+		LOCAL_LIST+=${NDX}
+	done
+	((COL_WIDTHS[UNIT]+=4))
+	_SORT_TABLE=(1 UNIT_FILES 2 STATES 3 RUN_STATES)
+fi
+
+if ! arr_is_populated "${LOCAL_LIST}";then
+	exit_leave $(msg_warn "No systemd entries matching:${SEARCHTERM}")
+fi
+
+#Boundary check
+[[ ${COL_WIDTHS[UNIT]} -gt ${_MAX_ITEM_LEN} ]] && COL_WIDTHS[UNIT]=${_MAX_ITEM_LEN}
+[[ ${COL_WIDTHS[DESC]} -gt ${_MAX_ITEM_LEN} ]] && COL_WIDTHS[DESC]=${_MAX_ITEM_LEN}
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} System Control ${HDR_TYPE}\tPage:${WHITE_FG}%-d${RESET} of ${WHITE_FG}%-d${RESET}\tSelected:${WHITE_FG}%-d${RESET}" ${#_LIST} ${PAGE} ${MAX_PAGES} ${SELECTED_COUNT}'
+list_set_header 'printf ""'
+if [[ ${RUNNING} == 'true' ]];then
+	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${COL_WIDTHS[UNIT]} "Unit File" ${COL_WIDTHS[STATE]} "State" ${COL_WIDTHS[DESC]} "Description"'
+	list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %-*s %-*s${RESET}" 5 "" ${COL_WIDTHS[UNIT]} $(str_unicode_line ${COL_WIDTHS[UNIT]}) ${COL_WIDTHS[STATE]} $(str_unicode_line ${COL_WIDTHS[STATE]}) ${COL_WIDTHS[DESC]} $(str_unicode_line ${COL_WIDTHS[DESC]})'
+
+	#set line item
+	list_set_line_item ' 
+	local FNDX=${_LIST[${ARRAY_NDX}]};
+	local ST_COLOR=$(boolean_color ${STATES[${FNDX}]});
+	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-*s${RESET} ${BAR}${ST_COLOR}%-*s${RESET} ${BAR}%-*s${RESET}\n" ${ARRAY_NDX} ${COL_WIDTHS[UNIT]} "${UNIT_FILES[${FNDX}]}" ${COL_WIDTHS[STATE]} "${STATES[${FNDX}]}" ${COL_WIDTHS[DESC]} "${DESCRIPTIONS[${FNDX}]}"'
+else
+	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${COL_WIDTHS[UNIT]} "Unit File" ${COL_WIDTHS[STATE]} "State" ${COL_WIDTHS[RUN_STATE]} "Status"'
+	list_set_header 'printf "%*s ${MAGENTA_FG}%*s %*s %*s${RESET}" 5 "" ${COL_WIDTHS[UNIT]} $(str_unicode_line ${COL_WIDTHS[UNIT]}) ${COL_WIDTHS[STATE]} $(str_unicode_line ${COL_WIDTHS[STATE]}) ${COL_WIDTHS[RUN_STATE]} $(str_unicode_line ${COL_WIDTHS[RUN_STATE]})'
+
+	#set line item
+	list_set_line_item ' 
+	local FNDX=${_LIST[${ARRAY_NDX}]};
+	local ST_COLOR=$(boolean_color ${RUN_STATES[${FNDX}]});
+	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%*s${RESET}${BAR} %-*s ${ST_COLOR}%-*s${RESET}\n" ${ARRAY_NDX} ${COL_WIDTHS[UNIT]} "${UNIT_FILES[${FNDX}]}" ${COL_WIDTHS[STATE]} "${STATES[${FNDX}]}" ${COL_WIDTHS[RUN_STATE]} "${RUN_STATES[${FNDX}]}"'
+fi
+
+list_set_key_msg '
+printf "Press ${WHITE_FG}Home End PgUp PgDn, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}, <${WHITE_FG}s${RESET}>ort columns"
+'
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to manage unit file (${ITALIC}or exit if none selected${RESET})."
+list_set_sortable true
+list_set_clear_ghosts true
+list_set_sort_cols ${#_SORT_TABLE}
+list_set_sort_engine assoc
+list_set_barlines true
+
+while true;do
+	#get selection
+	list_select ${LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_do
+	fi
+done
+
+exit_leave

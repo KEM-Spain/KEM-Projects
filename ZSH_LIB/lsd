@@ -1,0 +1,277 @@
+#!/usr/bin/zsh
+#Ansi colors
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+STRIKE="\033[9m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+
+#Echoed ansi colors
+E_REVERSE=$(echo "\033[7m")
+E_RESET=$(echo "\033[m")
+E_BOLD=$(echo "\033[1m")
+E_BLACK_FG=$(echo "\033[30m")
+E_RED_FG=$(echo "\033[31m")
+E_GREEN_FG=$(echo "\033[32m")
+E_YELLOW_FG=$(echo "\033[33m")
+E_BLUE_FG=$(echo "\033[34m")
+E_MAGENTA_FG=$(echo "\033[35m")
+E_CYAN_FG=$(echo "\033[36m")
+E_WHITE_FG=$(echo "\033[37m")
+E_STRIKE=$(echo "\033[9m")
+
+#Declarations
+typeset -a MARKED=()
+typeset -a DELETED=()
+typeset -a LIST=()
+typeset -a FILTER
+typeset -A HEX_INODE
+typeset -A DISPLAY_HEX
+typeset -A INODE
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+action_do () {
+	local M
+
+	for M in ${MARKED};do
+		if [[ -d ${LIST[${M}]} ]];then
+			sudo /bin/rm -r ${LIST[${M}]}
+		else
+			sudo /bin/rm ${LIST[${M}]}
+		fi
+	done
+
+	for M in ${MARKED};do
+		MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local CNT=$(list_get_selected_count ${MARKED})
+	local M X
+	local -a DLIST
+	local INFO_MSG
+	
+	for M in ${MARKED};do
+		DLIST+=$(find ${FPATH} -inum ${INODE[${LIST[${M}]}]}) 
+		[[ ${_DEBUG} -gt 0 ]] && dbg "find ${FPATH} -inum ${INODE[${LIST[${M}]}]}"
+		for (( X=1; X <= ${#DLIST}; X++ ));do
+			[[ ${DLIST[${X}]:h} == ${PWD} ]] && DLIST[${X}]=${DLIST[${X}]:t}
+		done
+	done
+
+	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="(<w><I>current page only<N>)|" || INFO_MSG=''
+	msg_box -p -PP "<I>Please respond<N>|$(str_unicode_line 14)|$(str_pluralize ${OBJTYPE} ${CNT} true) queued for deletion|${INFO_MSG}|$(msg_list ${(o)DLIST})"
+	if [[ ${_MSG_KEY} != 'y' ]];then
+		for M in ${MARKED};do
+			list_remove_selected ${M}
+		done
+	fi
+}
+
+dir_empty () {
+	local DIR=${1:q}
+
+	[[ ! -d ${DIR} ]] && return 1
+
+	if [ -z "$(/bin/ls -A ${DIR})" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+files_remaining () {
+	local REMAINING=0
+	local L
+
+	for L in ${LIST};do
+		[[ ! -e ${FPATH}/${L} ]] && continue
+		((REMAINING++))
+	done
+
+	echo ${REMAINING}
+}
+
+
+item_decorate () {
+	local NDX=${1}
+
+	[[ ${_LIST_SELECTED[${NDX}]} -eq 2 ]] && echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}deleted${E_RESET}" || echo -n ${_LIST[${NDX}]}
+}
+
+sort_option () {
+	local LINE
+	local SORT_OPTION
+
+	[[ ${TIMESORT} == 'true' ]] && SORT_OPTION='-rn' || SORT_OPTION='' 
+
+	while read LINE;do
+		[[ -z ${SORT_OPTION} ]] && echo ${LINE:t} || echo ${LINE}
+		echo $LINE
+	done | sort ${SORT_OPTION}
+}
+
+to_hex () {
+	local TXT=${@}
+	echo $TXT | od -An -tx1 | tr -d '[\n]' | sed 's/ /\\x/g' 
+}
+
+from_hex () {
+	local HEX=${@}
+	printf $HEX
+}
+
+#--Begin GetOpts--
+read -r -d '' DESC<<EOF
+Select files or directories to delete from a list
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} [PATTERN]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-d${RESET} directories only (default:${WHITE_FG}files only${RESET})"
+	echo -e "${WHITE_FG}-e${RESET} no executables"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDde"
+DIRLIST=false
+NOEXEC=false
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     d) DIRLIST=true;;
+     e) NOEXEC=true;;
+    \?) exit_leave "${RED_FG}Error${RESET}: unknown option -${OPTARG}";;
+	  :) exit_leave "${RED_FG}Error${RESET}: option -${OPTARG} requires an argument${RESET}";;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+#--Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+#Set content
+[[ ${DIRLIST} == "true" ]] && OBJTYPE="directory" || OBJTYPE="file"
+
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+PATHLBL=$(path_get_label 40)
+
+if [[ ${DIRLIST} == "true" ]];then
+	RAWLIST=("${(f)$(eval "find ${FPATH:q} -maxdepth 1 ${FGLOB} -type d ! -path ${FPATH:q}" 2>/dev/null)}") #double quote surrounding command
+	[[ ${_DEBUG} -gt 0 ]] && dbg "find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path ${FPATH:q}"
+else
+	RAWLIST=("${(f)$(eval "find ${FPATH:q} -maxdepth 1 ${FGLOB} -type f ! -path ${FPATH:q}" 2>/dev/null)}") #double quote surrounding command
+	[[ ${_DEBUG} -gt 0 ]] && dbg "find ${FPATH} -maxdepth 1 ${FGLOB} -type f ! -path ${FPATH:q}"
+fi
+
+LIST=()
+for L in ${RAWLIST:t};do
+	[[ ${NOEXEC} == 'true' && -x ${L} ]] && continue
+	HEX=$(to_hex ${L})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "Capturing inodes: /bin/ls -tid "${FPATH}/${L}" | cut -d' ' -f1"
+	FN="${FPATH}/${L}"
+	HEX_INODE[${HEX}]=$(/bin/ls -tid "${FN}" | cut -d' ' -f1) #capture inode
+	FN=$(echo ${L} | sed -e 's/[[:cntrl:]]/?/g' -e 's/[^[:print:]\r\t]/?/g' | iconv -f utf8 -t ascii//TRANSLIT) #remove non printing for display
+	[[ "${FN:h}" == "${PWD}" ]] && LIST+="./${FN:t}" || LIST+=${FN} #remove path for display; FPATH holds path 
+	DISPLAY_HEX[${FN}]=${HEX}
+done
+LIST=(${(o)LIST}) #sort
+
+if ! arr_is_populated "${LIST}";then
+	[[ ${NOEXEC} == 'true' ]] && EMSG1="non executable " || EMSG1=''
+	[[ ${#} -ne 0 ]] && EMSG2=" matching ${FGLOB}" || EMSG2=''
+	EMSG2="${EMSG2} ${RESET}(unblock directories: -d)"
+	exit_leave $(msg_warn "No regular ${EMSG1}$(str_pluralize ${OBJTYPE}) found${EMSG2}")
+fi
+
+for K in ${(k)DISPLAY_HEX};do
+	INODE[${K}]=${HEX_INODE[${DISPLAY_HEX[$K]}]} #assoc displayable filename with original inode
+done
+
+if [[ ${DIRLIST} == 'true' ]];then
+	FILTER+='Directories only'
+elif [[ ${NOEXEC} == 'true' ]];then
+	FILTER+='No executables'
+elif [[ ${FILELIST} == 'true' ]];then
+	FILTER+='File List'
+else 
+	FILTER='None'
+fi
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize ${OBJTYPE} ${#_LIST}) Path:${WHITE_FG}%-*s${RESET}  Filter:${WHITE_FG}%s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" "${FILTER}" ${SELECTED_COUNT}'
+list_add_header_break
+list_set_header_break_offset 0
+list_set_header_break_color ${RED_FG}
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${ARRAY_NDX} "$(item_decorate ${ARRAY_NDX})" 
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to delete (${ITALIC}or exit if none selected${RESET})."
+list_set_action_msgs delete file
+
+while true;do
+	#display list
+	list_select ${LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get user selections
+	MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_warn
+		if [[ ${_MSG_KEY} == "y" ]];then
+			action_do
+		fi
+		[[ $(files_remaining) -eq 0 ]] && break
+	fi
+done
+
+exit_leave

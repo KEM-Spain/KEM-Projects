@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+w3m -dump $1 

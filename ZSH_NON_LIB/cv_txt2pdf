@@ -1,0 +1,29 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+FONT=Times-Roman10
+#Execution
+[[ -z ${1} ]] && echo "Usage:${0:t} <TEXTFILE>" && exit
+
+FN=${1}
+PDF_FN=${FN:t:r}.pdf
+
+[[ ! -e ${1} ]] && echo "${0:t}: ${RED_FG}File${RESET}: ${WHITE_FG}${FN}${RED_FG} not found${RESET}" && exit
+
+echo "Converting ${CYAN_FG}${FN}${RESET} to ${WHITE_FG}${PDF_FN}${RESET}..."
+enscript -q -f ${FONT} -B --file-align=2 --word-wrap -p /tmp/output.ps ${FN}
+if [[ ! -e /tmp/output.ps ]];then
+	echo "${0:t} enscript failed on ${FN} conversion to ps"
+	exit
+else
+	ps2pdf /tmp/output.ps ${PDF_FN}
+	rm -f /tmp/output.ps
+fi
+

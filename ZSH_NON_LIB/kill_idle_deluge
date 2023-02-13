@@ -1,0 +1,523 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m" 
+YELLOW_FG="\033[33m" 
+BLUE_FG="\033[34m" 
+MAGENTA_FG="\033[35m" 
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Ensure only 1 instance
+ME=${0:t}
+PID=$(pgrep -cf ${ME})
+[[ ${PID} -gt 1 ]] && exit #singleton
+
+#Constants and Globals
+COMPLETED_DIR=Completed
+TORRENT_DIR=Torrents
+ROOT_DIR=~/Downloads
+TORRENT_PATH=${ROOT_DIR}/${TORRENT_DIR}
+COMPLETED_PATH=${TORRENT_PATH}/${COMPLETED_DIR}
+DELUGE_STATE=~/.config/deluge/state
+GET_FILE_ACTIVITY_SLEEP=4
+GET_FILE_LIST_MAX_ATTEMPTS=30
+KILL_LOG=~/.ts/kill.log
+
+LAST_CSIZE=0
+SLEEP_BTWN_DBG=10
+SLEEP_BTWN_POLL=30
+RATE_MULTIPLIER=$((60/SLEEP_BTWN_POLL))
+SLEEP_FINAL=5
+TS=$(date) 
+ALL_DOWNLOADS_COMPLETED=false
+ANY_DOWNLOADS_COMPLETED=false
+
+#Declarations
+typeset -A CURRENT_FILELIST
+typeset -A FILES_SEEN
+typeset -A FILE_ERRORS
+typeset -A FILE_PROFILE
+typeset -A CURRENT_FILE_SIZE
+typeset -A LAST_FILE_SIZE
+typeset -A REMAINING_BYTES
+typeset -a OPEN_FILES
+typeset -a CONN_MSG
+
+log_it () {
+	local LINE
+	local STAMP=$(date +"%k:%M")
+
+	while read LINE;do
+		echo "${STAMP} ${LINE}" >> ${KILL_LOG}
+	done
+}
+
+shutdown () {
+	local STATE_FILES
+
+
+	echo "\n${RED_FG}Killing deluge-gtk${RESET}" | log_it
+	PID=$(pgrep -nx deluge-gtk)
+	[[ -n ${PID} ]] && sudo kill -9 ${PID}
+	PID=$(pgrep -nx deluge)
+	[[ -n ${PID} ]] && sudo kill -9 ${PID}
+
+	echo "${RED_FG}Killing nordvpn${RESET}" | log_it
+	PID=$(pgrep -nx openvpn)
+	[[ -n ${PID} ]] && vpn -d >/dev/null 2>&1
+
+	(
+	if [[ ${ALL_DOWNLOADS_COMPLETED} == "true" ]];then
+		STATE_FILES=$(find ${DELUGE_STATE} ! -path ${DELUGE_STATE})
+		[[ -n ${STATE_FILES} ]] && rm -f ${DELUGE_STATE}/* >/dev/null 2>&1
+		echo "${0}:All file completed; cleared deluge state info"
+	else
+		echo "${0}:Some file(s) did not download completely - retaining deluge state info"
+	fi
+	) | log_it
+
+	if [[ ${EXTRACT_FILES} == 'true' && ${ANY_DOWNLOADS_COMPLETED} == 'true' ]];then #at least 1 completed download
+		echo "${0}:Extracting..." | log_it
+		do_mvex >>${KILL_LOG} 2>&1 #do_mvex without args extracts all completed downloads
+	else
+		echo "${0}:${RED_FG}NOT${RESET} extracting files..." | log_it
+	fi
+
+	echo "${0}:${RED_FG}Killing myself${RESET}" | log_it
+	kill -SIGINT $$ #commit suicide
+
+	exit
+}
+
+human () {
+	local BYTES=${1}
+	local GIG_D=1073741824
+	local MEG_D=1048576
+	local KIL_D=1024
+	(
+	if [[ ${BYTES} -gt ${GIG_D} ]];then printf "%10.2fGB" $((${BYTES}.0/${GIG_D}.0))
+	elif [[ ${BYTES} -gt ${MEG_D} ]];then printf "%10.2fMB" $((${BYTES}.0/${MEG_D}.0))
+	elif [[ ${BYTES} -gt ${KIL_D} ]];then printf "%10.2fKB" $((${BYTES}.0/${KIL_D}.0))
+	else printf "%10dB" ${BYTES} 
+	fi
+	) | sed 's/^[ \t]*//g' 
+}
+
+path_seg_cnt () {
+	echo ${@} | grep -o '/' | wc -l
+}
+
+absolute_head () {
+	local PATH_STR=${@}
+	local SEGS H HEAD
+	local -a M
+
+	SEGS=$(path_seg_cnt ${PATH_STR})
+	[[ ${SEGS} -eq 0 ]] && echo ${PATH_STR} && return
+
+	for S in {{1..${SEGS}}};do
+		M+=":h"
+	done
+
+	H=${M}
+	H=${H:gs/ /}
+	HEAD='${PATH_STR'${H}'}'
+	eval echo ${HEAD}
+}
+
+sum_dir_content () {
+	local DIR=${@}
+	local LIST TOTAL SZ L 
+	LIST=("${(f)$(find ${DIR} -type f 2>/dev/null)}") 
+
+	TOTAL=0
+	for L in ${LIST};do
+		SZ=$(stat -c"%s" ${L} 2>/dev/null)
+		((TOTAL+=SZ))
+	done
+	echo ${TOTAL}
+}
+
+get_assoc_key_index () {
+	local ARR_NAME=$1
+	local KEY=$2
+	local NDX=0
+	local K
+
+	for K in ${(k)${(P)ARR_NAME}}; do
+		((NDX++))
+		[[ ${K} == ${KEY} ]] && echo ${NDX} && break
+	done
+}
+
+create_file_profile () {
+	[[ ${DEBUG} == "true" ]] && echo "entered ${0}" | log_it
+	local LSOF_LINE=${@}
+	local F LSTAG LSTYPE LSSIZE LSFN FNSIZE NOROOT TRACK ITEM TOP_DIR 
+
+	LSTAG=$(echo ${LSOF_LINE} | tr -s '[:space:]' | cut -d' ' -f4)
+	LSTYPE=$(echo ${LSOF_LINE} | tr -s '[:space:]' | cut -d' ' -f5)
+	LSSIZE=$(echo ${LSOF_LINE} | tr -s '[:space:]' | cut -d' ' -f7)
+	LSNODE=$(echo ${LSOF_LINE} | tr -s '[:space:]' | cut -d' ' -f8)
+	LSFN=$(echo ${LSOF_LINE} | tr -s '[:space:]' | cut -d' ' -f9-)
+
+
+	if [[ ${LSTAG} =~ "cwd" || ${LSFN} =~ "parts" ]];then #ignore current working dir items FILE_PROFILE[NAME]=${LSFN} 
+		FILE_PROFILE[SIZE]=${LSSIZE} 
+		FILE_PROFILE[TRACK]=NO
+		FILE_PROFILE[TYPE]="${LSTYPE}"
+		return
+	fi
+
+	NOROOT=${LSFN##${ROOT_DIR}/} #strip off leading path components ${ROOT_DIR}
+	TOP_DIR=$(absolute_head ${NOROOT})
+	TOR_SUB=$(absolute_head ${NOROOT##${TORRENT_DIR}/}) #move past Torrents/
+
+	TRACK=NO
+	if [[ ${TOP_DIR} == ${TORRENT_DIR} ]];then 
+		TRACK=YES 
+		ITEM=${TOR_SUB}
+		if [[ ${TOR_SUB} == ${COMPLETED_DIR} ]];then
+			TRACK=SEEDING
+			FNSIZE=${LSSIZE} 
+			ITEM=$(absolute_head ${NOROOT##${TORRENT_DIR}/${TOR_SUB}/}) #move past Torrents/Completed/
+		else
+			for F in ${CURRENT_FILELIST};do
+				[[ "${F}" == "${ITEM}" ]] && TRACK=TRACKING && break 
+			done
+		fi
+	fi
+
+	if [[ ${TRACK} == "YES" || ${TRACK} == "TRACKING" ]];then #get the size
+		if [[ -d ${ROOT_DIR}/${TORRENT_DIR}/${ITEM} ]];then
+			FNSIZE=$(sum_dir_content ${ROOT_DIR}/${TORRENT_DIR}/${ITEM})
+		else
+			FNSIZE=${LSSIZE}
+		fi
+	fi
+	
+	FILE_PROFILE[NAME]="${ITEM}"
+	FILE_PROFILE[SIZE]="${FNSIZE}"
+	FILE_PROFILE[TRACK]="${TRACK}"
+	FILE_PROFILE[TYPE]="${LSTYPE}"
+	FILE_PROFILE[NODE]="${LSNODE}"
+
+	[[ ${FILE_PROFILE[TRACK]} == "YES" ]] && FILES_SEEN[${ITEM}]=1 #mark as tracked
+}
+
+get_list () {
+	[[ ${DEBUG} == "true" ]] && echo "entered ${0}" | log_it
+	local L MSG LDNX
+
+	OPEN_FILES=("${(f)$(lsof -cdeluge -a +D${ROOT_DIR} -s -b 2>/dev/null)}") 
+	OPEN_FILES[1]=() #remove header line
+
+	if [[ ${DEBUG} == "true" ]];then
+		LDNX=0
+		for L in ${OPEN_FILES};do
+			((LDNX++))
+			[[ ${#L} -gt 130 ]] && MSG="(truncated)" || MSG=''
+			echo "${LDNX} ${L[1,130]} ${MSG}" | log_it
+		done
+	fi
+
+	[[ -n ${OPEN_FILES} ]] && return 0 || return 1
+}
+
+set_list () {
+	[[ ${DEBUG} == "true" ]] && echo "entered:${0}" | log_it
+	local L 
+	local NAME
+
+	CURRENT_FILELIST=() #reset list
+
+	get_list
+	[[ ${?} -ne 0 ]] && return 1
+
+	[[ ${DEBUG} == "true" ]] && echo "${0}:OPEN_FILES:${#OPEN_FILES}" | log_it
+
+	for L in ${OPEN_FILES};do
+
+		[[ ${DEBUG} == "true" ]] && echo "${0}:Creating profile for:${L}" | log_it
+		create_file_profile ${L}
+
+		NAME=${FILE_PROFILE[NAME]}
+
+		if [[ (${FILE_PROFILE[TRACK]} == "YES" || ${FILE_PROFILE[TRACK]} == "TRACKING") && ${FILE_PROFILE[SIZE]} -gt ${CURRENT_FILE_SIZE[${NAME}]} ]];then
+			[[ ${DEBUG} == "true" ]] && echo "${0}:${GREEN_FG}Updating size${RESET}:${WHITE_FG}OLD SIZE${RESET}:${CURRENT_FILE_SIZE[${NAME}]} -> ${WHITE_FG}NEW SIZE${RESET}:${FILE_PROFILE[SIZE]}" | log_it
+			CURRENT_FILE_SIZE[${NAME}]=${FILE_PROFILE[SIZE]}
+		fi
+
+		if [[ ${DEBUG} == "true" ]];then
+			printf "${0}:ITEM:${WHITE_FG}%-100s${RESET}TRACK:${WHITE_FG}%-10s${RESET}SIZE:${WHITE_FG}%-10s${RESET}\n" ${NAME} ${FILE_PROFILE[TRACK]} ${FILE_PROFILE[SIZE]} | log_it
+		fi
+
+		if [[ ${FILE_PROFILE[TRACK]} == "YES" ]];then
+			CURRENT_FILELIST[${NAME}]=${FILE_PROFILE[NODE]}
+			[[ ${DEBUG} == "true" ]] && echo "${0}:Name:${NAME} was added to CURRENT_FILELIST" | log_it
+
+			CURRENT_FILE_SIZE[${NAME}]=${FILE_PROFILE[SIZE]}
+
+			if [[ ${DEBUG} == "true" ]];then
+				(
+				echo "${0}:${WHITE_FG}---------------P r o f i l e---------------${RESET}"
+				echo "${0}:${WHITE_FG}NAME${RESET}:${FILE_PROFILE[NAME]}"
+				echo "${0}:${WHITE_FG}NODE${RESET}:${FILE_PROFILE[NODE]}"
+				echo "${0}:${WHITE_FG}SIZE${RESET}:${FILE_PROFILE[SIZE]}"
+				echo "${0}:${WHITE_FG}TRACK${RESET}:${FILE_PROFILE[TRACK]}"
+				echo "${0}:${WHITE_FG}TYPE${RESET}:${FILE_PROFILE[TYPE]}"
+				echo "${0}:${WHITE_FG}--------------------------------------------${RESET}"
+				) | log_it
+			fi
+		else
+			continue
+		fi
+	done
+
+	if [[ ${DEBUG} == "true" ]];then
+		echo "DUMPING CURRENT_FILELIST" | log_it
+		for K in ${(k)CURRENT_FILELIST};do
+			echo "KEY:${K}, VAL:${CURRENT_FILELIST[${K}]}" | log_it
+		done
+	fi
+
+	[[ -n ${CURRENT_FILELIST} ]] && return 0 || return 1
+}
+
+print_status () {
+	local F=${1}
+	local MSG=${2}
+
+	if [[ -e ${TORRENT_PATH}/${F} ]];then
+		#gather file size data
+		[[ -z ${REMAINING_BYTES[${F}]} ]] && REMAINING_BYTES[${F}]=0 #initialize
+		[[ -z ${FILE_ERRORS[${F}]} ]] && FILE_ERRORS[${F}]=0 #initialize
+	
+		FDIFF=0 #initialize
+	
+		CSIZE=$(du --summarize ${TORRENT_PATH}/${F} 2>/dev/null | awk '{print $1}') #get current blocks
+		CSIZE=$((CSIZE * 1024)) #convert blocks to bytes
+	
+		if [[ ${CURRENT_FILE_SIZE[${F}]} -gt 0 ]];then
+			PCT=$(( ${CSIZE}.00 / ${CURRENT_FILE_SIZE[${F}]}.00 * 100)) #current size vs total size
+			FDIFF=$(( ${CURRENT_FILE_SIZE[${F}]}  - CSIZE )) #get difference total size - current size
+		fi
+	
+		[[ -n ${LAST_FILE_SIZE[${F}]} && ${CSIZE} -gt ${LAST_FILE_SIZE[${F}]} ]] && LAST_CHUNK=$(( ${CSIZE} - ${LAST_FILE_SIZE[${F}]} )) || LAST_CHUNK=0
+	
+		TD1=$(human ${CURRENT_FILE_SIZE[${F}]})
+		TD2=$(human ${CSIZE})
+		TD3=$(human ${LAST_CHUNK})
+		TD4=$(human ${FDIFF})
+	
+		echo "${WHITE_FG}Status ${RED_FG}\u25A0${WHITE_FG}---------------------------------------------------------------------${RESET}" | log_it
+		echo ${MSG} | log_it
+		if [[ ${LAST_CHUNK} -ne 0 ]];then
+			printf "${CYAN_FG}Last Chunk${RESET}:${WHITE_FG}%8s${RESET}\n" ${TD3} | log_it
+		else
+			echo "Accumulating chunk data..." | log_it
+		fi
+	
+		#check for frozen download
+		if [[ ${FDIFF} -eq ${REMAINING_BYTES[${F}]} ]];then #difference is not changing
+			((FILE_ERRORS[${F}]+=1)) #increment error condition detect on file
+			FILES_SEEN[${F}]=4
+		else
+			((FILE_ERRORS[${F}]=0)) #reset
+			FILES_SEEN[${F}]=1
+		fi
+	
+		REMAINING_BYTES[${F}]=${FDIFF} #set remaining for file
+		LAST_FILE_SIZE[${F}]=${CSIZE} #set last size for file
+	
+		CSIZE=$(human ${CSIZE})
+		TSIZE=$(human ${CURRENT_FILE_SIZE[${F}]})
+		DSIZE=$(human ${FDIFF})
+		DRATE=$(( (LAST_CHUNK * 2) * 0.00000095367432 )) #MBytes per SLEEP_BTWN_POLL second interval
+		MS=$(( DRATE / 60 )) #Megabytes per second
+	
+		printf "%-80s Have:${GREEN_FG}"'%8s'"${RESET} of ${WHITE_FG}"'%8s'"${RESET} Need:${RED_FG}"'%8s'"${RESET} Pct:${WHITE_FG}%2.1f%% ${CYAN_FG}%4.2f MB/s${RESET}\n" ${F[1,80]} ${CSIZE} ${TSIZE} ${DSIZE} ${PCT} ${MS} | log_it
+		echo "${WHITE_FG}----------------------------------------------------------------------------${RED_FG}\u25A0${RESET}" | log_it
+	else
+		echo "File:${TORRENT_PATH}/${F} is completed" | log_it
+	fi
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [OPTIONAL ARG]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-e${RESET} extract files after download"
+	echo -e "\n${WHITE_FG}DESC${RESET}:Track torrent download"
+	exit
+}
+
+OPTSTR=":HDe"
+
+DEBUG=false
+EXTRACT_FILES=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) DEBUG=true;;
+     e) EXTRACT_FILES=true;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#--Execution--
+rm -f ${KILL_LOG} #clear old log
+
+#try to populate a file list
+[[ ${DEBUG} == "true" ]] && echo "main:Initializing lsof list" | log_it
+
+NDX=0
+ACTIVE=false
+echo "Trying to detect active downloads - making ${GET_FILE_LIST_MAX_ATTEMPTS} attempts..." | log_it
+while true;do
+	((NDX++))
+
+	CONN_MSG="Query download activity:attempt ${NDX}"
+
+	[[ ${DEBUG} == "true" ]] && echo "main:attempt ${WHITE_FG}${NDX}${RESET} of ${WHITE_FG}${GET_FILE_LIST_MAX_ATTEMPTS}${RESET}" | log_it
+
+	set_list;RC=${?}
+	if [[ ${RC} -eq 0 ]];then
+		echo "${CONN_MSG} success" | log_it
+		ACTIVE=true
+		break
+	else
+		echo "${CONN_MSG} failed" | log_it
+	fi
+
+	CONN_MSG=()
+
+	if [[ ${NDX} -eq ${GET_FILE_LIST_MAX_ATTEMPTS} ]];then
+		echo "\nCould not detect any active downloads" | log_it
+		break
+	fi
+
+	sleep ${GET_FILE_ACTIVITY_SLEEP}
+done
+
+#Process current file list
+while true;do
+	[[ ${DEBUG} == "true" ]] && echo "entered main loop" | log_it
+
+	#analyze any active files and set status digit; Using inodes due to strange
+	#filenames that contain weird chars and therefore not reliably detected by other means
+	#ALTERNATE to find: sudo debugfs -R 'ncheck <inode>' /dev/sda2 | grep -q <inode>
+	echo "CURRENT_FILELIST:${(kv)CURRENT_FILELIST[@]} FILES_SEEN:${(kv)FILES_SEEN[@]}" >>~/.ts/debug.out
+	for F in ${(k)CURRENT_FILELIST};do
+		#Tracked item completed
+		FOUND=$(find "${COMPLETED_PATH}" -maxdepth 3 -inum ${CURRENT_FILELIST[${F}]} 2>/dev/null) 
+		[[ ${DEBUG} == 'true' ]] && echo "find result for ${CURRENT_FILELIST[${F}]} in ${COMPLETED_PATH}:${FOUND}" | log_it
+		[[ -n ${FOUND} ]] && FILES_SEEN[${F}]=2 && continue
+		[[ ${DEBUG} == 'true' ]] && echo "${F} ${CURRENT_FILELIST[${F}]} tagged as completed" | log_it
+
+		#Tracked item is downloading or vanished
+		FOUND=$(find "${TORRENT_PATH}" -maxdepth 3 -inum ${CURRENT_FILELIST[${F}]} 2>/dev/null)
+		[[ ${DEBUG} == 'true' ]] && echo "find result for ${CURRENT_FILELIST[${F}]} in ${TORRENT_PATH}:${FOUND}" | log_it
+		if [[ -n ${FOUND} ]];then
+			FILES_SEEN[${F}]=1 && continue
+			[[ ${DEBUG} == 'true' ]] && echo "${F} ${CURRENT_FILELIST[${F}]} tagged as downloading" | log_it
+		else
+			FILES_SEEN[${F}]=3 && continue
+			[[ ${DEBUG} == 'true' ]] && echo "${F} t${CURRENT_FILELIST[${F}]} tagged as removed" | log_it
+		fi
+	done
+
+	#output status of active files
+	for S in ${(k)FILES_SEEN};do
+		case ${FILES_SEEN[${S}]} in
+			1)	[[ ${#FILES_SEEN} -gt 1 ]] && TAG="($(get_assoc_key_index FILES_SEEN "${S}") of ${#FILES_SEEN})" || TAG=''
+				MSG="${MAGENTA_FG}${S}${RESET} is ${GREEN_FG}downloading${RESET} ${TAG}"
+				;;
+			2) MSG="${CYAN_FG}${S}${RESET} has ${GREEN_FG}completed${RESET}"
+				;;
+			3) MSG="${CYAN_FG}${S}${RESET} was ${GREEN_FG}removed${RESET}"
+				unset "FILES_SEEN[${S}]"
+				;;
+		esac
+		print_status "${S}" "${MSG}"
+	done
+
+	set_list;RC=${?}
+
+	#pre exit checks
+	COMPLETED_COUNT=0
+	if [[ ${RC} -ne 0 ]];then #CURRENT_FILELIST will be empty if all completed or removed or no activity
+		[[ ${ACTIVE} == "false" ]] && shutdown #no active downloads - leave deluge state unchanged to allow for a retry
+
+		echo "Checking tracking history for completed items..." | log_it
+		if [[ -z ${FILES_SEEN} ]];then
+			echo "No tracked files found" | log_it
+			shutdown
+		else
+			for S in ${(k)FILES_SEEN};do #cycle through tracked items
+				case ${FILES_SEEN[${S}]} in
+					1) echo "Tracked item:${WHITE_FG}${S[1,80]}${RESET} is${RED_FG} downloading${RESET}" | log_it;;
+					2) echo "Tracked item:${WHITE_FG}${S[1,80]}${RESET} is${GREEN_FG} completed${RESET}" | log_it; ((COMPLETED_COUNT++));;
+					3) echo "Tracked item:${WHITE_FG}${S[1,80]}${RESET} was${RED_FG} removed${RESET}" | log_it;;
+					4)	echo "Tracked item:${WHITE_FG}${S[1,80]} is ${RED_FG}NOT${RESET} downloading:${FILE_ERRORS[${F}]}" | log_it
+				esac
+			done
+			#[[ ${#CURRENT_FILELIST} -eq 1 && ${FILE_ERRORS[${F}]} -eq 3 ]] && shutdown #only 1 file remaining and it's not downloading
+
+			echo "COMPLETED_COUNT:${COMPLETED_COUNT} FILES_SEEN:${(kv)FILES_SEEN[@]}">>~/.ts/debug.out
+			[[ ${COMPLETED_COUNT} -eq ${#FILES_SEEN} ]] && ALL_DOWNLOADS_COMPLETED=true || ALL_DOWNLOADS_COMPLETED=false #all completed
+			[[ ${COMPLETED_COUNT} -ge 1 ]] && ANY_DOWNLOADS_COMPLETED=true || ANY_DOWNLOADS_COMPLETED=false #at least 1 completed
+
+			if [[ ${ALL_DOWNLOADS_COMPLETED} == 'true' ]];then
+				echo "${GREEN_FG}All${RESET} tracked items were completed. ${RED_FG}Clearing${RESET} Deluge state info" | log_it
+			else
+				echo "Some tracked items were ${RED_FG}NOT${RESET} completed. ${GREEN_FG}Retaining${RESET} Deluge state info" | log_it
+			fi
+			shutdown
+		fi
+	else
+		[[ ${DEBUG} == "true" ]] && echo "main:CURRENT_FILELIST contains:${#CURRENT_FILELIST} items" | log_it
+	fi
+
+	if [[ -n ${CURRENT_FILELIST} ]];then
+		[[ ${DEBUG} == "true" ]] && sleep ${SLEEP_BTWN_DBG} || sleep ${SLEEP_BTWN_POLL}
+	else
+		sleep ${SLEEP_FINAL} #final pass
+	fi
+done

@@ -1,0 +1,56 @@
+#!/usr/bin/zsh
+
+BOLD="\033[1m"
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+WHITE_FG="\033[37m"
+
+MIMETYPES=/etc/mime.types
+USERMIMETYPES=~/.local/share/applications/mimeapps.list
+SHOW_ONLY_APPS=false
+KEYWORD=''
+
+MLIST=($(awk 'NF && $1!~/^#/ {print $1}' < ${MIMETYPES}))
+
+case $1 in
+	-d) SHOW_ONLY_APPS=true;;
+	*) KEYWORD=$1;echo "Searching for keyword: ${KEYWORD}";;
+esac
+
+call_xdg_app () {
+	[[ ! -e /usr/bin/xdg-mime ]] && echo "xdg-mime not found" >&2 && exit
+	xdg-mime query default ${1}
+}
+
+call_gio_app () {
+	[[ ! -e /usr/bin/gio ]] && echo "gio not found" >&2 && exit
+	gio mime ${1}
+}
+
+show_default () {
+	[[ -n ${2} ]] && DA="${WHITE_FG}${APP}" || DA="${RED_FG}no default app"
+	echo "mimetype: ${WHITE_FG}${1}${RESET} -> default app: ${WHITE_FG}${DA}${RESET}"
+}
+
+for M in ${MLIST};do
+	if [[ -n ${KEYWORD} ]];then
+		[[ ! ${M} =~ "${KEYWORD}" ]] && continue
+		APP=$(call_xdg_app ${M})
+		echo -n "XDG:"
+		show_default ${M} ${APP}
+		APP=$(call_gio_app ${M})
+		echo -n "GVFS:"
+		show_default ${M} ${APP}
+		continue
+	fi
+	APP=$(call_xdg_app ${M})
+	if ${SHOW_ONLY_APPS};then
+		[[ -z ${APP} ]] && continue
+		show_default ${M} ${APP}
+	else
+		show_default ${M} ${APP}
+	fi
+done
+

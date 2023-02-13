@@ -1,0 +1,1475 @@
+#!/usr/bin/zsh
+	BOLD=$(echo -n "\033[1m")
+	ITALIC=$(echo -n "\033[3m")
+	RESET=$(echo -n "\033[m")
+	REVERSE=$(echo -n "\033[7m")
+	STRIKE=$(echo -n "\033[9m")
+	UNDER=$(echo -n "\033[4m")
+
+	BLACK_BG=$(echo -n "\033[40m")
+	BLACK_FG=$(echo -n "\033[30m")
+	BLUE_BG=$(echo -n "\033[44m")
+	BLUE_FG=$(echo -n "\033[34m")
+	CYAN_BG=$(echo -n "\033[46m")
+	CYAN_FG=$(echo -n "\033[36m")
+	GREEN_BG=$(echo -n "\033[42m")
+	GREEN_FG=$(echo -n "\033[32m")
+	MAGENTA_BG=$(echo -n "\033[45m")
+	MAGENTA_FG=$(echo -n "\033[35m")
+	RED_BG=$(echo -n "\033[41m")
+	RED_FG=$(echo -n "\033[31m")
+	WHITE_BG=$(echo -n "\033[47m")
+	WHITE_FG=$(echo -n "\033[37m")
+	YELLOW_BG=$(echo -n "\033[43m")
+	YELLOW_FG=$(echo -n "\033[33m")
+ 
+(
+cat << DOC1
+${WHITE_FG}Regular expressions in Perl${RESET}
+
+This document presents a tabular summary of the regular expression
+(regexp) syntax in Perl, then illustrates it with a collection of
+annotated examples.
+
+${WHITE_FG}Metacharacters${RESET}
+
+${WHITE_FG}Char    Meaning${RESET}
+
+^       beginning of string
+$       end of string
+.       any character except newline
+*       match 0 or more times
++       match 1 or more times
+?       match 0 or 1 times; or: shortest match
+|       alternative
+( )     grouping; storing
+[ ]     set of characters
+{ }     repetition modifier
+\       quote or special
+
+To present a metacharacter as a data character standing for itself,
+precede it with \ (e.g. \. matches only the period character '.').
+
+In the table above, the characters themselves, in the first column,
+are links to descriptions of characters in the ISO Latin 1 character
+set - a description with usage notes. Note that the physical
+appearance (glyph) of a character may vary from one device or program
+or font to another.
+
+${WHITE_FG}Repetition${RESET}
+
+a*          zero or more a's
+a+          one or more a's
+a?          zero or one a's (i.e., optional a)
+a{m}        exactly m a's
+a{m,}       at least m a's
+a{m,n}      at least m but at most n a's
+a?          shortest match is taken (non greedy)
+
+Read the notation as an occurrences of strings, each of which matches
+the pattern a. Read repetition as any of the repetition expressions
+listed above it. Shortest match means that the shortest string matching
+the pattern is taken. The default is greedy matching, which finds the
+longest match. The repetition? construct was introduced in Perl version 5.
+
+${WHITE_FG}Special notations with \ (backslash)${RESET}
+
+${WHITE_FG}Single characters${RESET}
+
+\t     tab
+\n     newline
+\r     return (CR)
+\xhh   character with hex code hh
+
+${WHITE_FG}Zero-width assertions ${RESET}
+
+\b     word boundary
+\B     not a word boundary
+\w     matches any single character classified as a word character (alphanumeric or _)
+\W     matches any non-word character
+\s     matches any whitespace character (space, tab, newline)
+\S     matches any non-whitespace character
+\d     matches any digit character, equiv. to [0-9]
+\D     matches any non-digit character
+
+${WHITE_FG}Character sets: specialities inside [...]${RESET}
+
+Different meanings apply inside a character set (character class)
+denoted by [...] so that, instead of the normal rules given here, the
+following apply:
+
+[characters]   matches any of the characters in the sequence
+[x-y]          matches any of the characters from x to y (inclusively) in the ASCII code
+[\-]           matches the hyphen character -
+[\n]           matches the newline; other single character denotations with \ apply normally, too
+[^something]   matches any character except those that [something] denotes; that is, 
+               immediately after the leading [, the circumflex ^ means not applied to all of the rest
+
+${WHITE_FG}Examples${RESET}
+--------
+
+${WHITE_FG}Expression  Matches${RESET}
+
+abc         abc (that exact character sequence, but anywhere in the string)
+^abc        abc at the beginning of the string
+abc$        abc at the end of the string
+a|b         either of a and b
+^abc|abc$   the string abc at the beginning or at the end of the string
+ab{2,4}c    an a followed by two, three or four bs followed by a c
+ab{2,}c     an a followed by at least two bs followed by a c
+ab*c        an a followed by any number (zero or more) of bs followed by a c
+ab+c        an a followed by one or more bs followed by a c
+ab?c        an a followed by an optional b followed by a c; that is, either abc or ac
+a.c         an a followed by any single character (not newline) followed by a c
+a\.c        a.c exactly
+[abc]       any one of a, b and c
+[Aa]bc      either of Abc and abc
+[abc]+      any (nonempty) string of as, bs and cs (such as a, abba, acbabcacaa)
+[^abc]+     any (nonempty) string which does not contain any of a, b and c (such as defg)
+\d\d        any two decimal digits, such as 42; same as \d{2}
+\w+         a word: a nonempty sequence of alphanumeric characters and low lines (underscores), such as foo and 12bar8 and foo_1
+100\s*mk    the strings 100 and mk optionally separated by any amount of white space (spaces, tabs, newlines)
+abc\b       abc when followed by a word boundary (e.g. in abc! but not in abcd)
+perl\B      perl when not followed by a word boundary (e.g. in perlert but not in perl stuff)
+
+${WHITE_FG}LOOK-AHEAD${RESET}
+
+(?=foo)     look-ahead: Asserts that what immediately ${ITALIC}${WHITE_FG}follows the current position${RESET} in the string is ${WHITE_FG}foo${RESET}
+(?<=foo)    look-behind: Asserts that what immediately ${ITALIC}${WHITE_FG}precedes the current position${RESET} in the string is ${WHITE_FG}foo${RESET}
+(?!foo)     Negative look-ahead: Asserts that what immediately${ITALIC}${WHITE_FG}follows the current position${RESET} in the string is ${BOLD}${ITALIC}${RED_FG}not${RESET} ${WHITE_FG}foo${RESET}
+(?<!foo)    Negative look-behind: Asserts that what immediately${ITALIC}${WHITE_FG}precedes the current position${RESET} in the string is ${BOLD}${ITALIC}${RED_FG}not${RESET} ${WHITE_FG}foo${RESET}
+
+${WHITE_FG}COMMON TASKS${RESET}
+
+${WHITE_FG}Finding the last occurrence${RESET}
+
+There are actually a number of ways to get the last occurrence that don't involve look-around, but if you think of "the last foo" 
+as "foo that isn't followed by a string containing foo", you can express that notion like this: ${WHITE_FG}/foo(?!.*foo)/${RESET}
+
+The regular expression engine will do its best to match ${WHITE_FG}.*foo${RESET}, starting at the end of the string "foo". If it is 
+able to match that, then the negative look-ahead will fail, which will force the engine to progress through the string to try the
+next foo.  
+
+${WHITE_FG}Substituting before, after, or between characters${RESET}
+
+Many substitutions match a chunk of text and then replace part or all of it. You can often avoid that by using look-arounds. 
+For example, if you want to put a comma after every foo: ${WHITE_FG}s/(?<=foo)/,/g;${RESET} (without lookbehind: s/foo/foo,/g or s/(foo)/$1,/g)
+or to put the hyphen in look-ahead: ${WHITE_FG}s/(?<=look)(?=ahead)/-/g;${RESET}
+
+This kind of thing is likely to be the bulk of what you use look-arounds for. It is ${BOLD}important${RESET} to remember that look-behind expressions 
+cannot be of variable length. That means you cannot use quantifiers (?, *, +, or {1,5}) or alternation of different-length items inside them.
+
+${WHITE_FG}Matching a pattern that doesn't include another pattern${RESET}
+
+You might want to capture everything between foo and bar that doesn't include baz. The technique is to have the regex engine 
+look-ahead at every character to ensure that it isn't the beginning of the undesired pattern:
+
+${WHITE_FG}/foo((?:(?!baz).)*)bar/x;${RESET}
+
+/foo       # ${WHITE_FG}Match starting at foo${RESET}
+ (         # ${WHITE_FG}Capture${RESET}
+ (?:       # ${WHITE_FG}Complex expression:${RESET}
+   (?!baz) # ${WHITE_FG}make sure we're not at the beginning of baz${RESET}
+   .       # ${WHITE_FG}accept any character${RESET}
+ )*        # ${WHITE_FG}any number of times${RESET}
+ )         # ${WHITE_FG}End capture${RESET}
+ bar       # ${WHITE_FG}and ending at bar${RESET}
+/x;
+
+${WHITE_FG}Nesting${RESET}
+
+You can put look-arounds inside of other look-arounds. This has been known to induce a flight response in certain readers 
+(me, for example, the first time I saw it), but it's really not such a hard concept. A look-around sub-expression inherits a 
+starting position from the enclosing expression, and can walk all around relative to that position without affecting the position 
+of the enclosing expression. They all have independent (though initially inherited) bookkeeping for where they are in the string.
+
+The concept is pretty simple, but the notation becomes hairy very quickly, so commented regular expressions are recommended. 
+Let's look at the real example of Regex to add space after punctuation sign. The poster wants to put a space after any comma 
+(punctuation, actually, but for simplicity, let's say comma) that is not nestled between two digits. Building up the s/// expression:
+
+${WHITE_FG}s/(?<=,(?!(?<=\d,)(?=\d)))/ /gx;${RESET}
+
+s/(?<=,        # ${WHITE_FG}after a comma,${RESET}
+    (?!        # ${WHITE_FG}but not matching${RESET}
+      (?<=\d,) # ${WHITE_FG}digit-comma before, AND${RESET}
+      (?=\d)   # ${WHITE_FG}digit afterward${RESET}
+    )
+  )/ /gx;      # ${WHITE_FG}substitute a space${RESET}
+
+Note: that multiple lookarounds can be used to enforce multiple conditions at the same place, like an AND condition that complements 
+the alternation (vertical bar)'s OR. In fact, you can use Boolean algebra ( NOT (a AND b) === (NOT a OR NOT b) ) to convert the 
+expression to use OR:
+
+${WHITE_FG}s/(?<=,(?:(?<!\d,)|(?!\d)))/ /gx;${RESET}
+
+s/(?<=,        # ${WHITE_FG}after a comma, but either${RESET}
+    (?:
+      (?<!\d,) # ${WHITE_FG}not matching digit-comma before${RESET}
+      |        # ${WHITE_FG}OR${RESET}
+      (?!\d)   # ${WHITE_FG}not matching digit afterward${RESET}
+    )
+  )/ /gx;      # ${WHITE_FG}substitute a space${RESET}
+
+${WHITE_FG}Capturing${RESET}
+
+It is sometimes useful to use capturing parentheses within a look-around. You might think that you wouldn't be able to do that, 
+since you're just browsing, but you can. 
+
+But ${BOLD}remember${RESET}: ${ITALIC}the capturing parentheses must be within the look-around expression${RESET}; from the enclosing expression's point of view, 
+no actual matching was done by the zero-width look-around.
+
+This is most useful for finding overlapping matches in a global pattern match. You can capture substrings without consuming them, 
+so they are available for further matching later. Probably the simplest example is to get all right-substrings of a string:
+
+${WHITE_FG}print "$1\n" while /(?=(.*))/g;${RESET}
+
+Note: that the pattern technically consumes no characters at all, but Perl knows to advance a character on an empty match, 
+to prevent infinite looping.
+
+${WHITE_FG}Simple examples of regex use in Perl statements${RESET}
+
+These examples use very simple regexps only. The intent is just to show
+contexts where regexps might be used, as well as the effect of some
+flags to matching and replacements. Note in particular that matching
+is by default case-sensitive (Abc does not match abc unless specified
+otherwise).
+
+${WHITE_FG}s/foo/bar/;${RESET}
+replaces the first occurrence of the exact character sequence foo in the
+current string (in special variable $_) by the character sequence bar;
+for example, foolish bigfoot would become barlish bigfoot
+
+${WHITE_FG}s/foo/bar/g;${RESET}
+replaces any occurrence of the exact character sequence foo in the current
+string by the character sequence bar; for example, foolish bigfoot would
+become barlish bigbart
+
+${WHITE_FG}s/foo/bar/gi;${RESET}
+replaces any occurrence of foo case-insensitively in the current string
+by the character sequence bar (e.g. Foo and FOO get replaced by bar too)
+
+${WHITE_FG}if(m/foo/)...${RESET}
+tests whether the current string contains the string foo
+
+
+${WHITE_FG}If-Then-Else Conditionals in Regular Expressions${RESET}
+
+A special construct ${WHITE_FG}(?ifthen|else)${RESET} allows you to create conditional regular
+expressions. If the if part evaluates to true, then the regex engine will
+attempt to match the then part. Otherwise, the else part is attempted instead.
+The syntax consists of a pair of parentheses. The opening bracket must be
+followed by a question mark, immediately followed by the if part, immediately
+followed by the then part. This part can be followed by a vertical bar and the
+else part. You may omit the else part, and the vertical bar with it.
+
+For the if part, you can use the look-ahead and look-behind constructs. Using
+positive look-ahead, the syntax becomes ${WHITE_FG}(?(?=regex)then|else)${RESET}. Because the
+look-ahead has its own parentheses, the if and then parts are clearly separated.
+
+Remember that the look-around constructs do not consume any characters. If you
+use a look-ahead as the if part, then the regex engine will attempt to match the
+then or else part (depending on the outcome of the look-ahead) at the same
+position where the if was attempted.
+
+Alternatively, you can check in the if part whether a capturing group has taken
+part in the match thus far. Place the number of the capturing group inside
+parentheses, and use that as the if part. Note that although the syntax for a
+conditional check on a backreference is the same as a number inside a capturing
+group, no capturing group is created. The number and the parentheses are part
+of the if-then-else syntax started with (?.
+
+For the then and else, you can use any regular expression. If you want to use
+alternation, you will have to group the then or else together using parentheses
+, like in ${WHITE_FG}(?(?=condition)(then1|then2|then3)|(else1|else2|else3))${RESET}. Otherwise,
+there is no need to use parentheses around the then and else parts.
+
+${WHITE_FG}Looking Inside The Regex Engine${RESET}
+
+The regex ${WHITE_FG}(a)?b(?(1)c|d)${RESET} consists of the optional capturing group ${WHITE_FG}(a)?${RESET}, the
+literal ${WHITE_FG}b${RESET}, and the conditional ${WHITE_FG}(?(1)c|d)${RESET} that tests the capturing group. This
+regex matches ${WHITE_FG}bd${RESET} and ${WHITE_FG}abc${RESET}. It does not match ${WHITE_FG}bc${RESET}, but does match ${WHITE_FG}bd${RESET} in ${WHITE_FG}abd${RESET}. Let's
+see how this regular expression works on each of these four subject strings.
+
+When applied to ${WHITE_FG}bd${RESET}, ${WHITE_FG}a${RESET} fails to match. Since the capturing group containing ${WHITE_FG}a${RESET} is
+optional, the engine continues with ${WHITE_FG}b${RESET} at the start of the subject string. Since
+the whole group was optional, the group did not take part in the match. Any
+subsequent backreference to it like ${WHITE_FG}\1${RESET} will fail. Note that ${WHITE_FG}(a)?${RESET} is very
+different from ${WHITE_FG}(a?)${RESET}. In the former regex, the capturing group does not take
+part in the match if ${WHITE_FG}a${RESET} fails, and backreferences to the group will fail. In the
+latter group, the capturing group always takes part in the match, capturing
+either ${WHITE_FG}a${RESET} or nothing. Backreferences to a capturing group that took part in the
+match and captured nothing always succeed. Conditionals evaluating such groups
+execute the "then" part. In short: if you want to use a reference to a group in
+a conditional, use ${WHITE_FG}(a)?${RESET} instead of ${WHITE_FG}(a?)${RESET}.
+
+Continuing with our regex, ${WHITE_FG}b${RESET} matches ${WHITE_FG}b${RESET}. The regex engine now evaluates the
+conditional. The first capturing group did not take part in the match at all,
+so the "else" part or ${WHITE_FG}d${RESET} is attempted. ${WHITE_FG}d${RESET} matches ${WHITE_FG}d${RESET} and an overall match is
+found.
+
+Moving on to our second subject string ${WHITE_FG}abc${RESET}, ${WHITE_FG}a${RESET} matches ${WHITE_FG}a${RESET}, which is captured by
+the capturing group. Subsequently, ${WHITE_FG}b${RESET} matches ${WHITE_FG}b${RESET}. The regex engine again
+evaluates the conditional. The capturing group took part in the match, so the
+"then" part or ${WHITE_FG}c${RESET} is attempted. ${WHITE_FG}c${RESET} matches ${WHITE_FG}c${RESET} and an overall match is found.
+
+Our third subject ${WHITE_FG}bc${RESET} does not start with ${WHITE_FG}a${RESET}, so the capturing group does not
+take part in the match attempt, like we saw with the first subject string. ${WHITE_FG}b${RESET}
+still matches ${WHITE_FG}b${RESET}, and the engine moves on to the conditional. The first
+capturing group did not take part in the match at all, so the "else" part or ${WHITE_FG}d${RESET}
+is attempted. ${WHITE_FG}d${RESET} does not match ${WHITE_FG}c${RESET} and the match attempt at the start of the
+string fails. The engine does try again starting at the second character in the
+string, but fails since ${WHITE_FG}b${RESET} does not match ${WHITE_FG}c${RESET}.
+
+The fourth subject ${WHITE_FG}abd${RESET} is the most interesting one. Like in the second string,
+the capturing group grabs the ${WHITE_FG}a${RESET} and the ${WHITE_FG}b${RESET} matches. The capturing group took
+part in the match, so the "then" part or ${WHITE_FG}c${RESET} is attempted. ${WHITE_FG}c${RESET} fails to match ${WHITE_FG}d${RESET},
+and the match attempt fails. Note that the "else" part is not attempted at this
+point. The capturing group took part in the match, so only the "then" part is
+used. However, the regex engine isn't done yet. It restarts the regular
+expression from the beginning, moving ahead one character in the subject
+string.
+
+Starting at the second character in the string, ${WHITE_FG}a${RESET} fails to match ${WHITE_FG}b${RESET}. The
+capturing group does not take part in the second match attempt which started at
+the second character in the string. The regex engine moves beyond the optional
+group, and attempts ${WHITE_FG}b${RESET}, which matches. The regex engine now arrives at the
+conditional in the regex, and at the third character in the subject string. The
+first capturing group did not take part in the current match attempt, so the
+"else" part or ${WHITE_FG}d${RESET} is attempted. ${WHITE_FG}d${RESET} matches ${WHITE_FG}d${RESET} and an overall match ${WHITE_FG}bd${RESET} is found.
+
+If you want to avoid this last match result, you need to use anchors. 
+${WHITE_FG}^(a)?b(?(1)c|d)$ ${RESET}does not find any matches in the last subject string. The caret fails
+to match before the second and third characters in the string.
+
+${WHITE_FG}Named and Relative Conditionals${RESET}
+
+Conditionals are supported by the JGsoft engine, Perl, PCRE, Python, and the
+.NET framework. Ruby supports them starting with version 2.0. Languages such as
+Delphi, PHP, and R that have regex features based on PCRE also support
+conditionals.
+
+All these flavors also support named capturing groups. You can use the name of
+a capturing group instead of its number as the if test. The syntax is slightly
+inconsistent between regex flavors. In Python, .NET, and the JGsoft
+applications, you simply specify the name of the group between parentheses. 
+${WHITE_FG}(? <test>a)?b(?(test)c|d)${RESET} is the regex from the previous section using named
+capture. In Perl or Ruby, you have to put angle brackets or quotes around the
+name of the group, and put that between the conditional's 
+parentheses: ${WHITE_FG}(?<test>a)?b(?(<test>)c|d)${RESET} or 
+${WHITE_FG}(?'test'a)?b(?('test')c|d)${RESET}. PCRE supports all three
+variants.
+
+PCRE 7.2 and later and JGsoft V2 also support relative conditionals. The syntax
+is the same as that of a conditional that references a numbered capturing group
+with an added plus or minus sign before the group number. The conditional then
+counts the opening parentheses to the left (minus) or to the right (plus)
+starting at the ${WHITE_FG}(?(${RESET} that opens the conditional. ${WHITE_FG}(a)?b(?(-1)c|d)${RESET} is another way
+of writing the above regex. The benefit is that this regex won't break if you
+add capturing groups at the start or the end of the regex.
+
+Python supports conditionals using a numbered or named capturing group. Python
+does not support conditionals using look-around, even though Python does support
+look-around outside conditionals. Instead of a conditional like ${WHITE_FG}(?(?=regex)then|
+else)${RESET}, you can alternate two opposite look-arounds: ${WHITE_FG}(?=regex)then|(?!regex)else${RESET}.
+
+${WHITE_FG}Conditionals Referencing Non-Existent Capturing Groups${RESET}
+
+Boost and Ruby treat a conditional that references a non-existent capturing
+group as an error. The latest versions of all other flavors discussed in this
+tutorial don't. They simply let such conditionals always attempt the "else"
+part. A few flavors changed their minds, though. Python 3.4 and prior and PCRE
+7.6 and prior (and thus PHP 5.2.5 and prior) used to treat them as errors.
+
+${WHITE_FG}Example: Extract Email Headers${RESET}
+
+The regex ${WHITE_FG}^((From|To)|Subject): ((?(2)\w+@\w+\.[a-z]+|.+))${RESET} extracts the From,
+To, and Subject headers from an email message. The name of the header is
+captured into the first backreference. If the header is the ${WHITE_FG}From${RESET} or ${WHITE_FG}To${RESET} header,
+it is captured into the second backreference as well.
+
+The second part of the pattern is the if-then-else conditional 
+${WHITE_FG}(?(2)\w+@\w+\.[a-z]+|.+))${RESET}. The if part checks whether the second capturing group took part in
+the match thus far. It will have taken part if the header is the ${WHITE_FG}From${RESET} or ${WHITE_FG}To${RESET}
+header. In that case, the then part of the conditional ${WHITE_FG}\w+@\w+\.[a-z]+${RESET} tries to
+match an email address. To keep the example simple, we use an overly simple
+regex to match the email address, and we don't try to match the display name
+that is usually also part of the ${WHITE_FG}From${RESET} or ${WHITE_FG}To${RESET} header.
+
+If the second capturing group did not participate in the match this far, the
+else part ${WHITE_FG}.+${RESET} is attempted instead. This simply matches the remainder of the
+line, allowing for any test subject.
+
+Finally, we place an extra pair of parentheses around the conditional. This
+captures the contents of the email header matched by the conditional into the
+third backreference. The conditional itself does not capture anything. When
+implementing this regular expression, the first capturing group will store the
+name of the header ${WHITE_FG}("From", "To", or "Subject")${RESET}, and the third capturing group
+will store the value of the header.
+
+You could try to match even more headers by putting another conditional into
+the "else" part. 
+E.g. ${WHITE_FG}^((From|To)|(Date)|Subject): ((?(2)\w+@\w+\.[a-z]+|(?(3) mm/dd/yyyy|.+)))${RESET} 
+would match a "From", "To", "Date" or "Subject", and use the
+regex ${WHITE_FG}mm/dd/yyyy${RESET} to check whether the date is valid. Obviously, the date
+validation regex is just a dummy to keep the example simple. The header is
+captured in the first group, and its validated contents in the fourth group.
+
+As you can see, regular expressions using conditionals quickly become unwieldy.
+I recommend that you only use them if one regular expression is all your tool
+allows you to use. When programming, you're far better of using the regex 
+${WHITE_FG}^(From|To|Date|Subject): (.+)${RESET} to capture one header with its unvalidated
+contents. In your source code, check the name of the header returned in the
+first capturing group, and then use a second regular expression to validate the
+contents of the header returned in the second capturing group of the first
+regex. Though you'll have to write a few lines of extra code, this code will be
+much easier to understand and maintain. If you precompile all the regular
+expressions, using multiple regular expressions will be just as fast, if not
+faster, than the one big regex stuffed with conditionals.
+
+${WHITE_FG}In Depth - look-ahead - look-behind${RESET}
+
+look-ahead Example: Simple Password Validation
+Let's get our feet wet right away with an expression that validates a password. The technique shown here will be useful for all 
+kinds of other data you might want to validate (such as email addresses or phone numbers). 
+Our password must meet four conditions:
+
+1. The password must have between six and ten word characters \w
+2. It must include at least one lowercase character [a-z]
+3. It must include at least three uppercase characters [A-Z]
+4. It must include at least one digit \d
+
+We'll assume we're working in a regex flavor where \d only matches ASCII digits 0 through 9, unlike .NET and Python where that 
+token can match any Unicode digit.
+
+With look-arounds, ${WHITE_FG}your feet stay planted on the string. You're just looking, not moving${RESET}! Our initial strategy (which we'll later 
+tweak) will be to stand at the beginning of the string and look ahead four times—once for each condition. We'll look to check we 
+have the right number of characters, then we'll look for a lowercase letter, and so on. If all the look-aheads are successful, we'll 
+know the string is a valid password… And we'll simply gobble it all up with a plain .* 
+
+${WHITE_FG}Condition 1${RESET}
+
+A string that is made of six-to-ten word characters can be written like this: ${WHITE_FG}\A\w{6,10}\z${RESET}
+The ${WHITE_FG}\A${RESET} anchor asserts that the current position is the beginning of the string. After matching the six to ten word characters, the 
+${WHITE_FG}\z${RESET} anchor asserts that the current position is the end of the string. 
+
+Within a look-ahead, this pattern becomes ${WHITE_FG}(?=\A\w{6,10}\z)${RESET}. This look-ahead asserts: at the current position in the string, what 
+follows is the beginning of the string, six to ten word characters, and the very end of the string. 
+
+We want to make this assertion at the very beginning of the string. Therefore, to continue building our pattern, we want to anchor 
+the look-ahead with an ${WHITE_FG}\A${RESET}. There is no need to duplicate the ${WHITE_FG}\A${RESET}, so we can take it out of the look-ahead. Our pattern becomes:
+${WHITE_FG}\A(?=\w{6,10}\z)${RESET}
+
+So far, we have an expression that validates that a string is entirely composed of six to ten word characters. Note that we haven't 
+matched any of these characters yet: we have only looked ahead. The current position after the look-ahead is still the beginning of 
+the string. To check the other conditions, we just add look-aheads.
+
+${WHITE_FG}Condition 2${RESET}
+
+For our second condition, we need to check that the password contains one lowercase letter. To find one lowercase letter, the 
+simplest idea is to use ${WHITE_FG}.*[a-z]${RESET}. That works, but the ${WHITE_FG}dot-star${RESET} first shoots down to the end of the string, so we will always need to 
+backtrack. Just for the sport, can we think of something more efficient? You might think of making the star quantifier reluctant by 
+adding a ${WHITE_FG}?${RESET}, giving us ${WHITE_FG}.*?[a-z]${RESET}, but that too requires backtracking as a lazy quantifier requires backtracking at each step.
+
+For this type of situation, I recommend you use something like [^a-z]*[a-z] (or even better, depending on your engine, the atomic 
+${WHITE_FG}(?>[^a-z]*)[a-z]${RESET} or possessive version ${WHITE_FG}[^a-z]*+[a-z]${RESET} — but we'll discuss that in the footnotes). The negated character class [^a-z] 
+is the counterclass of the lowercase letter [a-z] we are looking for: it matches one character that is not a lowercase letter, and 
+the ${WHITE_FG}*${RESET} quantifier makes us match zero or more such characters. The pattern  ${WHITE_FG}[^a-z]*[a-z]${RESET} is a good example of the principle of 
+contrast recommended by the regex style guide. 
+
+Let's use this pattern inside a look-ahead: ${WHITE_FG}(?=[^a-z]*[a-z])${RESET}
+The look-ahead asserts: at this position in the string (i.e., the beginning of the string), we can match zero or more characters 
+that are not lowercase letters, then we can match one lowercase letter: ${WHITE_FG}[a-z${RESET}
+Our pattern becomes: ${WHITE_FG}\A(?=\w{6,10}\z)(?=[^a-z]*[a-z])${RESET}
+
+At this stage, we have asserted that we are at the beginning of the string, and we have looked ahead twice. We still haven't 
+matched any characters. Note that on a logical level it doesn't matter which condition we check first. If we swapped the order of 
+the look-aheads, the result would be the same. 
+
+We have two more conditions to satisfy: two more look-aheads. 
+
+${WHITE_FG}Condition 3${RESET}
+
+For our third condition, we need to check that the password contains at least three uppercase letters. The logic is similar to 
+condition 2: we look for an optional number of non-uppercase letters, then one uppercase letter… But we need to repeat that three 
+times, for which we'll use the quantifier ${WHITE_FG}{3}${RESET}. 
+We'll use this look-ahead: ${WHITE_FG}(?=(?:[^A-Z]*[A-Z]){3})${RESET} 
+
+The look-ahead asserts: at this position in the string (i.e., the beginning of the string), we can do the following three times: 
+match zero or more characters that are not uppercase letters (the job of the negated character class ${WHITE_FG}[^A-Z]${RESET} with the quantifier ${WHITE_FG}*)${RESET}, 
+then match one uppercase letter: ${WHITE_FG}[A-Z]${RESET}
+Our pattern becomes: 
+${WHITE_FG}\A(?=\w{6,10}\z)(?=[^a-z]*[a-z])(?=(?:[^A-Z]*[A-Z]){3})${RESET}
+
+At this stage, we have asserted that we are at the beginning of the string, and we have looked ahead three times. We still haven't 
+matched any characters. 
+
+${WHITE_FG}Condition 4${RESET}
+
+To check that the string contains at least one digit, we use this look-ahead: ${WHITE_FG}(?=\D*\d)${RESET}. Opposing ${WHITE_FG}\d${RESET} to its counterclass ${WHITE_FG}\D${RESET} makes 
+good use of the regex principle of contrast. 
+
+The look-ahead asserts: at this position in the string (i.e., the beginning of the string), we can match zero or more characters 
+that are not digits (the job of the "not-a-digit" character class ${WHITE_FG}\D${RESET} and the * quantifier), then we can match one digit: ${WHITE_FG}\d${RESET}
+Our pattern becomes: ${WHITE_FG}\A(?=\w{6,10}\z)(?=[^a-z]*[a-z])(?=(?:[^A-Z]*[A-Z]){3})(?=\D*\d)${RESET}
+
+At this stage, we have asserted that we are at the beginning of the string, and we have looked ahead four times to check our four 
+conditions. We still haven't matched any characters, but we have validated our string: we know that it is a valid password. 
+
+If all we wanted was to validate the password, we could stop right there. But if for any reason we also need to match and return 
+the entire string—perhaps because we ran the regex on the output of a function and the password's characters haven't yet been 
+assigned to a variable — we can easily do so now. 
+
+${WHITE_FG}Matching the Validated String${RESET}
+
+After checking that the string conforms to all four conditions, we are still standing at the beginning of the string. The five 
+assertions we have made (the anchor ${WHITE_FG}\A${RESET} and the four look-aheads) have not changed our position. At this stage, we can use a simple 
+.* to gobble up the string: we know that whatever characters are matched by the ${WHITE_FG}dot-star${RESET}, the string is a valid password. The 
+pattern becomes: ${WHITE_FG}\A(?=\w{6,10}\z)(?=[^a-z]*[a-z])(?=(?:[^A-Z]*[A-Z]){3})(?=\D*\d).*${RESET}
+
+${WHITE_FG}Fine-Tuning: Removing One Condition${RESET}
+
+For ${WHITE_FG}n${RESET} conditions,
+use ${WHITE_FG}n-1${RESET} look-aheads If you examine our look-aheads, you may notice that the pattern ${WHITE_FG}\w{6,10}\z${RESET} inside the first one examines all the 
+characters in the string. Therefore, we could have used this pattern to match the whole string instead of the ${WHITE_FG}dot-star .*${RESET} 
+
+This allows us to remove one look-ahead and to simplify the pattern to this:
+
+${WHITE_FG}\A(?=[^a-z]*[a-z])(?=(?:[^A-Z]*[A-Z]){3})(?=\D*\d)\w{6,10}\z${RESET}
+
+The pattern ${WHITE_FG}\w{6,10}\z${RESET} now serves the double purpose of matching the whole string and of ensuring that the string is entirely 
+composed of six to ten word characters. 
+
+Generalizing this result, if you must check for ${WHITE_FG}n${RESET} conditions, your pattern only needs to include ${WHITE_FG}n-1${RESET} look-aheads at the most. Often, 
+you are even able to combine several conditions into a single look-ahead. 
+
+You may object that we were able to use \w{6,10}\z because it happened to match the whole string. Indeed that was the case. But we 
+could also have converted any of the other three look-aheads to match the entire string. For instance, taking the look-ahead 
+${WHITE_FG}(?=\D*\d)${RESET} which checks for the presence of one digit, we can add a simple ${WHITE_FG}.*\z${RESET} to get us to the end of the string.
+
+The pattern would have become:
+${WHITE_FG}\A(?=\w{6,10}\z)(?=[^a-z]*[a-z])(?=(?:[^A-Z]*[A-Z]){3})\D*\d.*\z${RESET}
+
+By the way, you may wonder why I bother using the ${WHITE_FG}\z${RESET} after the ${WHITE_FG}.*${RESET}: shouldn't it get me to the end of the string? In general, not 
+so: unless we're in DOTALL mode, the dot doesn't match line breaks. Therefore, the ${WHITE_FG}.*${RESET} only gets you to the end of the first line. 
+After this, the string may have line breaks and many more line. A ${WHITE_FG}\z${RESET} anchor ensures that after the .* we have reached not only the 
+end of the line, but also the end of the string. 
+
+In this particular pattern, the first look-around ${WHITE_FG}(?=\w{6,10}\z)${RESET} already ensures that there cannot be any line breaks in the string, 
+so the final ${WHITE_FG}\z${RESET} is not strictly necessary. 
+
+${WHITE_FG}The Order of look-aheads Doesn't Matter… Almost${RESET}
+
+In our password validation pattern, since the three look-aheads don't change our position in the string, we can rearrange them in 
+any order without affecting the overall logic. 
+
+While the order of look-aheads doesn't matter on a logical level, keep in mind that it may matter for matching speed. If one 
+look-ahead is more likely to fail than the other two, it makes little sense to place it in third position and expend a lot of energy 
+checking the first two conditions. Make it first, so that if we're going to fail, we fail early—an application of the design to 
+fail principle from the regex style guide. 
+
+In fact, this is what we do by placing the anchor ${WHITE_FG}\A${RESET} in first position. Since it is an assertion that doesn't consume characters, 
+it too could swap positions with any of the look-aheads. We'll see why this is a bad idea, but first… 
+
+In passing, consider that ${WHITE_FG}\A${RESET} can be written with look-arounds: in DOTALL mode, where the dot matches any character including line 
+breaks, the negative look-behind ${WHITE_FG}(?<!.)${RESET} asserts that what precedes the current position is not any character—therefore the 
+position must be the beginning of the string. Without DOTALL mode, the negative look-behind ${WHITE_FG}(?<![\D\d])${RESET} asserts the same, since 
+${WHITE_FG}[\D\d]${RESET} matches one character that is either a digit or a non-digit—in other words, any character. 
+
+Now imagine we set ${WHITE_FG}\A${RESET} in fourth position, after the three look-aheads. The resulting match would be the same, but it could take a 
+lot more time. For instance, suppose the third look-ahead (whose job it is to assert that the string contains at least one digit) 
+fails. After failing to find a match at the first position in the string, the engine advances to the second position and tries the 
+look-aheads again, one after the other. Once more, the third look-ahead is bound to fail to find a digit. After each failure, the 
+engine will start a new match attempt starting at the next position in the string. Even when the two first look-aheads succeed (and 
+they may fail, as the uppercase or lowercase letter they check for may have been the lone one in the string, and at a position 
+already passed), the third look-ahead will always fail to find a digit. Therefore the anchor ${WHITE_FG}\A${RESET} is never even attempted: the pattern 
+fails before the engine reaches that token. 
+
+In contrast, when ${WHITE_FG}\A${RESET} is first, it can only match at the first position in the string. The third look-ahead still fails, but when the 
+engine tries to match at further positions, the ${WHITE_FG}\A${RESET} immediately fails, so the engine doesn't need to waste any more time with the 
+look-aheads. 
+
+${WHITE_FG}Lookarounds Stand their Ground${RESET}
+
+If I seem to be flogging a dead horse here, it's only because this point is the most common source of confusion with look-arounds. 
+As the password validation example made clear, look-arounds stand their ground. They look immediately to the left or right of the 
+engine's current position on the string—but do not alter that position. 
+
+Therefore, do not expect the pattern ${WHITE_FG}A(?=5)${RESET} to match the ${WHITE_FG}A${RESET} in the string ${WHITE_FG}AB25${RESET}. Many beginners assume that the look-ahead says that 
+"there is a ${WHITE_FG}5${RESET} somewhere to the right", but that is not so. After the engine matches the ${WHITE_FG}A${RESET}, the look-ahead ${WHITE_FG}(?=5)${RESET} asserts that at the 
+current position in the string, what immediately follows is a 5. If you want to check if there is a 5 somewhere (anywhere) to the 
+right, you can use ${WHITE_FG}(?=[^5]*5)${RESET}. 
+
+Moreover, don't expect the pattern ${WHITE_FG}A(?=5)(?=[A-Z])${RESET} to match the ${WHITE_FG}A${RESET} in the string ${WHITE_FG}A5B${RESET}. Many beginners assume that the second 
+look-ahead looks to the right of the first look-ahead. It is not so. At the end of the first look-ahead, the engine is still planted 
+at the very same spot in the string, after the ${WHITE_FG}A${RESET}. When the look-ahead ${WHITE_FG}(?=[A-Z])${RESET} tries to assert that what immediately follows the 
+current position is an uppercase letter, it fails because the next character is still the ${WHITE_FG}5${RESET}. If you want to check that the ${WHITE_FG}5${RESET} is 
+followed by an uppercase letter, just state it in the first look-ahead: ${WHITE_FG}(?=5[A-Z])${RESET} 
+
+So look-ahead and look-behind don't mean "look way ahead into the distance". They mean "look at the text immediately to the left or 
+to the right". If you want to inspect a piece of string further down, you will need to insert "binoculars" inside the look-ahead to 
+get you to the part of the string you want to inspect — for instance a ${WHITE_FG}.*${RESET}, or, ideally, more specific tokens.
+
+${WHITE_FG}Various Uses for Lookarounds${RESET}
+
+Before we dive into interesting but sometimes terse details, let's get excited about look-arounds by surveying some of their 
+terrific uses. 
+
+${WHITE_FG}Validation${RESET}
+
+The password validation section showed how the combination of several look-aheads can impose a number of conditions on the string to 
+be matched, allowing us to validate it with a single pattern. 
+
+${WHITE_FG}Restricting a Character Range (Subtraction, Intersection)${RESET}
+
+Suppose you want to match one word character \w as long as it is not the letter Q. There are several ways to do it without 
+look-arounds:
+✽ In engines that support character class subtraction, you can use ${WHITE_FG}[\w-[Q]]${RESET} (.NET), ${WHITE_FG}[\w&&[^Q]]${RESET} (Java and Ruby 1.9+) or ${WHITE_FG}[\w--Q]${RESET} 
+(Python with the alternate regex module)
+✽ You can build a character class such as ${WHITE_FG}[_0-9a-zA-PR-Z]${RESET}
+✽ You can use ${WHITE_FG}[^\WQ]${RESET} — an example of an obnoxious double-negative character range. 
+
+If your engine doesn't support character class subtraction, the simplest may be to use the workaround shown on the page about class 
+operations. This uses a look-ahead to restrict the character class ${WHITE_FG}\w: (?!Q)\w${RESET}
+After the negative look-ahead asserts that what follows the current position is not a ${WHITE_FG}Q${RESET}, the ${WHITE_FG}\w${RESET} matches a word character. 
+
+Not only is this solution easy to read, it is also easy to maintain if we ever decide to exclude the letter ${WHITE_FG}K${RESET} instead of ${WHITE_FG}Q${RESET}, or to 
+exclude both: ${WHITE_FG}(?![QK])\w${RESET}
+
+Note that we can also perform the same exclusion task with a negative look-behind:
+${WHITE_FG}\w(?<!Q)${RESET}
+After the ${WHITE_FG}\w${RESET} matches a word character, the negative look-behind asserts that what precedes the current position is not a ${WHITE_FG}Q${RESET}. 
+
+Using the same idea, if we wanted to match one character in the Arabic script as long as it is not a number, we could use this 
+pattern:
+${WHITE_FG}(?!\p{N})\p{Arabic}${RESET}
+This would work in Perl, PCRE (C, PHP, R…) and Ruby 2+. In .NET and Java, you would use ${WHITE_FG}(?!\p{N})\p{IsArabic}${RESET}
+
+Likewise, we can use this technique to perform a DIY character class intersection. For instance, to match one character in the 
+Arabic script as long as it is a number, we transform the negative look-ahead above to a positive look-ahead. In the Perl / PCRE / 
+Ruby version, this gives us:
+${WHITE_FG}(?=\p{N})\p{Arabic}${RESET}
+
+This is basically the password validation technique with two conditions applied to a single character. 
+
+Needless to say, you can interchange the content of the look-ahead with the token to be matched:
+${WHITE_FG}(?=\p{Arabic})\p{N}${RESET}
+
+${WHITE_FG}Tempering the scope of a token${RESET}
+
+This use is similar to the last. Instead of removing characters from a class, it restricts the scope within which a token is 
+allowed to match.
+
+For instance, suppose we want to match any character as long as it is not followed by ${WHITE_FG}{END}${RESET}. Using a negative look-ahead, we can use:
+${WHITE_FG}(?:(?!{END}).)*${RESET}
+Each . token is tempered by ${WHITE_FG}(?!{END})${RESET}, which specifies that the dot cannot be the beginning of ${WHITE_FG}{END}${RESET}. This technique is called 
+tempered greedy token on the Quantifiers page.
+
+Another technique is:
+${WHITE_FG}(?:[^{]++|{(?!END}))*+${RESET}
+On the left side of the alternation, ${WHITE_FG}[^{]++${RESET} matches characters that are not an opening brace. On the right side, ${WHITE_FG}{(?!END})${RESET} matches 
+an opening brace that is not followed by ${WHITE_FG}END}${RESET}. This technique appears in the Explicit Greedy Alternation section of the Quantifiers 
+page.
+
+${WHITE_FG}Delimiter${RESET}
+
+Do you have a string where you want to start matching all characters once the first instance of ${WHITE_FG}#START#${RESET} is passed? No problem, just 
+use a look-behind to make a delimiter:
+${WHITE_FG}(?<=#START#).*${RESET}
+After the look-behind asserts that what immediately precedes the current position is ${WHITE_FG}#START#${RESET}, the ${WHITE_FG}dot-star .*${RESET} matches all the 
+characters to the right. 
+
+Or would you like to match all characters in a string up to, but not including the characters #END#? Make a delimiter using a 
+look-ahead:
+${WHITE_FG}.*?(?=#END#)${RESET}
+
+You can, of course, combine the two:
+${WHITE_FG}(?<=#START#).*?(?=#END#)${RESET}
+
+See the page on boundaries for advice on building fancy DIY delimiters. 
+
+${WHITE_FG}Inserting Text at a Position${RESET}
+
+Someone gave you a file full of film titles in CamelCase, such as HaroldAndKumarGoToWhiteCastle. To make it easier to read, you 
+want to insert a space at each position between a lowercase letter and an uppercase letter. This regex matches these exact 
+positions: 
+${WHITE_FG}(?<=[a-z])(?=[A-Z])${RESET}
+
+In your text editor's regex replacement function, all you have to do is replace the matches space characters, and spaces be 
+inserted in the right spot. 
+
+This regex is what's known as a "zero-width match" because it matches a position without matching any actual characters. How does 
+it work? The look-behind asserts that what immediately precedes the current position is a lowercase letter. And the look-ahead 
+asserts that what immediately follows the current position is an uppercase letter. 
+
+${WHITE_FG}Splitting a String at a Position${RESET}
+
+We can use the exact same regex from the previous example to split the string ${WHITE_FG}AppleOrangeBananaStrawberryPeach${RESET} into a list of 
+fruits. Once again, the regex
+${WHITE_FG}(?<=[a-z])(?=[A-Z])${RESET}
+matches the positions between a lowercase letter and an uppercase letter. 
+
+In most languages, when you feed this regex to the function that uses a regex pattern to split strings, it returns an array of 
+words. 
+
+Note that Python's re module does not split on zero-width matches—but the far superior regex module does. 
+
+${WHITE_FG}Finding Overlapping Matches${RESET}
+
+Sometimes, you need several matches within the same word. For instance, suppose that from a string such as ${WHITE_FG}ABCD${RESET} you want to extract 
+${WHITE_FG}ABCD, BCD, CD and D${RESET}. You can do it with this single regex:
+${WHITE_FG}(?=(\w+))${RESET}
+When you allow the engine to find all matches, all the substrings will be captured to Group 1
+
+How does this work?
+
+At the first position in the string (before the ${WHITE_FG}A)${RESET}, the engine starts the first match attempt. The look-ahead asserts that what 
+immediately follows the current position is one or more word characters, and captures these characters to Group 1. The look-ahead 
+succeeds, and so does the match attempt. Since the pattern didn't match any actual characters (the look-ahead only looks), the 
+engine returns a zero-width match (the empty string). It also returns what was captured by Group 1: ${WHITE_FG}ABCD${RESET}
+
+The engine then moves to the next position in the string and starts the next match attempt. Again, the look-ahead asserts that what 
+immediately follows that position is word characters, and captures these characters to Group 1. The match succeeds, and Group 1 
+contains ${WHITE_FG}BCD${RESET}. 
+
+The engine moves to the next position in the string, and the process repeats itself for ${WHITE_FG}CD${RESET} then ${WHITE_FG}D${RESET}. 
+
+In .NET, which has infinite look-behind, you can find overlapping matches from the other side of the string. For instance, on the 
+same string ${WHITE_FG}ABCD${RESET}, consider this pattern:
+${WHITE_FG}(?<=(\w+))${RESET}
+
+It will capture ${WHITE_FG}A, AB, ABC and ABCD${RESET}. To achieve the same in an engine that doesn't support infinite look-behind, you would have to 
+reverse the string, use the look-ahead version  ${WHITE_FG}(?=(\w+))${RESET} then reverse the captures.
+
+${WHITE_FG}Zero-Width Matches${RESET}
+
+As we've seen, a look-around looks left or right but it doesn't add any characters to the match to be returned by the regex engine. 
+Likewise, an anchor such as ^ and a boundary such as ${WHITE_FG}\b${RESET} can match at a given position in the string, but they do not add any 
+characters to the match.
+
+Usually, look-aheads, look-behinds, anchors and boundaries appear in patterns that contain tokens that do match characters, allowing 
+the engine to return a matched string. For instance, in ${WHITE_FG}(?<=start_)\d+${RESET}, the engine matches and returns some digits, but not the 
+prefix ${WHITE_FG}start_${RESET}
+
+However, if a pattern only contains look-arounds, anchors and boundaries, the engine may be able to match the pattern without 
+matching any characters. The resulting match is called a zero-width match because it contains no characters.
+
+This can be a useful technique, and we have already seen some applications of zero-width matches in the section on uses for 
+look-arounds. To bring them together under one heading, here are some of their main uses. 
+
+${WHITE_FG}Validation${RESET}
+
+If you string several look-arounds in a row, you can validate that a string conforms to a set of rules, as in the password 
+validation technique. 
+
+We saw that when you have n conditions, if you also want to match the string, you usually need n-1 look-arounds at the most as one 
+condition can be removed and used in the matching section of the pattern. But if all you want to do is validate, all the conditions 
+can stay inside look-arounds, giving you a zero-width match. 
+
+${WHITE_FG}Inserting${RESET}
+
+You can use a zero-width match regex to match a position in a string and insert text at that position. For instance, by matching 
+${WHITE_FG}(?m)^${RESET} (the beginning of a line in multiline mode) and replacing the match with ${WHITE_FG}//${RESET} , you can add a prefix to every line of a file.
+
+Likewise, we saw how the zero-width pattern ${WHITE_FG}(?<=[a-z])(?=[A-Z])${RESET} allows you to insert characters in a CamelCase word. 
+
+${WHITE_FG}Splitting${RESET}
+
+We saw how the same zero-width pattern ${WHITE_FG}(?<=[a-z])(?=[A-Z])${RESET} allows you to split a CamelCase word into its components. 
+
+${WHITE_FG}Overlapping Matches${RESET}
+
+We saw how an unanchored look-around that contains capture groups—such as ${WHITE_FG}(?=(\w+))${RESET} — allows you to match overlapping string 
+segments. 
+
+${WHITE_FG}Positioning the Lookaround${RESET}
+
+Often, you have two options for positioning a look-around: before the text to be matched, or after. Usually, one of the options is 
+more efficient because it requires less work of the engine.
+
+To illustrate this, here are examples for each kind of look-around. I borrowed them from the look-arounds section of the main syntax 
+page, where they are discussed in greater detail. 
+
+${WHITE_FG}look-ahead${RESET}
+
+${WHITE_FG}\d+(?= dollars)${RESET} and ${WHITE_FG}(?=\d+ dollars)\d+${RESET} both match ${WHITE_FG}100${RESET} in ${WHITE_FG}100${RESET} dollars, but the first is more efficient because the engine needs to 
+match ${WHITE_FG}\d+${RESET} only once. 
+
+${WHITE_FG}Negative look-ahead${RESET}
+
+${WHITE_FG}\d+(?! dollars)${RESET} and ${WHITE_FG}(?!\d+ dollars)\d+${RESET} both match 100 in 100 pesos, but the first is more efficient because the engine needs to 
+match \d+ only once. 
+
+${WHITE_FG}look-behind${RESET}
+
+${WHITE_FG}(?<=USD)\d{3}${RESET} and ${WHITE_FG}\d{3}(?<=USD\d{3})${RESET} both match ${WHITE_FG}100${RESET} in ${WHITE_FG}USD100${RESET}, but the first is more efficient because the engine needs to match 
+${WHITE_FG}\d{3}${RESET} only once. 
+
+${WHITE_FG}Negative look-behind${RESET}
+
+${WHITE_FG}(?<!USD)\d{3}${RESET} and ${WHITE_FG}\d{3}(?<!USD\d{3})${RESET} both match ${WHITE_FG}100${RESET} in ${WHITE_FG}JPY100${RESET}, but the first is more efficient because the engine needs to match 
+${WHITE_FG}\d{3}${RESET} only once. 
+
+What may not be so clear is that each of these look-arounds can be used in two main ways: before the expression to be matched, or 
+after it. These two ways have a slightly different feel. Please don't obsess over the differences; rather, just cruise through 
+these simple examples to become familiar with the types of effects you can achieve. 
+
+When you compare each pair, the two methods have a different feel. The point of the examples is not to make you memorize "the right 
+position", but to expose you to those two basic feels. Once you're familiar with them, you will naturally think of rewriting a 
+look-around that feels too heavy. With a bit of practice, the efficient way of positioning your look-arounds will probably come to 
+you naturally. 
+
+${WHITE_FG}Lookarounds that Look on Both Sides: Back to the Future${RESET}
+
+Suppose you want to match a two-digit number surrounded by underscores as in ${WHITE_FG}_12_${RESET} but not the underscores. 
+
+We have already seen three ways to do this:
+✽ You can match everything and capture the digits to Group 1: ${WHITE_FG}_(\d{2})_${RESET}
+✽ You can use a look-behind and a look-ahead: ${WHITE_FG}(?<=_)\d{2}(?=_)${RESET}
+✽ You can use ${WHITE_FG}\K${RESET} to drop the first underscore from the match: ${WHITE_FG}_\K\d{2}(?=_)${RESET}
+
+There is a fourth technique I'd like to introduce you to. I call it the "back to the future look-behind." There shouldn't be any 
+reason to use it on its own, but sometimes within an intricate pattern it may just what you need, so it's nice to be familiar with 
+it and add it to your repertoire.
+
+We can position our back-to-the-future look-behind before or after the digits. Let's start with the before version:
+${WHITE_FG}(?<=_(?=\d{2}_))\d+${RESET}
+
+Wowzy, what does this do? The look-behind asserts that what immediately precedes the current position in the string is an 
+underscore, then a position where the look-ahead ${WHITE_FG}(?=\d{2}_)${RESET} can assert that what immediately follows is two digits and an underscore.
+
+This is interesting for several reasons. First, we have a look-ahead within a look-behind, and even though we were supposed to look 
+backwards, this look-ahead jumps over the current position by matching the two digits and the trailing underscore. That's acrobatic. 
+
+Second, note that even though it looks complex, this is a fixed-width look-behind (the width is one character, the underscore), so 
+it should work in all flavors of look-behind. (However, it does not work in Ruby as Ruby does not allow look-aheads and negative 
+look-behinds inside look-behind.) 
+
+Another interesting feature is how the notion of "current position in the string" is not the same for the look-behind and for the 
+look-ahead. You'll remember that look-arounds stand their ground, so that after checking the assertion made by a look-around, the 
+engine hasn't moved in the string. Are we breaking that rule?
+
+We're not. In the string ${WHITE_FG}10 _16_ 20${RESET}, let's say the engine has reached the position between the underscore and the ${WHITE_FG}1${RESET} in ${WHITE_FG}16${RESET}. The 
+look-behind makes an assertion about what can be matched at that position. When the engine exits the look-behind, it is still 
+standing in that same spot, and the token ${WHITE_FG}\d{2}${RESET} can proceed to match the characters ${WHITE_FG}16${RESET}. 
+
+But within the look-behind itself, we enter a different little world. You can imagine that outside that world the engine is red, and 
+inside the little world of the look-behind, there is another little engine which is yellow. That yellow engine keeps track of its 
+own position in the string. In most engines (.NET proceeds differently), the yellow engine is initially dropped at a position in 
+the string that is found by taking the red engine's position and subtracting the width of the look-behind, which is 1. The yellow 
+engine therefore starts its work before the leading underscore. Within the look-behind's little world, after matching the underscore 
+token, the yellow engine's position in the string is between the underscore and the 1. It is that position that the look-ahead 
+refers to when it asserts that at the current position in the string (according to the little world of the look-behind and its 
+yellow engine), what immediately follows is two digits and an underscore.
+
+After the digits
+Here is a second version where the "back-to-the-future look-behind" comes after the digits:
+${WHITE_FG}\d+(?<=_\d{2}(?=_))${RESET}
+
+The look-behind states: what immediately precedes this position in the string is an underscore and two digits, then a position where 
+the look-ahead ${WHITE_FG}(?=_)${RESET} can assert that what immediately follows the current position in the string (according to the yellow engine and 
+the look-behind's little world) is an underscore. 
+
+This too is a fixed-width look-behind (the width is three character, i.e. the leading underscore and the two digits), so it should 
+work in all flavors of look-behind except Ruby. 
+
+${WHITE_FG}Compound look-ahead and Compound look-behind${RESET}
+
+The back-to-the-future look-behind introduced us to what I call compound look-arounds, i.e., look-arounds that contain other 
+look-arounds. You could also call them nested look-arounds, but for me the idea of compounding captures something more about the feel 
+of working with these constructs. 
+
+Let's look at some examples.
+
+Token followed by one character, but not more
+How can you match a number that is followed by one underscore, but not more?
+
+You can use this:
+${WHITE_FG}\d+(?=_(?!_))${RESET}
+The look-ahead asserts: what follows the current position in the string is one underscore, then a position where the negative 
+look-ahead ${WHITE_FG}(?!_)${RESET} can assert that what follows is not an underscore. A less elegant variation would be ${WHITE_FG}\d+(?=(?!__)_)${RESET}
+
+Token preceded by one character, but not more
+How can you match a number that is preceded by one underscore, but not more?
+
+You can use this:
+${WHITE_FG}(?<=(?<!_)_)\d+${RESET}
+The look-behind asserts: what precedes the current position in the string is a position where the negative look-behind ${WHITE_FG}(?<!_)${RESET} can 
+assert that what immediately precedes is not an underscore, then an underscore. A variation would be ${WHITE_FG}(?<=_(?<!__))\d+${RESET} 
+
+${WHITE_FG}Multiple Compounding${RESET}
+
+Needless to say, it won't be long until you find occasions to add levels of compounding beyond the two we've just seen. But that 
+quickly becomes obnoxious, and it becomes simpler to rearrange the regex. For instance, building on the previous pattern,
+${WHITE_FG}(?<=(?<!(?<!X)_)_)\d+${RESET}
+matches a number that is precede by an underscore that is not preceded by an underscore unless that underscore is preceded by an X. 
+
+In .NET, PCRE, Java and Ruby, this could be simplified to ${WHITE_FG}(?<=(?<!_)_|X__)\d+ ${RESET}
+In Perl and Python, you could use ${WHITE_FG}(?:(?<=(?<!_)_)|(?<=X__))\d+ ${RESET}
+
+${WHITE_FG}The Engine Doesn't Backtrack into Lookarounds…${WHITE_FG}because they're atomic${RESET}
+
+Here's a fun regex task. You have a string like this:
+${WHITE_FG}_rabbit _dog _mouse DIC:cat:dog:mouse${RESET}
+
+The ${WHITE_FG}DIC${RESET} section at the end contains a list of allowed animals. Our job is to match all the _tokens named after an allowed animal. 
+Therefore, we expect to match ${WHITE_FG}_dog${RESET} and ${WHITE_FG}_mouse${RESET}. A look-around helps us do this:
+
+${WHITE_FG}_(\w+)\b(?=.*:\1\b)${RESET}
+
+After matching the underscore, we capture a word to Group 1. Then the look-ahead ${WHITE_FG}(?=.*:\1\b)${RESET} asserts what follows the current 
+position in the string is zero or more characters, then a colon, then the word captured to Group 1. As hoped, this matches both 
+${WHITE_FG}_dog and _mouse${RESET}.
+
+Now suppose we try a "reversed" approach:
+
+${WHITE_FG}_(?=.*:(\w+)\b)\1\b${RESET}
+
+This only matches ${WHITE_FG}_mouse${RESET}. Why?
+
+First let's try to understand what this regex hopes to accomplish. It may not be that obvious, but it illustrates an important 
+feature of look-arounds. 
+
+After the engine matches the underscore, the look-ahead ${WHITE_FG}(?=.*:(\w+)\b)${RESET} asserts that what follows the current position in the string 
+is any number of characters, then a colon, then a word (captured to Group 1). After passing that assertion, the back-reference ${WHITE_FG}\1${RESET} 
+matches what was captured into Group 1. 
+
+Let's see how this works out. Remember that our string is 
+${WHITE_FG}_rabbit _dog _mouse DIC:cat:dog:mouse${RESET}
+
+After the ${WHITE_FG}underscore${RESET} that precedes ${WHITE_FG}rabbit${RESET}, we expect the look-ahead to fail because there is no ${WHITE_FG}rabbit${RESET} in the ${WHITE_FG}DIC section${RESET}—and it 
+does. The next time we match an ${WHITE_FG}underscore${RESET} is before ${WHITE_FG}dog${RESET}. At that stage, inside the look-ahead ${WHITE_FG}(?=.*:(\w+)\b)${RESET}, the ${WHITE_FG}dot-star${RESET} shoots 
+down to the end of the string, then backtracks just far enough to allow the colon to match, after which the word ${WHITE_FG}mouse${RESET} is matched 
+and captured to Group 1. The look-ahead succeeds. The next token ${WHITE_FG}\1${RESET} tries to match ${WHITE_FG}mouse${RESET}, but the next character in the string is 
+the ${WHITE_FG}d${RESET} from ${WHITE_FG}dog${RESET}, so the token fails. At this stage, having learned everything about backtracking, we might assume that the regex 
+engine allows the ${WHITE_FG}dot-star${RESET} to backtrack even more inside the look-ahead, up to the previous ${WHITE_FG}colon${RESET}, which would then allow ${WHITE_FG}(\w+)${RESET} to 
+match and capture ${WHITE_FG}mouse${RESET}. Then the back-reference ${WHITE_FG}\1${RESET} would match ${WHITE_FG}mouse${RESET}, and the engine would return a successful match.
+
+However, it does not work that way. Once the regex engine has left a look-around, it will not backtrack into it if something fails 
+somewhere down the pattern. On a logical level, that is because the official point of a look-around is to return one of two values: 
+true or false. Once a look-ahead evaluates to true at a given position in the string, it is always true. From the engine's 
+standpoint, there is nothing to backtrack. What would be the point—since the only other available value is false, and that would 
+fail the pattern? 
+
+The fact that the engine will not backtrack into a look-around means that it is an atomic block. This property of look-arounds will 
+rarely matter, but if someday, in the middle of building an intricate pattern, a look-ahead refuses to cooperate… This may be the 
+reason. 
+
+${WHITE_FG}Fixed-Width, Constrained-Width and Infinite-Width look-behind${RESET}
+
+In strings such as 123456_ORANGE abc12_APPLE, suppose you are interested in matching uppercase words, provided they are preceded by 
+a prefix composed of digits and an underscore character. Therefore, in this string, you want to match ORANGE but not APPLE. 
+
+It's worth remembering that in most regex flavors (.NET is one of the few exceptions), the following pattern is invalid:
+
+${WHITE_FG}(?<=\b\d+_)[A-Z]+${RESET}
+
+That is because the width of the text matched by the token ${WHITE_FG}\d+${RESET} can be anything. Most engines require the width of the subexpression 
+within a look-behind to be known in advance, as in ${WHITE_FG}(?<=\d{3}) ${RESET}
+
+Some engines allow the width of the subexpression within a look-behind to take various pre-determined values found on the various 
+sides of an alternation, as in ${WHITE_FG}(?<=0|128|\d{6})${RESET}. Yet others allow the width to vary within a pre-determined range, as in 
+${WHITE_FG}(?<=d{2,6})${RESET} 
+
+For details of what kinds of widths various engines allow in a look-behind, see the look-behind: Fixed-Width / Constrained Width / 
+Infinite Width section of the main syntax page. To honor the winners, I'll just repeat here that the only two programming-language 
+flavors that support infinite-width look-behind are .NET (C#, VB.NET, …) and Matthew Barnett's regex module for Python. I've also 
+implemented an infinite look-behind demo for PCRE. 
+
+Capture Group Inside Variable look-behind: Difference between Java and .NET
+Both Java and .NET allow this pattern: 
+${WHITE_FG}(?<=(\d{1,5}))Z${RESET}
+
+.NET allows it because it supports infinite-width look-behind. Java allows it because it supports look-behind whose width falls 
+within a defined range. However, they operate differently. As a result, against the string ${WHITE_FG}123Z${RESET}, this pattern will return different 
+Group 1 captures in the two engines.
+
+✽ Java captures ${WHITE_FG}3${RESET} to Group 1. The engine sees that the width of the string to be matched inside the look-behind must fall between 
+one and five characters. Java tries all the possible fixed-width patterns in the range, from the shortest to the longest, until one 
+succeeds. The shortest possible fixed-width pattern is ${WHITE_FG}(?<=(\d{1}))${RESET}. The engine temporarily skips back one character in the string, 
+tries to match ${WHITE_FG}\d{1}${RESET} and succeeds. The look-around succeeds, and Group 1 contains ${WHITE_FG}3${RESET}.
+
+✽ .NET captures ${WHITE_FG}123${RESET} to Group 1. The .NET engine has a far more efficient way of processing variable-width look-behinds. Instead of 
+trying multiple fixed-width patterns starting at points further and further back in the string, .NET reverses the string as well as 
+the pattern inside the look-behind, then attempts to match that single pattern on the reversed string. Therefore, in ${WHITE_FG}123Z${RESET}, to try 
+the look-behind at the point before ${WHITE_FG}Z${RESET}, it reverses the portion of string to be tested from ${WHITE_FG}123${RESET} to ${WHITE_FG}321${RESET}. Likewise, the look-behind 
+${WHITE_FG}(?<=(\d{1,5}))${RESET} is flipped into the look-ahead ${WHITE_FG}(?=(\d{1,5}))${RESET}. ${WHITE_FG}\d{1,5}${RESET} matches ${WHITE_FG}321${RESET}. Reversing that string, Group 1 contains ${WHITE_FG}123${RESET}. To 
+only capture ${WHITE_FG}3${RESET} as in Java, you would have to make the quantifier lazy:  ${WHITE_FG}(?<=(\d{1,5}?))Z${RESET} 
+
+✽ Like .NET, the regex alternate regular expressions module for Python captures ${WHITE_FG}123${RESET} to Group 1.
+
+${WHITE_FG}Workarounds${RESET}
+
+There are two main workarounds to the lack of support for variable-width (or infinite-width) look-behind:
+
+✽ Capture groups.
+Instead of ${WHITE_FG}(?<=\b\d+_)[A-Z]+${RESET} , you can use ${WHITE_FG}\b\d+_([A-Z]+)${RESET}, which matches the digits and underscore you don't want to see, then 
+matches and captures to Group 1 the uppercase text you want to inspect. This will work in all major regex flavors.
+
+✽ The ${WHITE_FG}\K${RESET} "keep out" verb, which is available in Perl, PCRE (C, PHP, R…), Ruby 2+ and Python\'s alternate regex engine.
+${WHITE_FG}\K${RESET} tells the engine to drop whatever it has matched so far from the match to be returned. Instead of ${WHITE_FG}(?<=\b\d+_)[A-Z]+${RESET}, you can 
+therefore use ${WHITE_FG}\b\d+_\K[A-Z]+${RESET}
+
+Compared with look-behinds, both the ${WHITE_FG}\K${RESET} and capture group workarounds have limitations:
+
+✽ When you look for multiple matches in a string, at the starting position of each match attempt, a look-behind can inspect the 
+characters behind the current position in the string. Therefore, against ${WHITE_FG}123${RESET}, the pattern ${WHITE_FG}(?<=\d)\d${RESET} (match a digit preceded by a 
+digit) will match both ${WHITE_FG}2${RESET} and ${WHITE_FG}3${RESET}. In contrast, ${WHITE_FG}\d\K\d${RESET} can only match ${WHITE_FG}2${RESET}, as the starting position after the first match is immediately 
+before the ${WHITE_FG}3${RESET}, and there are not enough digits left for a second match. Likewise, \d(\d) can only capture ${WHITE_FG}2${RESET}. 
+
+✽ With look-behinds, you can impose multiple conditions (similar to our password validation technique) by using multiple 
+look-behinds. For instance, to match a digit that is preceded by a lower-case Greek letter, you can use ${WHITE_FG}(?<=\p{Ll})(?<=\p{Greek})\d${RESET}. 
+The first look-behind ${WHITE_FG}(?<=\p{Ll})${RESET} ensures that the character immediately to the left is a lower-case letter, and the second 
+look-behind ${WHITE_FG}(?<=\p{Greek})${RESET} ensures that the character immediately to the left belongs to the Greek script. With the workarounds, you 
+could use ${WHITE_FG}\p{Greek}\K\d${RESET} to match a digit preceded by a character in the Greek script (or ${WHITE_FG}\p{Greek}(\d)${RESET} to capture it), but you 
+cannot impose a second condition. To get over this limitation, you could capture the Greek character and use a second regex to 
+check that it is a lower-case letter. 
+
+${WHITE_FG}Lookarounds (Usually) Want to be Anchored${RESET}
+
+Let's imagine we want to match a string consisting of one word, provided it contains at least one digit. This pattern offers a 
+reasonable solution—one of several:
+${WHITE_FG}\A(?=\D*\d)\w+\z${RESET}
+
+The ${WHITE_FG}\A${RESET} anchor asserts that the current position is the beginning of the string. The look-ahead ${WHITE_FG}(?=\D*\d)${RESET} asserts that at the current 
+position (which is still the beginning of the string), we can match zero or more non-digits, then one digit. Next, ${WHITE_FG}\w+${RESET} matches our 
+word. Finally, the ${WHITE_FG}\z${RESET} anchor asserts that the current position is the end of the string. 
+
+Now consider what happens when we forget the anchor ${WHITE_FG}\A${RESET} and use ${WHITE_FG}(?=\D*\d)\w+\z${RESET}. To make our oversight seem less severe, let's assume 
+we know that our string always contains an uninterrupted string of word characters. This guarantees that if we find a match, it 
+will have to be the right one—at the beginning of the string, as we wanted. So what's the problem? 
+
+Suppose we use our regex on a string composed of one hundred characters ${WHITE_FG}V${RESET}. Since the string doesn't contain a single digit, you and 
+I can immediately see that the regex must fail. Let's see how fast the engine comes to the same conclusion. 
+
+As always, the engine begins by trying to match the pattern at the first position in the string. Starting with the first token 
+${WHITE_FG}(?=\D*\d)${RESET}, it tries to assert that at the current position, i.e. the beginning of the string, it can match zero or more non-digits, 
+then one digit. Within the subexpression, the \D* matches all the ${WHITE_FG}V${RESET} characters. The engine then tries to match a digit, but since 
+we have reached the end of the string, that fails. 
+
+If we're using a smart engine such as PCRE, at this stage the engine fails the look-around for this first match attempt. That's 
+because before starting the match attempt, the engine has studied the pattern and noticed that the \D and \d tokens are mutually 
+exclusive, and it has turned the ${WHITE_FG}*${RESET} quantifier into a possessive quantifier ${WHITE_FG}*+${RESET}, a process known to PCRE as auto-possessification 
+(see footnote). 
+
+A less clever engine will backtrack, giving up all the \D characters it has matched one by one, each time attempting to match a ${WHITE_FG}\d${RESET} 
+after giving up a ${WHITE_FG}\D${RESET}. Eventually, the engine runs out of characters to backtrack, and the look-ahead fails.
+
+Once the engine understands that the look-ahead must fail (whether it comes to this conclusion cleverly or clumsily), it gives up on 
+the entire first match attempt. Next, as always in such cases, the engine moves to the next position in the string (past the first 
+${WHITE_FG}V)${RESET} and starts a new match attempt. Again, the ${WHITE_FG}\D*${RESET} eats up all the ${WHITE_FG}V${RESET} characters—although this time, there are only 99 of them. 
+Again, the look-ahead fails, either fast if the engine is smart, or, more likely, after backtracking all the way back to the 
+starting position. 
+
+After failing a second time, the engine moves past the second ${WHITE_FG}V${RESET}, starts a new match attempt, and fails… And so on, all the way to 
+the end of the string. 
+
+Because the pattern is not anchored at the beginning of the string, at each match attempt, the engine checks whether the look-ahead 
+matches at the current position. In doing so, in the best case, it matches 100 ${WHITE_FG}V${RESET} characters, then 99 on the second attempt, and so 
+on—so it needs about 5000 steps before it can see that the pattern will never match. In the more usual case, the engine needs to 
+backtrack and try the ${WHITE_FG}\d${RESET} at each position, adding two steps at each V position. Altogether, it needs about 15,000 steps before it 
+can see that the pattern will never match. 
+
+In contrast, with the original anchored pattern ${WHITE_FG}\A(?=\D*\d)\w+\z${RESET}, after the engine fails the first match attempt, each of the 
+following match attempts at further positions in the string fail instantly, because the ${WHITE_FG}\A${RESET} fails before the engine gets to the 
+look-ahead. In the best case, the engine takes about 200 steps to fail (100 steps to match all the V characters, then one step at 
+each of the further match attempts.) In the more usual case, the engine takes about 400 steps to fail (300 steps on the first match 
+attempt, then one step at each of the further match attempts.) 
+
+Needless to say, the ratio of (15,000 / 400) steps is the kind of performance hit we try to avoid in computing. This makes a solid 
+case for helping the engine along by minimizing the number of times look-aheads must be attempted, either by using anchors such as ${WHITE_FG}^${RESET} 
+and ${WHITE_FG}\A${RESET}, or by matching literal characters immediately before the look-ahead. 
+
+${WHITE_FG}One Exception: Overlapping Matches${RESET}
+
+There are times when we do want the engine to attempt the look-ahead at every single position in the string. Usually, the purpose of 
+such a maneuver is to match a number of overlapping substrings. For instance, against the string word, if the regex ${WHITE_FG}(?=(\w+))${RESET} is 
+allowed to match repeatedly, it will match four times, and each match will capture a different string to Group 1: ${WHITE_FG}word, ord, rd, 
+then d${RESET}. The section on overlapping matches explains how this works. 
+
+${WHITE_FG}Footnotes${RESET}
+
+Atomic tweak
+The atomic variation ${WHITE_FG}(?>[^a-z]*)[a-z]${RESET} or possessive version ${WHITE_FG}[^a-z]*+[a-z]${RESET} are tweaks that ensure that if the engine fails to find 
+the lowercase letter, it won't "stupidly" backtrack, giving up the non-lowercase letters one by one to see if a lowercase letter 
+might fit at that stage. 
+
+Note that before they start matching, some engines notice the mutually exclusive character of ${WHITE_FG}[a-z]${RESET} and its counterclass and 
+automatically make the ${WHITE_FG}*${RESET} quantifier possessive for you. This optimization is what PCRE calls auto-possessification. It allows you 
+to turn it off with the Special Start-of-Pattern Modifier ${WHITE_FG}(*NO_AUTO_POSSESS)${RESET} — but why would you ever want to? 
+
+DOC1
+
+echo "View a graphic?"
+read -q RESPONSE
+[[ ${RESPONSE} == 'y' ]] && eog ~/Downloads/regex-lookarounds.webp
+
+cat << DOC2
+${WHITE_FG}look-ahead and look-behind Zero-Length Assertions${RESET}
+
+look-ahead and look-behind, collectively called “look-around”, are zero-length
+assertions just like the start and end of line, and start and end of word
+anchors explained earlier in this tutorial. The difference is that look-around
+actually matches characters, but then gives up the match, returning only the
+result: match or no match. That is why they are called “assertions”.  They do
+not consume characters in the string, but only assert whether a match is
+possible or not. Lookaround allows you to create regular expressions that are
+impossible to create without them, or that would get very longwinded without
+them.
+
+Positive and Negative look-ahead Negative look-ahead is indispensable if you want
+to match something not followed by something else. When explaining character
+classes, this tutorial explained why you cannot use a negated character class to
+match a ${WHITE_FG}q${RESET} not followed by a ${WHITE_FG}u${RESET}. Negative look-ahead provides the solution: ${WHITE_FG}q(?!u)${RESET}.
+The negative look-ahead construct is the pair of parentheses, with the opening
+parenthesis followed by a question mark and an exclamation point. Inside the
+look-ahead, we have the trivial regex ${WHITE_FG}u${RESET}.
+
+Positive look-ahead works just the same. ${WHITE_FG}q(?=u)${RESET} matches a ${WHITE_FG}q${RESET} that is followed by a
+${WHITE_FG}u${RESET}, without making the ${WHITE_FG}u${RESET} part of the match. The positive look-ahead construct is a
+pair of parentheses, with the opening parenthesis followed by a question mark
+and an equals sign.
+
+You can use any regular expression inside the look-ahead (but not look-behind, as
+explained below). Any valid regular expression can be used inside the
+look-ahead. If it contains capturing groups then those groups will capture as
+normal and backreferences to them will work normally, even outside the
+look-ahead. (The only exception is Tcl, which treats all groups inside look-ahead
+as non-capturing.) The look-ahead itself is not a capturing group. It is
+not included in the count towards numbering the backreferences. If you want to
+store the match of the regex inside a look-ahead, you have to put capturing
+parentheses around the regex inside the look-ahead, like this: ${WHITE_FG}(?=(regex))${RESET}. The
+other way around will not work, because the look-ahead will already have
+discarded the regex match by the time the capturing group is to store its match.
+
+Regex Engine Internals First, let’s see how the engine applies ${WHITE_FG}q(?!u)${RESET} to the
+string ${WHITE_FG}Iraq${RESET}. The first token in the regex is the literal ${WHITE_FG}q${RESET}. As we already know,
+this causes the engine to traverse the string until the ${WHITE_FG}q${RESET} in the string
+is matched. The position in the string is now the void after the string.
+The next token is the look-ahead. The engine takes note that it is inside
+a look-ahead construct now, and begins matching the regex inside the
+look-ahead. So the next token is ${WHITE_FG}u${RESET}. This does not match the void after the
+string. The engine notes that the regex inside the look-ahead failed.
+Because the look-ahead is negative, this means that the look-ahead has
+successfully matched at the current position. At this point, the entire
+regex has matched, and ${WHITE_FG}q${RESET} is returned as the match.
+
+Let’s try applying the same regex to quit. ${WHITE_FG}q${RESET} matches ${WHITE_FG}q${RESET}. The next token is the ${WHITE_FG}u
+${RESET}inside the look-ahead. The next character is the ${WHITE_FG}u${RESET}. These match. The engine
+advances to the next character: ${WHITE_FG}i${RESET}. However, it is done with the regex inside the
+look-ahead. The engine notes success, and discards the regex match. This causes
+the engine to step back in the string to ${WHITE_FG}u${RESET}.
+
+Because the look-ahead is negative, the successful match inside it causes the
+look-ahead to fail. Since there are no other permutations of this regex, the
+engine has to start again at the beginning. Since ${WHITE_FG}q${RESET} cannot match anywhere else,
+the engine reports failure.
+
+Let’s take one more look inside, to make sure you understand the implications of
+the look-ahead. Let’s apply ${WHITE_FG}q(?=u)i${RESET} to quit. The look-ahead is now positive and is
+followed by another token. Again, ${WHITE_FG}q${RESET} matches ${WHITE_FG}q${RESET} and ${WHITE_FG}u${RESET} matches ${WHITE_FG}u${RESET}. Again, the match
+from the look-ahead must be discarded, so the engine steps back from ${WHITE_FG}i${RESET} in the
+string to ${WHITE_FG}u${RESET}. The look-ahead was successful, so the engine continues with ${WHITE_FG}i${RESET}. But ${WHITE_FG}i
+${RESET}cannot match ${WHITE_FG}u${RESET}. So this match attempt fails. All remaining attempts fail as
+well, because there are no more ${WHITE_FG}q${RESET}’s in the string.
+
+The regex ${WHITE_FG}q(?=u)i${RESET} can never match anything. It tries to match ${WHITE_FG}u${RESET} and ${WHITE_FG}i${RESET} at the
+same position. If there is a ${WHITE_FG}u${RESET} immediately after the ${WHITE_FG}q${RESET} then the look-ahead
+succeeds but then ${WHITE_FG}i${RESET} fails to match ${WHITE_FG}u${RESET}. If there is anything other than a ${WHITE_FG}u
+${RESET}immediately after the ${WHITE_FG}q${RESET} then the look-ahead fails.
+
+Positive and Negative look-behind look-behind has the same effect, but works
+backwards. It tells the regex engine to temporarily step backwards in the
+string, to check if the text inside the look-behind can be matched there. ${WHITE_FG}(?<!a)b
+${RESET}matches a “${WHITE_FG}b${RESET}” that is not preceded by an “${WHITE_FG}a${RESET}”, using negative look-behind. It
+doesn’t match cab, but matches the ${WHITE_FG}b${RESET} (and only the ${WHITE_FG}b${RESET}) in ${WHITE_FG}bed${RESET} or ${WHITE_FG}debt${RESET}. ${WHITE_FG}(?<=a)b
+${RESET}(positive look-behind) matches the ${WHITE_FG}b${RESET} (and only the ${WHITE_FG}b${RESET}) in ${WHITE_FG}cab${RESET}, but does not match
+${WHITE_FG}bed${RESET} or ${WHITE_FG}debt${RESET}.
+
+The construct for positive look-behind is ${WHITE_FG}(?<=text)${RESET}: a pair of parentheses, with
+the opening parenthesis followed by a question mark, “less than” symbol, and an
+equals sign. Negative look-behind is written as ${WHITE_FG}(?<!text)${RESET}, using an exclamation
+point instead of an equals sign.
+
+More Regex Engine Internals Let’s apply ${WHITE_FG}(?<=a)b${RESET} to thingamabob. The engine
+starts with the look-behind and the first character in the string. In this case,
+the look-behind tells the engine to step back one character, and see if ${WHITE_FG}a
+${RESET}can be matched there. The engine cannot step back one character because
+there are no characters before the ${WHITE_FG}t${RESET}. So the look-behind fails, and the
+engine starts again at the next character, the ${WHITE_FG}h${RESET}. (Note that a negative
+look-behind would have succeeded here.) Again, the engine
+temporarily steps back one character to check if an “${WHITE_FG}a${RESET}” can be found
+there. It finds a ${WHITE_FG}t${RESET}, so the positive look-behind fails again.
+
+The look-behind continues to fail until the regex reaches the ${WHITE_FG}m${RESET} in the string.
+The engine again steps back one character, and notices that the ${WHITE_FG}a${RESET} can be matched
+there. The positive look-behind matches. Because it is zero-length, the current
+position in the string remains at the ${WHITE_FG}m${RESET}. The next token is ${WHITE_FG}b${RESET}, which cannot match
+here. The next character is the second ${WHITE_FG}a${RESET} in the string. The engine steps back,
+and finds out that the ${WHITE_FG}m${RESET} does not match ${WHITE_FG}a${RESET}.
+
+The next character is the first ${WHITE_FG}b${RESET} in the string. The engine steps back and finds
+out that a satisfies the look-behind. ${WHITE_FG}b${RESET} matches ${WHITE_FG}b${RESET}, and the entire regex has been
+matched successfully. It matches one character: the first ${WHITE_FG}b${RESET} in the string.
+
+Important Notes About look-behind The good news is that you can use look-behind
+anywhere in the regex, not only at the start. If you want to find a word not
+ending with an “${WHITE_FG}s${RESET}”, you could use ${WHITE_FG}\b\w+(?<!s)\b${RESET}. This is definitely not the same
+as ${WHITE_FG}\b\w+[^s]\b${RESET}. When applied to ${WHITE_FG}John's${RESET}, the former matches ${WHITE_FG}John${RESET} and the latter
+matches ${WHITE_FG}John'${RESET} (including the apostrophe). I will leave it up to you to figure
+out why. (Hint: ${WHITE_FG}\b${RESET} matches between the apostrophe and the ${WHITE_FG}s${RESET}). The latter also
+doesn’t match single-letter words like “${WHITE_FG}a${RESET}” or “${WHITE_FG}I${RESET}”. The correct regex without
+using look-behind is ${WHITE_FG}\b\w*[^s\W]\b${RESET} (star instead of plus, and ${WHITE_FG}\W${RESET} in the character
+class). Personally, I find the look-behind easier to understand. The last
+regex, which works correctly, has a double negation (the ${WHITE_FG}\W${RESET} in the negated
+character class). Double negations tend to be confusing to humans. Not to
+regex engines, though. (Except perhaps for Tcl, which treats negated shorthands
+in negated character classes as an error.)
+
+The bad news is that most regex flavors do not allow you to use just any regex
+inside a look-behind, because they cannot apply a regular expression backwards.
+The regular expression engine needs to be able to figure out how many characters
+to step back before checking the look-behind. When evaluating the look-behind, the
+regex engine determines the length of the regex inside the look-behind, steps
+back that many characters in the subject string, and then applies the regex
+inside the look-behind from left to right just as it would with a normal regex.
+
+Many regex flavors, including those used by Perl, Python, and Boost only allow
+fixed-length strings. You can use literal text, character escapes, Unicode
+escapes other than \X, and character classes. You cannot use quantifiers or
+backreferences. You can use alternation, but only if all alternatives have the
+same length. These flavors evaluate look-behind by first stepping back through
+the subject string for as many characters as the look-behind needs, and then
+attempting the regex inside the look-behind from left to right.
+
+Perl 5.30 supports variable-length look-behind as an experimental feature. But
+there are many cases in which it does not work correctly. So in practice, the
+above is still true for Perl 5.30.
+
+PCRE is not fully Perl-compatible when it comes to look-behind. While Perl
+requires alternatives inside look-behind to have the same length, PCRE allows
+alternatives of variable length. PHP, Delphi, R, and Ruby also allow this. Each
+alternative still has to be fixed-length. Each alternative is treated as a
+separate fixed-length look-behind.
+
+Java takes things a step further by allowing finite repetition. You can use the
+question mark and the curly braces with the max parameter specified. Java
+determines the minimum and maximum possible lengths of the look-behind. The
+look-behind in the regex (?<!ab{2,4}c{3,5}d)test has 5 possible lengths. It can
+be from 7 through 11 characters long. When Java (version 6 or later) tries to
+match the look-behind, it first steps back the minimum number of characters (7 in
+this example) in the string and then evaluates the regex inside the
+look-behind as usual, from left to right. If it fails, Java steps back one more
+character and tries again. If the look-behind continues to fail, Java continues
+to step back until the look-behind either matches or it has stepped back the
+maximum number of characters (11 in this example). This repeated stepping back
+through the subject string kills performance when the number of possible lengths
+of the look-behind grows. Keep this in mind. Don’t choose an arbitrarily large
+maximum number of repetitions to work around the lack of infinite quantifiers
+inside look-behind. Java 4 and 5 have bugs that cause look-behind with alternation
+or variable quantifiers to fail when it should succeed in some situations. These
+bugs were fixed in Java 6.
+
+Java 13 allows you to use the star and plus inside look-behind, as well as curly
+braces without an upper limit. But Java 13 still uses the laborious method of
+matching look-behind introduced with Java 6. Java 13 also does not correctly
+handle look-behind with multiple quantifiers if one of them is unbounded. In some
+situations you may get an error. In other situations you may get incorrect
+matches. So for both correctness and performance, we recommend you only use
+quantifiers with a low upper bound in look-behind with Java 6 through 13.
+
+The only regex engines that allow you to use a full regular expression inside
+look-behind, including infinite repetition and backreferences, are the JGsoft
+engine and the .NET framework RegEx classes. These regex engines really apply
+the regex inside the look-behind backwards, going through the regex inside the
+look-behind and through the subject string from right to left. They only need to
+evaluate the look-behind once, regardless of how many different possible lengths
+it has.
+
+Finally, flavors like std::regex and Tcl do not support look-behind at all, even
+though they do support look-ahead. JavaScript was like that for the longest time
+since its inception. But now look-behind is part of the ECMAScript 2018
+specification. As of this writing (late 2019), Google’s Chrome browser is the
+only popular JavaScript implementation that supports look-behind. So if
+cross-browser compatibility matters, you can’t use look-behind in JavaScript.
+
+Lookaround Is Atomic The fact that look-around is zero-length automatically makes
+it atomic. As soon as the look-around condition is satisfied, the regex engine
+forgets about everything inside the look-around. It will not backtrack inside the
+look-around to try different permutations.
+
+The only situation in which this makes any difference is when you use capturing
+groups inside the look-around. Since the regex engine does not backtrack into the
+look-around, it will not try different permutations of the capturing groups.
+
+For this reason, the regex ${WHITE_FG}(?=(\d+))\w+\1${RESET} never matches ${WHITE_FG}123x12${RESET}. First the
+look-around captures ${WHITE_FG}123${RESET} into ${WHITE_FG}\1${RESET}. ${WHITE_FG}\w+${RESET} then matches the whole string and
+backtracks until it matches only ${WHITE_FG}1${RESET}. Finally, ${WHITE_FG}\w+${RESET} fails since ${WHITE_FG}\1${RESET} cannot be
+matched at any position. Now, the regex engine has nothing to backtrack to, and
+the overall regex fails. The backtracking steps created by ${WHITE_FG}\d+${RESET} have been
+discarded. It never gets to the point where the look-ahead captures only ${WHITE_FG}12${RESET}.
+
+Obviously, the regex engine does try further positions in the string. If we
+change the subject string, the regex ${WHITE_FG}(?=(\d+))\w+\1${RESET} does match ${WHITE_FG}56x56${RESET} in ${WHITE_FG}456x56${RESET}.
+
+If you don’t use capturing groups inside look-around, then all this doesn’t
+matter. Either the look-around condition can be satisfied or it cannot be. In how
+many ways it can be satisfied is irrelevant.
+DOC2
+cat << DOC3
+
+${WHITE_FG}Basic topics${RESET}
+
+${WHITE_FG}Anchors — ^ and \$${RESET}
+
+/^The/       matches any string that starts with "The"
+/end$/       matches a string that ends with "end"
+/^The end$/  exact string match that starts and ends with "The end"
+/roar/       matches any string that has the text "roar" in it
+
+${WHITE_FG}Quantifiers — * + ? and {}${RESET}
+
+/abc*/        matches a string that has ab followed by zero or more "c"
+/abc+/        matches a string that has ab followed by one or more "c"
+/abc?/        matches a string that has ab followed by zero or one "c"
+/abc{2}/      matches a string that has ab followed by 2 "c"
+/abc{2,}/     matches a string that has ab followed by 2 or more "c"
+/abc{2,5}/    matches a string that has ab followed by 2 up to 5 "c"
+/a(bc)*/      matches a string that has a followed by zero or more copies of the sequence "bc"
+/a(bc){2,5}/  matches a string that has a followed by 2 up to 5 copies of the sequence "bc"
+
+${WHITE_FG}OR operator — | or []${RESET}
+
+/a(b|c)/     matches a string that has "a" followed by "b" or "c" (and captures "b" or "c")  
+/a[bc]/      same as previous, but without capturing "b" or "c"
+
+${WHITE_FG}Character classes — \d \w \s and .${RESET}
+
+/\d/         matches a single character that is a digit  
+/\w/         matches a word character (alphanumeric character plus underscore)  
+/\s/         matches a whitespace character (includes tabs and line breaks)
+/./          matches any character  
+
+Use the . operator carefully since often class or negated character class (which we’ll cover next) 
+are faster and more precise.
+
+\d, \w and \s also present their negations with \D, \W and \S respectively.
+
+For example, \D will perform the inverse match with respect to that obtained with \d.
+
+/\D/         matches a single non-digit character  
+
+In order to be taken literally, you must escape the characters "^.[$()|*+?{\" with
+a backslash "\" as they have special meaning.
+
+/\$\d/       matches a string that has a "$" before one digit  
+
+Notice that you can match also non-printable characters like tabs \t, new-lines \n, 
+carriage returns \r.
+
+${WHITE_FG}Flags${RESET}
+
+We are learning how to construct a regex but forgetting a fundamental concept: flags.
+
+A regex usually comes within this form /abc/, where the search pattern is delimited 
+by two slash characters /.  At the end we can specify a flag with these values 
+(we can also combine them each other): g (global) does not return after the first match, 
+restarting the subsequent searches from the end of the previous match
+
+m (multi-line) when enabled ^ and $ will match the start and end of a line, instead of the whole string
+
+i (insensitive) makes the whole expression case-insensitive (for instance /aBc/i would match AbC)
+
+${WHITE_FG}Intermediate topics${RESET}
+
+${WHITE_FG}Grouping and capturing — ()${RESET}
+
+/a(bc)/           parentheses create a capturing group with value "bc"
+/a(?:bc)*/        using ?: we disable the capturing group  
+/a(?<foo>bc)/     using ?<foo> we put a name to the group  
+
+This operator is very useful when we need to extract information from strings or data using your preferred 
+programming language. Any multiple occurrences captured by several groups will be exposed in the form of a 
+classical array: we will access their values specifying using an index on the result of the match.
+
+If we choose to put a name to the groups (using (?<foo>...)) we will be able to retrieve the group values 
+using the match result like a dictionary where the keys will be the name of each group.
+
+${WHITE_FG}Bracket expressions — []${RESET}
+
+/[abc]/           matches a string that has either an "a" or "a b" or "a c"  is the same as a|b|c  
+/[a-c]/           same as previous
+/[a-fA-F0-9]/     a string that represents a single hexadecimal digit, case insensitively  
+/[0-9]%/          a string that has a character from 0 to 9 before a "%" sign
+/[^a-zA-Z]/       a string that has not a letter from a to z or from A to Z. In this case the ^ is 
+                  used as negation of the expression  
+
+${WHITE_FG}Greedy and Lazy match${RESET}
+
+The quantifiers ( * + {}) are greedy operators, so they expand the match as far as they can through 
+the provided text.
+
+For example, /<.+>/ matches "<div>simple div</div>" in This is a <div> simple div</div> test. In order 
+to catch only the div tag we can use a ? to make it lazy:
+
+/<.+?>/          matches any character one or more times included inside < and >, expanding as needed  
+
+Notice that a better solution should avoid the usage of . in favor of a more strict regex:
+
+/<[^<>]+>/       matches any character except < or > one or more times included inside < and >  
+
+${WHITE_FG}Advanced topics${RESET}
+
+${WHITE_FG}Boundaries — \b and \B${RESET}
+
+/\babc\b/        performs a "whole words only" search  
+
+\b represents an anchor like caret (it is similar to $ and ^) matching positions where one side is a 
+word character (like \w) and the other side is not a word character (for instance it may be the 
+beginning of the string or a space character).
+
+It comes with its negation, \B. This matches all positions where \b doesn’t match and could be if we 
+want to find a search pattern fully surrounded by word characters.
+
+/\Babc\B/        matches only if the pattern is fully surrounded by word characters  
+
+${WHITE_FG}Back-references — \1${RESET}
+
+/([abc])\1/              using \1 it matches the same text that was matched by the first capturing group  
+
+/([abc])([de])\2\1/      we can use \2 (\3, \4, etc.) to identify the same text that was matched by the 
+                         second (third, fourth, etc.) capturing group  
+
+/(?<foo>[abc])\k<foo>/   we put the name foo to the group and we reference it later (\k<foo>). 
+                         The result is the same of the first regex  
+
+${WHITE_FG}Look-ahead and Look-behind — (?=) and (?<=)${RESET}
+
+/d(?=r)/       matches a "d" only if is followed by "r", but "r" will not be part of the overall regex match  
+/(?<=r)d/      matches a "d" only if is preceded by an "r", but "r" will not be part of the overall regex match  
+
+${WHITE_FG}You can use also the negation operator!${RESET}
+
+/d(?!r)/       matches a "d" only if is not followed by "r", but "r" will not be part of the overall regex match  
+/(?<!r)d/      matches a "d" only if is not preceded by an "r", but "r" will not be part of the overall regex match  
+
+${WHITE_FG}Summary${RESET}
+
+As you’ve seen, the application fields of regex can be multiple and I’m sure that you’ve recognized at least one of 
+these tasks among those seen in your developer career, here a quick list:
+
+data validation (for example check if a time string i well-formed)
+
+data scraping (especially web scraping, find all pages that contain a certain set of words eventually in a 
+specific order)
+
+data wrangling (transform data from “raw” to another format)
+
+string parsing (for example catch all URL GET parameters, capture text inside a set of parenthesis)
+
+string replacement (for example, even during a code session using a common IDE to translate a Java or C# class 
+in the respective JSON object — replace “;” with “,” make it lowercase, avoid type declaration, etc.)
+
+syntax highlightning, file renaming, packet sniffing and many other applications involving strings 
+(where data need not be textual)
+DOC3
+) | less -R

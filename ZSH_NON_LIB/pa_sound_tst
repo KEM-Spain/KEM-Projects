@@ -1,0 +1,24 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+SOUND=/usr/share/sounds/gnome/default/alerts
+tput cup 0 0
+tput el
+vol 50 >/dev/null && echo "Volume is 50%"
+
+for S in ${SOUND}/*;do
+	[[ ${S} =~ 'bark' ]] && continue
+	for R in {1..5};do
+		tput cup 1 0
+		tput el
+		printf "\r${WHITE_FG}${S}${RESET} ${GREEN_FG}%d${RESET}" $R
+		play -v 5 ${S} 2>/dev/null
+	done
+done

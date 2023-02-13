@@ -1,0 +1,9 @@
+#compdef playit
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-a[search by artist]' \
+'-e[choose file type: mp3, flac, etc.]' \
+'-l[search in current directory only]' \
+'-t[search by title]'

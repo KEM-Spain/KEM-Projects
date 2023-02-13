@@ -1,0 +1,182 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _BLACKLIST
+typeset -a _EXTRA_FUNCS
+
+#Constants
+_BLACKLIST+=(usage 1 parse_opts 1 opt_type 1 opt_exists 1 dbg 1 dbg_msg 1 dbg_set_level 1)
+
+_SCRIPT=${0:t}
+_FUNC_REGEX='() {$'
+
+print_func () {
+	local FUNC=${1}
+	local FN=${2}
+	local B
+	
+	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return 1
+	for B in ${(k)_BLACKLIST};do
+		[[ ${B} =~ ${FUNC} ]] && return 1
+	done
+	perl -ne "print if /^${FUNC} \(\) {$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Attempt to identify and gather all references
+\tto external functions and incorporate them
+\tinto the script body to facilitate running in
+\ta systemd environment as a service
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		e) echo "<FUNCTION>";;
+		f) echo "<FILE>";;
+	esac
+}
+
+usage () {
+	tabs 5
+
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-e $(opt_type e)${RESET} one or more extra functions to be extracted"
+	echo -e "${WHITE_FG}-k${RESET} retain intermediate files after run"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	echo ${PENDING_MSGS}
+	exit
+}
+
+typeset -a OPTIONS
+OPTSTR=":He:k"
+OPTIND=0
+
+KEEP_INTERMEDIATE_FILES=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+	  e) _EXTRA_FUNCS+=(${=OPTARG});;
+	  k) KEEP_INTERMEDIATE_FILES=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${#} -eq 1 ]] && FN=${1} || usage "Missing argument $(opt_type f)"
+UFN=${(U)FN}
+
+echo "${WHITE_FG}Blacklisted Functions${RESET}:"
+for B in ${(k)_BLACKLIST};do
+	echo "${WHITE_FG}${RESET}>${B}"
+done
+
+rm -f ./common.zsh.sorted.functions
+rm -f FUNCS_FOR_${UFN}
+
+zsh_sort_funcs -B /usr/local/lib/common.zsh
+mv /usr/local/lib/common.zsh.sorted.functions ${PWD}
+FUNC_LIST=("${(f)$(grep --color=never ${_FUNC_REGEX} < ${PWD}/common.zsh.sorted.functions | sed 's/ [(][)] {//g')}")
+
+NEED_FUNCS=("${(f)$(
+for L in ${FUNC_LIST};do
+	grep --color=never -o ${L} ${FN}
+done | sort -u
+)}")
+echo "${WHITE_FG}1st pass${RESET}: Functions identified in ${FN}:${#NEED_FUNCS}"
+
+if [[ -n ${_EXTRA_FUNCS} ]];then
+	echo "Including ${#_EXTRA_FUNCS} additional functions:${_EXTRA_FUNCS}"
+	NEED_FUNCS+=(${_EXTRA_FUNCS})
+fi
+
+echo "${WHITE_FG}1st pass${RESET}:Adding unique functions"
+NDX=0
+for F in ${(uo)NEED_FUNCS};do
+	((NDX++))
+	print_func ${F} ${PWD}/common.zsh.sorted.functions
+	[[ ${?} -eq 0 ]] && echo "Added ${NDX}:${F}" >&2
+done > FUNCS_FOR_${UFN}
+
+#insert sorted funcs
+sed "/^#Functions/r FUNCS_FOR_${UFN}" ${FN} >${FN}.standalone.1
+
+NEED_FUNCS=("${(f)$(
+for L in ${FUNC_LIST};do
+	grep --color=never -o ${L} ${FN}.standalone.1
+done | sort -u
+)}")
+echo "${WHITE_FG}2nd pass${RESET}: Functions identified in ${FN}.standalone.1:${#NEED_FUNCS}"
+
+echo "${WHITE_FG}2nd pass${RESET}: Adding unique functions"
+NDX=0
+for F in ${(uo)NEED_FUNCS};do
+	((NDX++))
+	print_func ${F} ${PWD}/common.zsh.sorted.functions
+	[[ ${?} -eq 0 ]] && echo "Added ${NDX}:${F}" >&2
+done > FUNCS_FOR_${UFN}
+#insert sorted funcs
+sed "/^#Functions/r FUNCS_FOR_${UFN}" ${FN}.standalone.1 >${FN}.standalone
+
+[[ -e ${FN:t}.standalone ]] && echo "${FN}.standalone created" && chmod 775 ${FN}.standalone
+
+if [[ -e ./pre_release ]];then
+	echo "Executing pre_release..."
+	./pre_release # apply any modifications to production
+fi
+
+if [[ ${KEEP_INTERMEDIATE_FILES} == 'false' ]];then
+	/bin/rm -f ${FN}.standalone.1
+	/bin/rm -f ${PWD}/common.zsh.sorted.functions
+	/bin/rm -f FUNCS_FOR_${UFN}
+fi

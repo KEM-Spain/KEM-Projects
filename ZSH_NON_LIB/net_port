@@ -1,0 +1,102 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m" SCRIPT=${0:t}
+function parse_opts {
+	local OPTS=$@
+	local -a OPTSTRING
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
+		OPTSTRING+="-${OPTS[$O]}"
+	done
+	echo $OPTSTRING
+}
+
+function usage {
+	local OPTS=$(parse_opts $OPTSTR)
+	echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-p${RESET} specify port to scan"
+	echo -e "${WHITE_FG}-t${RESET} specify tool to use (lsof, ss, nmap)"
+	echo -e "\n${WHITE_FG}DESC${RESET}:Check port status"
+	exit
+}
+
+OPTSTR=":HDt:p:"
+
+DEBUG=false
+OPTIND=0
+TOOL=unset
+PORT=unset
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) DEBUG=true;;
+     p) PORT=${OPTARG};;
+     t) TOOL=${OPTARG};;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+INT_IP=$(ip_int | head -1) #possibly more than 1;take 1st
+EXT_IP=$(ip_ext)
+
+LSOF_CMD="sudo lsof -i -P -n"
+SS_CMD="sudo ss -tulwn"
+NMAP_CMD="sudo nmap -O ${MYIP}/24"
+
+if [[ ${TOOL} != 'unset' ]];then
+	LSOF=false
+	SS=false
+	NMAP=false
+
+	case ${TOOL} in
+		lsof) LSOF=true;;
+		ss) SS=true;;
+		nmap) NMAP=true;;
+	esac
+else
+	LSOF=true
+	SS=true
+	NMAP=false
+fi
+
+if [[ ${PORT} != 'unset' ]];then
+	LSOF_CMD="sudo lsof -i :${PORT} -P -n"
+	SS_CMD="sudo ss -at '( dport = :${PORT} or sport = :${PORT} )'"
+fi
+
+if [[ ${LSOF} == 'true' ]];then
+	echo "${WHITE_FG}lsof\n----------\n${RESET}"
+	eval ${LSOF_CMD}
+fi
+
+if [[ ${SS} == 'true' ]];then
+	echo "\n${WHITE_FG}ss\n----------\n${RESET}"
+	eval ${SS_CMD}
+fi
+
+if [[ ${NMAP} == 'true' ]];then #doesn't like eval
+	echo "\n${WHITE_FG}nmap\n----------\n${RESET}"
+	if [[ ${PORT} == 'unset' ]];then
+		sudo nmap -sTU -O ${INT_IP}/24 | grep -vi 'host down'
+	else
+		sudo nmap -sTU -O -p${PORT} ${INT_IP}/24 | grep -vi 'host down'
+	fi
+fi

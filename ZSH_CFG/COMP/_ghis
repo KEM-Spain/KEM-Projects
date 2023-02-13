@@ -1,0 +1,12 @@
+#compdef ghis
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-a[match arguments only]' \
+'-c[match commands only]' \
+'-l[override history depth limit - default is ]' \
+'-o[write to file]' \
+'-s[display sorted results]' \
+'-x[exact match]' \
+'-z[no history row limit]'

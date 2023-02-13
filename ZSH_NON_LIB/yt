@@ -1,0 +1,129 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+clean_fn () {
+	FN=${@}
+	echo ${FN} | perl -pe 's/^(.*)([-].*\.)(.*)$/$1.$3/g'
+}
+
+show_operators () {
+cat <<YOU_TUBE_SEARCH
+YouTube Search Operators:
+
+Search by                                       Search Syntax
+---------                                       -------------
+Search only in title                            intitle:search query
+Force search for word in results                +word
+Omit a word from results                        -word
+Search for exact composition of words           “search query”
+Wild character for word                         *
+Search for channels                             search query, channels
+Search for movies                               search query, film
+Search only programmes                          search query, show
+Search for short videos less than 4 minutes     search query, short
+Search for long videos greater than 20 minutes  search query, long
+Search for 4K videos                            search query, 4k
+Search for HD videos                            search query, HD
+Search for videos with subtitles                search query, cc
+Search for common license videos                search query, creativecommons
+Search for 3D videos                            search query, 3D
+Search for live videos                          search query, live
+Search for purchased videos                     search query, purchased
+Search for live videos                          search query, live
+Search for videos with 360 degree view          search query, spherical
+Search for videos shot in 360 degree            search query, spherical
+Search for videos updated in last one hour      search query, hour
+Search for videos updated today                 search query, today
+Search for videos updated in last one week      search query, week
+Search for videos updated in last one month     search query, month
+Search for videos updated in last one year      search query, year
+YOU_TUBE_SEARCH
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+function parse_opts {
+	local OPTS=$@
+	local -a OPTSTRING
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
+		OPTSTRING+="-${OPTS[$O]}"
+	done
+	echo $OPTSTRING
+}
+
+function usage {
+	local OPTS=$(parse_opts $OPTSTR)
+	echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET} <url>\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-s${RESET} search"
+	echo -e "${WHITE_FG}-a${RESET} audio only"
+	echo -e "\n${WHITE_FG}DESC${RESET}:this script acts as a frontend to youtube-dl\n"
+	exit
+}
+
+DEBUG=false
+AUDIO_ONLY=false
+SEARCH=false
+OPTIND=0
+OPTSTR=":HDas:"
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) show_operators;usage;;
+     D) DEBUG=true;;
+     a) AUDIO_ONLY=true;;
+     s) SEARCH=true;SEARCH_PARAMS=${OPTARG};;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+echo $@
+ARGS=$*
+
+if [[ ${DEBUG} == "true" ]];then
+	echo "Search:${SEARCH}"
+	echo "Audio-Only:${AUDIO_ONLY}"
+	echo "ARGS:${ARGS}"
+fi
+
+#---Execution---
+if [[ ${SEARCH} == "true" ]];then
+	echo "Perfoming Youtube search"
+	[[ ${DEBUG} == "true" ]] && echo "youtube-dl -s --get-description ytsearch:${(q)SEARCH_PARAMS}" 
+	RESPONSE=$(youtube-dl -s --get-description "ytsearch:${(q)SEARCH_PARAMS}")
+	if [[ -n ${RESPONSE} ]];then
+		echo "\n${WHITE_FG}"
+		echo ${RESPONSE} | fold -s
+		echo "${RESET}"
+		[[ $? -ne 0 ]] && exit
+		echo -n "Download query result (y/n):"
+		read -q X
+		echo
+		[[ $X == "y" ]] && youtube-dl "ytsearch:${(q)SEARCH_PARAMS}" |tee >jd
+	fi
+	exit
+else
+	if [[ ${AUDIO_ONLY} == "true" ]];then
+		echo "Downloading ${WHITE_FG}audio${RESET} only"
+		youtube-dl -o '%(title)s.%(ext)s' -x --audio-format flac -f bestaudio ${ARGS}
+	else
+		echo "Downloading both ${WHITE_FG}video and audio${RESET}"
+		youtube-dl -o '%(title)s.%(ext)s' ${ARGS}
+	fi
+fi
+

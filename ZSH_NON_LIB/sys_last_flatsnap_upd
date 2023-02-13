@@ -1,0 +1,31 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+TODAY=$(date +'%Y-%m-%d')
+FLATSNAP_MARKER=/home/kmiller/.flatsnap
+
+datediff() {
+	D1=$(date -d "$1" +%s)
+	D2=$(date -d "$2" +%s)
+	DIFF=$(( (D1 - D2) / 86400 ))
+	[[ ${DIFF} -eq 0 ]] && echo "${GREEN_FG}was today${RESET}"
+	[[ ${DIFF} -eq 1 ]] && echo "1 day ago"
+	[[ ${DIFF} -gt 1 && ${DIFF} -lt 6 ]] && echo "${DIFF} days ago"
+	[[ ${DIFF} -ge 6 ]] && echo "${RED_FG}${DIFF} days ago${RESET}"
+}
+
+LAST_FLATSNAP="Unknown"
+[[ -e ${FLATSNAP_MARKER} ]] && LAST_FLATSNAP=$(stat -c "%y" ${FLATSNAP_MARKER} | cut -d' ' -f1) || echo ${TODAY}>${FLATSNAP_MARKER}
+
+if [[ ${LAST_FLATSNAP} == "Unknown" ]];then
+	echo "flatsnap has been initialized"
+else
+	echo "Last Flatpak and Snap package scan:${WHITE_FG}$(datediff ${TODAY} ${LAST_FLATSNAP})${RESET}" 
+fi

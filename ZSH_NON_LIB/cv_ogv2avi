@@ -1,0 +1,11 @@
+#!/usr/bin/zsh
+[[ $# -eq 0 ]] && echo "$0: Arg required: filename[.ogv] (or glob)" && exit
+LOG=$(basename $0).log
+for fn in ${@};do
+    OGV=$(basename $fn .ogv).ogv
+    AVI=$(basename $fn .ogv).avi
+    if [[ -e $OGV ]];then
+        echo "Converting: $OGV to avi format"
+        $(mencoder ${OGV} -o ${AVI} -oac mp3lame -lameopts fast:preset=standard -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=4000 >> /tmp/$LOG 2>&1)
+    fi
+done

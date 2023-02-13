@@ -1,0 +1,11 @@
+#!/usr/bin/zsh
+LINKDIR=/usr/local/bin
+MOTHER=/etc/zsh/system_wide/functions/myls
+#LISTERS=(cl cl. cll cllr clld clldh clinks cla)
+LISTERS=(cl cll cllr)
+for L in ${LISTERS};do
+	ln -fs ${MOTHER} ${LINKDIR}/${L}
+done
+for L in ${LISTERS};do
+	ls -la ${LINKDIR}/${L}
+done

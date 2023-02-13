@@ -1,0 +1,7 @@
+#compdef lst
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-s[summarize types]' \
+'-t[limit to file type]'

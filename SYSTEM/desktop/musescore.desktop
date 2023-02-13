@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MuseScore
+Comment=Create, play and print beautiful sheet music
+Exec=/usr/local/bin/system/run_musescore
+Icon=/var/lib/app-info/icons/ubuntu-impish-universe/64x64/musescore3_mscore3.png
+Type=Application
+Categories=Music;Application;
+[NewWindow Shortcut Group]
+StartupWMClass="mscore-portable", "MuseScore3"

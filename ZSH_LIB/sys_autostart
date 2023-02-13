@@ -1,0 +1,198 @@
+#!/usr/bin/zsh
+#Ansi colors
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+STRIKE="\033[9m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+
+#Echoed ansi colors
+E_REVERSE=$(echo "\033[7m")
+E_RESET=$(echo "\033[m")
+E_BOLD=$(echo "\033[1m")
+E_BLACK_FG=$(echo "\033[30m")
+E_RED_FG=$(echo "\033[31m")
+E_GREEN_FG=$(echo "\033[32m")
+E_YELLOW_FG=$(echo "\033[33m")
+E_BLUE_FG=$(echo "\033[34m")
+E_MAGENTA_FG=$(echo "\033[35m")
+E_CYAN_FG=$(echo "\033[36m")
+E_WHITE_FG=$(echo "\033[37m")
+E_STRIKE=$(echo "\033[9m")
+
+#Declarations
+typeset -a AUTODIRS
+typeset -a MARKED=()
+typeset -a LIST=()
+
+#Constants
+AUTODIRS+=/etc/xdg/autostart
+AUTODIRS+=~/.config/autostart
+_LIB=/usr/local/lib
+USER=kmiller
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+action_do () {
+	local -a MARKED=(${@})
+	local M
+	local APP
+	local ARGS
+
+	APP=/usr/bin/vim
+	ARGS=$(echo "${APP} $(list_quote_marked_elements ${MARKED})")
+	eval "${ARGS}"
+	[[ ${?} -ne 0 ]] && msg_box -p -PK "<B><I>${0}: ${APP} returned an error<N>"
+
+	for M in ${MARKED};do
+		[[ ${M} -eq 0 ]] && continue
+		MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local MARKED=(${@})
+	local CNT=$(list_get_selected_count ${MARKED})
+	local M
+	local INFO_MSG
+	
+	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
+	msg_box -p -PV "<I>Please respond<N>|$(str_unicode_line 14)| |$(str_pluralize file $CNT true) queued for viewing${INFO_MSG}"
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${MARKED};do
+			list_remove_selected ${M}
+		done
+	fi
+}
+
+item_decorate () {
+	local NDX=$1
+
+	case ${_LIST_SELECTED[${NDX}]} in
+		2) echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}viewed${E_RESET}";;
+		*)	tput el;echo -n ${_LIST[${NDX}]};;
+	esac
+}
+
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+List autostart apps in ${AUTODIRS}
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HD"
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${#} -gt 0 ]] && SEARCHTERM=${1} || SEARCHTERM=''
+
+LIST=("${(f)$(sudo find ${AUTODIRS} -iname "*${SEARCHTERM}*desktop")}") 
+if ! arr_is_populated "${LIST}";then
+	[[ -n ${SEARCHTERM} ]] && exit_leave $(msg_warn "No autostart applications found matching:${WHITE_FG}${SEARCHTERM}${RESET}")
+fi
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} files\tPage:${WHITE_FG}%-d${RESET} of ${WHITE_FG}%-d${RESET}\tSelected:${WHITE_FG}%-d${RESET}" ${#_LIST} ${PAGE} ${MAX_PAGES} ${SELECTED_COUNT}'
+list_add_header_break
+list_set_header_break_offset 1
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${ARRAY_NDX} "$(item_decorate ${ARRAY_NDX})" 
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to view (${ITALIC}or exit if none selected${RESET})."
+list_set_action_msgs view file
+list_set_clear_ghosts true
+
+while true;do
+	#get selection
+	list_select ${LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -gt 1 ]];then
+		action_warn ${MARKED} #warn if more than 1 selected
+	fi
+
+	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then
+		action_do ${MARKED}
+	fi
+done
+
+exit_leave

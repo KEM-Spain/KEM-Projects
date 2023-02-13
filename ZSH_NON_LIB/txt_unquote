@@ -1,0 +1,4 @@
+#!/usr/bin/zsh
+while read LINE;do
+	echo ${LINE:Q}
+done

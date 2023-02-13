@@ -1,0 +1,33 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+xset r on
+clear
+
+MIN=1
+MAX=$(</sys/class/backlight/intel_backlight/max_brightness)
+INIT=$(</sys/class/backlight/intel_backlight/actual_brightness)
+HOOK=/sys/class/backlight/intel_backlight/brightness
+PCT=$(( (($INIT - $MIN) * 100) / ($MAX - $MIN) ))
+
+NDX=$INIT
+tput cup 12 0;echo "Current:${PCT}%"
+echo "${WHITE_FG}Adjust screen brightness level${RESET}. Key${RESET}:${WHITE_FG}k${RESET}=up, Key${RESET}:${WHITE_FG}j${RESET}=down, <${WHITE_FG}Enter${RESET}> to exit"
+while read -sk X;do
+	ASCVAL=$(printf "%d" \'${X})
+	[[ $ASCVAL -eq 10 ]] && clear && exit #return
+	[[ $X == "k" ]] && ((NDX+=20)) || ((NDX-=20))
+	[[ $X != "k" && $X != "j" ]] && tput cup 1 0 && tput el && echo "Invalid key" >&2 && continue
+	[[ $NDX -lt $MIN ]] && NDX=$MIN
+	[[ $NDX -gt $MAX ]] && NDX=$MAX
+	PCT=$(( (($NDX - $MIN) * 100) / ($MAX - $MIN) ))
+	sudo sh -c "echo $NDX > ${HOOK}"
+	tput cup 1 0;tput el;tput cup 12 0;printf "\rCurrent %s%%:" ${PCT}
+done

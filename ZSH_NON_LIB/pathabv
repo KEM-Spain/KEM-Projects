@@ -1,0 +1,95 @@
+#!/usr/bin/zsh
+_pathabbv () {
+	local LINE
+	local STRIPPED_ANSI
+
+	[[ ${DEBUG} == "true" ]] && set -xv
+	while read LINE;do
+		#strip any ansi 
+		STRIPPED_ANSI=$(echo $LINE | sed 's/\(\x1b\[[0-9;]*m\)/%\1%/g')
+		[[ ${#STRIPPED_ANSI} -le ${LEN_MIN_LIMIT} ]] && echo ${STRIPPED_ANSI} && return #meets length criteria
+		echo ${STRIPPED_ANSI} | perl -wane'
+		foreach $w (@F) {
+			$w =~ s#/$(?=^/.*)##g;             #kill if trailing slash if preceded by any chars
+			$w =~ s#([^/])([^/]*(?=.*/))#$1#g; #for every word btwn slashes kill all after first char
+			$w =~ s/%//g;                      #kill any percent signs (not sure why)
+			push (@line,$w);                   #build line
+		}
+		printf("%-s\n", "@line");
+		;' 
+	done
+	[[ ${DEBUG} == "true" ]] && set +xv
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		l) echo "<INT>";;
+		p) echo "<PATH>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type p)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} maximum length allowed before abbreviation happens"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Abbreviate paths. If $(opt_type p) is missing ${SCRIPT} will attempt to read from stdin."
+	exit
+}
+
+OPTSTR=":HDl:"
+
+DEBUG=false
+MAX_LEN=false
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) DEBUG=true;;
+     l) MAX_LEN=${OPTARG};;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${MAX_LEN} != 'false' ]] && LEN_MIN_LIMIT=${MAX_LEN} || LEN_MIN_LIMIT=60
+
+if [[ ! -t 0 ]];then
+	while read LINE;do
+		echo $LINE | _pathabbv
+	done
+else
+	[[ ${#} -eq 0 ]] && usage
+	echo $@ | _pathabbv
+fi

@@ -1,0 +1,151 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Declarations
+typeset -A PRIORITY
+typeset -a CANDIDATES
+typeset -a FILES
+typeset -a FLIST
+typeset -a WI_LIST
+
+#Functions
+localize () {
+	SEARCH_ARG=${1}
+	WI_ARG=${2}
+	#is the file or directory housed in the current directory
+	[[ ${DEBUG} == "true" ]] && echo "${0:t} SEARCH_ARG:${SEARCH_ARG}, WI_ARG:${WI_ARG}" >&2
+	if [[ -f ${WI_ARG} ]];then
+		if [[ ${DEBUG} == "true" ]];then
+			if [[ ${WI_ARG:h} == $(pwd) && ${WI_ARG:t} == ${SEARCH_ARG} ]];then
+				echo "${0:t} returning: LOCAL_FILE:${WI_ARG}" >&2
+			else
+				echo "${0:t} returning: NOT_LOCAL_FILE:${WI_ARG}" >&2
+			fi
+		fi
+		[[ ${WI_ARG:h} == $(pwd) && ${WI_ARG:t} == ${SEARCH_ARG} ]] && echo "LOCAL_FILE:${WI_ARG}" || echo "NOT_LOCAL_FILE:${WI_ARG}"
+		return
+	fi
+	if [[ -d ${WI_ARG} ]];then
+		if [[ ${DEBUG} == "true" ]];then
+			if [[ ${WI_ARG:h} == $(pwd) && ${WI_ARG:t} == ${SEARCH_ARG} ]];then
+				echo "${0:t} returning: LOCAL_DIR:${WI_ARG}" >&2
+			else
+				echo "${0:t} returning: NOT_LOCAL_DIR:${WI_ARG}" >&2
+			fi
+		fi
+		[[ ${WI_ARG:h} == $(pwd) && ${WI_ARG:t} == ${SEARCH_ARG} ]] && echo "LOCAL_DIR:${WI_ARG}" || echo "NOT_LOCAL_DIR:${WI_ARG}"
+		return
+	fi
+	echo "Not a File or Directory:${WI_ARG}"
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} local files have priority"
+	echo -e "\n${WHITE_FG}DESC${RESET}:Find files based on priority"
+	exit
+}
+
+OPTSTR=":HDl"
+LOCAL_PRIORITY=false
+DEBUG=false
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) DEBUG=true;;
+     l) LOCAL_PRIORITY=true;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ -z ${1} ]] && echo "${0:t}:${RED_FG}missing $(opt_type f)${RESET}" && usage
+FILE_ARG=${1}
+
+if [[ ${LOCAL_PRIORITY} == 'true' ]];then
+	PRIORITY=(LOCAL_FILE 2 NOT_LOCAL_FILE 1 LOCAL_DIR 2 NOT_LOCAL_DIR 1 UNKNOWN 0)
+else
+	PRIORITY=(LOCAL_FILE 1 NOT_LOCAL_FILE 2 LOCAL_DIR 1 NOT_LOCAL_DIR 2 UNKNOWN 0)
+fi
+
+FILES=("${(f)$(for f in ${FILE_ARG};do echo ${f:t};done)}") #strip any path info; leave that to whereis
+[[ ${DEBUG} == "true" ]] && echo "FILES:${FILES}"
+
+for F in ${FILES};do
+	WI_LIST=("${(f)$(whereis -bsf ${F})}") 
+	for W in ${WI_LIST};do
+		FLIST=("${(f)$(echo ${W} | cut -d: -f2- | sed 's/^[ \t]*//g')}") 
+		for F_PATH in ${FLIST};do
+			if [[ ${F_PATH} =~ " /" ]];then
+				for P in ${=F_PATH};do
+					CANDIDATES+=$(localize ${F} ${P})
+				done
+			else
+				CANDIDATES+=$(localize ${F} ${F_PATH})
+			fi
+		done
+	done
+done
+
+HIT=false
+HIGHEST=0
+for C in ${CANDIDATES};do
+	TAG=$(echo ${C} | cut -d: -f1)
+	FN=$(echo ${C} | cut -d: -f2)
+	[[ ${FN:t} != ${FILE_ARG} ]] && continue
+	HIT=true
+	[[ ${PRIORITY[${TAG}]} -gt ${HIGHEST} ]] && HIGHEST=${PRIORITY[${TAG}]} && CANDIDATE=${FN}
+done
+
+if [[ ${HIT} == "true" ]];then
+	echo ${CANDIDATE}
+	return 0
+else
+	echo "${RED_FG}File not found${RESET}"
+	return 1
+fi

@@ -1,0 +1,36 @@
+#!/usr/bin/zsh
+
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+NDX=0
+for F in /dev/disk/by-id/*;do
+	echo ${F:t} | grep -q usb
+	[[ $? -eq 0 ]] && ((NDX++))
+done
+
+if [[ $NDX -gt 0 ]];then
+	#USBS=($(ls /dev/disk/by-id/usb* | grep part))
+	USBS=($(ls /dev/disk/by-id/usb*))
+	for U in ${USBS};do
+		DEV=$(readlink -f $U)
+		MOUNTPOINT=$(mount | grep $DEV | tr -s '[:space:]' | cut -d' ' -f3)
+		[[ -z $MOUNTPOINT ]] && MOUNTMSG="and is ${RED_FG}unmounted${RESET}" || MOUNTMSG="and is ${WHITE_FG}mounted${RESET} at"
+		USBNAME=$(echo $U | cut -d- -f3 | sed 's/_.*//g')
+		DEVID=$(lsusb | grep $USBNAME)
+		echo "USB:${WHITE_FG}${USBNAME}${RESET} is Device:${WHITE_FG}${DEV}${RESET} $MOUNTMSG ${WHITE_FG}$MOUNTPOINT${RESET}"
+		echo ${DEVID}
+		echo
+	done
+else
+	echo "${RED_FG}No${RESET} ${WHITE_FG}USB${RESET} disk devices found"
+fi

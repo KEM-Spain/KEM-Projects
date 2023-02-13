@@ -1,0 +1,328 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_LIB=/usr/local/lib
+MOUNT_ROOT=/media/kmiller
+#STICK_OPTS="${MOUNT_ROOT}/Stick -o dmask=000 -o umask=000 -o fmask=000 -o uid=kmiller -o gid=kmiller"
+_MESSAGES=/tmp/${0:t}.msg
+
+#Declarations
+typeset -A _LABELS
+typeset -A _MOUNT_POINTS
+typeset -A _PARITITIONS
+typeset -A _TYPES
+typeset -A _SORT_TABLE=(1 _PARITITIONS 2 _TYPES 3 _MOUNT_POINTS 4 _LABELS)
+typeset -a _LOCAL_LIST
+typeset -a MARKED
+typeset -a RAW_DISK_STATUS
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+action_do () {
+	local ACTION
+	local M
+	local PNDX
+	local -a MLIST
+	local STATE
+
+	for M in ${MARKED};do
+		PNDX=${_LIST[${M}]}
+		[[ ${_MOUNT_POINTS[${PNDX}]:l} == 'unmounted' ]] && ACTION=mount || ACTION=unmount
+		do_${ACTION} ${_PARITITIONS[${PNDX}]}
+		if [[ ${?} -ne 0 ]];then
+			msg_box -p -PK "There was a problem trying to ${ACTION} partition: <w>${_PARITITIONS[${PNDX}]}<N>"
+		else
+			get_disk_info
+		fi
+	done
+
+	for M in ${MARKED};do
+		PNDX=${_LIST[${M}]}
+		[[ ${_MOUNT_POINTS[${PNDX}]:l} == 'unmounted' ]] && STATE=unmounted || STATE="mounted on ${_MOUNT_POINTS[${PNDX}]}"
+		MLIST+="${_PARITITIONS[${PNDX}]} is ${STATE}"
+	done
+	msg_box -p -PK "Mount Status| |$(msg_list ${MLIST})"
+
+	for M in ${MARKED};do
+		MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+do_mount () {
+	local PART=${1}
+	local RC=0
+
+	grep -q ${MOUNT_ROOT}/${_LABELS[${PART}]} /etc/fstab
+	if [[ ${?} -eq 0 ]];then
+		sudo mount /dev/${PART} 2>${_MESSAGES}
+		RC=${?}
+	else
+		[[ ! -e ${MOUNT_ROOT}/${_LABELS[${PART}]} ]] && sudo mkdir ${MOUNT_ROOT}/${_LABELS[${PART}]}
+		sudo mount -t ${_TYPES[${PART}]} /dev/${PART} ${MOUNT_ROOT}/${_LABELS[${PART}]} 2>${_MESSAGES}
+		RC=${?}
+	fi
+	
+	[[ ${RC} -ne 0 ]] && exit_leave $(msg_warn "mount returned an error:${RC}")
+	return ${RC}
+}
+
+do_unmount () {
+	local PART=${1}
+	local RC=0
+
+	sudo umount /dev/${PART} 2>${_MESSAGES}
+	RC=${?}
+
+	[[ ${RC} -ne 0 ]] && exit_leave $(msg_warn "unmount returned an error:${RC}")
+	return ${RC}
+}
+
+do_query () {
+	local P
+
+	local TITLE="Current status for external drives"
+	echo "\n${TITLE}"
+	echo $(str_unicode_line ${#TITLE})
+	for P in ${_PARITITIONS};do
+		if [[ ${_MOUNT_POINTS[${P}]:l} != 'unmounted' ]];then
+			printf "%s ${GREEN_FG}mounted${RESET} on: %s\n" "/dev/${P}" ${_MOUNT_POINTS[${P}]}
+		else
+			printf "%s is ${RED_FG}NOT${RESET} mounted\n" "/dev/${P}"
+		fi
+	done
+}
+
+get_disk_info () {
+	local LBL
+	local MP
+	local PART
+	local TYPE
+	local D
+
+	RAW_DISK_STATUS=("${(f)$(sudo lsblk -P -o NAME,FSTYPE,MOUNTPOINT,LABEL | grep 'sd.[0-9]' | sed -e 's/=/|/g' -e 's/ /|/g' -e 's/\"//g')}")
+
+	for D in ${RAW_DISK_STATUS};do
+		PART=$(cut -d'|' -f2 <<<${D})
+		TYPE=$(cut -d'|' -f4 <<<${D})
+		MP=$(cut -d'|' -f6 <<<${D})
+		LBL=$(cut -d'|' -f8 <<<${D})
+		_PARITITIONS[${PART}]=${PART}
+		_TYPES[${PART}]=${TYPE}
+		_MOUNT_POINTS[${PART}]=${MP:=unmounted}
+		_LABELS[${PART}]=${LBL:=unlabeled}
+	done
+
+	_LOCAL_LIST=(${(k)_PARITITIONS})
+}
+
+show_status () {
+	local L
+
+	[[ ! -t 1 ]] && tp cup 1 0
+	printf "${WHITE_FG}%-15s %-10s %-8s %-20s${RESET}\n" "Label" "Partition" "Type" "Status"
+	for L in ${(on)_LOCAL_LIST};do
+		if [[ ${_MOUNT_POINTS[${L}]} == 'unmounted' ]];then
+			printf "%-15s %-10s %-8s ${RED_FG}%-20s${RESET}\n" ${_LABELS[${L}]} ${_PARITITIONS[${L}]} ${_TYPES[${L}]} ${_MOUNT_POINTS[${L}]} 
+		else
+			printf "%-15s %-10s %-8s ${GREEN_FG}%-20s${RESET}\n" ${_LABELS[${L}]} ${_PARITITIONS[${L}]} ${_TYPES[${L}]} ${_MOUNT_POINTS[${L}]} 
+		fi
+	done
+}
+
+_cleanup () {
+	/bin/rm -f ${_MESSAGES}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Utility to mount/unmount external disks
+\tDefault is to toggle disk mounts
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+		p) echo "<PARTITION>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type p)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-u${RESET} unmount all"
+	echo -e "${WHITE_FG}-m${RESET} mount all"
+	echo -e "${WHITE_FG}-l${RESET} select disk(s) from a list"
+	echo -e "${WHITE_FG}-s${RESET} display disk mount status"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDlsmu"
+OPTIND=0
+
+SHOW_LIST=false
+STATUS=false
+TOGGLE=true
+FORCE_ALL_UNMOUNT=false
+FORCE_ALL_MOUNT=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     m) FORCE_ALL_MOUNT=true;;
+     u) FORCE_ALL_UNMOUNT=true;;
+     s) STATUS=true;TOGGLE=false;;
+     l) SHOW_LIST=true;TOGGLE=false;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+#Execution
+[[ -n ${1} ]] && PARTITION=${1} || PARTITION=''
+
+get_disk_info
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	exit_leave "No external disks found"
+fi
+
+if [[ -n ${PARTITION} ]];then # arg was passed
+	if [[ ${_MOUNT_POINTS[${PARTITION:t}]} == 'unmounted' ]];then
+		do_mount ${PARTITION:t}
+	else
+		do_unmount ${PARTITION:t}
+	fi
+	set_exit_value ${?}
+elif [[ ${FORCE_ALL_UNMOUNT} == 'true' ]];then # -u option
+	for L in ${(on)_LOCAL_LIST};do
+		do_unmount ${L}
+	done
+	STATUS=true
+elif [[ ${FORCE_ALL_MOUNT} == 'true' ]];then # -m option
+	for L in ${(on)_LOCAL_LIST};do
+		do_mount ${L}
+	done
+	STATUS=true
+elif [[ ${TOGGLE} == 'true' ]];then # default - toggle all mounts
+	show_status
+	msg_box -p -PP "Toggling external drive mounts"
+	[[ ${_MSG_KEY} == 'n' ]] && clear && exit_leave $(msg_warn "Operation Cancelled")
+	clear
+
+	MSG_OUT=false
+	for L in ${(on)_LOCAL_LIST};do
+		if [[ ${_MOUNT_POINTS[${L}]} == 'unmounted' ]];then
+			[[ ${MSG_OUT} == 'false' ]] && echo "External drive is ${RED_FG}unmounted${RESET}.  Mounting..."
+			do_mount ${L}
+		else
+			[[ ${MSG_OUT} == 'false' ]] && echo "External drive is ${GREEN_FG}mounted${RESET}.  Unmounting..."
+			do_unmount ${L}
+		fi
+		MSG_OUT=true
+	done
+	STATUS=true
+fi
+
+get_disk_info
+if [[ ${STATUS} == 'true' ]];then
+	show_status
+	exit_leave
+fi
+
+if [[ ${SHOW_LIST} == 'true' ]];then
+	#set headings
+	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} Partitions\tSelected:${WHITE_FG}%-d${RESET}" ${#_LIST} ${SELECTED_COUNT}'
+	list_set_header 'printf " "'
+	list_set_header 'printf "%*s %4s %5s %30s %20s" 5 "" "Part" "Type" "Mount Point" "Label"'
+	list_set_header 'printf "%*s ${MAGENTA_FG}%4s %5s %30s %20s${RESET}" 5 "" $(str_unicode_line 4) $(str_unicode_line 5) $(str_unicode_line 30)  $(str_unicode_line 20)'
+
+	#set line item
+	list_set_line_item ' 
+	local PNDX=${_LIST[${ARRAY_NDX}]};
+	[[ ${_MOUNT_POINTS[${PNDX}]} == 'unmounted' ]] && local MOUNT_COLOR=${RED_FG} || local MOUNT_COLOR=${GREEN_FG};
+	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}%4s %5s ${MOUNT_COLOR}%30s${RESET} %20s${RESET}\n" ${ARRAY_NDX} ${_PARITITIONS[${PNDX}]} ${_TYPES[${PNDX}]} ${_MOUNT_POINTS[${PNDX}]} ${_LABELS[${PNDX}]}
+	'
+
+	list_set_key_msg '
+	printf "Press ${WHITE_FG}Home End PgUp PgDn${RESET}, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}, <${WHITE_FG}s${RESET}>ort columns"
+	'
+	list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select partition(s) then <${GREEN_FG}ENTER${RESET}> to mount/unmount (${WHITE_FG}${ITALIC}or exit if none selected${RESET})."
+	list_set_barlines true
+	list_set_clear_ghosts true
+	list_set_sortable true
+	list_set_sort_cols ${#_SORT_TABLE}
+	list_set_sort_engine assoc
+
+	while true;do
+		#get selection
+		list_select ${_LOCAL_LIST}
+		[[ ${?} -eq 0 ]] && break
+
+		#get selections
+		MARKED=($(list_get_selected))
+		
+		if [[ $(list_get_selected_count) -ne 0 ]];then
+			action_do ${MARKED}
+		fi
+	done
+fi
+
+exit_leave
+

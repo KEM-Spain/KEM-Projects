@@ -1,0 +1,80 @@
+#!/usr/bin/env zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+(
+WORD=MASERATTI
+ARG=FERRARI
+
+echo "${WHITE_FG}DEMO ${CYAN_FG}of zsh paramter substitution${RESET}..."
+
+echo "\n${WHITE_FG}The replacement value ${RESET}WORD${WHITE_FG} is set to ${GREEN_FG}${WORD}${RESET}."
+echo "\n${WHITE_FG}These are the values if ${RESET}ARG${WHITE_FG} is set to ${RED_FG}${ARG}${RESET}."
+
+echo "\n\${ARG} \t\t\t= \"${WHITE_FG}${ARG}${RESET}\"  ${GREEN_FG}Rule${RESET}: Either set or unset - no replacements" 
+echo "\${+ARG} \t\t= \"${WHITE_FG}${+ARG}${RESET}\"  ${GREEN_FG}Rule${RESET}: 1 if set, 0 if not"
+
+echo "\n\${ARG-\${WORD}} \t\t= \"${WHITE_FG}${ARG-${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET then display its ${WHITE_FG}VALUE${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}WORD${RESET}"
+echo "\${ARG:-\${WORD}} \t= \"${WHITE_FG}${ARG:-${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET AND NOT NULL then display its ${WHITE_FG}VALUE${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}WORD${RESET}"
+
+echo "\n\${ARG+\${WORD}} \t\t= \"${WHITE_FG}${ARG+${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET, then display ${WHITE_FG}WORD${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}NOTHING${RESET}"
+echo "\${ARG:+\${WORD}} \t= \"${WHITE_FG}${ARG:+${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is set AND not null, then display ${WHITE_FG}WORD${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}NOTHING${RESET}"
+
+echo "\n\${ARG=\${WORD}} \t\t= \"${WHITE_FG}${ARG=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is UNSET, then display ${WHITE_FG}WORD${RESET}"
+
+echo "\${ARG:=\${WORD}} \t= \"${WHITE_FG}${ARG:=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: if ARG is UNSET OR NULL then set it to ${WHITE_FG}WORD${RESET}"
+echo "\${ARG::=\${WORD}} \t= \"${WHITE_FG}${ARG::=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: UNCONDITIONALLY SET to ${WHITE_FG}WORD${RESET}"
+
+ARG=FERRARI
+echo "Unable to show null value - demo would exit"
+echo "\${ARG?\${WORD}} \t\t= \"${WHITE_FG}\${ARG?${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET, then display ${WHITE_FG}VALUE${RESET} - ${RED_FG}OTHERWISE print ${WHITE_FG}WORD${RESET} and ${RED_FG}EXIT${RESET} shell${RESET}"
+echo "\${ARG:?\${WORD}} \t= \"${WHITE_FG}\${ARG:?${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: if ARG is SET AND NOT NULL then set it to ${WHITE_FG}VALUE${RESET} - ${RED_FG}OTHERWISE print ${WHITE_FG}WORD${RESET} and ${RED_FG}EXIT${RESET} shell${RESET}"
+
+ARG=''
+echo "\n${WHITE_FG}These are the values if ${RESET}ARG${WHITE_FG} is ${RED_FG}NULL${RESET}."
+
+echo "\n\${ARG} \t\t\t= \"${WHITE_FG}${ARG}${RESET}\"  ${GREEN_FG}Rule${RESET}: Either set or unset - no replacements" 
+echo "\${+ARG} \t\t= \"${WHITE_FG}${+ARG}${RESET}\"  ${GREEN_FG}Rule${RESET}: 1 if set, 0 if not"
+
+echo "\n\${ARG-\${WORD}} \t\t= \"${WHITE_FG}${ARG-${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET then display its ${WHITE_FG}VALUE${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}WORD${RESET}"
+echo "\${ARG:-\${WORD}} \t= \"${WHITE_FG}${ARG:-${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET AND NOT NULL then display its ${WHITE_FG}VALUE${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}WORD${RESET}"
+
+echo "\n\${ARG+\${WORD}} \t\t= \"${WHITE_FG}${ARG+${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET, then display ${WHITE_FG}WORD${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}NOTHING${RESET}"
+echo "\${ARG:+\${WORD}} \t= \"${WHITE_FG}${ARG:+${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is set AND not null, then display ${WHITE_FG}WORD${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}NOTHING${RESET}"
+
+echo "\n\${ARG=\${WORD}} \t\t= \"${WHITE_FG}${ARG=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is UNSET, then display ${WHITE_FG}WORD${RESET}"
+echo "\${ARG:=\${WORD}} \t= \"${WHITE_FG}${ARG:=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: if ARG is UNSET OR NULL then set it to ${WHITE_FG}WORD${RESET}"
+echo "\${ARG::=\${WORD}} \t= \"${WHITE_FG}${ARG::=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: UNCONDITIONALLY SET to ${WHITE_FG}WORD${RESET}"
+
+ARG=FERRARI
+echo "Unable to show null value - demo would exit"
+echo "\${ARG?\${WORD}} \t\t= \"${WHITE_FG}\${ARG?${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET, then display ${WHITE_FG}VALUE${RESET} - ${RED_FG}OTHERWISE print ${WHITE_FG}WORD${RESET} and ${RED_FG}EXIT${RESET} shell${RESET}"
+echo "\${ARG:?\${WORD}} \t= \"${WHITE_FG}\${ARG:?${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: if ARG is SET AND NOT NULL then set it to ${WHITE_FG}VALUE${RESET} - ${RED_FG}OTHERWISE print ${WHITE_FG}WORD${RESET} and ${RED_FG}EXIT${RESET} shell${RESET}"
+
+unset ARG
+echo "\n${WHITE_FG}These are the values if ${RESET}ARG${WHITE_FG} is ${RED_FG}unset${RESET}."
+
+echo "\n\${ARG} \t\t\t= \"${WHITE_FG}${ARG}${RESET}\"  ${GREEN_FG}Rule${RESET}: Either set or unset - no replacements" 
+echo "\${+ARG} \t\t= \"${WHITE_FG}${+ARG}${RESET}\"  ${GREEN_FG}Rule${RESET}: 1 if set, 0 if not"
+
+echo "\n\${ARG-\${WORD}} \t\t= \"${WHITE_FG}${ARG-${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET then display its ${WHITE_FG}VALUE${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}WORD${RESET}"
+echo "\${ARG:-\${WORD}} \t= \"${WHITE_FG}${ARG:-${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET AND NOT NULL then display its ${WHITE_FG}VALUE${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}WORD${RESET}"
+
+echo "\n\${ARG+\${WORD}} \t\t= \"${WHITE_FG}${ARG+${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET, then display ${WHITE_FG}WORD${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}NOTHING${RESET}"
+echo "\${ARG:+\${WORD}} \t= \"${WHITE_FG}${ARG:+${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is set AND not null, then display ${WHITE_FG}WORD${RESET}; ${RED_FG}OTHERWISE display ${WHITE_FG}NOTHING${RESET}"
+
+echo "\n\${ARG=\${WORD}} \t\t= \"${WHITE_FG}${ARG=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is UNSET, then display ${WHITE_FG}WORD${RESET}"
+echo "\${ARG:=\${WORD}} \t= \"${WHITE_FG}${ARG:=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: if ARG is UNSET OR NULL then set it to ${WHITE_FG}WORD${RESET}"
+echo "\${ARG::=\${WORD}} \t= \"${WHITE_FG}${ARG::=${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: UNCONDITIONALLY SET to ${WHITE_FG}WORD${RESET}"
+
+ARG=FERRARI
+echo "Unable to show null value - demo would exit"
+echo "\${ARG?\${WORD}} \t\t= \"${WHITE_FG}\${ARG?${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: If ARG is SET, then display ${WHITE_FG}VALUE${RESET} - ${RED_FG}OTHERWISE print ${WHITE_FG}WORD${RESET} and ${RED_FG}EXIT${RESET} shell${RESET}"
+echo "\${ARG:?\${WORD}} \t= \"${WHITE_FG}\${ARG:?${WORD}}${RESET}\"  ${GREEN_FG}Rule${RESET}: if ARG is SET AND NOT NULL then set it to ${WHITE_FG}VALUE${RESET} - ${RED_FG}OTHERWISE print ${WHITE_FG}WORD${RESET} and ${RED_FG}EXIT${RESET} shell${RESET}"
+) | /usr/local/bin/mypager

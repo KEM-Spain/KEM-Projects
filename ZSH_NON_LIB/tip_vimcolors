@@ -1,0 +1,1295 @@
+#!/usr/bin/zsh
+#Echoed ansi
+BOLD=$(echo -n "\033[1m")
+ITALIC=$(echo -n "\033[3m")
+RESET=$(echo -n "\033[m")
+REVERSE=$(echo -n "\033[7m")
+STRIKE=$(echo -n "\033[9m")
+UNDER=$(echo -n "\033[4m")
+
+BLUE_FG=$(echo -n "\033[34m")
+CYAN_FG=$(echo -n "\033[36m")
+GREEN_FG=$(echo -n "\033[32m")
+MAGENTA_FG=$(echo -n "\033[35m")
+RED_FG=$(echo -n "\033[31m")
+WHITE_FG=$(echo -n "\033[37m")
+YELLOW_FG=$(echo -n "\033[33m")
+
+(
+cat << DOC1
+${WHITE_FG}Hints for writing a color scheme file:${RESET}
+
+There are two basic ways to define a color scheme:
+
+1. ${CYAN_FG}Define a new Normal color and set the 'background' option accordingly.${RESET}
+
+	set background={light or dark}
+	highlight clear
+	highlight Normal ...
+	...
+
+2. ${CYAN_FG}Use the default Normal color and automatically adjust to the value of 'background'.${RESET}
+
+	highlight clear Normal
+	set background&
+	highlight clear
+	if &background == "light"
+	  highlight Error ...
+	  ...
+	else
+	  highlight Error ...
+	  ...
+	endif
+
+	You can use :highlight clear to reset everything to the defaults, and then change the groups 
+	that you want differently.  This will also work for groups that are added in later versions of Vim.
+	Note that :highlight clear uses the value of 'background', thus set it before this command.
+	Some attributes (e.g., bold) might be set in the defaults that you want removed in your color scheme.  
+	Use something like "gui=NONE" to remove the attributes.
+
+${CYAN_FG}In case you want to set 'background' depending on the colorscheme selected, this autocmd might be useful:${RESET} 
+
+	autocmd SourcePre */colors/blue_sky.vim set background=dark
+
+	Replace "blue_sky" with the name of the colorscheme.
+
+${CYAN_FG}In case you want to tweak a colorscheme after it was loaded, check out the ColorScheme autocommand event.${RESET}
+
+	To clean up just before loading another colorscheme, use the ColorSchemePre autocommand event.  
+	For example:
+
+	let g:term_ansi_colors = ...
+	augroup MyColorscheme
+	  au!
+	  au ColorSchemePre * unlet g:term_ansi_colors
+	  au ColorSchemePre * au! MyColorscheme
+	augroup END
+
+${CYAN_FG}To customize a colorscheme use another name, e.g.  "~/.vim/colors/mine.vim", and use ":runtime"${RESET}
+${CYAN_FG}to load the original colorscheme:${RESET}
+
+	" load the "evening" colorscheme
+	runtime colors/evening.vim
+	" change the color of statements
+	hi Statement ctermfg=Blue guifg=Blue
+
+${CYAN_FG}To see which highlight group is used where, see:${RESET} 
+	${WHITE_FG}:help highlight-groups and :help group-name.${RESET}
+
+	You can use ":highlight" to find out the current colors.  Exception: the
+	ctermfg and ctermbg values are numbers, which are only valid for the current
+	terminal.  Use the color names instead for better portability.  See ${WHITE_FG}:help cterm-colors${RESET}
+
+${CYAN_FG}The default color settings can be found in the source file:${WHITE_FG}src/syntax.c.${RESET}
+	Search for "highlight_init".
+
+${MAGENTA_FG}If you think you have a color scheme that is good enough to be used by others,${RESET}
+${MAGENTA_FG}please check the following items:${RESET}
+
+	- Source the \$VIMRUNTIME/colors/tools/check_colors.vim script to check for common mistakes.
+
+	- Does it work in a color terminal as well as in the GUI? Is it consistent?
+
+	- Is "g:colors_name" set to a meaningful value?  In case of doubt you can do it this way: >
+
+		let g:colors_name = expand('<sfile>:t:r')
+
+	- Is 'background' either used or appropriately set to "light" or "dark"?
+
+	- Try setting 'hlsearch' and searching for a pattern, is the match easy to spot?
+
+	- Split a window with ":split" and ":vsplit".  Are the status lines and vertical separators clearly visible?
+
+	- In the GUI, is it easy to find the cursor, also in a file with lots of syntax highlighting?
+
+	- In general, test your color scheme against as many filetypes, Vim features, environments, etc. as possible.
+
+	- Do not use hard coded escape sequences, these will not work in other terminals.  Always use #RRGGBB for the GUI.
+
+	- When targetting 8-16 colors terminals, don't count on "darkblue" to be blue and dark, or on "2" to be even 
+	  vaguely reddish.  Names are more portable than numbers, though.
+
+	- When targetting 256 colors terminals, prefer colors 16-255 to colors 0-15 for the same reason.
+
+	- Typographic attributes (bold, italic, underline, reverse, etc.) are not universally supported.  
+	  Don't count on any of them.
+
+	- Is "g:terminal_ansi_colors" set to a list of 16 #RRGGBB values?
+
+	- Try to keep your color scheme simple by avoiding unnecessary logic and refraining from adding options.  
+	  The best color scheme is one that only requires: >
+
+		colorscheme foobar
+
+${WHITE_FG}The color schemes distributed with Vim are built with lifepillar/colortemplate${RESET}
+${WHITE_FG}(https://github.com/lifepillar/vim-colortemplate).  It is therefore highly recommended.${RESET}
+
+If you would like your color scheme to be distributed with Vim, make sure that:
+
+	- it satisfies the guidelines above,
+	- it was made with colortemplate,
+
+	and join us at vim/colorschemes: (https://github.com/vim/colorschemes).
+
+==============================================================================
+${WHITE_FG}Highlight command			*:highlight* *:hi* *E28* *E411* *E415*${RESET}
+
+There are three types of highlight groups:
+
+	- The ones used for specific languages.  For these the name starts with the
+	  name of the language.  Many of these don't have any attributes, but are
+	  linked to a group of the second type.
+
+	- The ones used for all syntax languages.
+
+	- The ones used for the 'highlight' option.
+
+${WHITE_FG}*hitest.vim*${RESET}
+
+${CYAN_FG}You can see all the groups currently active with this command:${RESET}
+
+    :so \$VIMRUNTIME/syntax/hitest.vim
+
+${CYAN_FG}This will open a new window containing all highlight group names, displayed in their own color.${RESET}
+
+	*:colo* *:colorscheme* *E185*
+
+${WHITE_FG}:colo[rscheme]	Output the name of the currently active color scheme.${RESET}
+
+	This is basically the same as
+		:echo g:colors_name
+
+	In case g:colors_name has not been defined :colo will
+	output "default".  When compiled without the |+eval|
+	feature it will output "unknown".
+
+${WHITE_FG}:colo[rscheme] {name}	Load color scheme {name}.${RESET}
+
+	This searches 'runtimepath' for the file "colors/{name}.vim.
+	The first one that is found is loaded.
+
+	To see the name of the currently active color scheme:
+		:colo
+
+	The name is also stored in the g:colors_name variable.
+
+	Doesn't work recursively, thus you can't use ":colorscheme" in a color scheme script.
+
+	After the color scheme has been loaded the |ColorScheme| autocommand event is triggered.
+	For info about writing a colorscheme file:
+
+		:edit \$VIMRUNTIME/colors/README.txt
+
+${WHITE_FG}:hi[ghlight]		List all the current highlight groups that have attributes set.${RESET}
+
+${WHITE_FG}:hi[ghlight] {group-name} List one highlight group.${RESET}
+
+${WHITE_FG}:hi[ghlight] clear${RESET}
+
+	Reset all highlighting to the defaults.  Removes all highlighting for groups added by the user!
+	Uses the current value of 'background' to decide which default colors to use.
+
+${WHITE_FG}:hi[ghlight] clear {group-name}${RESET}
+
+${WHITE_FG}:hi[ghlight] {group-name} NONE${RESET}
+
+	Disable the highlighting for one highlight group.  It is _not_ set back to the default colors.
+
+${WHITE_FG}:hi[ghlight] [default] {group-name} {key}={arg}${RESET}
+
+	Add a highlight group, or change the highlighting for an existing group.
+	See |highlight-args| for the {key}={arg} arguments.
+	See |:highlight-default| for the optional [default] argument.
+
+	Normally a highlight group is added once when starting up.  This sets the
+	default values for the highlighting.  After that, you can use additional
+	highlight commands to change the arguments that you want to set to non-default
+	values.  The value "NONE" can be used to switch the value off or go back to
+	the default value.
+
+	A simple way to change colors is with the |:colorscheme| command.  This loads
+	a file with ":highlight" commands such as this:
+
+${WHITE_FG}:hi Comment	gui=bold${RESET}
+
+	Note that all settings that are not included remain the same, only the
+	specified field is used, and settings are merged with previous ones.  So, the
+	result is like this single command has been used:
+
+${WHITE_FG}:hi Comment	term=bold ctermfg=Cyan guifg=#80a0ff gui=bold${RESET}
+ 
+${WHITE_FG}*:highlight-verbose*${RESET}
+
+	When listing a highlight group and 'verbose' is non-zero, the listing will also tell where it was last set.  
+
+	Example:
+
+	:verbose hi Comment
+ 	Comment        xxx term=bold ctermfg=4 guifg=Blue 
+	   Last set from /home/mool/vim/vim7/runtime/syntax/syncolor.vim 
+
+	When ":hi clear" is used then the script where this command is used will be
+	mentioned for the default values. See |:verbose-cmd| for more information.
+
+${WHITE_FG}*highlight-args* *E416* *E417* *E423*${RESET}
+
+	There are three types of terminals for highlighting: 
+
+	 term - a normal terminal (vt100, xterm)
+	cterm - a color terminal (MS-DOS console, color-xterm, these have the "Co" termcap entry)
+	  gui - the GUI
+
+	For each type the highlighting can be given.  This makes it possible to use
+	the same syntax file on all terminals, and use the optimal highlighting.
+
+${GREEN_FG}1. highlight arguments for normal terminals${RESET}
+
+	*bold* *underline* *undercurl*
+
+	*inverse* *italic* *standout*
+
+${WHITE_FG}term={attr-list}			*attr-list* *highlight-term* *E418*${RESET}
+
+	attr-list is a comma separated list (without spaces) of the
+	following items (in any order):
+		bold
+		underline
+		undercurl	not always available
+		reverse
+		inverse		same as reverse
+		italic
+		standout
+		NONE		no attributes used (used to reset it)
+
+	Note that "bold" can be used here and by using a bold font.  They
+	have the same effect.
+	"undercurl" is a curly underline.  When "undercurl" is not possible
+	then "underline" is used.  In general "undercurl" is only available in
+	the GUI.  The color is set with |highlight-guisp|.
+
+
+${WHITE_FG}start={term-list}				*highlight-start* *E422*${RESET}
+
+${WHITE_FG}stop={term-list}				*term-list* *highlight-stop*${RESET}
+
+	These lists of terminal codes can be used to get
+	non-standard attributes on a terminal.
+
+	The escape sequence specified with the "start" argument
+	is written before the characters in the highlighted
+	area.  It can be anything that you want to send to the
+	terminal to highlight this area.  The escape sequence
+	specified with the "stop" argument is written after the
+	highlighted area.  This should undo the "start" argument.
+	Otherwise the screen will look messed up.
+
+	The {term-list} can have two forms:
+
+	1. A string with escape sequences.
+	   This is any string of characters, except that it can't start with
+	   "t_" and blanks are not allowed.  The <> notation is recognized
+	   here, so you can use things like "<Esc>" and "<Space>".  Example:
+		start=<Esc>[27h;<Esc>[<Space>r;
+
+	2. A list of terminal codes.
+	   Each terminal code has the form "t_xx", where "xx" is the name of
+	   the termcap entry.  The codes have to be separated with commas.
+	   White space is not allowed.	Example:
+		start=t_C1,t_BL
+	   The terminal codes must exist for this to work.
+
+
+${GREEN_FG}2. highlight arguments for color terminals${RESET}
+
+
+${WHITE_FG}cterm={attr-list}					*highlight-cterm*${RESET}
+
+	See above for the description of {attr-list} |attr-list|.
+	The "cterm" argument is likely to be different from "term", when
+	colors are used.  For example, in a normal terminal comments could
+	be underlined, in a color terminal they can be made Blue.
+	Note: Many terminals (e.g., DOS console) can't mix these attributes
+	with coloring.	Use only one of "cterm=" OR "ctermfg=" OR "ctermbg=".
+
+
+${WHITE_FG}ctermfg={color-nr}				*highlight-ctermfg* *E421*${RESET}
+
+${WHITE_FG}ctermbg={color-nr}				*highlight-ctermbg*${RESET}
+
+	The {color-nr} argument is a color number.  Its range is zero to
+	(not including) the number given by the termcap entry "Co".
+	The actual color with this number depends on the type of terminal
+	and its settings.  Sometimes the color also depends on the settings of
+	"cterm".  For example, on some systems "cterm=bold ctermfg=3" gives
+	another color, on others you just get color 3.
+
+	For an xterm this depends on your resources, and is a bit
+	unpredictable.	See your xterm documentation for the defaults.	The
+	colors for a color-xterm can be changed from the .Xdefaults file.
+	Unfortunately this means that it's not possible to get the same colors
+	for each user.	See |xterm-color| for info about color xterms.
+
+	The MSDOS standard colors are fixed (in a console window), so these
+	have been used for the names.  But the meaning of color names in X11
+	are fixed, so these color settings have been used, to make the
+	highlighting settings portable (complicated, isn't it?).  The
+	following names are recognized, with the color number used:
+
+
+${WHITE_FG}*cterm-colors*${RESET}
+
+	    NR-16   NR-8    COLOR NAME 
+	    0	    0	    Black
+	    1	    4	    DarkBlue
+	    2	    2	    DarkGreen
+	    3	    6	    DarkCyan
+	    4	    1	    DarkRed
+	    5	    5	    DarkMagenta
+	    6	    3	    Brown, DarkYellow
+	    7	    7	    LightGray, LightGrey, Gray, Grey
+	    8	    0*	    DarkGray, DarkGrey
+	    9	    4*	    Blue, LightBlue
+	    10	    2*	    Green, LightGreen
+	    11	    6*	    Cyan, LightCyan
+	    12	    1*	    Red, LightRed
+	    13	    5*	    Magenta, LightMagenta
+	    14	    3*	    Yellow, LightYellow
+	    15	    7*	    White
+
+	The number under "NR-16" is used for 16-color terminals ('t_Co'
+	greater than or equal to 16).  The number under "NR-8" is used for
+	8-color terminals ('t_Co' less than 16).  The '*' indicates that the
+	bold attribute is set for ctermfg.  In many 8-color terminals (e.g.,
+	"linux"), this causes the bright colors to appear.  This doesn't work
+	for background colors!	Without the '*' the bold attribute is removed.
+	If you want to set the bold attribute in a different way, put a
+	"cterm=" argument AFTER the "ctermfg=" or "ctermbg=" argument.	Or use
+	a number instead of a color name.
+
+	The case of the color names is ignored.
+	Note that for 16 color ansi style terminals (including xterms), the
+	numbers in the NR-8 column is used.  Here '*' means 'add 8' so that Blue
+	is 12, DarkGray is 8 etc.
+
+	Note that for some color terminals these names may result in the wrong
+	colors!
+
+   *:hi-normal-cterm*
+
+	When setting the "ctermfg" or "ctermbg" colors for the Normal group,
+	these will become the colors used for the non-highlighted text.
+	Example:
+		:highlight Normal ctermfg=grey ctermbg=darkblue
+ 	When setting the "ctermbg" color for the Normal group, the
+	'background' option will be adjusted automatically.  This causes the
+	highlight groups that depend on 'background' to change!  This means
+	you should set the colors for Normal first, before setting other
+	colors.
+	When a colorscheme is being used, changing 'background' causes it to
+	be reloaded, which may reset all colors (including Normal).  First
+	delete the "g:colors_name" variable when you don't want this.
+
+	When you have set "ctermfg" or "ctermbg" for the Normal group, Vim
+	needs to reset the color when exiting.	This is done with the "op"
+	termcap entry |t_op|.  If this doesn't work correctly, try setting the
+	't_op' option in your .vimrc.
+
+							*E419* *E420*
+
+	When Vim knows the normal foreground and background colors, "fg" and
+	"bg" can be used as color names.  This only works after setting the
+	colors for the Normal group and for the MS-DOS console.  Example, for
+	reverse video:
+	    :highlight Visual ctermfg=bg ctermbg=fg
+ 	Note that the colors are used that are valid at the moment this
+	command are given.  If the Normal group colors are changed later, the
+	"fg" and "bg" colors will not be adjusted.
+
+
+${GREEN_FG}3. highlight arguments for the GUI${RESET}
+
+
+${WHITE_FG}gui={attr-list}						*highlight-gui*${RESET}
+
+	These give the attributes to use in the GUI mode.
+	See |attr-list| for a description.
+	Note that "bold" can be used here and by using a bold font.  They
+	have the same effect.
+	Note that the attributes are ignored for the "Normal" group.
+
+
+${WHITE_FG}font={font-name}					*highlight-font*${RESET}
+
+	font-name is the name of a font, as it is used on the system Vim
+	runs on.  For X11 this is a complicated name, for example:
+   font=-misc-fixed-bold-r-normal--14-130-75-75-c-70-iso8859-1
+ 
+	The font-name "NONE" can be used to revert to the default font.
+	When setting the font for the "Normal" group, this becomes the default
+	font (until the 'guifont' option is changed; the last one set is
+	used).
+	The following only works with Motif and Athena, not with other GUIs:
+	When setting the font for the "Menu" group, the menus will be changed.
+	When setting the font for the "Tooltip" group, the tooltips will be
+	changed.
+	All fonts used, except for Menu and Tooltip, should be of the same
+	character size as the default font!  Otherwise redrawing problems will
+	occur.
+
+
+${WHITE_FG}guifg={color-name}					*highlight-guifg*${RESET}
+
+${WHITE_FG}guibg={color-name}					*highlight-guibg*${RESET}
+
+${WHITE_FG}guisp={color-name}					*highlight-guisp*${RESET}
+
+	These give the foreground (guifg), background (guibg) and special
+	(guisp) color to use in the GUI.  "guisp" is used for undercurl.
+	There are a few special names:
+		NONE		no color (transparent)
+		bg		use normal background color
+		background	use normal background color
+		fg		use normal foreground color
+		foreground	use normal foreground color
+	To use a color name with an embedded space or other special character,
+	put it in single quotes.  The single quote cannot be used then.
+	Example:
+	    :hi comment guifg='salmon pink'
+ 
+   *gui-colors*
+
+	Suggested color names (these are available on most systems):
+	    Red		LightRed	DarkRed
+	    Green	LightGreen	DarkGreen	SeaGreen
+	    Blue	LightBlue	DarkBlue	SlateBlue
+	    Cyan	LightCyan	DarkCyan
+	    Magenta	LightMagenta	DarkMagenta
+	    Yellow	LightYellow	Brown		DarkYellow
+	    Gray	LightGray	DarkGray
+	    Black	White
+	    Orange	Purple		Violet
+
+	In the Win32 GUI version, additional system colors are available.  See
+	|win32-colors|.
+
+	You can also specify a color by its Red, Green and Blue values.
+	The format is "#rrggbb", where
+		"rr"	is the Red value
+		"gg"	is the Green value
+		"bb"	is the Blue value
+	All values are hexadecimal, range from "00" to "ff".  Examples:
+  :highlight Comment guifg=#11f0c3 guibg=#ff00ff
+ 
+${WHITE_FG}*highlight-groups* *highlight-default*${RESET}
+
+	These are the default highlighting groups.  These groups are used by the
+	'highlight' option default.  Note that the highlighting depends on the value
+	of 'background'.  You can see the current settings with the ":highlight"
+	command.
+
+${WHITE_FG}*hl-ColorColumn* ColorColumn	used for the columns set with 'colorcolumn'${RESET}
+
+${WHITE_FG}*hl-Conceal*${RESET}
+
+	Conceal placeholder characters substituted for concealed text (see 'conceallevel')
+
+${WHITE_FG}*hl-Cursor*${RESET}
+
+	Cursor the character under the cursor
+
+${WHITE_FG}*hl-CursorIM* CursorIM like Cursor, but used when in IME mode |CursorIM|${RESET}
+
+${WHITE_FG}*hl-CursorColumn* CursorColumn the screen column that the cursor is in when 'cursorcolumn' is set${RESET}
+
+${WHITE_FG}*hl-CursorLine* CursorLine	the screen line that the cursor is in when 'cursorline' is set${RESET}
+
+${WHITE_FG}*hl-Directory* Directory directory names (and other special names in listings)${RESET}
+
+${WHITE_FG}*hl-DiffAdd* DiffAdd diff mode: Added line |diff.txt|${RESET}
+
+${WHITE_FG}*hl-DiffChange* DiffChange	diff mode: Changed line |diff.txt|${RESET}
+
+${WHITE_FG}*hl-DiffDelete* DiffDelete	diff mode: Deleted line |diff.txt|${RESET}
+
+${WHITE_FG}*hl-DiffText* DiffText	diff mode: Changed text within a changed line |diff.txt|${RESET}
+
+${WHITE_FG}*hl-ErrorMsg* ErrorMsg	error messages on the command line${RESET}
+
+${WHITE_FG}*hl-VertSplit* VertSplit	the column separating vertically split windows${RESET}
+
+${WHITE_FG}*hl-Folded* Folded line used for closed folds${RESET}
+
+${WHITE_FG}*hl-FoldColumn* FoldColumn	'foldcolumn'${RESET}
+
+${WHITE_FG}*hl-SignColumn* SignColumn	column where |signs| are displayed${RESET}
+
+${WHITE_FG}*hl-IncSearch* IncSearch 'incsearch' highlighting; also used for the text replaced with ":s///c"${RESET}
+
+${WHITE_FG}*hl-LineNr* LineNr Line number for ":number" and ":#" commands, and when 'number' or 'relativenumber' option is set.${RESET}
+
+${WHITE_FG}*hl-MatchParen* MatchParen${RESET}
+
+		The character under the cursor or just before it, if it is a paired bracket, and its match. |pi_paren.txt|
+
+${WHITE_FG}*hl-ModeMsg* ModeMsg	'showmode' message (e.g., "-- INSERT --"${RESET}
+
+${WHITE_FG}*hl-MoreMsg* MoreMsg		|more-prompt${RESET}
+
+${WHITE_FG}*hl-NonText* NonText	${RESET}
+
+      '~' and '@' at the end of the window, characters from
+		'showbreak' and other characters that do not really exist in
+		the text (e.g., ">" displayed when a double-wide character
+		doesn't fit at the end of the line).
+
+${WHITE_FG}*hl-Normal* Normal		normal tex${RESET}
+
+${WHITE_FG}*hl-Pmenu* Pmenu		Popup menu: normal item${RESET}
+
+${WHITE_FG}*hl-PmenuSel* PmenuSel	Popup menu: selected item${RESET}
+
+${WHITE_FG}*hl-PmenuSbar* PmenuSbar	Popup menu: scrollbar${RESET}
+
+${WHITE_FG}*hl-PmenuThumb* PmenuThumb	Popup menu: Thumb of the scrollbar${RESET}
+
+${WHITE_FG}*hl-Question* Question	|hit-enter| prompt and yes/no question${RESET}
+
+${WHITE_FG}*hl-Search* Search${RESET}
+
+      Last search pattern highlighting (see 'hlsearch').
+		Also used for highlighting the current line in the quickfix
+		window and similar items that need to stand out.
+
+${WHITE_FG}*hl-SpecialKey*${RESET}
+
+	SpecialKey	Meta and special keys listed with ":map", also for text used
+	to show unprintable characters in the text, 'listchars'.
+	Generally: text that is displayed differently from what it
+	really is.
+
+${WHITE_FG}*hl-SpellBad*${RESET}
+
+	SpellBad	Word that is not recognized by the spellchecker. |spell|
+	This will be combined with the highlighting used otherwise.
+
+${WHITE_FG}*hl-SpellCap*${RESET}
+
+	SpellCap	Word that should start with a capital. |spell|
+	This will be combined with the highlighting used otherwise.
+
+${WHITE_FG}*hl-SpellLocal*${RESET}
+
+	SpellLocal	Word that is recognized by the spellchecker as one that is
+	used in another region. |spell|
+	This will be combined with the highlighting used otherwise.
+
+${WHITE_FG}*hl-SpellRare*${RESET}
+
+	SpellRare	Word that is recognized by the spellchecker as one that is
+	hardly ever used. |spell|
+	This will be combined with the highlighting used otherwise.
+
+${WHITE_FG}*hl-StatusLine*${RESET}
+
+	StatusLine	status line of current window
+
+${WHITE_FG}*hl-StatusLineNC*${RESET}
+
+	StatusLineNC	status lines of not-current windows
+	Note: if this is equal to "StatusLine" Vim will use "^^^" in
+	the status line of the current window.
+
+${WHITE_FG}*hl-TabLine*${RESET}
+
+	TabLine		tab pages line, not active tab page label
+
+${WHITE_FG}*hl-TabLineFill*${RESET}
+
+	TabLineFill	tab pages line, where there are no labels
+
+${WHITE_FG}*hl-TabLineSel*${RESET}
+
+	TabLineSel	tab pages line, active tab page label
+
+${WHITE_FG}*hl-Title*${RESET}
+
+	Title		titles for output from ":set all", ":autocmd" etc.
+
+${WHITE_FG}*hl-Visual*${RESET}
+
+	Visual		Visual mode selection
+
+${WHITE_FG}*hl-VisualNOS*${RESET}
+
+	VisualNOS	Visual mode selection when vim is "Not Owning the Selection".
+	Only X11 Gui's |gui-x11| and |xterm-clipboard| supports this.
+
+${WHITE_FG}*hl-WarningMsg*${RESET}
+
+	WarningMsg	warning messages
+
+${WHITE_FG}*hl-WildMenu*${RESET}
+
+	WildMenu	current match in 'wildmenu' completion
+
+${WHITE_FG}*hl-User1* *hl-User1..9* *hl-User9*${RESET}
+
+	The 'statusline' syntax allows the use of 9 different highlights in the
+	statusline and ruler (via 'rulerformat').  The names are User1 to User9.
+
+	For the GUI you can use the following groups to set the colors for the menu,
+	scrollbars and tooltips.  They don't have defaults.  This doesn't work for the
+	Win32 GUI.  Only three highlight arguments have any effect here: font, guibg,
+	and guifg.
+
+
+${WHITE_FG}*hl-Menu*${RESET}
+
+	Menu		Current font, background and foreground colors of the menus.
+	Also used for the toolbar.
+	Applicable highlight arguments: font, guibg, guifg.
+
+	NOTE: For Motif and Athena the font argument actually
+	specifies a fontset at all times, no matter if 'guifontset' is
+	empty, and as such it is tied to the current |:language| when set.
+
+
+${WHITE_FG}*hl-Scrollbar*${RESET}
+
+	Scrollbar	Current background and foreground of the main window's scrollbars.
+	Applicable highlight arguments: guibg, guifg.
+
+
+${WHITE_FG}*hl-Tooltip*${RESET}
+
+	Tooltip		Current font, background and foreground of the tooltips.
+	Applicable highlight arguments: font, guibg, guifg.
+
+	NOTE: For Motif and Athena the font argument actually
+	specifies a fontset at all times, no matter if 'guifontset' is
+	empty, and as such it is tied to the current |:language| when
+	set.
+
+==============================================================================
+${MAGENTA_FG}Linking groups${RESET}
+
+${WHITE_FG}*:hi-link* *:highlight-link* *E412* *E413*${RESET}
+
+	When you want to use the same highlighting for several syntax groups, you
+	can do this more easily by linking the groups into one common highlight
+	group, and give the color attributes only for that group.
+
+To set a link:
+
+${WHITE_FG}:hi[ghlight][!] [default] link {from-group} {to-group}${RESET}
+
+To remove a link:
+
+${WHITE_FG}:hi[ghlight][!] [default] link {from-group} NONE${RESET}
+
+
+	Notes:							*E414*
+	- If the {from-group} and/or {to-group} doesn't exist, it is created.  You
+	  don't get an error message for a non-existing group.
+	- As soon as you use a ":highlight" command for a linked group, the link is
+	  removed.
+	- If there are already highlight settings for the {from-group}, the link is
+	  not made, unless the '!' is given.  For a ":highlight link" command in a
+	  sourced file, you don't get an error message.  This can be used to skip
+	  links for groups that already have settings.
+
+
+${WHITE_FG}*:hi-default* *:highlight-default*${RESET}
+
+	The [default] argument is used for setting the default highlighting for a
+	group.	If highlighting has already been specified for the group the command
+	will be ignored.  Also when there is an existing link.
+
+	Using [default] is especially useful to overrule the highlighting of a
+	specific syntax file.  For example, the C syntax file contains:
+
+${WHITE_FG}:highlight default link cComment Comment${RESET}
+
+If you like Question highlighting for C comments, put this in your vimrc file:
+
+	:highlight link cComment Question
+
+	Without the "default" in the C syntax file, the highlighting would be
+	overruled when the syntax file is loaded.
+
+==============================================================================
+${MAGENTA_FG}Cleaning up${RESET}
+
+${WHITE_FG}*:syn-clear* *E391*${RESET}
+
+If you want to clear the syntax stuff for the current buffer, you can use this command:
+
+${WHITE_FG}:syntax clear${RESET}
+
+	This command should be used when you want to switch off syntax highlighting,
+	or when you want to switch to using another syntax.  It's normally not needed
+	in a syntax file itself, because syntax is cleared by the autocommands that
+	load the syntax file.
+
+	The command also deletes the "b:current_syntax" variable, since no syntax is
+	loaded after this command.
+
+	If you want to disable syntax highlighting for all buffers, you need to remove
+	the autocommands that load the syntax files:
+
+${WHITE_FG}:syntax off${RESET}
+
+	What this command actually does, is executing the command
+
+${WHITE_FG}:source \$VIMRUNTIME/syntax/nosyntax.vim${RESET}
+
+	See the "nosyntax.vim" file for details.  Note that for this to work
+	\$VIMRUNTIME must be valid.  See |\$VIMRUNTIME|.
+
+To clean up specific syntax groups for the current buffer:
+
+${WHITE_FG}:syntax clear {group-name} ..${RESET}
+
+This removes all patterns and keywords for {group-name}.
+
+To clean up specific syntax group lists for the current buffer:
+
+${WHITE_FG}:syntax clear @{grouplist-name} ..${RESET}
+
+This sets {grouplist-name}'s contents to an empty list.
+
+${WHITE_FG}*:syntax-reset* *:syn-reset*${RESET}
+
+	If you have changed the colors and messed them up, use this command to get the
+	defaults back:
+
+${WHITE_FG}:syntax reset${RESET}
+
+	This doesn't change the colors for the 'highlight' option.
+
+	Note that the syntax colors that you set in your vimrc file will also be reset
+	back to their Vim default.
+	Note that if you are using a color scheme, the colors defined by the color
+	scheme for syntax highlighting will be lost.
+
+	What this actually does is:
+
+	let g:syntax_cmd = "reset"
+	runtime! syntax/syncolor.vim
+
+	Note that this uses the 'runtimepath' option.
+
+
+${WHITE_FG}*syncolor*${RESET}
+
+	If you want to use different colors for syntax highlighting, you can add a Vim
+	script file to set these colors.  Put this file in a directory in
+	'runtimepath' which comes after $VIMRUNTIME, so that your settings overrule
+	the default colors.  This way these colors will be used after the ":syntax
+	reset" command.
+
+	For Unix you can use the file ~/.vim/after/syntax/syncolor.vim.  Example:
+
+		if &background == "light"
+		  highlight comment ctermfg=darkgreen guifg=darkgreen
+		else
+		  highlight comment ctermfg=green guifg=green
+		endif
+
+									*E679*
+	Do make sure this syncolor.vim script does not use a "syntax on", set the
+	'background' option or uses a "colorscheme" command, because it results in an
+	endless loop.
+
+	Note that when a color scheme is used, there might be some confusion whether
+	your defined colors are to be used or the colors from the scheme.  This
+	depends on the color scheme file.  See |:colorscheme|.
+
+
+${WHITE_FG}*syntax_cmd*${RESET}
+
+	The "syntax_cmd" variable is set to one of these values when the
+	syntax/syncolor.vim files are loaded:
+
+   "on"		":syntax on" command.  Highlight colors are overruled but
+		links are kept
+   "enable"	":syntax enable" command.  Only define colors for groups that
+		don't have highlighting yet.  Use ":syntax default".
+   "reset"	":syntax reset" command or loading a color scheme.  Define all
+		the colors.
+   "skip"	Don't define colors.  Used to skip the default settings when a
+		syncolor.vim file earlier in 'runtimepath' has already set
+		them.
+
+==============================================================================
+${MAGENTA_FG}Highlighting tags					*tag-highlight*${RESET}
+
+If you want to highlight all the tags in your file, you can use the following
+mappings.
+
+	<F11>	-- Generate tags.vim file, and highlight tags.
+	<F12>	-- Just highlight tags based on existing tags.vim file.
+
+  :map <F11>  :sp tags<CR>:%s/^\([^	:]*:\)\=\([^	]*\).*/syntax keyword Tag \2/<CR>:wq! tags.vim<CR>/^<CR><F12>
+  :map <F12>  :so tags.vim<CR>
+
+WARNING: The longer the tags file, the slower this will be, and the more
+memory Vim will consume.
+
+Only highlighting typedefs, unions and structs can be done too.  For this you
+must use Exuberant ctags found at	http://ctags.sf.net.
+
+Put these lines in your Makefile:
+
+# Make a highlight file for types.  Requires Exuberant ctags and awk
+types: types.vim
+types.vim: *.[ch]
+	ctags --c-kinds=gstu -o- *.[ch] YXXY\
+		awk 'BEGIN{printf("syntax keyword Type\t")} {printf("%s ", $$1)}END{print ""}' > $@
+
+And put these lines in your .vimrc:
+
+   " load the types.vim highlighting file, if it exists
+   autocmd BufRead,BufNewFile *.[ch] let fname = expand('<afile>:p:h') . '/types.vim'
+   autocmd BufRead,BufNewFile *.[ch] if filereadable(fname)
+   autocmd BufRead,BufNewFile *.[ch]   exe 'so ' . fname
+   autocmd BufRead,BufNewFile *.[ch] endif
+
+==============================================================================
+${MAGENTA_FG}Window-local syntax				*:ownsyntax*${RESET}
+
+Normally all windows on a buffer share the same syntax settings. It is
+possible, however, to set a particular window on a file to have its own
+private syntax setting. A possible example would be to edit LaTeX source
+with conventional highlighting in one window, while seeing the same source
+highlighted differently (so as to hide control sequences and indicate bold,
+italic etc regions) in another. The 'scrollbind' option is useful here.
+
+To set the current window to have the syntax "foo", separately from all other
+windows on the buffer:
+
+${WHITE_FG}:ownsyntax foo${RESET}
+
+${WHITE_FG}*w:current_syntax*${RESET}
+
+	This will set the "w:current_syntax" variable to "foo".  The value of
+	"b:current_syntax" does not change.  This is implemented by saving and
+	restoring "b:current_syntax", since the syntax files do set
+	"b:current_syntax".  The value set by the syntax file is assigned to
+	"w:current_syntax".
+
+	Once a window has its own syntax, syntax commands executed from other windows
+	on the same buffer (including :syntax clear) have no effect. Conversely, 
+	syntax commands executed from that window do not effect other windows on the
+	same buffer.
+
+	A window with its own syntax reverts to normal behavior when another buffer
+	is loaded into that window or the file is reloaded.
+	When splitting the window, the new window will use the original syntax.
+
+==============================================================================
+${MAGENTA_FG}Color xterms				*xterm-color* *color-xterm*${RESET}
+
+Most color xterms have only eight colors.  If you don't get colors with the
+default setup, it should work with these lines in your .vimrc:
+   :if &term =~ "xterm"
+   :  if has("terminfo")
+   :	set t_Co=8
+   :	set t_Sf=<Esc>[3%p1%dm
+   :	set t_Sb=<Esc>[4%p1%dm
+   :  else
+   :	set t_Co=8
+   :	set t_Sf=<Esc>[3%dm
+   :	set t_Sb=<Esc>[4%dm
+   :  endif
+   :endif
+ 	[<Esc> is a real escape, type CTRL-V <Esc>]
+
+You might want to change the first "if" to match the name of your terminal,
+e.g. "dtterm" instead of "xterm".
+
+Note: Do these settings BEFORE doing ":syntax on".  Otherwise the colors may
+be wrong.
+
+${WHITE_FG}*xiterm* *rxvt*${RESET}
+
+	The above settings have been mentioned to work for xiterm and rxvt too.
+	But for using 16 colors in an rxvt these should work with terminfo:
+
+	:set t_AB=<Esc>[%?%p1%{8}%<%t25;%p1%{40}%+%e5;%p1%{32}%+%;%dm
+	:set t_AF=<Esc>[%?%p1%{8}%<%t22;%p1%{30}%+%e1;%p1%{22}%+%;%dm
+ 
+
+${WHITE_FG}*colortest.vim*${RESET}
+
+	To test your color setup, a file has been included in the Vim distribution.
+	To use it, execute this command:
+
+   :runtime syntax/colortest.vim
+
+	Some versions of xterm (and other terminals, like the Linux console) can
+	output lighter foreground colors, even though the number of colors is defined
+	at 8.  Therefore Vim sets the "cterm=bold" attribute for light foreground
+	colors, when 't_Co' is 8.
+
+
+${WHITE_FG}*xfree-xterm*${RESET}
+
+	To get 16 colors or more, get the newest xterm version (which should be
+	included with XFree86 3.3 and later).  You can also find the latest version
+	at:
+		http://invisible-island.net/xterm/xterm.html
+	Here is a good way to configure it.  This uses 88 colors and enables the
+	termcap-query feature, which allows Vim to ask the xterm how many colors it
+	supports.
+		./configure --disable-bold-color --enable-88-color --enable-tcap-query
+	If you only get 8 colors, check the xterm compilation settings.
+	(Also see |UTF8-xterm| for using this xterm with UTF-8 character encoding).
+
+	This xterm should work with these lines in your .vimrc (for 16 colors):
+		:if has("terminfo")
+		:  set t_Co=16
+		:  set t_AB=<Esc>[%?%p1%{8}%<%t%p1%{40}%+%e%p1%{92}%+%;%dm
+		:  set t_AF=<Esc>[%?%p1%{8}%<%t%p1%{30}%+%e%p1%{82}%+%;%dm
+		:else
+		:  set t_Co=16
+		:  set t_Sf=<Esc>[3%dm
+		:  set t_Sb=<Esc>[4%dm
+		:endif
+		[<Esc> is a real escape, type CTRL-V <Esc>]
+
+	Without |+terminfo|, Vim will recognize these settings, and automatically
+	translate cterm colors of 8 and above to "<Esc>[9%dm" and "<Esc>[10%dm".
+	Colors above 16 are also translated automatically.
+
+	For 256 colors this has been reported to work:
+
+		:set t_AB=<Esc>[48;5;%dm
+		:set t_AF=<Esc>[38;5;%dm
+
+	Or just set the TERM environment variable to "xterm-color" or "xterm-16color"
+	and try if that works.
+
+	You probably want to use these X resources (in your ~/.Xdefaults file):
+		XTerm*color0:			#000000
+		XTerm*color1:			#c00000
+		XTerm*color2:			#008000
+		XTerm*color3:			#808000
+		XTerm*color4:			#0000c0
+		XTerm*color5:			#c000c0
+		XTerm*color6:			#008080
+		XTerm*color7:			#c0c0c0
+		XTerm*color8:			#808080
+		XTerm*color9:			#ff6060
+		XTerm*color10:			#00ff00
+		XTerm*color11:			#ffff00
+		XTerm*color12:			#8080ff
+		XTerm*color13:			#ff40ff
+		XTerm*color14:			#00ffff
+		XTerm*color15:			#ffffff
+		Xterm*cursorColor:		Black
+
+	[Note: The cursorColor is required to work around a bug, which changes the
+	cursor color to the color of the last drawn text.  This has been fixed by a
+	newer version of xterm, but not everybody is using it yet.]
+
+	To get these right away, reload the .Xdefaults file to the X Option database Manager 
+	(you only need to do this when you just changed the .Xdefaults file): xrdb -merge ~/.Xdefaults
+ 
+
+${WHITE_FG}*xterm-blink* *xterm-blinking-cursor*${RESET}
+
+	To make the cursor blink in an xterm, see tools/blink.c.  Or use Thomas
+	Dickey's xterm above patchlevel 107 (see above for where to get it), with
+	these resources:
+
+	XTerm*cursorBlink:	on
+	XTerm*cursorOnTime:	400
+	XTerm*cursorOffTime:	250
+	XTerm*cursorColor:	White
+
+
+${WHITE_FG}*hpterm-color*${RESET}
+
+	These settings work (more or less) for an hpterm, which only supports 8
+	foreground colors:
+
+   :if has("terminfo")
+   :  set t_Co=8
+   :  set t_Sf=<Esc>[&v%p1%dS
+   :  set t_Sb=<Esc>[&v7S
+   :else
+   :  set t_Co=8
+   :  set t_Sf=<Esc>[&v%dS
+   :  set t_Sb=<Esc>[&v7S
+   :endif
+ 	[<Esc> is a real escape, type CTRL-V <Esc>]
+
+
+${WHITE_FG}*Eterm* *enlightened-terminal*${RESET}
+
+		These settings have been reported to work for the Enlightened terminal
+		emulator, or Eterm.  They might work for all xterm-like terminals that use the
+		bold attribute to get bright colors.  Add an ":if" like above when needed.
+
+       :set t_Co=16
+       :set t_AF=^[[%?%p1%{8}%<%t3%p1%d%e%p1%{22}%+%d;1%;m
+       :set t_AB=^[[%?%p1%{8}%<%t4%p1%d%e%p1%{32}%+%d;1%;m
+ 
+
+${WHITE_FG}*TTpro-telnet*${RESET}
+
+	These settings should work for TTpro telnet.  Tera Term Pro is a freeware /
+	open-source program for MS-Windows.
+
+	set t_Co=16
+	set t_AB=^[[%?%p1%{8}%<%t%p1%{40}%+%e%p1%{32}%+5;%;%dm
+	set t_AF=^[[%?%p1%{8}%<%t%p1%{30}%+%e%p1%{22}%+1;%;%dm
+
+	Also make sure TTpro's Setup / Window / Full Color is enabled, and make sure
+	that Setup / Font / Enable Bold is NOT enabled.
+	(info provided by John Love-Jensen <eljay@Adobe.COM>)
+
+--- CTERM ---
+hi  x016_Grey0              ctermfg=16   guifg=#000000  "rgb=0,0,0
+hi  x017_NavyBlue           ctermfg=17   guifg=#00005f  "rgb=0,0,95
+hi  x018_DarkBlue           ctermfg=18   guifg=#000087  "rgb=0,0,135
+hi  x019_Blue3              ctermfg=19   guifg=#0000af  "rgb=0,0,175
+hi  x020_Blue3              ctermfg=20   guifg=#0000d7  "rgb=0,0,215
+hi  x021_Blue1              ctermfg=21   guifg=#0000ff  "rgb=0,0,255
+hi  x022_DarkGreen          ctermfg=22   guifg=#005f00  "rgb=0,95,0
+hi  x023_DeepSkyBlue4       ctermfg=23   guifg=#005f5f  "rgb=0,95,95
+hi  x024_DeepSkyBlue4       ctermfg=24   guifg=#005f87  "rgb=0,95,135
+hi  x025_DeepSkyBlue4       ctermfg=25   guifg=#005faf  "rgb=0,95,175
+hi  x026_DodgerBlue3        ctermfg=26   guifg=#005fd7  "rgb=0,95,215
+hi  x027_DodgerBlue2        ctermfg=27   guifg=#005fff  "rgb=0,95,255
+hi  x028_Green4             ctermfg=28   guifg=#008700  "rgb=0,135,0
+hi  x029_SpringGreen4       ctermfg=29   guifg=#00875f  "rgb=0,135,95
+hi  x030_Turquoise4         ctermfg=30   guifg=#008787  "rgb=0,135,135
+hi  x031_DeepSkyBlue3       ctermfg=31   guifg=#0087af  "rgb=0,135,175
+hi  x032_DeepSkyBlue3       ctermfg=32   guifg=#0087d7  "rgb=0,135,215
+hi  x033_DodgerBlue1        ctermfg=33   guifg=#0087ff  "rgb=0,135,255
+hi  x034_Green3             ctermfg=34   guifg=#00af00  "rgb=0,175,0
+hi  x035_SpringGreen3       ctermfg=35   guifg=#00af5f  "rgb=0,175,95
+hi  x036_DarkCyan           ctermfg=36   guifg=#00af87  "rgb=0,175,135
+hi  x037_LightSeaGreen      ctermfg=37   guifg=#00afaf  "rgb=0,175,175
+hi  x038_DeepSkyBlue2       ctermfg=38   guifg=#00afd7  "rgb=0,175,215
+hi  x039_DeepSkyBlue1       ctermfg=39   guifg=#00afff  "rgb=0,175,255
+hi  x040_Green3             ctermfg=40   guifg=#00d700  "rgb=0,215,0
+hi  x041_SpringGreen3       ctermfg=41   guifg=#00d75f  "rgb=0,215,95
+hi  x042_SpringGreen2       ctermfg=42   guifg=#00d787  "rgb=0,215,135
+hi  x043_Cyan3              ctermfg=43   guifg=#00d7af  "rgb=0,215,175
+hi  x044_DarkTurquoise      ctermfg=44   guifg=#00d7d7  "rgb=0,215,215
+hi  x045_Turquoise2         ctermfg=45   guifg=#00d7ff  "rgb=0,215,255
+hi  x046_Green1             ctermfg=46   guifg=#00ff00  "rgb=0,255,0
+hi  x047_SpringGreen2       ctermfg=47   guifg=#00ff5f  "rgb=0,255,95
+hi  x048_SpringGreen1       ctermfg=48   guifg=#00ff87  "rgb=0,255,135
+hi  x049_MediumSpringGreen  ctermfg=49   guifg=#00ffaf  "rgb=0,255,175
+hi  x050_Cyan2              ctermfg=50   guifg=#00ffd7  "rgb=0,255,215
+hi  x051_Cyan1              ctermfg=51   guifg=#00ffff  "rgb=0,255,255
+hi  x052_DarkRed            ctermfg=52   guifg=#5f0000  "rgb=95,0,0
+hi  x053_DeepPink4          ctermfg=53   guifg=#5f005f  "rgb=95,0,95
+hi  x054_Purple4            ctermfg=54   guifg=#5f0087  "rgb=95,0,135
+hi  x055_Purple4            ctermfg=55   guifg=#5f00af  "rgb=95,0,175
+hi  x056_Purple3            ctermfg=56   guifg=#5f00d7  "rgb=95,0,215
+hi  x057_BlueViolet         ctermfg=57   guifg=#5f00ff  "rgb=95,0,255
+hi  x058_Orange4            ctermfg=58   guifg=#5f5f00  "rgb=95,95,0
+hi  x059_Grey37             ctermfg=59   guifg=#5f5f5f  "rgb=95,95,95
+hi  x060_MediumPurple4      ctermfg=60   guifg=#5f5f87  "rgb=95,95,135
+hi  x061_SlateBlue3         ctermfg=61   guifg=#5f5faf  "rgb=95,95,175
+hi  x062_SlateBlue3         ctermfg=62   guifg=#5f5fd7  "rgb=95,95,215
+hi  x063_RoyalBlue1         ctermfg=63   guifg=#5f5fff  "rgb=95,95,255
+hi  x064_Chartreuse4        ctermfg=64   guifg=#5f8700  "rgb=95,135,0
+hi  x065_DarkSeaGreen4      ctermfg=65   guifg=#5f875f  "rgb=95,135,95
+hi  x066_PaleTurquoise4     ctermfg=66   guifg=#5f8787  "rgb=95,135,135
+hi  x067_SteelBlue          ctermfg=67   guifg=#5f87af  "rgb=95,135,175
+hi  x068_SteelBlue3         ctermfg=68   guifg=#5f87d7  "rgb=95,135,215
+hi  x069_CornflowerBlue     ctermfg=69   guifg=#5f87ff  "rgb=95,135,255
+hi  x070_Chartreuse3        ctermfg=70   guifg=#5faf00  "rgb=95,175,0
+hi  x071_DarkSeaGreen4      ctermfg=71   guifg=#5faf5f  "rgb=95,175,95
+hi  x072_CadetBlue          ctermfg=72   guifg=#5faf87  "rgb=95,175,135
+hi  x073_CadetBlue          ctermfg=73   guifg=#5fafaf  "rgb=95,175,175
+hi  x074_SkyBlue3           ctermfg=74   guifg=#5fafd7  "rgb=95,175,215
+hi  x075_SteelBlue1         ctermfg=75   guifg=#5fafff  "rgb=95,175,255
+hi  x076_Chartreuse3        ctermfg=76   guifg=#5fd700  "rgb=95,215,0
+hi  x077_PaleGreen3         ctermfg=77   guifg=#5fd75f  "rgb=95,215,95
+hi  x078_SeaGreen3          ctermfg=78   guifg=#5fd787  "rgb=95,215,135
+hi  x079_Aquamarine3        ctermfg=79   guifg=#5fd7af  "rgb=95,215,175
+hi  x080_MediumTurquoise    ctermfg=80   guifg=#5fd7d7  "rgb=95,215,215
+hi  x081_SteelBlue1         ctermfg=81   guifg=#5fd7ff  "rgb=95,215,255
+hi  x082_Chartreuse2        ctermfg=82   guifg=#5fff00  "rgb=95,255,0
+hi  x083_SeaGreen2          ctermfg=83   guifg=#5fff5f  "rgb=95,255,95
+hi  x084_SeaGreen1          ctermfg=84   guifg=#5fff87  "rgb=95,255,135
+hi  x085_SeaGreen1          ctermfg=85   guifg=#5fffaf  "rgb=95,255,175
+hi  x086_Aquamarine1        ctermfg=86   guifg=#5fffd7  "rgb=95,255,215
+hi  x087_DarkSlateGray2     ctermfg=87   guifg=#5fffff  "rgb=95,255,255
+hi  x088_DarkRed            ctermfg=88   guifg=#870000  "rgb=135,0,0
+hi  x089_DeepPink4          ctermfg=89   guifg=#87005f  "rgb=135,0,95
+hi  x090_DarkMagenta        ctermfg=90   guifg=#870087  "rgb=135,0,135
+hi  x091_DarkMagenta        ctermfg=91   guifg=#8700af  "rgb=135,0,175
+hi  x092_DarkViolet         ctermfg=92   guifg=#8700d7  "rgb=135,0,215
+hi  x093_Purple             ctermfg=93   guifg=#8700ff  "rgb=135,0,255
+hi  x094_Orange4            ctermfg=94   guifg=#875f00  "rgb=135,95,0
+hi  x095_LightPink4         ctermfg=95   guifg=#875f5f  "rgb=135,95,95
+hi  x096_Plum4              ctermfg=96   guifg=#875f87  "rgb=135,95,135
+hi  x097_MediumPurple3      ctermfg=97   guifg=#875faf  "rgb=135,95,175
+hi  x098_MediumPurple3      ctermfg=98   guifg=#875fd7  "rgb=135,95,215
+hi  x099_SlateBlue1         ctermfg=99   guifg=#875fff  "rgb=135,95,255
+hi  x100_Yellow4            ctermfg=100  guifg=#878700  "rgb=135,135,0
+hi  x101_Wheat4             ctermfg=101  guifg=#87875f  "rgb=135,135,95
+hi  x102_Grey53             ctermfg=102  guifg=#878787  "rgb=135,135,135
+hi  x103_LightSlateGrey     ctermfg=103  guifg=#8787af  "rgb=135,135,175
+hi  x104_MediumPurple       ctermfg=104  guifg=#8787d7  "rgb=135,135,215
+hi  x105_LightSlateBlue     ctermfg=105  guifg=#8787ff  "rgb=135,135,255
+hi  x106_Yellow4            ctermfg=106  guifg=#87af00  "rgb=135,175,0
+hi  x107_DarkOliveGreen3    ctermfg=107  guifg=#87af5f  "rgb=135,175,95
+hi  x108_DarkSeaGreen       ctermfg=108  guifg=#87af87  "rgb=135,175,135
+hi  x109_LightSkyBlue3      ctermfg=109  guifg=#87afaf  "rgb=135,175,175
+hi  x110_LightSkyBlue3      ctermfg=110  guifg=#87afd7  "rgb=135,175,215
+hi  x111_SkyBlue2           ctermfg=111  guifg=#87afff  "rgb=135,175,255
+hi  x112_Chartreuse2        ctermfg=112  guifg=#87d700  "rgb=135,215,0
+hi  x113_DarkOliveGreen3    ctermfg=113  guifg=#87d75f  "rgb=135,215,95
+hi  x114_PaleGreen3         ctermfg=114  guifg=#87d787  "rgb=135,215,135
+hi  x115_DarkSeaGreen3      ctermfg=115  guifg=#87d7af  "rgb=135,215,175
+hi  x116_DarkSlateGray3     ctermfg=116  guifg=#87d7d7  "rgb=135,215,215
+hi  x117_SkyBlue1           ctermfg=117  guifg=#87d7ff  "rgb=135,215,255
+hi  x118_Chartreuse1        ctermfg=118  guifg=#87ff00  "rgb=135,255,0
+hi  x119_LightGreen         ctermfg=119  guifg=#87ff5f  "rgb=135,255,95
+hi  x120_LightGreen         ctermfg=120  guifg=#87ff87  "rgb=135,255,135
+hi  x121_PaleGreen1         ctermfg=121  guifg=#87ffaf  "rgb=135,255,175
+hi  x122_Aquamarine1        ctermfg=122  guifg=#87ffd7  "rgb=135,255,215
+hi  x123_DarkSlateGray1     ctermfg=123  guifg=#87ffff  "rgb=135,255,255
+hi  x124_Red3               ctermfg=124  guifg=#af0000  "rgb=175,0,0
+hi  x125_DeepPink4          ctermfg=125  guifg=#af005f  "rgb=175,0,95
+hi  x126_MediumVioletRed    ctermfg=126  guifg=#af0087  "rgb=175,0,135
+hi  x127_Magenta3           ctermfg=127  guifg=#af00af  "rgb=175,0,175
+hi  x128_DarkViolet         ctermfg=128  guifg=#af00d7  "rgb=175,0,215
+hi  x129_Purple             ctermfg=129  guifg=#af00ff  "rgb=175,0,255
+hi  x130_DarkOrange3        ctermfg=130  guifg=#af5f00  "rgb=175,95,0
+hi  x131_IndianRed          ctermfg=131  guifg=#af5f5f  "rgb=175,95,95
+hi  x132_HotPink3           ctermfg=132  guifg=#af5f87  "rgb=175,95,135
+hi  x133_MediumOrchid3      ctermfg=133  guifg=#af5faf  "rgb=175,95,175
+hi  x134_MediumOrchid       ctermfg=134  guifg=#af5fd7  "rgb=175,95,215
+hi  x135_MediumPurple2      ctermfg=135  guifg=#af5fff  "rgb=175,95,255
+hi  x136_DarkGoldenrod      ctermfg=136  guifg=#af8700  "rgb=175,135,0
+hi  x137_LightSalmon3       ctermfg=137  guifg=#af875f  "rgb=175,135,95
+hi  x138_RosyBrown          ctermfg=138  guifg=#af8787  "rgb=175,135,135
+hi  x139_Grey63             ctermfg=139  guifg=#af87af  "rgb=175,135,175
+hi  x140_MediumPurple2      ctermfg=140  guifg=#af87d7  "rgb=175,135,215
+hi  x141_MediumPurple1      ctermfg=141  guifg=#af87ff  "rgb=175,135,255
+hi  x142_Gold3              ctermfg=142  guifg=#afaf00  "rgb=175,175,0
+hi  x143_DarkKhaki          ctermfg=143  guifg=#afaf5f  "rgb=175,175,95
+hi  x144_NavajoWhite3       ctermfg=144  guifg=#afaf87  "rgb=175,175,135
+hi  x145_Grey69             ctermfg=145  guifg=#afafaf  "rgb=175,175,175
+hi  x146_LightSteelBlue3    ctermfg=146  guifg=#afafd7  "rgb=175,175,215
+hi  x147_LightSteelBlue     ctermfg=147  guifg=#afafff  "rgb=175,175,255
+hi  x148_Yellow3            ctermfg=148  guifg=#afd700  "rgb=175,215,0
+hi  x149_DarkOliveGreen3    ctermfg=149  guifg=#afd75f  "rgb=175,215,95
+hi  x150_DarkSeaGreen3      ctermfg=150  guifg=#afd787  "rgb=175,215,135
+hi  x151_DarkSeaGreen2      ctermfg=151  guifg=#afd7af  "rgb=175,215,175
+hi  x152_LightCyan3         ctermfg=152  guifg=#afd7d7  "rgb=175,215,215
+hi  x153_LightSkyBlue1      ctermfg=153  guifg=#afd7ff  "rgb=175,215,255
+hi  x154_GreenYellow        ctermfg=154  guifg=#afff00  "rgb=175,255,0
+hi  x155_DarkOliveGreen2    ctermfg=155  guifg=#afff5f  "rgb=175,255,95
+hi  x156_PaleGreen1         ctermfg=156  guifg=#afff87  "rgb=175,255,135
+hi  x157_DarkSeaGreen2      ctermfg=157  guifg=#afffaf  "rgb=175,255,175
+hi  x158_DarkSeaGreen1      ctermfg=158  guifg=#afffd7  "rgb=175,255,215
+hi  x159_PaleTurquoise1     ctermfg=159  guifg=#afffff  "rgb=175,255,255
+hi  x160_Red3               ctermfg=160  guifg=#d70000  "rgb=215,0,0
+hi  x161_DeepPink3          ctermfg=161  guifg=#d7005f  "rgb=215,0,95
+hi  x162_DeepPink3          ctermfg=162  guifg=#d70087  "rgb=215,0,135
+hi  x163_Magenta3           ctermfg=163  guifg=#d700af  "rgb=215,0,175
+hi  x164_Magenta3           ctermfg=164  guifg=#d700d7  "rgb=215,0,215
+hi  x165_Magenta2           ctermfg=165  guifg=#d700ff  "rgb=215,0,255
+hi  x166_DarkOrange3        ctermfg=166  guifg=#d75f00  "rgb=215,95,0
+hi  x167_IndianRed          ctermfg=167  guifg=#d75f5f  "rgb=215,95,95
+hi  x168_HotPink3           ctermfg=168  guifg=#d75f87  "rgb=215,95,135
+hi  x169_HotPink2           ctermfg=169  guifg=#d75faf  "rgb=215,95,175
+hi  x170_Orchid             ctermfg=170  guifg=#d75fd7  "rgb=215,95,215
+hi  x171_MediumOrchid1      ctermfg=171  guifg=#d75fff  "rgb=215,95,255
+hi  x172_Orange3            ctermfg=172  guifg=#d78700  "rgb=215,135,0
+hi  x173_LightSalmon3       ctermfg=173  guifg=#d7875f  "rgb=215,135,95
+hi  x174_LightPink3         ctermfg=174  guifg=#d78787  "rgb=215,135,135
+hi  x175_Pink3              ctermfg=175  guifg=#d787af  "rgb=215,135,175
+hi  x176_Plum3              ctermfg=176  guifg=#d787d7  "rgb=215,135,215
+hi  x177_Violet             ctermfg=177  guifg=#d787ff  "rgb=215,135,255
+hi  x178_Gold3              ctermfg=178  guifg=#d7af00  "rgb=215,175,0
+hi  x179_LightGoldenrod3    ctermfg=179  guifg=#d7af5f  "rgb=215,175,95
+hi  x180_Tan                ctermfg=180  guifg=#d7af87  "rgb=215,175,135
+hi  x181_MistyRose3         ctermfg=181  guifg=#d7afaf  "rgb=215,175,175
+hi  x182_Thistle3           ctermfg=182  guifg=#d7afd7  "rgb=215,175,215
+hi  x183_Plum2              ctermfg=183  guifg=#d7afff  "rgb=215,175,255
+hi  x184_Yellow3            ctermfg=184  guifg=#d7d700  "rgb=215,215,0
+hi  x185_Khaki3             ctermfg=185  guifg=#d7d75f  "rgb=215,215,95
+hi  x186_LightGoldenrod2    ctermfg=186  guifg=#d7d787  "rgb=215,215,135
+hi  x187_LightYellow3       ctermfg=187  guifg=#d7d7af  "rgb=215,215,175
+hi  x188_Grey84             ctermfg=188  guifg=#d7d7d7  "rgb=215,215,215
+hi  x189_LightSteelBlue1    ctermfg=189  guifg=#d7d7ff  "rgb=215,215,255
+hi  x190_Yellow2            ctermfg=190  guifg=#d7ff00  "rgb=215,255,0
+hi  x191_DarkOliveGreen1    ctermfg=191  guifg=#d7ff5f  "rgb=215,255,95
+hi  x192_DarkOliveGreen1    ctermfg=192  guifg=#d7ff87  "rgb=215,255,135
+hi  x193_DarkSeaGreen1      ctermfg=193  guifg=#d7ffaf  "rgb=215,255,175
+hi  x194_Honeydew2          ctermfg=194  guifg=#d7ffd7  "rgb=215,255,215
+hi  x195_LightCyan1         ctermfg=195  guifg=#d7ffff  "rgb=215,255,255
+hi  x196_Red1               ctermfg=196  guifg=#ff0000  "rgb=255,0,0
+hi  x197_DeepPink2          ctermfg=197  guifg=#ff005f  "rgb=255,0,95
+hi  x198_DeepPink1          ctermfg=198  guifg=#ff0087  "rgb=255,0,135
+hi  x199_DeepPink1          ctermfg=199  guifg=#ff00af  "rgb=255,0,175
+hi  x200_Magenta2           ctermfg=200  guifg=#ff00d7  "rgb=255,0,215
+hi  x201_Magenta1           ctermfg=201  guifg=#ff00ff  "rgb=255,0,255
+hi  x202_OrangeRed1         ctermfg=202  guifg=#ff5f00  "rgb=255,95,0
+hi  x203_IndianRed1         ctermfg=203  guifg=#ff5f5f  "rgb=255,95,95
+hi  x204_IndianRed1         ctermfg=204  guifg=#ff5f87  "rgb=255,95,135
+hi  x205_HotPink            ctermfg=205  guifg=#ff5faf  "rgb=255,95,175
+hi  x206_HotPink            ctermfg=206  guifg=#ff5fd7  "rgb=255,95,215
+hi  x207_MediumOrchid1      ctermfg=207  guifg=#ff5fff  "rgb=255,95,255
+hi  x208_DarkOrange         ctermfg=208  guifg=#ff8700  "rgb=255,135,0
+hi  x209_Salmon1            ctermfg=209  guifg=#ff875f  "rgb=255,135,95
+hi  x210_LightCoral         ctermfg=210  guifg=#ff8787  "rgb=255,135,135
+hi  x211_PaleVioletRed1     ctermfg=211  guifg=#ff87af  "rgb=255,135,175
+hi  x212_Orchid2            ctermfg=212  guifg=#ff87d7  "rgb=255,135,215
+hi  x213_Orchid1            ctermfg=213  guifg=#ff87ff  "rgb=255,135,255
+hi  x214_Orange1            ctermfg=214  guifg=#ffaf00  "rgb=255,175,0
+hi  x215_SandyBrown         ctermfg=215  guifg=#ffaf5f  "rgb=255,175,95
+hi  x216_LightSalmon1       ctermfg=216  guifg=#ffaf87  "rgb=255,175,135
+hi  x217_LightPink1         ctermfg=217  guifg=#ffafaf  "rgb=255,175,175
+hi  x218_Pink1              ctermfg=218  guifg=#ffafd7  "rgb=255,175,215
+hi  x219_Plum1              ctermfg=219  guifg=#ffafff  "rgb=255,175,255
+hi  x220_Gold1              ctermfg=220  guifg=#ffd700  "rgb=255,215,0
+hi  x221_LightGoldenrod2    ctermfg=221  guifg=#ffd75f  "rgb=255,215,95
+hi  x222_LightGoldenrod2    ctermfg=222  guifg=#ffd787  "rgb=255,215,135
+hi  x223_NavajoWhite1       ctermfg=223  guifg=#ffd7af  "rgb=255,215,175
+hi  x224_MistyRose1         ctermfg=224  guifg=#ffd7d7  "rgb=255,215,215
+hi  x225_Thistle1           ctermfg=225  guifg=#ffd7ff  "rgb=255,215,255
+hi  x226_Yellow1            ctermfg=226  guifg=#ffff00  "rgb=255,255,0
+hi  x227_LightGoldenrod1    ctermfg=227  guifg=#ffff5f  "rgb=255,255,95
+hi  x228_Khaki1             ctermfg=228  guifg=#ffff87  "rgb=255,255,135
+hi  x229_Wheat1             ctermfg=229  guifg=#ffffaf  "rgb=255,255,175
+hi  x230_Cornsilk1          ctermfg=230  guifg=#ffffd7  "rgb=255,255,215
+hi  x231_Grey100            ctermfg=231  guifg=#ffffff  "rgb=255,255,255
+hi  x232_Grey3              ctermfg=232  guifg=#080808  "rgb=8,8,8
+hi  x233_Grey7              ctermfg=233  guifg=#121212  "rgb=18,18,18
+hi  x234_Grey11             ctermfg=234  guifg=#1c1c1c  "rgb=28,28,28
+hi  x235_Grey15             ctermfg=235  guifg=#262626  "rgb=38,38,38
+hi  x236_Grey19             ctermfg=236  guifg=#303030  "rgb=48,48,48
+hi  x237_Grey23             ctermfg=237  guifg=#3a3a3a  "rgb=58,58,58
+hi  x238_Grey27             ctermfg=238  guifg=#444444  "rgb=68,68,68
+hi  x239_Grey30             ctermfg=239  guifg=#4e4e4e  "rgb=78,78,78
+hi  x240_Grey35             ctermfg=240  guifg=#585858  "rgb=88,88,88
+hi  x241_Grey39             ctermfg=241  guifg=#626262  "rgb=98,98,98
+hi  x242_Grey42             ctermfg=242  guifg=#6c6c6c  "rgb=108,108,108
+hi  x243_Grey46             ctermfg=243  guifg=#767676  "rgb=118,118,118
+hi  x244_Grey50             ctermfg=244  guifg=#808080  "rgb=128,128,128
+hi  x245_Grey54             ctermfg=245  guifg=#8a8a8a  "rgb=138,138,138
+hi  x246_Grey58             ctermfg=246  guifg=#949494  "rgb=148,148,148
+hi  x247_Grey62             ctermfg=247  guifg=#9e9e9e  "rgb=158,158,158
+hi  x248_Grey66             ctermfg=248  guifg=#a8a8a8  "rgb=168,168,168
+hi  x249_Grey70             ctermfg=249  guifg=#b2b2b2  "rgb=178,178,178
+hi  x250_Grey74             ctermfg=250  guifg=#bcbcbc  "rgb=188,188,188
+hi  x251_Grey78             ctermfg=251  guifg=#c6c6c6  "rgb=198,198,198
+hi  x252_Grey82             ctermfg=252  guifg=#d0d0d0  "rgb=208,208,208
+hi  x253_Grey85             ctermfg=253  guifg=#dadada  "rgb=218,218,218
+hi  x254_Grey89             ctermfg=254  guifg=#e4e4e4  "rgb=228,228,228
+hi  x255_Grey93             ctermfg=255  guifg=#eeeeee  "rgb=238,238,238
+DOC1
+) | less -R

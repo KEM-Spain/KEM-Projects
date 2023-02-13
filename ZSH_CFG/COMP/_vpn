@@ -1,0 +1,14 @@
+#compdef vpn
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-a[show active status]' \
+'-c[connect (opt_type c)]' \
+'-d[disconnect]' \
+'-f[show full list (default is custom list)]' \
+'-l[show server select list]' \
+'-v[show version]' \
+'-r[reset nordvpn]' \
+'-s[show current settings]' \
+'-t[perform speedtest]'

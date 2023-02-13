@@ -1,0 +1,73 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Declarations
+typeset -i NDX
+typeset -A UUID2DEV
+typeset -a UUIDS=($(ls -la /dev/disk/by-uuid | cut -d \  -f10))
+typeset -a DEVS=($(ls -la /dev/disk/by-uuid | cut -d \  -f12 | sed s^../..^/dev^))
+
+#Execution
+NDX=0
+for U in ${UUIDS};do
+    ((NDX++))
+    UUID2DEV[${U}]=${DEVS[$NDX]}
+done
+
+grep -v '#' < /etc/fstab | sed -e 's/	/ /g' | tr -s '[:space:]' | grep -vi swap > /tmp/fst 
+
+MOUNTS=($(cut -d' ' -f1 < /tmp/fst))
+POINTS=($(cut -d' ' -f2 < /tmp/fst))
+TYPES=($(cut -d' ' -f3 < /tmp/fst))
+OPTIONS=($(cut -d' ' -f4 < /tmp/fst))
+DUMPS=($(cut -d' ' -f5 < /tmp/fst))
+PASSES=($(cut -d' ' -f6 < /tmp/fst))
+
+WAS_PARSED=true #ensure equal field distribution
+[[ ${#MOUNTS} != ${#POINTS} ]] && WAS_PARSED=false
+[[ ${#MOUNTS} != ${#TYPES} ]] && WAS_PARSED=false
+[[ ${#MOUNTS} != ${#OPTIONS} ]] && WAS_PARSED=false
+[[ ${#MOUNTS} != ${#DUMPS} ]] && WAS_PARSED=false
+[[ ${#MOUNTS} != ${#PASSES} ]] && WAS_PARSED=false
+[[ ${WAS_PARSED} == false ]] && echo 'Parse failed on /etc/fstab' && kill -SIGINT $$
+
+(
+NDX=0
+echo -e "\n${WHITE_FG}File System Info from /etc/fstab${RESET}"
+for d in ${MOUNTS};do
+	((NDX++))
+	UUID=$(echo ${MOUNTS[$NDX]} | sed 's/^.*=//')
+	STATUS="${RED_FG}NOT${RESET} mounted"
+	mountpoint ${POINTS[$NDX]} >/dev/null 2>&1;RC=${?}
+	[[ ${POINTS[$NDX]} == 'none' ]] && STATUS='N/A'
+	[[ ${POINTS[$NDX]} != 'none' && ${RC} == 0 ]] && STATUS="${GREEN_FG}Mounted${RESET}"
+	echo ${MAGENTA_FG}$(str_unicode_line 55)${RESET}
+	echo "      ${WHITE_FG}DEVICE${RESET}: ${MOUNTS[$NDX]} ${UUID2DEV[${UUID}]}"
+	echo " ${WHITE_FG}MOUNT POINT${RESET}: ${POINTS[$NDX]} -> ${STATUS}"
+	echo "        ${WHITE_FG}TYPE${RESET}: ${TYPES[$NDX]}"
+	echo "     ${WHITE_FG}OPTIONS${RESET}: ${OPTIONS[$NDX]}"
+	echo "       ${WHITE_FG}DUMPS${RESET}: ${DUMPS[$NDX]}"
+	echo "      ${WHITE_FG}PASSES${RESET}: ${PASSES[$NDX]}"
+	echo ""
+done 
+) | mypager

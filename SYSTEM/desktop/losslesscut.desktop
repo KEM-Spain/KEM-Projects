@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=LosslessCut
+Comment=Video Editing
+Exec=/opt/losslesscut/losslesscut
+Icon=/usr/local/bin/system/desktop/losslesscut_icon.svg
+Type=Application
+Categories=Video;Application;
+[NewWindow Shortcut Group]
+StartupWMClass="LosslessCut", "LosslessCut"

@@ -1,0 +1,403 @@
+#!/usr/bin/zsh
+
+YELLOW_FG="\033[33m"
+WHITE_FG="\033[37m"
+RESET=$(echo "\033[m")
+RED_FG=$(echo "\033[31m")
+GREEN_FG=$(echo "\033[32m")
+YELLOW_FG=$(echo "\033[33m")
+WHITE_FG=$(echo "\033[37m")
+
+(
+cat << 'DOC2'
+tput - list of tput capabilities
+--------------------------------------------------------------------
+
+		tput Colour Capabilities
+		------------------------		
+		tput setab [1-7]
+		Set a background colour using ANSI escape
+		
+		tput setb [1-7]
+		Set a background colour
+		
+		tput setaf [1-7]
+		Set a foreground colour using ANSI escape
+		
+		tput setf [1-7]
+		Set a foreground colour
+
+		
+		tput Text Mode Capabilities
+		------------------------		
+		
+		tput bold
+		Set bold mode
+		
+		tput dim
+		turn on half-bright mode
+		
+		tput smul
+		begin underline mode
+		
+		tput rmul
+		exit underline mode
+		
+		tput rev
+		Turn on reverse mode
+		
+		tput smso
+		Enter standout mode (bold on rxvt)
+		
+		tput rmso
+		Exit standout mode
+		
+		tput sgr0
+		Turn off all attributes (doesn't work quite as expected)
+
+		
+		tput Cursor hiding
+		---------------------------------		
+		tput civis
+		Hide the cursor
+
+		tput cnorm
+		Reveal the cursor
+
+
+		tput Terminal save & restore
+		---------------------------------		
+		tput smcup
+		Save and clear the terminal
+
+		tput rmcup
+		Restore the saved terminal contents
+
+
+		tput Cursor Movement Capabilities
+		---------------------------------		
+		tput cup Y X
+		Move cursor to screen location X,Y (top left is 0,0)
+		
+		tput sc
+		Save the cursor position
+		
+		tput rc
+		Restore the cursor position
+		
+		tput lines
+		Output the number of lines of the terminal
+		
+		tput cols
+		Output the number of columns of the terminal
+		
+		tput cub N
+		Move N characters left
+		
+		tput cuf N
+		Move N characters right
+		
+		tput cub1
+		move left one space
+		
+		tput cuf1
+		non-destructive space (move right one space)
+		
+		tput ll
+		last line, first column (if no cup)
+		
+		tput cuu1
+		up one line
+		
+
+		tput Clear and Insert Capabilities
+		----------------------------------		
+		
+		tput ech N
+		Erase N characters
+		
+		tput clear
+		clear screen and home cursor
+		
+		tput el1
+		Clear to beginning of line
+		
+		tput el
+		clear to end of line
+		
+		tput ed
+		clear to end of screen
+		
+		tput ich N
+		insert N characters (moves rest of line forward!)
+		
+		tput il N
+		insert N lines
+
+
+
+		------------
+		Examples
+		------------
+		# Yet Another Large Screen Clock
+		# pulsed terminal clock
+		clear;
+		while true; do
+			sleep 1;
+			for ((a=1; a<=$(tput cols)/3; a++)); do 
+				tput cup 0 $a;
+				echo " " $(date);
+			done;
+			sleep 1;
+			for ((a; a>=1; a--)); do
+				tput cup 0 $a;
+				echo $(date) " ";
+			done;
+		done
+		
+		# toggle line wrapping in your terminal
+		# will disable line wrapping so that long lines are truncated to width of the terminal ($COLUMNS).
+		tput rmam
+		# will re-enable wrapping.
+		tput smam
+		
+		
+		## countdown from 10 ...
+		clear;
+		tput cup 8 8;
+		
+		for i in $(seq 1 10);do
+			echo -n "$((11-$i)) ";
+			sleep 1;
+		done;
+		
+		tput cup 10 8;
+		echo -e "DONE\n\n"
+		
+		(X=`tput op` y=`printf %$((${COLUMNS}-6))s`;
+			for i in {0..10};do
+				o=00$i;
+				echo -e ${o:${# o}-3:3} `tput setaf $i; tput setab $i`${y// /=}${X};
+			done;
+		)
+		
+		
+		# HourGlass
+		hourglass() { 
+			s=$(($SECONDS +${1:-10}))
+			(
+			tput civis
+			while [[ $SECONDS -lt $s ]];do 
+				for f in '/' '*' '\' '*'; do 
+					echo -n ${f}
+					sleep .2s
+					tput cub1
+				done
+			done
+			)
+			tput cnorm
+		}
+		echo -n "Searching..."
+		hourglass 30
+		
+		# Displays the number of unread messages on your gmail at the top right corner of your terminal
+		# Checks your gmail account every 30 seconds and display the number of new messages in the top right corner 
+		# of the terminal.  # A kind of CLI "Gmail notifier" if you will. :-)
+		# This is a mashup of http://www.commandlinefu.com/commands/view/7916/put-a-console-clock-in-top-right-corner 
+		# and http://www.commandlinefu.com/commands/view/3386/check-your-unread-gmail-from-the-command-line
+		while sleep 30;do
+			tput sc;
+			tput cup 0 $(($(tput cols)-15));
+			echo -n " New Emails: $(curl -u username:password \
+				--silent https://mail.google.com/mail/feed/atom \
+				| grep 'fullcount' | grep -o '[0-9]\+')";
+			tput rc;
+		done &
+		
+		
+		# There's been a similar Futurama thing around for a while, 
+		# which grabs a quote from the /. headers [curl -Ism3 slashdot.org | 
+		# egrep "^X-(F|B|L)" | cut -d \- -f 2- | fmt -w $(tput cols)]. 
+		# Same deal, but more likely to stop working when someone forgets 
+		# to pay the bill on the domain. Until then: Cave Johnson!
+		curl -s http://www.cavejohnsonhere.com/random/ | grep quote_main | cut -d \> -f 2- | fmt -w $(tput cols)
+		
+		while true;do 
+			tput sc;
+			tput cup 0 $(($(tput cols)-74));
+			w | grep load;
+			tput rc;
+			sleep 10;
+		done &
+		
+		# Put a console clock in top right corner
+		# Gives not only date but also some interesting status about the System
+		p() { 
+			c=$(($(tput cols)-3));
+			j=$(($1*c/100));
+			tput sc;
+			printf "[$(
+			for((k=0; k<j; k++)); do
+				printf "=";
+			done;)>";
+			tput cuf $((c-j));
+			printf "]";
+			tput rc;
+		};
+		for((i=0; i<=100; i++));do
+			p i;
+		done;
+		echo
+		
+		# create a progress bar...
+		# A simple way yo do a progress bar like wget.
+		while sleep 1;do
+			tput sc;
+			tput cup 0 $(($(tput cols)-29));
+			date;
+			tput rc;
+		done &
+		
+		# Put a console clock in top right corner
+		# A nice way to use the console in full screen without forget the current time.
+		# you can too add other infos like cpu and mem use.
+		while :;do
+			ping -W1 -c1 -n 8.8.8.8 > /dev/null || tput bel > /dev/console;
+			sleep 1;
+		done
+		
+		# Make a server's console beep when the network is down
+		# This is like ping -a, but it does the opposite. It alerts you if the network is down, not up. Note that the beep 
+		# will be from the speaker on the server, not from your terminal.  Once a second, this script checks if the Internet 
+		# is accessible and beeps if it is not. I define the Net as being "UP", if I can ping Google's public DNS 
+		# server (8.8.8.8), but of course you could pick a different static IP address. I redirect the beep to /dev/console 
+		# so that I can run this in the background from /etc/rc.local. Of course, doing that requires that the script is run 
+		# by a UID or GID that has write permissions to /dev/console (usually only root).
+		# Question: I am not sure if the -W1 flag works under BSD. I have only tested this under GNU/Linux using ping 
+		# from iputils. If anybody knows how portable -W is, please post a comment.
+		 
+		while [ 1 -lt 2 ];do
+			i=0;
+			COL=$((RANDOM%$(tput cols)));
+			ROW=$((RANDOM%$(tput cols)));
+			while [ $i -lt $COL ];do
+				tput cup $i $ROW;
+				echo -e "\033[1; 34m" 
+				$(cat /dev/urandom | head -1 | cut -c1-1) 2>/dev/null ; i=$(expr $i + 1);
+			done;
+		done
+		
+		# Same as original, but works in bash
+		while :;do
+			integer i=0;
+			COL=$((RANDOM%$(tput cols)));
+			ROW=$((RANDOM%$(tput cols)));
+			while (( i <= COL)) do
+				tput cup $i $ROW;
+				echo "\033[1; 34m" 
+				$(cat /dev/urandom | head -1 | cut -c1-1) 2>/dev/null;
+				i=$(expr $i + 1);
+			done
+		done
+		
+		# Print a row of characters across the terminal
+		seq -s'#' 0 $(tput cols) | tr -d '[:digit:]'
+		
+		# Print a row of characters across the terminal. Uses tput to establish the current terminal width, 
+		# and generates a line of characters just long enough to cross it. In the example '#' is used.
+		# It's possible to use a repeating sequence by dividing the columns by the number of characters 
+		# in the sequence like this:
+		seq -s'~-' 0 $(( $(tput cols) /2 )) | tr -d '[:digit:]'
+		# or
+		seq -s'-~?' 0 $(( $(tput cols) /3 )) | tr -d '[:digit:]'
+		# You will lose chararacters at the end if the length isn't cleanly divisible.
+		 
+		# Terminal Escape Code Zen - Strace and Tput
+		termtrace() {
+			( strace -s 1000 -e write tput $@ 2>&2 2>&1 ) | grep -o '"[^"]*"';
+		}
+		
+		# Depending on the TERM, the terminfo version, ncurses version, etc.. you may be using a varied assortment of terminal 
+		# escape codes.  # With this command you can easily find out exactly what is going on.. This is terminal escape zen!
+		( 2>&2 strace -f -F -e write -s 1000 \
+			sh -c 'echo -e "initc\nis2\ncnorm\nrmso\nsgr0" \
+			| tput -S' 2>&1 
+		) | grep -o '"\\[^"]*"' --color=always "\33]4; %p1%d; \ 
+		rgb:%p2%{255}%*%{1000}%/%2.2X/%p3%{255}%*%{1000}%/%2.2X/%p4%{255}%*%{1000}%/%2.2X\33\\\33[!p\33[?3;
+		4l\33[4l\33>\33[?12l\33[?25h\33[27m\33(B\33[m"
+		
+		# Lets say you want to find out what you need to echo in order to get the text to blink..
+		echo -e "`tput blink`This will blink`tput sgr0` This wont"
+		# Now you can use this function instead of calling tput 
+		#(tput is much smarter for portable code because it works differently depending on the current TERM, 
+		# and tput -T anyterm works too.) to turn that echo into a much faster executing code. 
+		# tput queries files, opens files, etc.. but echo is very strait and narrow.
+		# So now you can do this:
+		echo -e "\33[5mThis will blink\33(B\33[m This wont"
+		# More at http://www.askapache.com/linux-unix/bash_profile-functions-advanced-shell.html
+		 
+		# Another Matrix Style Implementation
+		COL=$(( $(tput cols) / 2 ));
+		clear;
+		tput setaf 2;
+		while :;do 
+			tput cup $((RANDOM%COL)) $((RANDOM%COL));
+			printf "%$((RANDOM%COL))s" $((RANDOM%2));
+		done
+		
+		# For vi(m) users :
+		# Add it in your ~/.bashrc
+		# Add an "exit" @ the end if you are masochist ;
+		# Know when you will type :q in your term instead of vi(m), the alias will chewed you out.
+		alias :q='tput setaf 1; echo >&2 "this is NOT vi(m) :/"; tput sgr0'
+		
+		
+		# Using tput to save, clear and restore the terminal contents
+		# Very useful for interactive scripts where you would like to return the terminal contents 
+		# to its original state before the script was run. This would be similar to how vi exits 
+		# and returns you to your original terminal screen.
+		tput smcup;
+		echo "Doing some things...";
+		sleep 2;
+		tput rmcup
+		
+		# Save and clear the terminal contents with:
+		tput smcup
+		# Execute some commands, then restore the saved terminal contents with:
+		tput rmcup
+		
+		
+		# prints message in given argument on on center of screen
+		# echox prints given argument on bottom line center screen in terminal
+		# you can easily use these functions by placing them in your .bashrc file, make sure to source your 
+		# .bashrc once you do:
+		function echox { 
+			echo `tput cup $(($(tput lines))) $(( ($(tput cols) - $(echo "${#1}"))/2 )) \
+			`"$1"`tput cup $(tput lines) $(( $(tput cols)-1 ))`;
+		}
+		
+		# exhoxy prints given argument center screen
+		function echoxy { 
+			echo `tput cup $(($(tput lines)/2)) $(( ($(tput cols) - $(echo "${#1}"))/2))`"$1"` \
+			tput cup $(tput lines) $(( $(tput cols)-1 ))`;
+		}
+		
+		# echos prints date and time on second from last line (used as status message)
+		function echos { 
+			echo `tput cup $(($(tput lines)-2)) $(($(tput cols)-$(echo ${#1}))) && \
+				  tput sc`"$1"`tput cup $(($(tput lines)-2)) 0 && tput rc`;
+		} 
+
+		while [ 1 ]; do 
+			echos "`date`";
+		done
+		
+		# reset a hanging terminal session
+		# when your terminal session seems unrensponsive (this normally happen after outputting 
+		# some binary data directly on your standard output) it may me saned by hitting:
+		# Note: don't press the Enter key, just ctrl+j
+		# CTRL+J tput sgr0 CTRL+J
+		^J tput sgr0 ^J
+
+DOC2
+) | less -R

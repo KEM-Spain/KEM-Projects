@@ -1,0 +1,8 @@
+#!/usr/bin/zsh
+EXT=m4a
+for FN in ${@};do
+	[[ ! -e ${FN} ]] && echo "File not found:${FN}" && exit
+	echo "Converting: ${FN:r}.m4a (or mfa) to ${FN:r}.mp3"
+	[[ ${FN:e} == 'mfa' ]] && EXT=mfa
+   ffmpeg -v 5 -y -i ${FN:r}.${EXT} -acodec libmp3lame -ac 2 -ab 192k ${FN:r}.mp3
+done

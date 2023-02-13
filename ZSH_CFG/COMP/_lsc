@@ -1,0 +1,15 @@
+#compdef lsc
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-R[daemon-reload]' \
+'-a[show only alias unit files]' \
+'-d[show only disabled unit files]' \
+'-e[show only enabled unit files]' \
+'-g[show only generated unit files]' \
+'-i[show only indirect unit files]' \
+'-m[show only masked unit files]' \
+'-r[show only running services]' \
+'-s[show only static unit files]' \
+'-t[show only transient unit files]'

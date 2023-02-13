@@ -1,0 +1,6 @@
+#compdef sys_info
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-v[verbosity level - increasable]'

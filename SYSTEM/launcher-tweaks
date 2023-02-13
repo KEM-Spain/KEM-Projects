@@ -1,0 +1,56 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+SYSTEM_DIR=/usr/local/bin/system/launchers
+DESKTOP_DIR=/usr/share/applications
+LIST=("${(f)$(find ${SYSTEM_DIR}/run_*)}")
+typeset -a WORKLIST
+
+for L in ${LIST};do
+	APP=$(echo ${L} | cut -d '_' -f2)
+	DESKTOP_FILE=$(find ${DESKTOP_DIR} -iname "${APP:l}.desktop" 2>/dev/null)
+	[[ -n ${DESKTOP_FILE} ]] && WORKLIST+=${DESKTOP_FILE:t}
+done
+
+get_file_state () {
+	local FN=${1}
+	local LAST_FILE_REFRESH=0
+	local CURR_FILE_TIME
+	local STAMP_FILE=${SYSTEM_DIR}/.${FN:t}
+
+   [[ -e ${FN} ]] || return 1
+	[[ -e ${STAMP_FILE} ]] && LAST_FILE_REFRESH=$(<${STAMP_FILE}) #get state
+    CURR_FILE_TIME=$(stat -c %Z ${FN}(:A)) #file change time in seconds; the modifier `(:A)` resolves any symbolic links
+    if [[ ${LAST_FILE_REFRESH} -lt ${CURR_FILE_TIME} ]]; then
+		sudo touch ${FN}
+    	CURR_FILE_TIME=$(sudo stat -c %Z ${FN}(:A)) #file change time in seconds; the modifier `(:A)` resolves any symbolic links
+        echo "${CURR_FILE_TIME}" > ${STAMP_FILE} #set state
+		echo "stale"
+	else
+		echo "current"
+    fi
+}
+
+#simple launcher tweaks
+for L in ${WORKLIST};do
+	APP="run_${L:r:l}"
+	STATUS=$(get_file_state ${DESKTOP_DIR}/${L})
+	#printf "%15s Desktop file:%s is %-10s\n" ${0:t} ${L} ${STATUS}
+	if [[ ${STATUS} == "stale" ]];then
+		sudo cp ${DESKTOP_DIR}/${L} ${DESKTOP_DIR}/${L}.orig #backup original
+		PROXY_EXE=${SYSTEM_DIR}/${APP}
+		EXEC=$(grep Exec ${DESKTOP_DIR}/${L} | head -1 | cut -d= -f2 | cut -d' ' -f1)
+		sudo sed -i "s#Exec=${EXEC}#Exec=${PROXY_EXE}#g" ${DESKTOP_DIR}/${L}
+		[[ ${?} -eq 0 ]] && MSG="launcher was overridden" || MSG="ERROR - desktop file was NOT modified"
+		printf "${BOLD}Desktop file${RESET}:%s ... %s to %s\n" ${DESKTOP_DIR}/${L} ${MSG} ${SYSTEM_DIR}/${APP}
+	fi
+done
+

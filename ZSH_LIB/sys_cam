@@ -1,0 +1,102 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+status () {
+	local OUTPUT=$(lsmod | grep uvcvideo)
+	echo -n "Current cam status:"
+	if [[ -z ${OUTPUT} ]];then
+		echo "${RED_FG}disabled${RESET}"
+		return 1
+	else
+		echo "${GREEN_FG}enabled${RESET}"
+		return 0
+	fi
+}
+
+select_cam () {
+	local -A DEVICES
+	local -A KEYS
+	local -A KEYS
+	local -a LIST
+	local HIT=false
+	local NDX
+	local DEV
+	local KEY
+	local K L
+
+	status
+	[[ ${?} -ne 0 ]] && echo "Cam is disabled. Enable and try again." && exit_leave
+
+	echo "Cam Selection"
+	LIST=("${(f)$(v4l2-ctl --list-devices)}")
+	for L in ${LIST};do
+		[[ -z ${L} ]] && continue
+		[[ ${L[1,1]:u} == 'U' ]] && DEV=$(sed 's/\t//g' <<<${L} | cut -d' ' -f1-2) && HIT=true && continue
+		[[ ${HIT} == 'true' ]] && DEVICES[${DEV}]=$(sed 's/\t//g' <<<${L}) && HIT=false && continue
+	done
+	echo "-------------------"
+	echo "${WHITE_FG}${#DEVICES}${GREEN_FG} $(str_pluralize device ${#DEVICES}) available${RESET}"
+	echo "-------------------"
+	while true;do
+		NDX=0
+		DEV=''
+		for K in ${(k)DEVICES};do
+			(( NDX++ ))
+			echo "${WHITE_FG}${NDX}${RESET}) ${CYAN_FG}Name${RESET}:${K} ${CYAN_FG}Device${RESET}:${DEVICES[${K}]}"
+			KEYS[${NDX}]=${K}
+		done
+		[[ ${#DEVICES} -gt 1 ]] && echo -n "\nChoose 1-${#DEVICES} ...or q to quit:" || echo -n "\nChoose 1 ...or q to quit:"
+		read KEY
+		[[ -z ${KEY} || ${KEY:l} == 'q' ]] && break
+		if [[ -n ${KEYS[${KEY}]} ]];then
+			DEV=${KEYS[${KEY}]} 
+			break
+		else
+			echo "\n${RED_FG}Invalid key${RESET}: ${WHITE_FG}Only choose 1-${#DEVICES} or q to quit..."
+		fi
+	done
+	echo
+	[[ -n ${DEV} ]] && echo "You chose:${DEVICES[${DEV}]}" && guvcview -d ${DEVICES[${DEV}]} 2>/dev/null
+}
+
+#Usage
+if [[ ${1} == '-H' ]];then
+	tabs 7
+	echo "${WHITE_FG}Usage${RESET}: ${_SCRIPT} [-H] on|off\n\tEnable/Disable onboard cam\n\tWithout arguments, a cam selector is displayed\n\tExit status: Disabled:1, Enabled:0\n"
+	exit_leave
+fi
+
+#Argument options
+if [[ -n ${1} ]];then
+	case $1 in
+		off) sudo modprobe -r uvcvideo;;
+		on) sudo modprobe -a uvcvideo;;
+		*) echo "${RED_FG}Unknown argument${RESET}:${ITALIC}${1}${RESET}";;
+	esac
+
+	status
+	exit_leave #arguments switch cam state and exit
+fi
+
+select_cam

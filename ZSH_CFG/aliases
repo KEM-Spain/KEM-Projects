@@ -1,0 +1,151 @@
+#sourced scripts
+alias tc='. ~/.tc'
+alias gd='. ~/.gd'
+
+#apps
+alias lossless='/opt/losslesscut/losslesscut'
+alias enpass='/opt/enpass/Enpass >/dev/null 2>&1 &!'
+alias foxit='/opt/foxitreader/FoxitReader >/dev/null 2>&1 &!'
+alias wim='mono /usr/local/src/RemoteMouse/RemoteMouse.exe >/dev/null 2>&1 &!'
+alias viber='/opt/viber/Viber >/dev/null 2>&1 &!'
+alias anthem='/opt/AnthemScore/AnthemScore >/dev/null 2>&1 &!'
+alias pdf2txt='/usr/bin/pdftotext -layout -nopgbrk >/dev/null 2>&1 &!'
+alias spot='/usr/local/bin/system/launchers/run_spotify >/dev/null 2>&1 &!'
+alias sys='sudo systemctl'
+alias battery='/usr/local/bin/system/tweaks/battery_charge_limit'
+alias vlc='/usr/bin/vlc 2>/dev/null'
+alias templates='ls /usr/local/etc/*template'
+
+#misc
+alias cls=clear
+alias cal=mycal
+alias cls='tput clear'
+alias feh='feh -F'
+alias google='ddgr --url-handler=/usr/local/bin/system/launchers/run_google-chrome --num 8 2>/dev/null'
+alias help='run-help'
+alias img='/usr/bin/eog'
+alias keyrate='xset r rate 500 33'
+alias locate='/usr/local/bin/system/launchers/run_locate'
+alias mnt='mount -t ext3,ext4,vfat,ntfs,fuseblk'
+alias n='/usr/local/bin/system/launchers/run_nemo'
+alias ns='netstat -avpunt'
+alias prt='libreoffice -p'
+alias rgxd="perl -MRegexp::Debugger -E 'Regexp::Debugger::rxrx(@ARGV)'"
+alias top='/usr/local/bin/system/launchers/run_top'
+alias vi='/usr/local/bin/system/launchers/run_vi'
+#alias disks="echo '\nCurrent Disk Mounts\n-------------------';mount | grep 'sd[a-z][0-9]' | sed -e 's/on \(.*\)\(type.*\)/on \1/g' | sort -n;echo"
+
+#conversion
+alias c2f='/usr/local/bin/conversion/c2f'
+alias f2c='/usr/local/bin/conversion/f2c'
+alias k2p='/usr/local/bin/conversion/k2p'
+alias p2k='/usr/local/bin/conversion/p2k'
+alias m2f='/usr/local/bin/conversion/m2f'
+alias f2m='/usr/local/bin/conversion/f2m'
+alias c2i='/usr/local/bin/conversion/c2i'
+alias i2c='/usr/local/bin/conversion/i2c'
+alias m2k='/usr/local/bin/conversion/m2k'
+alias k2m='/usr/local/bin/conversion/k2m'
+
+#session
+alias logout='gnome-session-quit --logout --no-prompt'
+alias pow='sudo shutdown -P now'
+
+#apt
+alias dpkg='sudo dpkg'
+alias aptfix='sudo apt --fix-broken install '
+alias doupgrade='sudo apt-get -y dist-upgrade '
+alias install='sudo apt-get -y install '
+alias uninstall='sudo apt-get -y remove'
+alias pkgfiles='sudo dpkg-query -L '
+alias purge='sudo apt-get -y purge '
+alias reconfigure='sudo dpkg-reconfigure '
+alias reinstall='sudo apt-get -y --reinstall install '
+alias syminstall='sudo apt-get -sy install '
+alias upgrades='sudo apt-get -s dist-upgrade '
+
+#linux
+alias hist='fc -nl 1 10000|sort -u'
+alias md='mkdir'
+alias mv='mv -i'
+alias rm='/usr/local/bin/system/launchers/run_rm'
+
+#bundle exec rake
+alias rk='bundle exec rake'
+
+#bunzip2
+alias bu='bunzip2'
+
+#mysql
+alias mysql='call_mysql'
+alias mysqldump='call_mysqldump'
+
+#ps
+alias xps='ps --rows 42 --forest -ww -e| sort -n -k2| less'
+
+#cpan
+alias mcpan='perl -MCPAN -e shell'
+
+#permissions
+alias me='chmod 755'
+alias mr="chmod 644"
+
+# enable color support of ls and grep
+test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+alias ls='ls --color=always -XNv --group-directories-first'
+alias grep='grep --color=always'
+alias fgrep='fgrep --color=always'
+alias egrep='egrep --color=always'
+
+# cd
+alias ....='cd ../../..'
+alias ...='cd ../..'
+alias ..='cd ..'
+
+alias B="cd /media/kmiller/KEM_Backup/$(hostname)_RSYNC"
+alias C='cd ~/Downloads/Torrents/Completed'
+alias D='cd ~/Documents'
+alias I='cd ~/Downloads/Torrents/Incomplete'
+alias L='cd ~/Downloads/Torrents/Library'
+alias M="cd /media/kmiller/KEM_Misc/Music/KEM-B9"
+alias O='cd /opt'
+alias P='cd ~/Pictures'
+alias T='cd ~/Downloads/Torrents'
+alias V='cd ~/Videos'
+
+alias b='cd /usr/local/bin'
+alias c='cd ~/Code'
+alias d='cd ~/Downloads'
+alias e='cd /etc'
+alias h='cd ~'
+alias m='cd ~/Documents/Music'
+alias p='cd /home/kmiller/Code/LANG/Python'
+alias s='cd /usr/local/bin/system'
+alias v='cd /var'
+alias z='cd /etc/zsh'
+alias .z='cd /home/kmiller/.zsh'
+
+alias mk='cd /media/kmiller'
+alias ms='cd ~/Documents/MuseScore3/Scores'
+alias pd='cd -'
+alias ule='cd /usr/local/etc'
+alias uls='cd /usr/local/src'
+alias us='cd /usr/share/'
+alias usa='cd /usr/share/applications'
+alias usd='cd /usr/share/doc'
+
+# git
+alias gl='git log --pretty=format:"%h %ad | %s%d [%an]" --graph --date=short'
+alias ga='git add'
+alias gpl='git pull'
+alias gp='git push'
+alias gdiff='git diff'
+alias gc='call_git_commit'
+alias gca='call_git_commit'
+alias gco='git checkout'
+alias gcb='git checkout -b'
+alias gb='git branch'
+alias gm='git merge'
+alias gs='git status'
+alias grm="git status | grep deleted | awk '{print \$3}' | xargs git rm"
+

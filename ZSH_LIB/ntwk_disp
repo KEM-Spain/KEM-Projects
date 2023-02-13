@@ -1,0 +1,130 @@
+#!/usr/bin/zsh
+#TODO: possibly use: xdotool search to obtain win id's
+
+#Constants
+_LIB=/usr/local/lib
+_INTERFACE=p2p-wl
+_APP=/usr/local/bin/gnome-network-displays
+_TIMEOUT=10
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Globals
+g_CURRENT_STATUS=1
+
+#Functions
+kill_app () {
+	killall -q ${_APP:t}
+}
+
+is_connected () {
+	local TRY=0
+	local -i PCT
+	local -R2 COUNTDOWN=${_TIMEOUT}
+
+	sleep 3 #wait for connection to establish
+	msg_box_clear
+
+	#check for 30 second sustained connection
+	while true;do
+		((TRY++))
+		[[ ${TRY} -gt ${_TIMEOUT} ]] && break
+		PCT=$(( TRY * 100. / ${_TIMEOUT} ))
+		msg_box -x10 -y80 "Verifiying connection:<g>${COUNTDOWN}<N> <r>%${PCT}<N>"
+		((COUNTDOWN--))
+		ifconfig | grep -q ${_INTERFACE}
+		if [[ ${?} -eq 0 ]];then
+			sleep 2
+			continue
+		else
+			return 1
+		fi
+	done
+	return 0
+}
+
+#Execution
+[[ ${1} == '-k' ]] && kill_app
+
+if ! is_singleton ${_APP:t};then
+	exit_leave "Another instance of ${_APP} detected. Use -k to kill"
+fi
+
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+tput cup ${_MAX_ROWS} ${_MAX_COLS}
+cursor_off
+
+msg_box -x0 -y80 -c "Connecting to network display..."
+
+RC=0
+MAX_RESTARTS=3
+RESTARTS=0
+
+while true;do
+	((RESTARTS++))
+	[[ ${RESTARTS} -gt ${MAX_RESTARTS} ]] && RC=1 && break
+
+	msg_box_clear
+	msg_box -x0 -y80 -c "Connection attempt: ${RESTARTS} of ${MAX_RESTARTS}"
+
+	kill_app
+	sleep 1 #wait for processes to die
+
+	exec ${_APP} >/dev/null 2>&1 &
+
+	WIN_TIMEOUT=10
+	while true;do
+		((WIN_TIMEOUT--))
+		WIN_TITLE="screen share"
+		WIN_ID=$(x_wm2xdo "${WIN_TITLE}")
+		if [[ -n ${WIN_ID} ]];then
+			msg_box -x0 -y80 -c "Sharing display..."
+			xdotool windowfocus ${WIN_ID}
+			xdotool mousemove --window ${WIN_ID} 220 160 #display button
+			xdotool click 1
+			sleep .5
+			xdotool mousemove --window ${WIN_ID} 485 65 #share button
+			xdotool click 1
+			break
+		fi
+
+		[[ ${WIN_TIMEOUT} -eq 0 ]] && exit_leave "${WIN_TITLE} window was not detected"
+		sleep 1
+	done
+
+	WIN_TIMEOUT=10
+	while true;do
+		((WIN_TIMEOUT--))
+		WIN_TITLE="network displays"
+		WIN_ID=$(x_wm2xdo "${WIN_TITLE}")
+		if [[ -n ${WIN_ID} ]];then
+			sleep 2
+			msg_box -x0 -y80 -c "Establishing connection ${RESTARTS}..."
+			xdotool windowfocus ${WIN_ID}
+			xdotool mousemove --window ${WIN_ID} 220 160
+			xdotool click 1
+			if is_connected;then
+				g_CURRENT_STATUS=0
+				break 2
+			else
+				break
+			fi
+		fi
+
+		[[ ${WIN_TIMEOUT} -eq 0 ]] && exit_leave "${WIN_TITLE} window was not detected"
+		sleep 1
+	done
+done
+
+msg_box_clear
+if [[ ${g_CURRENT_STATUS} -eq 0 ]];then
+	xdotool windowminimize ${WIN_ID}
+	msg_box -t3 -x0 -y80 "Connected"
+else
+	kill_app
+	msg_box -t3 -x0 -y80 "Could not connect"
+fi
+
+exit_leave

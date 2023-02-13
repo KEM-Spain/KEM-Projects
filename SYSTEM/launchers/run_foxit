@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+exec env QT_SCALE_FACTOR=1.5 /opt/foxitsoftware/foxitreader/FoxitReader.sh $1

@@ -1,0 +1,26 @@
+#!/usr/bin/zsh
+	function um {
+	echo
+	echo "Testing umask:$1"
+	umask $1
+	echo
+	echo "File creation:"
+	touch x;ls -la x;rm -f x
+	echo
+	echo "Directory creation:"
+	mkdir xx;ls -lad xx;rm -rf xx
+	echo
+}
+
+cat <<EOF
+	File	Dir
+0	rw-	rwx
+1	rw-	rw-
+2	r--	r-x
+3	r--	r--
+4	-w-	-wx
+5	-w-	-w-
+6	--x	--x
+7	none	none
+EOF
+um $1

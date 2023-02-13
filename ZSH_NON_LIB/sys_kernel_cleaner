@@ -1,0 +1,16 @@
+#!/usr/bin/zsh
+CURRENT=$(uname -a | awk '{print $3}')
+echo "Current kernel: $CURRENT"
+ilist=($(dpkg -l linux-image-\* | awk '/^ii/{print $2}' | sort -r  | grep -v $CURRENT | grep -v linux-image-generic | grep generic))
+hlist=($(dpkg -l linux-headers\* | awk '/^ii/{print $2}' | sort -r  | grep -v $CURRENT | grep -v linux-headers-generic | grep generic))
+klist=(${ilist} ${hlist})
+if [[ -n ${klist} ]];then
+    [[ $1 != '-go' ]] && echo "Dry run only. Enter option -go to remove."
+    for k in ${klist};do
+        [[ $1 != '-go' ]] && echo "Could remove surplus image/header: ${k}."
+        [[ $1 == '-go' ]] && echo "Removing surplus image/header: ${k}."
+        [[ $1 == '-go' ]] && sudo apt-get -y purge ${k:s/-generic//} | tee -a /tmp/kernel_cleaner.log 2>&1
+    done
+else
+    echo "No surplus kernels found"
+fi

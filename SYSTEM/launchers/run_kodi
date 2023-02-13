@@ -1,0 +1,11 @@
+#!/usr/bin/zsh
+#mon -e #turn off internal monitor
+
+#start kodi
+vol 100
+OUT=("${(f)$(ss -ae | grep minidlna)}")
+for L in ${OUT};do
+	[[ ${L:l} =~ 'close' ]] && sys restart minidlna
+done
+env QT_SCALE_FACTOR=0 /usr/bin/kodi ${@} 2>> /tmp/${0:t}.log 
+

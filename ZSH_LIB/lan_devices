@@ -1,0 +1,91 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Declarations
+typeset -a STATIC_IPS
+typeset -a ARP
+typeset -a FIRST_10_NON_STATIC
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/mac_table.zsh
+source ${_LIB}/common.zsh
+
+#Functions
+usage () {
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo "Usage: ${_SCRIPT}"
+	echo " DESC: display detected LAN devices"
+
+	exit_leave 
+}
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ ${1:l} == '-h' ]] && usage
+
+MY_IP=$(ip_int)
+MY_MAC=$(get_host_mac)
+
+for I in {2..11};do
+	FIRST_10_NON_STATIC+=192.168.18.${I}
+done
+
+STATIC_IPS=(192.168.18.100 192.168.18.101 192.168.18.102 192.168.18.103 192.168.18.200 ${FIRST_10_NON_STATIC})
+P2P_IP=10.42
+
+if [[ ${SHLVL} -lt 3 ]];then #called from another script
+	tput clear
+	tput cup 0 0
+
+	echo "Pinging LAN IP's..."
+	NDX=0
+	for K in ${STATIC_IPS};do
+		((NDX++))
+		tput cup 1 0; printf "\rPinging IP ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} addresses ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#STATIC_IPS} $(( NDX * 100. / ${#STATIC_IPS} ))
+		sudo arp -d ${K} >/dev/null 2>&1
+		ping -4 -c1 -W.3 ${K} >/dev/null 2>&1
+	done
+	echo
+else
+	echo "Pinging LAN IP's..."
+fi
+
+echo "Gathering arp list...\n"
+ARP=("${(f)$(arp -en | tail -n +2)}")
+
+if ! ((${ARP[(I)${MY_IP}*]}));then
+	HW=" 123456789012345678"
+	ARP+="${MY_IP}${HW}${MY_MAC}"
+fi
+
+DEV_CNT=0
+printf "${MAGENTA_FG}%-18s %-18s %-20s${RESET}\n" "IP Address" "MAC Address" "Description"
+printf "${WHITE_FG}%-18s %-18s %-20s${RESET}\n" $(str_unicode_line 18) $(str_unicode_line 18) $(str_unicode_line 20)
+for A in ${(on)ARP};do
+	IP=$(cut -c1-15 <<<${A})
+	HW=$(cut -c16-33 <<<${A})
+	MAC=$(cut -c34-53 <<<${A} | str_trim)
+	FLGMSK=$(cut -c54-75 <<<${A})
+	IFACE=$(cut -c76-85 <<<${A})
+	#printf "IP:%-20s HW:%-20s MAC:%-20s FLGMSK:%-20s IFACE:%-20s\n" ${IP} ${HW} ${MAC} ${FLGMSK} ${IFACE}
+	DESC=${MAC_IDS[${MAC}]}
+	[[ -z ${DESC}  ]] && continue
+	((DEV_CNT++))
+	printf "%-18s %-18s %-20s\n" ${IP} ${MAC:u} ${DESC}
+done
+printf "${WHITE_FG}${DEV_CNT} devices found\n${RESET}"
+echo -n "\nPress any key..." && read
+
+exit_leave

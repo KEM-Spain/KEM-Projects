@@ -1,0 +1,102 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+read PW < ~/.tcp
+MOUNTPOINT='/media/personal'
+VOLUME=~/PRS1;
+
+function dismount {
+	echo -e "\nUnmounting truecrypt volume...\n"
+	sudo truecrypt -f -d
+	kill -SIGINT $$;
+}
+
+SCRIPT=$(basename $0)
+
+read -r -d '' DESC<<EOF
+This script mounts truecrypt volumes
+\tIf no args are passed, behaves like a toggle
+\ti.e. if not mounted, mounts, and vice versa
+EOF
+
+function usage {
+	tabs 5
+
+	echo -e "\nUsage: ${SCRIPT} -hpd password \n"
+	echo "-h help"
+	echo "-p personal"
+	echo "-d unmount volume"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	kill -SIGINT $$
+}
+
+is_mounted () {
+	mount | grep -q ${MOUNTPOINT}
+	return $?
+}
+
+OPTIND=0
+#leading ":" in opts generates "?" for unknown opt
+while getopts ":hpd" opts;do
+	case $opts in
+      p) MOUNTPOINT='/media/personal'
+         VOLUME=~/PRS1;
+         ;;
+      d) dismount;;
+      h) usage;;
+      :) print -u2 "$0: option: -$OPTARG requires an argument"; usage ;;
+     \?) print -u2 "$0: unknown option $OPTARG"; usage ;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+#unmount or cd if no args passed
+if is_mounted && [[ $# -eq 0 && ${PWD} == ${MOUNTPOINT} ]];then
+	cd ~/
+	dismount
+	export TCHOME=false
+	kill -SIGINT $$
+else
+	cd ${MOUNTPOINT}
+fi
+
+if [[ -z $1 ]];then
+    PASS=$PW
+else
+    PASS=$1
+fi
+
+if [[ ! -d $MOUNTPOINT ]];then
+    echo "creating $MOUNTPOINT..."
+    sudo mkdir $MOUNTPOINT
+    if [[ $? != 0 ]];then
+        echo "$0 failed - Problem creating mount point: $MOUNTPOINT"
+    fi
+fi
+
+#mount if not already mounted
+if ! is_mounted;then
+    echo -e "\nMounting truecrypt volume at ${MOUNTPOINT}\n"
+    truecrypt -k "" --protect-hidden=no -p$PASS $VOLUME $MOUNTPOINT
+fi
+
+#remove password from history
+eval sed -i '/$PASS/d' ~/.zsh_history
+
+#convenient if you source the execution
+cd $MOUNTPOINT

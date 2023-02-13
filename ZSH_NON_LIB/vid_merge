@@ -1,0 +1,110 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a FILE_ARGS
+
+#Constants
+_DEFAULT_OUT=output
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+function parse_opts {
+	local OPTS=$@
+	local -a OPTSTRING
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
+		OPTSTRING+="-${OPTS[$O]}"
+	done
+	echo $OPTSTRING
+}
+
+function usage {
+	tabs 5
+	local OPTS=$(parse_opts $OPTSTR)
+	echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET} [<DESTINATION_FILE>] <FILE1> <FILE2>...\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-m${RESET} use melt"
+	echo -e "${WHITE_FG}-k${RESET} use mkvmerge"
+	echo -e "\n${WHITE_FG}DESC${RESET}:This script merges video files.  Default merge tool is:${WHITE_FG}ffmpeg${RESET}.\n\tOptionally, choose other tools melt or mkvmerge.\n\tIf no destination file is given, a default will be assigned."
+	exit
+}
+
+OPTSTR=":HDkm"
+
+DEBUG=false
+APP=ffmpeg
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) DEBUG=true;;
+     m) APP=melt;;
+     k) APP=mkvmerge;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#--Execution--
+[[ ${#@} -lt 2 ]] && echo "${0:t} ${RED_FG}requires${RESET} at least ${WHITE_FG}2${RESET} arguments" && usage
+
+if [[ -e ${1:r}.${2:e} ]];then
+	DESTINATION_FILE=${_DEFAULT_OUT}.${2:e}
+else
+	DESTINATION_FILE=${1:r}.${2:e}; shift
+fi
+
+if [[ -e ${DESTINATION_FILE} ]];then
+	echo -n "Overwrite ${DESTINATION_FILE} (y/n):"; read -q RESPONSE
+	[[ ${RESPONSE} == 'n' ]] && exit || echo
+	rm ${DESTINATION_FILE}
+fi
+
+WORKFILES=(${@})
+
+echo "Application for merge:${BOLD}${ITALIC}${APP}${RESET}"
+echo "Files to merge:${BOLD}${ITALIC}${WORKFILES}${RESET}"
+echo "Output file:${BOLD}${ITALIC}${DESTINATION_FILE}${RESET}"
+echo -n "\nPlease review...Continue (y/n):"; read -q RESPONSE
+[[ ${RESPONSE} == 'n' ]] && exit || echo
+
+echo "Merging:${WHITE_FG}${WORKFILES}${RESET} to ${WHITE_FG}${DESTINATION_FILE}${RESET} using APP:${WHITE_FG}${APP}${RESET}"
+case ${APP} in
+	ffmpeg)		echo "ffmpeg -loglevel panic -f concat -safe 0 -i <(for F in ${WORKFILES}; do echo "file '$PWD/$F'"; done) -c copy ${DESTINATION_FILE}"
+					ffmpeg -loglevel panic -f concat -safe 0 -i <(for F in ${WORKFILES}; do echo "file '$PWD/$F'"; done) -c copy ${DESTINATION_FILE}
+					;;
+	melt)			echo "melt ${WORKFILES} -consumer avformat:${DESTINATION_FILE} acodec=libmp3lame vcodec=libx264 -progress"
+					melt ${WORKFILES} -consumer avformat:${DESTINATION_FILE} acodec=libmp3lame vcodec=libx264 -progress
+					;;
+	mkvmerge)	FILE_ARGS+="${=WORKFILES[1]}"
+					for W in ${=WORKFILES[2,${#WORKFILES}]};do
+						FILE_ARGS+="\+ $W"
+					done
+					echo "mkvmerge -o ${DESTINATION_FILE} ${FILE_ARGS}"
+					eval "mkvmerge -o ${DESTINATION_FILE} ${FILE_ARGS}"
+					;;
+esac
+

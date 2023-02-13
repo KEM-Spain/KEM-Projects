@@ -1,0 +1,31 @@
+#!/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+
+read -r -d '' DESC<<EOF
+Convert man page to text
+EOF
+
+if [[ ${#} -eq 0 ]];then
+	echo "Usage:${0} <MANPAGE>"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+	exit
+fi
+
+for T in $@;do
+	man ${T} | col -b | fmt -w120
+done

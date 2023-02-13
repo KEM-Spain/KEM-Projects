@@ -1,0 +1,37 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+
+read -r -d '' DESC<<EOF
+Delete blank line from text file
+EOF
+
+if [[ ! -t 0 ]];then
+	while read LINE;do
+		echo ${LINE} | sed -r '/^\s*$/d'
+	done
+else
+	if [[ ${#} -eq 0 ]];then
+		echo "Usage:${0:t} <FILE>"
+		echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+		exit
+	else
+		FN=${1}
+	fi
+fi
+
+sed -r '/^\s*$/d' <${FN}

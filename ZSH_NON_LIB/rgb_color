@@ -1,0 +1,36 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+[[ -z ${1} ]] && echo "Usage:${0:t} <HEX_VALUE> (length 6:rrggbb)" && exit
+
+if [[ ( ! ${#1} -eq 6 ) || ( ! ${1} =~ "[[:xdigit:]]{6}" ) ]]; then
+   echo "${BOLD}${RED_FG}Error${RESET}: [${STRIKE}${WHITE_FG}${1}${RESET}] - Not a valid string of 6 hex digits" && exit
+fi
+
+RGB=${1:u}
+R=${RGB[1,2]:=null}
+G=${RGB[3,4]:=null}
+B=${RGB[5,6]:=null}
+
+[[ ${R} == 'null' ]] && echo "${BOLD}${RED_FG}Bad RGB string${RESET}:${WHITE_FG}R${RESET}:${CYAN_FG}${R} ${WHITE_FG}G${RESET}:${CYAN_FG}${G} ${WHITE_FG}B${RESET}:${CYAN_FG}${B}${RESET}" && exit
+[[ ${B} == 'null' ]] && echo "${BOLD}${RED_FG}Bad RGB string${RESET}:${WHITE_FG}R${RESET}:${CYAN_FG}${R} ${WHITE_FG}G${RESET}:${CYAN_FG}${G} ${WHITE_FG}B${RESET}:${CYAN_FG}${B}${RESET}" && exit
+[[ ${G} == 'null' ]] && echo "${BOLD}${RED_FG}Bad RGB string${RESET}:${WHITE_FG}R${RESET}:${CYAN_FG}${R} ${WHITE_FG}G${RESET}:${CYAN_FG}${G} ${WHITE_FG}B${RESET}:${CYAN_FG}${B}${RESET}" && exit
+
+export TERM=xterm256
+printf "${WHITE_FG}R${RESET}:${CYAN_FG}%s${RESET} ${WHITE_FG}G${RESET}:${CYAN_FG}%s${RESET} ${WHITE_FG}B${RESET}:${CYAN_FG}%s${RESET}: \x1b[38;2;%d;%d;%dmCOLOR TEST FOR ${1}\x1b[0m\n" ${R} ${G} ${B} 0x${R} 0x${G} 0x${B}
+export TERM=xterm
+ 

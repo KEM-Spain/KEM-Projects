@@ -1,0 +1,171 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+BLACK_BG="\033[40m"
+RED_FG="\033[1;31m"
+RED_BG="\033[1;41m"
+GREEN_FG="\033[1;32m"
+GREEN_BG="\033[1;42m"
+YELLOW_FG="\033[1;33m"
+YELLOW_BG="\033[1;43m"
+BLUE_FG="\033[1;34m"
+BLUE_BG="\033[1;44m"
+MAGENTA_FG="\033[1;35m"
+MAGENTA_FG="\033[1;45m"
+CYAN_FG="\033[1;36m"
+CYAN_BG="\033[1;46m"
+WHITE_FG="\033[1;37m"
+WHITE_BG="\033[1;47m"
+
+#Constants
+_LIB=/usr/local/lib
+
+#Declarations
+typeset -a DESKTOP_FILES=(~/.config/autostart ~/.local/share/applications /etc/xdg/autostart /usr/share/applications)
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+action_do () {
+	local -a MARKED=(${@})
+	local M
+	local APP
+	local ARGS
+
+	APP=/usr/bin/vim
+	ARGS=$(echo "${APP} $(list_quote_marked_elements ${MARKED})")
+	eval "${ARGS}"
+	[[ ${?} -ne 0 ]] && msg_box -p -PK "<B><I>${0}: ${APP} returned an error<N>"
+
+	for M in ${MARKED};do
+		[[ ${M} -eq 0 ]] && continue
+		MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local MARKED=(${@})
+	local CNT=$(list_get_selected_count ${MARKED})
+	local M
+	
+	msg_box -p -PE "<I>Pending Action<N>|==============| |$(str_pluralize item $CNT true) queued for editing"
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${MARKED};do
+			list_remove_selected ${M}
+		done
+	fi
+}
+
+item_decorate () {
+	local NDX=$1
+
+	case ${_LIST_SELECTED[${NDX}]} in
+		2) echo "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}viewed${E_RESET}";;
+		*)	tput el;echo ${_LIST[${NDX}]};;
+	esac
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		s) echo "[SEARCHTERM]";;
+	esac
+}
+
+read -r -d '' DESC<<EOF
+Manage desktop files
+EOF
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type s)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HD"
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ -n ${1} ]] && SEARCHTERM=${1} || SEARCHTERM='None'
+
+for DESKTOP in ${DESKTOP_FILES};do
+	LIST+=("${(@f)$(eval "find ${DESKTOP} -iname '*${1}*desktop'" 2>/dev/null)}")
+done
+
+LIST=(${LIST}) #remove any empty elements
+
+[[ ${#LIST} -eq 0 ]] && exit_leave $(msg_warn "Nothing found for:${SEARCHTERM}")
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST})${RESET} Filter:${WHITE_FG}%s${RESET}\tPage:${WHITE_FG}%-d${RESET} of ${WHITE_FG}%-d${RESET}\tSelected:${WHITE_FG}%-d${RESET}" ${#_LIST} "${SEARCHTERM}" ${PAGE} ${MAX_PAGES} ${SELECTED_COUNT}'
+list_add_header_break
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-s${RESET}\n" ${ARRAY_NDX} "$(item_decorate ${ARRAY_NDX})"
+'
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to edit (${ITALIC}or exit if none selected${RESET})."
+list_set_action_msgs edit file
+list_set_clear_ghosts true
+
+while true;do
+	#get selection
+	list_select ${LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -gt 1 ]];then
+		action_warn ${MARKED} #warn if more than 1 selected
+	fi
+
+	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then
+		action_do ${MARKED}
+	fi
+done

@@ -1,0 +1,35 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+show_net_state () {
+	local STATE=$(nmcli -t -f NETWORKING networking)
+	[[ ${STATE} == 'enabled' ]] && echo "${GREEN_FG}${STATE}${RESET}" || echo "${RED_FG}${STATE}${RESET}"
+}
+
+ALERT="Warning"
+DESCRIPTION="This will toggle networking on/off"
+echo -n "\n${RED_FG}${ALERT}!${RESET} ${DESCRIPTION}${WHITE_FG}?${RESET}:"
+read -q RESPONSE
+echo
+if [[ ${RESPONSE} != "n" ]];then
+	echo "${WHITE_FG}Toggling Network Services${RESET}"
+else
+	echo "${RED_FG}Operation cancelled..."
+	exit
+fi
+
+echo "Switching networking off..."
+sudo nmcli networking off
+sleep 2
+echo "${WHITE_FG}Network${RESET}:$(show_net_state)"
+echo "Switching networking on..."
+sudo nmcli networking on
+echo "${WHITE_FG}Network${RESET}:$(show_net_state)"

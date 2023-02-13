@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+ifconfig | grep 192 | grep -w inet | grep -v 127 | sed 's/\(^ *\)\(.*\)/\2/g' | cut -d\  -f2

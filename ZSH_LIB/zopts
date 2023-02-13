@@ -1,0 +1,367 @@
+#!/usr/bin/zsh
+#vim]= syntax off
+RESET="\033[m"
+BOLD="\033[1m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Constants
+_LIB=/usr/local/lib
+
+#Declarations
+typeset -A OPTLIST
+typeset -a LIST
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Load options
+OPTLIST[aliases]="ALIASES"
+OPTLIST[aliasfuncdef]="ALIAS_FUNC_DEF"
+OPTLIST[allexport]="ALL_EXPORT"
+OPTLIST[alwayslastprompt]="ALWAYS_LAST_PROMPT"
+OPTLIST[alwaystoend]="ALWAYS_TO_END"
+OPTLIST[appendcreate]="APPEND_CREATE"
+OPTLIST[appendhistory]="APPEND_HISTORY"
+OPTLIST[autocd]="AUTO_CD"
+OPTLIST[autocontinue]="AUTO_CONTINUE"
+OPTLIST[autolist]="AUTO_LIST"
+OPTLIST[automenu]="AUTO_MENU"
+OPTLIST[autonamedirs]="AUTO_NAME_DIRS"
+OPTLIST[autoparamkeys]="AUTO_PARAM_KEYS"
+OPTLIST[autoparamslash]="AUTO_PARAM_SLASH"
+OPTLIST[autopushd]="AUTO_PUSHD"
+OPTLIST[autoremoveslash]="AUTO_REMOVE_SLASH"
+OPTLIST[autoresume]="AUTO_RESUME"
+OPTLIST[badpattern]="BAD_PATTERN"
+OPTLIST[banghist]="BANG_HIST"
+OPTLIST[bareglobqual]="BARE_GLOB_QUAL"
+OPTLIST[bashautolist]="BASH_AUTO_LIST"
+OPTLIST[bashrematch]="BASH_REMATCH"
+OPTLIST[beep]="BEEP"
+OPTLIST[bgnice]="BG_NICE"
+OPTLIST[braceccl]="BRACE_CCL"
+OPTLIST[braceexpand]="BRACE_EXPAND"
+OPTLIST[bsd]="BSD"
+OPTLIST[bsdecho]="BSD_ECHO"
+OPTLIST[caseglob]="CASE_GLOB"
+OPTLIST[casematch]="CASE_MATCH"
+OPTLIST[cdablevars]="CDABLE_VARS"
+OPTLIST[cdsilent]="CD_SILENT"
+OPTLIST[chasedots]="CHASE_DOTS"
+OPTLIST[chaselinks]="CHASE_LINKS"
+OPTLIST[checkjobs]="CHECK_JOBS"
+OPTLIST[checkrunningjobs]="CHECK_RUNNING_JOBS"
+OPTLIST[clobber]="CLOBBER"
+OPTLIST[combiningchars]="COMBINING_CHARS"
+OPTLIST[completealiases]="COMPLETE_ALIASES"
+OPTLIST[completeinword]="COMPLETE_IN_WORD"
+OPTLIST[cont]="CONT"
+OPTLIST[continueonerror]="CONTINUE_ON_ERROR"
+OPTLIST[correctall]="CORRECT_ALL"
+OPTLIST[correct]="CORRECT"
+OPTLIST[cprecedences]="C_PRECEDENCES"
+OPTLIST[cshjunkiehistory]="CSH_JUNKIE_HISTORY"
+OPTLIST[cshjunkieloops]="CSH_JUNKIE_LOOPS"
+OPTLIST[cshjunkiequotes]="CSH_JUNKIE_QUOTES"
+OPTLIST[cshnullcmd]="CSH_NULLCMD"
+OPTLIST[cshnullglob]="CSH_NULL_GLOB"
+OPTLIST[debugbeforecmd]="DEBUG_BEFORE_CMD"
+OPTLIST[dotglob]="DOT_GLOB"
+OPTLIST[dvorak]="DVORAK"
+OPTLIST[emacs]="EMACS"
+OPTLIST[errexit]="ERR_EXIT"
+OPTLIST[errreturn]="ERR_RETURN"
+OPTLIST[evallineno]="EVAL_LINENO"
+OPTLIST[extendedglob]="EXTENDED_GLOB"
+OPTLIST[extendedhistory]="EXTENDED_HISTORY"
+OPTLIST[flowcontrol]="FLOW_CONTROL"
+OPTLIST[forcefloat]="FORCE_FLOAT"
+OPTLIST[functionargzero]="FUNCTION_ARGZERO"
+OPTLIST[glob]="GLOB"
+OPTLIST[globalexport]="GLOBAL_EXPORT"
+OPTLIST[globalrcs]="GLOBAL_RCS"
+OPTLIST[globassign]="GLOB_ASSIGN"
+OPTLIST[globcomplete]="GLOB_COMPLETE"
+OPTLIST[globdots]="GLOB_DOTS"
+OPTLIST[globstarshort]="GLOB_STAR_SHORT"
+OPTLIST[globsubst]="GLOB_SUBST"
+OPTLIST[hashall]="HASH_ALL"
+OPTLIST[hashcmds]="HASH_CMDS"
+OPTLIST[hashdirs]="HASH_DIRS"
+OPTLIST[hashexecutablesonly]="HASH_EXECUTABLES_ONLY"
+OPTLIST[hashlistall]="HASH_LIST_ALL"
+OPTLIST[histallowclobber]="HIST_ALLOW_CLOBBER"
+OPTLIST[histappend]="HIST_APPEND"
+OPTLIST[histbeep]="HIST_BEEP"
+OPTLIST[histexpand]="HIST_EXPAND"
+OPTLIST[histexpiredupsfirst]="HIST_EXPIRE_DUPS_FIRST"
+OPTLIST[histfcntllock]="HIST_FCNTL_LOCK"
+OPTLIST[histfindnodups]="HIST_FIND_NO_DUPS"
+OPTLIST[histignorealldups]="HIST_IGNORE_ALL_DUPS"
+OPTLIST[histignoredups]="HIST_IGNORE_DUPS"
+OPTLIST[histignorespace]="HIST_IGNORE_SPACE"
+OPTLIST[histlexwords]="HIST_LEX_WORDS"
+OPTLIST[histnofunctions]="HIST_NO_FUNCTIONS"
+OPTLIST[histnostore]="HIST_NO_STORE"
+OPTLIST[histreduceblanks]="HIST_REDUCE_BLANKS"
+OPTLIST[histsavebycopy]="HIST_SAVE_BY_COPY"
+OPTLIST[histsavenodups]="HIST_SAVE_NO_DUPS"
+OPTLIST[histsubstpattern]="HIST_SUBST_PATTERN"
+OPTLIST[histverify]="HIST_VERIFY"
+OPTLIST[hup]="HUP"
+OPTLIST[ignorebraces]="IGNORE_BRACES"
+OPTLIST[ignoreclosebraces]="IGNORE_CLOSE_BRACES"
+OPTLIST[ignoreeof]="IGNORE_EOF"
+OPTLIST[incappendhistory]="INC_APPEND_HISTORY"
+OPTLIST[incappendhistorytime]="INC_APPEND_HISTORY_TIME"
+OPTLIST[interactivecomments]="INTERACTIVE_COMMENTS"
+OPTLIST[interactive]="INTERACTIVE"
+OPTLIST[keyboardhack]="KEYBOARD_HACK"
+OPTLIST[ksharrays]="KSH_ARRAYS"
+OPTLIST[kshautoload]="KSH_AUTOLOAD"
+OPTLIST[kshglob]="KSH_GLOB"
+OPTLIST[kshoptionprint]="KSH_OPTION_PRINT"
+OPTLIST[kshtypeset]="KSH_TYPESET"
+OPTLIST[kshzerosubscript]="KSH_ZERO_SUBSCRIPT"
+OPTLIST[listambiguous]="LIST_AMBIGUOUS"
+OPTLIST[listbeep]="LIST_BEEP"
+OPTLIST[listpacked]="LIST_PACKED"
+OPTLIST[listrowsfirst]="LIST_ROWS_FIRST"
+OPTLIST[listtypes]="LIST_TYPES"
+OPTLIST[localloops]="LOCAL_LOOPS"
+OPTLIST[localoptions]="LOCAL_OPTIONS"
+OPTLIST[localpatterns]="LOCAL_PATTERNS"
+OPTLIST[localtraps]="LOCAL_TRAPS"
+OPTLIST[log]="LOG"
+OPTLIST[login]="LOGIN"
+OPTLIST[longlistjobs]="LONG_LIST_JOBS"
+OPTLIST[magicequalsubst]="MAGIC_EQUAL_SUBST"
+OPTLIST[mailwarn]="MAIL_WARN"
+OPTLIST[mailwarning]="MAIL_WARNING"
+OPTLIST[markdirs]="MARK_DIRS"
+OPTLIST[menucomplete]="MENU_COMPLETE"
+OPTLIST[monitor]="MONITOR"
+OPTLIST[multibytesupport]="MULTIBYTE_SUPPORT"
+OPTLIST[multifuncdef]="MULTI_FUNC_DEF"
+OPTLIST[multios]="MULTIOS"
+OPTLIST[nomatch]="NOMATCH"
+OPTLIST[notify]="NOTIFY"
+OPTLIST[nullcmd]="NULLCMD"
+OPTLIST[nullglob]="NULL_GLOB"
+OPTLIST[numericglobsort]="NUMERIC_GLOB_SORT"
+OPTLIST[octalzeroes]="OCTAL_ZEROES"
+OPTLIST[onecmd]="ONE_CMD"
+OPTLIST[overstrike]="OVERSTRIKE" 
+OPTLIST[pathdirs]="PATH_DIRS"
+OPTLIST[pathscript]="PATH_SCRIPT"
+OPTLIST[pipefail]="PIPE_FAIL"
+OPTLIST[posixaliases]="POSIX_ALIASES"
+OPTLIST[posixargzero]="POSIX_ARGZERO"
+OPTLIST[posixbuiltins]="POSIX_BUILTINS"
+OPTLIST[posixcd]="POSIX_CD"
+OPTLIST[posixidentifiers]="POSIX_IDENTIFIERS"
+OPTLIST[posixjobs]="POSIX_JOBS"
+OPTLIST[posixstrings]="POSIX_STRINGS"
+OPTLIST[posixtraps]="POSIX_TRAPS"
+OPTLIST[printeightbit]="PRINT_EIGHT_BIT"
+OPTLIST[printexitvalue]="PRINT_EXIT_VALUE"
+OPTLIST[privileged]="PRIVILEGED"
+OPTLIST[promptbang]="PROMPT_BANG"
+OPTLIST[promptcr]="PROMPT_CR"
+OPTLIST[prompteolmark]="PROMPT_EOL_MARK"
+OPTLIST[promptpercent]="PROMPT_PERCENT"
+OPTLIST[promptsp]="PROMPT_SP"
+OPTLIST[promptsubst]="PROMPT_SUBST"
+OPTLIST[promptvars]="PROMPT_VARS"
+OPTLIST[pushdignoredups]="PUSHD_IGNORE_DUPS"
+OPTLIST[pushdminus]="PUSHD_MINUS"
+OPTLIST[pushdsilent]="PUSHD_SILENT"
+OPTLIST[pushdtohome]="PUSHD_TO_HOME"
+OPTLIST[rcs]="RCS"
+OPTLIST[rcexpandparam]="RC_EXPAND_PARAM"
+OPTLIST[rcquotes]="RC_QUOTES"
+OPTLIST[recexact]="REC_EXACT"
+OPTLIST[rematchpcre]="REMATCH_PCRE"
+OPTLIST[restricted]="RESTRICTED"
+OPTLIST[rmstarsilent]="RM_STAR_SILENT"
+OPTLIST[rmstarwait]="RM_STAR_WAIT"
+OPTLIST[sharehistory]="SHARE_HISTORY"
+OPTLIST[shfileexpansion]="SH_FILE_EXPANSION"
+OPTLIST[shglob]="SH_GLOB"
+OPTLIST[shinstdin]="SHIN_STDIN"
+OPTLIST[shnullcmd]="SH_NULL_CMD"
+OPTLIST[shoptionletters]="SH_OPTION_LETTERS"
+OPTLIST[shortloops]="SHORT_LOOPS"
+OPTLIST[shwordsplit]="SH_WORD_SPLIT"
+OPTLIST[singlecommand]="SINGLE_COMMAND"
+OPTLIST[singlelinezle]="SINGLE_LINE_ZLE"
+OPTLIST[sourcetrace]="SOURCE_TRACE"
+OPTLIST[sunkeyboardhack]="SUN_KEYBOARD_HACK"
+OPTLIST[trackall]="TRACK_ALL"
+OPTLIST[transientrprompt]="TRANSIENT_RPROMPT"
+OPTLIST[trapsasync]="TRAPS_ASYNC"
+OPTLIST[typesetsilent]="TYPESET_SILENT"
+OPTLIST[verbose]="VERBOSE"
+OPTLIST[vi]="VI"
+OPTLIST[warncreateglobal]="WARN_CREATE_GLOBAL"
+OPTLIST[warnnestedvar]="WARN_NESTED_VAR"
+OPTLIST[xtrace]="XTRACE"
+OPTLIST[zle]="ZLE"
+
+#Functions
+action_do () {
+	local MARKED=(${@})
+	local M
+	local KEYWORD
+	local DESC
+	local MANABLE
+
+	for M in ${MARKED};do
+		[[ ${LIST[${M}]:l} != 'nomatch' && ${LIST[${M}]:l} != 'notify' ]] && KEYWORD=$(echo ${LIST[${M}]} | sed 's/^no//') || KEYWORD=${LIST[${M}]}
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:LIST[M]:${LIST[${M}]:l} KEYWORD:${KEYWORD} OPTLIST:${OPTLIST[${KEYWORD}]}"
+		MANABLE=${OPTLIST[${KEYWORD}]}
+		if [[ -n ${MANABLE} ]];then
+			DESC=$(man zshoptions | sed -n "/${MANABLE}/,/^ *$/p" | tr -s '[:space:]' | fold -w80)
+			msg_stream -f100 -l "man --nh --nj --ascii zshoptions | tr -d '[<>]' | sed -nr '/^[[:space:]]*${MANABLE}/,/^[[:space:]]{,10}([A-Z]|[_]){2}/p' | head -n -2"
+		else
+			msg_box -p -PK "${KEYWORD} is an invalid option"
+		fi
+	done
+
+	for M in ${MARKED};do
+		[[ ${M} -eq 0 ]] && continue
+		MARKED[${M}]=0
+		list_remove_selected ${M}
+	done
+}
+
+#--Begin GetOpts--
+read -r -d '' DESC<<EOF
+Show full listing of set/unset options (default)
+\tOptionally (-i) display a list of all options with the ability
+\tto peruse the manual page description for any selected option
+EOF
+
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-i${RESET} interactive list"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDi"
+
+SHOW_INFO_LIST=false
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     i) SHOW_INFO_LIST=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+tabs -8
+
+if [[ -n ${1} ]];then
+	#Arg passed; go direct; no list
+	LIST+="${1}"
+	action_do 1
+	exit_leave
+else
+	if [[ ${SHOW_INFO_LIST} == 'false' ]];then
+		(
+		echo "${WHITE_FG}Options that were ${GREEN_FG}SET${RESET} at login"
+		echo $(str_unicode_line 40)
+		[[ -e ~/.cur_setopts ]] && cat ~/.cur_setopts | sort | pr -W132 -t --columns=5
+		echo "\n${WHITE_FG}Options that were ${RED_FG}UNSET${RESET} at login"
+		echo $(str_unicode_line 40)
+		[[ -e ~/.cur_unsetopts ]] && cat ~/.cur_unsetopts | sort | pr -W132 -t --columns=5
+		) | mypager
+	else
+		[[ ${_DEBUG} -eq 0 ]] && do_smcup
+		LIST=(${(ok)OPTLIST[@]})
+
+		#set headings
+		list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize option ${#_LIST})\tPage:${WHITE_FG}%-d${RESET} of ${WHITE_FG}%-d${RESET}\tSelected:${WHITE_FG}%-d${RESET}" ${#_LIST} ${PAGE} ${MAX_PAGES} ${SELECTED_COUNT}'
+		list_add_header_break
+		list_set_header_break_offset 10
+
+		#set line item
+		list_set_line_item ' 
+		printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${ARRAY_NDX} ${_LIST[${ARRAY_NDX}]}
+		'
+
+		list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to delete (${ITALIC}or exit if none selected${RESET})."
+		list_set_action_msgs delete file
+
+		while true;do
+			#get selection
+			list_select ${LIST}
+			[[ ${?} -eq 0 ]] && break
+
+			#get selections
+			MARKED=($(list_get_selected))
+			
+			if [[ $(list_get_selected_count) -ne 0 ]];then
+				action_do ${MARKED}
+			fi
+		done
+	fi
+fi
+		
+exit_leave

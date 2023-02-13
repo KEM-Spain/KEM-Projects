@@ -1,0 +1,923 @@
+#!/usr/bin/zsh
+(
+cat << 'DOC_EOF'
+
+ZSH Debugger Help
+-----------------
+Aliases for action: a
+Aliases for break: b
+Aliases for continue: c, cont
+Aliases for edit: ed
+Aliases for examine: x
+Aliases for kill: kill!
+Aliases for next: n+, n-, n
+Aliases for print: pr
+Aliases for shell: zsh, sh
+Aliases for help: h, ?
+Aliases for list: l>, list>, l
+Aliases for run: R, restart
+Aliases for step: s+, s-, s
+Aliases for backtrace: T, bt, where
+Aliases for delete: d, unset
+Aliases for eval: eval?, ev?, ev
+Aliases for quit: q!, exit, q
+
+---------------------
+[action]
+---------------------
+	**action** *linespec* *command*
+	
+	Run *command* when *linespec* is hit
+	
+	Use "A" to remove all actions and "L" to get a list of the actions in
+	effect.
+	
+	Aliases for action: a
+
+---------------------
+[break]
+---------------------
+
+	**break** [*loc-spec*]
+	
+	Set a breakpoint at *loc-spec*.
+	
+	If no location specification is given, use the current line.
+	
+	Multiple breakpoints at one place are permitted, and useful if conditional.
+	
+	See also:
+	---------
+	
+	"tbreak" and "continue"
+	
+	Aliases for break: b
+
+---------------------
+[continue]
+---------------------
+
+	**continue** [*loc* | **-** ]
+	
+	Continue script execution.
+	
+	If *loc* or *-* is not given, continue until the next breakpoint or
+	the end of program is reached.  If **-** is given, then debugging will
+	be turned off after continuing causing your program to run at full
+	speed.
+	
+	If **loc* is given, a temporary breakpoint is set at the location.
+	
+	Examples:
+	---------
+	
+	    continue          # Continue execution
+	    continue 5        # Continue with a one-time breakpoint at line 5
+	
+	See Also:
+	---------
+	
+	**next**, **skip**, and **step** provide other ways to progress execution.
+	
+	Aliases for continue: c, cont
+
+---------------------
+[disable]
+---------------------
+
+	**disable** *bpnum1* [*bpnum2* ...]
+	
+	Disables breakopints *bpnum1*, *bpnum2*. Breakpoints numbers are given
+	as a space-separated list of breakpoint numbers.
+	
+	To disable all breakpoints, give no argument.
+	A disabled breakpoint is not forgotten, but has no effect until re-enabled.
+	
+	See also:
+	---------
+	
+	**enable** and **info break**.
+
+---------------------
+[edit]
+---------------------
+
+	**edit** [*line-number*]
+	
+	Edit specified file at *line-number*.
+	
+	If *line-number* is not given, use the current line number.
+	Uses "EDITOR" environment variable contents as editor (or ex as default).
+	Assumes the editor positions at a file using options "+linenumber filename".
+	
+	Aliases for edit: ed
+
+---------------------
+[examine]
+---------------------
+
+	**examine** *expr*
+	
+	Print value of an expression via `typeset`, `let`, and failing these, `eval`.
+	
+	Single variables and arithmetic expressions do not need leading $ for
+	their value is to be substituted. However if neither these, variables
+	need $ to have their value substituted.
+	
+	In contrast to normal zsh expressions, expressions should not have
+	blanks which would cause zsh to see them as different tokens.
+	
+	Examples:
+	---------
+	
+	    examine x+1   # ok
+	    examine x + 1 # not ok
+	
+	See also:
+	---------
+	
+	**eval**.
+	
+	Aliases for examine: x
+
+---------------------
+[handle]
+---------------------
+
+	**handle** *signal* *action*
+	
+	Specify how to handle *signal*.
+	
+	*signal* is a signal name like SIGSEGV, but numeric signals like 11
+	(which is usually equivalent on *nix systems) is okay too.
+	
+	*action* is one of "stop", "nostop", "print", and
+	"noprint". "Stop" indicates entering debugger if this signal
+	happens. "Print" indicates printing a message if this signal is
+	encountered. "Stack" is like "print" but except the entire call
+	stack is printed. Prefacing these actions with "no" indicates not to
+	do the indicated action.
+
+---------------------
+[kill]
+---------------------
+
+	**kill** [*signal-number*]
+	
+	**kill!** [*signal-number*]
+	
+	Send this process a POSIX signal ("9" for "SIGKILL" or "kill -SIGKILL")
+	
+	9 is a non-maskable interrupt that terminates the program. If program
+	is threaded it may be expedient to use this command to terminate the
+	program.
+	
+	However other signals, such 15 or `-INT` which allow for the debugged program to
+	run an interrupt handler can be sent too.
+	
+	Giving a negative number is the same as using its positive value.
+	
+	When the ! suffix appears, no confirmation is neeeded.
+	
+	Examples:
+	---------
+	
+	    kill                # non-interuptable, nonmaskable kill
+	    kill 9              # same as above
+	    kill -9             # same as above
+	    kill 15             # nicer, maskable TERM signal
+	    kill! 15            # same as above, but no confirmation
+	    kill -INT           # same as above
+	    kill -SIGINT        # same as above
+	    kill -WINCH         # send "window change" signal
+	    kill -USR1          # send "user 1" signal
+	
+	See also:
+	---------
+	
+	**quit** for less a forceful termination command.
+	**run** is a way to restart the debugged program.
+	
+	Aliases for kill: kill!
+
+---------------------
+[next]
+---------------------
+
+	**next** [*count*]
+	
+	Step over a statement *count* times ignoring functions.
+	
+	If *count* is given, stepping occurs that many times before
+	stopping. Otherwise *count* is one. *count* can be an arithmetic
+	expression.
+	
+	In contrast to **step**, functions and source'd files are not stepped
+	into.
+	
+	See also:
+	---------
+	
+	**step**, **skip**, **next-** **next+**, and **set different**.
+	
+	Aliases for next: n+, n-, n
+
+---------------------
+[print]
+---------------------
+
+	print EXPRESSION -- Print EXPRESSION.
+	
+	EXPRESSION is a string like you would put in a print statement.
+	See also eval.
+	
+	The difference between eval and print. Suppose cmd has the value "ls".
+	
+	print $cmd # prints "ls"
+	eval $cmd  # runs an ls command
+	
+	
+	Aliases for print: pr
+
+---------------------
+[return]
+---------------------
+
+	**return** [*return-value*]
+	
+	Force an immediate return from a function.
+	
+	The remainder of function will not be executed. If *return-value* is given,
+	it should be an integer and will be the return value passed back as
+	$?.
+	
+	See also:
+	---------
+	
+	**finish**, **quit**, and **run**.
+
+---------------------
+[shell]
+---------------------
+
+	**shell** [*options*]
+	
+	Options:
+	--------
+	
+	   --no-fns  | -F  : don't copy in function definitions from parent shell
+	   --no-vars | -V  : don't copy in variable definitions
+	   --shell SHELL_NAME
+	   --posix         : corresponding shell option
+	   --login | l     : corresponding shell option
+	   --noprofile     : corresponding shell option
+	   --norc          : corresponding shell option
+	
+	Enter a nested shell, not a subshell. Before entering the shell
+	current variable definitions and function definitions are stored in
+	profile /tmp/.zshenv. which is is read in via the
+	**--init-file** option.
+	
+	If you don't want variable definitions to be set, use option **-V** or
+	**--no-vars**. If you don't want function definitions to be set, use
+	option **-F** or **--no-fns**. There are several corresponding shell
+	options. Many of these by nature defeate reading on saved functions
+	and variables.
+	
+	The shell that used is taken from the shell used to build the debugger
+	which is: zsh. Use **--shell** to use a different
+	compatible shell.
+	
+	By default, variables set or changed in the shell do not persist after
+	the shell is left to to back to the debugger or debugged program.
+	
+	However you can tag variables to persist by running the function
+	'save_vars' which takes a list of variable names. You can run this
+	as many times as you want with as many variable names as you want.
+	
+	For example:
+	  save_vars PROFILE PARSER
+	marks variable PROFILE and PARSER to be examined and their values used
+	in the trap EXIT of the shell.
+	
+	
+	Aliases for shell: zsh, sh
+
+---------------------
+[source]
+---------------------
+
+	**source** *file*
+	
+	Run debugger commands in *file*.
+
+---------------------
+[step-]
+---------------------
+
+	**step-**
+	
+	Single step a statement without the `step force' setting.
+	
+	Set step force may have been set on. step- ensures we turn that off for
+	this command.
+	
+	See also:
+	---------
+	
+	**step** and **set different**.
+
+---------------------
+[unalias]
+---------------------
+
+	**unalias** *name*
+	
+	Remove debugger command alias *name*.
+	
+	Use **show aliases** to get a list the aliases in effect.
+
+---------------------
+[up]
+---------------------
+
+	**up** [*count*]
+	
+	Move the current frame up in the stack trace (to an older frame). 0 is
+	the most recent frame.
+	
+	If **count** is omitted, use 1.
+	
+	See also:
+	---------
+	
+	**down** and **frame**.
+
+---------------------
+[alias]
+---------------------
+
+	**alias** *alias-name* *debugger-command*
+	
+	Make *alias-name* be an alias for *debugger-command*.
+	
+	Examples:
+	---------
+	
+	    alias cat list   # "cat prog.py" is the same as "list prog.py"
+	    alias s   step   # "s" is now an alias for "step".
+	                     # The above example is done by default.
+	
+	See also:
+	---------
+	
+	**unalias** and **show alias**.
+
+---------------------
+[complete]
+---------------------
+
+	**complete** *prefix-str*...
+	
+	Show command completion strings for *prefix-str*
+	
+	debug
+	debug [*zsh-script* [*args*...]]
+	
+	Recursively debug into *zsh-script*.
+	
+	If *script* is not given, take the script name from the command that
+	is about to be executed. Note that when the nested debug finished, you
+	are still where you were prior to entering the debugger.
+	
+	See Also:
+	---------
+	
+	**skip** and **run**
+
+---------------------
+[display]
+---------------------
+
+	**display** [*stmt*]
+	
+	Evalute *stmt* each time the debugger is stopped. If *stmt* is omitted, evaluate
+	all of the display statements that are active. In contrast, **info display**
+	shows the display statements without evaluating them.
+	
+	Examples:
+	---------
+	
+	  display echo $x  # show the current value of x each time debugger stops
+	  display          # evaluate all display statements
+	
+	See also:
+	---------
+	
+	**undisplay** and **info display**.
+
+---------------------
+[enable]
+---------------------
+
+	**enable** *bpnum1* [*bpnum2* ...]
+	
+	Enables breakpoints *bpnum1*, *bpnum2*... Breakpoints numbers are
+	given as a space-separated list of numbers.
+	
+	With no subcommand, breakpoints are enabled until you command otherwise.
+	This is used to cancel the effect of the "disable" command.
+	
+	See also:
+	---------
+	
+	**disable** and **info break**.
+
+---------------------
+[export]
+---------------------
+
+	**export** *var1* [**var2** ...]
+	
+	Marks **var1**, **var2***, to get reassigned with their current values after on
+	subshell exit. The values are set by the debugger only after it
+	notices that the current shell is left.
+	
+	Nothing is done if you are not in a subshell.
+
+---------------------
+[help]
+---------------------
+
+	**help** [*command* [*subcommand* ..]]
+	
+	If no arguments are given, print a list of command names.
+	With a command name give help for that command. For many commands
+	you can get further detailed help by listing the subcommand name.
+	
+	Examples:
+	---------
+	
+	  help
+	  help up
+	  help set
+	  help set args
+	
+	
+	Aliases for help: h, ?
+
+---------------------
+[list]
+---------------------
+
+	**list**[**>**] [*location*|**.**|**-**] [*num*]
+	
+	List source code.
+	
+	Without arguments, print lines centered around the current line. If
+	*location* is given, that number of lines is shown.
+	
+	If this is the first list command issued since the debugger command
+	loop was entered, then the current line is the current frame. If a
+	subsequent list command was issued with no intervening frame changing,
+	then that is start the line after we last one previously shown.
+	
+	A *location* is either:
+	
+	* a number, e.g. 5,
+	* a filename, colon, and a number, e.g. `/etc/profile:5`,
+	* a "." for the current line number
+	* a "-" for the lines before the current linenumber
+	
+	By default aliases **l>** and **list>** are set to list. In this case and
+	more generally when the alias ends in ">", rather than center lines
+	around *location* that will be used as the starting point.
+	
+	Examples:
+	---------
+	
+	    list 5                  # List starting from line 5
+	    list 4+1                # Same as above.
+	    list /etc/profile:5     # List starting from line 5 of /etc/profile
+	    list /etc/profile 5     # Same as above.
+	    list /etc/profile 5 6   # list lines 5 and 6 of /etc/profile
+	    list /etc/profile 5 2   # Same as above, since 2 < 5.
+	    list profile:5 2        # List two lines starting from line 5 of profile
+	    list .                  # List lines centered from where we currently are stopped
+	    list -                  # List lines previous to those just shown
+	
+	See also:
+	---------
+	
+	**set listsize** or **show listsize** to see or set the value.
+	
+	
+	Aliases for list: l>, list>, l
+
+---------------------
+[next+]
+---------------------
+
+	**next+**
+	
+	Step over stepping ensuring a different line after the step.
+	
+	In contrast to **next**, we ensure that the file and line position is
+	different from the last one just stopped at.
+	
+	See also:
+	---------
+	
+	**next-**, **next** and **set different**.
+
+---------------------
+[pwd]
+---------------------
+
+	**pwd**
+	
+	Show working directory.
+
+---------------------
+[run]
+---------------------
+
+	**run** [*args*]
+	
+	Attempt to restart the program.
+	
+	See also:
+	---------
+	
+	**kill** and **quit** for termintation commands, or
+	**set args** for another way to set run arguments.
+	
+	Aliases for run: R, restart
+
+---------------------
+[show]
+---------------------
+
+	show alias       -- Show list of aliases currently in effect.
+	show annotate    -- Show annotation_level
+	show autoeval    -- Evaluate unrecognized commands is off.
+	show autolist    -- Auto run a 'list' command is off.
+	show basename    -- Show if we are are to show short or long filenames.
+	show commands    -- Show the history of commands you typed.
+	show confirm     -- confirm dangerous operations on.
+	show copying     -- Conditions for redistributing copies of debugger.
+	show debug       -- Show if we are set to debug the debugger.
+	show different   -- Show stepping forces a new line is off.
+	show editing     -- Show editing of command lines and edit style.
+	show highlight   -- Show if we syntax highlight source listings.
+	show history     -- Show if we are recording command history.
+	show linetrace   -- Show whether to trace lines before execution.
+	show listsize    -- Number of source lines zshdb will list by default is 10.
+	show prompt      -- Show zshdb's command prompt.
+	show style       -- Set pygments highlighting style is off.
+	show warranty    -- Various kinds of warranty you do not have.
+	show width       -- Line width is 173.
+
+---------------------
+[step]
+---------------------
+
+	**step** [*count*]
+	
+	Single step a statement *count* times.
+	
+	If *count* is given, stepping occurs that many times before
+	stopping. Otherwise *count* is one. *count* an be an arithmetic
+	expression.
+	
+	In contrast to "next", functions and source'd files are stepped
+	into.
+	
+	See also:
+	---------
+	
+	**next**, **skip**, **step-** **step+**, and **set different**.
+	
+	Aliases for step: s+, s-, s
+
+---------------------
+[tbreak]
+---------------------
+
+	**tbreak* [*loc-spec*]
+	
+	Set a one-time breakpoint at *loc-spec*.
+	
+	Like "break" except the breakpoint is only temporary,
+	so it will be deleted when hit.  Equivalent to "break" followed
+	by using "delete" on the breakpoint number.
+	
+	If no location specification is given, use the current line.
+
+---------------------
+[undisplay]
+---------------------
+
+	**undisplay** *display-number*...
+	
+	Cancel some expressions to be displayed when program stops. Arguments are the code numbers
+	of the expressions to stop displaying.
+	
+	Examples:
+	---------
+	
+	    undisplay 0     # Removes display statement 0
+	    undisplay 0 3 4 # Removes display statements 0, 3, and 4
+	
+	See also:
+	---------
+	
+	*display* and *info display*.
+
+---------------------
+[backtrace]
+---------------------
+
+	**backtrace** [*opts*] [*count*]
+	
+	Print backtrace of all stack frames, or inner-most *count* frames.
+	
+	With a negative argument, print outer-most -*count* frames.
+	
+	An arrow indicates the "current frame". The current frame determines
+	the context used for many debugger commands such as expression
+	evaluation or source-line listing.
+	
+	*opts* are:
+	
+	   -s | --source  - show source code line
+	   -h | --help    - give this help
+	
+	Examples:
+	---------
+	
+	   backtrace      # Print a full stack trace
+	   backtrace 2    # Print only the top two entries
+	   backtrace -1   # Print a stack trace except the initial (least recent) call.
+	   backtrace -s   # show source lines in listing
+	   backtrace --source   # same as above
+	
+	See also:
+	---------
+	
+	**frame** and  **list**
+	
+	
+	Aliases for backtrace: T, bt, where
+
+---------------------
+[condition]
+---------------------
+
+	**condition** *bp_number* *condition*
+	
+	Break only if *condition* is true in breakpoint number *bp_number*.
+	
+	*bp_number* is a breakpoint number. *condition* is a zsh expression
+	which must evaluate to *True* before the breakpoint is honored.  If
+	*condition* is absent, any existing condition is removed; i.e., the
+	breakpoint is made unconditional.
+	
+	Examples:
+	---------
+	
+	   condition 5 x > 10  # Breakpoint 5 now has condition x > 10
+	   condition 5         # Remove above condition
+	
+	See also:
+	---------
+	
+	*break*, *tbreak*.
+
+---------------------
+[delete]
+---------------------
+
+	**delete** {*brkpt-num*}...
+	
+	Delete some breakpoints.
+	
+	Arguments are breakpoint numbers with spaces in between. Without
+	arguments, clear all breaks (but first ask for confirmation).
+	
+	Aliases for delete: d, unset
+
+---------------------
+[down]
+---------------------
+
+	**down** [*count*]
+	
+	Move the current frame down in the stack trace (to an newer frame). 0 is
+	the most recent frame.
+	
+	If *count* is omitted, use 1.
+	
+	See also:
+	---------
+	
+	**down** and **frame**.
+
+---------------------
+[eval]
+---------------------
+
+	**eval** *cmd*
+	
+	**eval**
+	
+	**eval?**
+	
+	In the first form *cmd* is a string; *cmd* is a string sent to special
+	shell builtin eval.
+	
+	In the second form, use evaluate the current source line text.
+	
+	Often when one is stopped at the line of the first part of an "if",
+	"elif", "case", "return", "while" compound statement or an assignment
+	statement, one wants to eval is just the expression portion.  For
+	this, use eval?. Actually, any alias that ends in ? which is aliased
+	to eval will do thie same thing.
+	
+	If no string is given, we run the string from the current source code
+	about to be run. If the command ends `?` (via an alias) and no string is
+	given, the following translations occur:
+	
+	    {if|elif} <expr> [; then] => <expr>
+	    while <expr> [; do]?      => <expr>
+	    return <expr>             => <expr>
+	    <var>=<expr>              => <expr>
+	
+	See also:
+	---------
+	
+	**set autoeval** and **examine**.
+	
+	Aliases for eval: eval?, ev?, ev
+
+---------------------
+[frame]
+---------------------
+
+	**frame** [*frame-number*].
+	
+	Change the current frame to frame *frame-number* if specified, or the
+	most-recent frame, 0, if no frame number specified.
+	
+	A negative number indicates the position from the other or
+	least-recently-entered end.  So **frame -1** moves to the oldest frame.
+	
+	See also:
+	---------
+	
+	**up**, **down**
+
+---------------------
+[info]
+---------------------
+
+	List of info subcommands:
+	info breakpoints -- Status of user-settable breakpoints
+	info display -- Show all display expressions
+	info files -- Source files in the program
+	info line -- list current line number and and file name
+	info program -- Execution status of the program.
+	info source -- Information about the current source file
+	info stack -- Backtrace of the stack
+	info variables -- All global and static variable names
+	info warranty -- Various kinds of warranty you do not have
+	
+	
+	**load** *zsh-script*
+	
+	Read in lines of a *zsh-script*.
+	
+	See also:
+	---------
+	**info files**
+
+---------------------
+[next-]
+---------------------
+
+	**next-**
+	
+	Step over stepping a statement without the **set different** setting.
+	
+	Set step force may have been set on. step- ensures we turn that off for
+	this command.
+	
+	See also:
+	---------
+	
+	**next+**, **next**, and **set different**.
+
+---------------------
+[quit]
+---------------------
+
+	**quit** [*exit-code* [*shell-levels*]]
+	
+	Gently quit the debugger.
+	
+	The program being debugged is aborted.  If *exit-code* is given, then
+	that will be the exit return code. If *shell-levels* is given, then up
+	to that many nested shells are quit. However to be effective, the last
+	of those shells should have been run under the debugger.
+	
+	See also:
+	---------
+	
+	**kill**, **run** and **restart**.
+	
+	Aliases for quit: q!, exit, q
+	set
+	set annotate    -- Set annotation level.
+	set args        -- Set argument list to give program when it is restarted.
+	set autoeval    -- auto evaluation of unrecognized commands is off.
+	set autolist    -- auto listing on debugger stop is off.
+	set basename    -- short filenames (the basename) is off.
+	set confirm     -- confirm dangerous operations on.
+	set debug       -- debug the debugger is off.
+	set different   -- stop on different lines is off.
+	set editing     -- Set editing of command lines as they are typed is on.
+	set highlight   -- Set syntax highlighting of source listings is light
+	set history     -- Set record command history is off.
+	set linetrace   -- Set tracing execution of lines before executed is off.
+	set listsize    -- Set number of lines in listings is 10
+	set prompt      -- prompt string
+	set showcommand -- Set showing the command to execute is .
+	set style       -- Set pygments highlighting style is off.
+	set width       -- Set maximum width of lines is 173.
+
+---------------------
+[skip]
+---------------------
+
+	**skip** [*count*]
+	
+	Skip over (don't run) the next *count* command(s).
+	
+	If *count* is given, stepping occurs that many times before
+	stopping. Otherwise *count* is one. *count* can be an arithmetic
+	expression.
+	
+	Note that skipping doesn't change the value of $?. This has
+	consequences in some compound statements that test on $?. For example
+	in:
+	
+	   if grep foo bar.txt ; then
+	      echo not skipped
+	   fi
+	
+	Skipping the *if* statement will, in effect, skip running the *grep*
+	command. Since the return code is 0 when skipped, the *if* body is
+	entered. Similarly the same thing can  happen in a *while* statement
+	test.
+	
+	See also:
+	---------
+	
+	**continue**, **next**, and **step**.
+
+---------------------
+[step+]
+---------------------
+
+	**step+**
+	
+	Single step a statement ensuring a different line after the step.
+	
+	In contrast to **step**, we ensure that the file and line position is
+	different from the last one just stopped at.
+	
+	See also:
+	---------
+	
+	**step-** and **set different**.
+
+---------------------
+[trace]
+---------------------
+
+	**trace** *function*
+	
+	trace alias *alias*
+	
+	Set "xtrace" (set -x) tracing when *function* is called.
+
+---------------------
+[untrace]
+---------------------
+
+	**untrace** *function*
+	
+	Untrace previuosly traced *function*.
+
+DOC_EOF
+) | less -R

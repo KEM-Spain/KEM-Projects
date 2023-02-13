@@ -1,0 +1,25 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+LIST=("${(f)$(lpoptions -d ${PRINTER}  | sed -e 's/=/\n/g' | sed "s/' /'\n/g" | sed  "/^'/! s/ /\n/g" | grep -v location)}")
+
+echo PRINTER:${PRINTER}
+echo "================="
+
+for ((X=1;X<${#LIST};X+=2));do
+	echo "${LIST[${X}]:Q} ${WHITE_FG}= ${RESET}${LIST[((X+1))]:Q}"
+done

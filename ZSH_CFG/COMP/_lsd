@@ -1,0 +1,9 @@
+#compdef lsd
+
+_files -W ${PWD} lsd
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-d[directories only (default:files only)]' \
+'-e[no executables]'

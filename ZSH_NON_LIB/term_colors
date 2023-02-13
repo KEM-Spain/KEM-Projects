@@ -1,0 +1,64 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+BLACK_BG="\033[40m"
+RED_BG="\033[41m"
+GREEN_BG="\033[42m"
+YELLOW_BG="\033[43m"
+BLUE_BG="\033[44m"
+MAGENTA_BG="\033[45m"
+CYAN_BG="\033[46m"
+WHITE_BG="\033[47m"
+
+STRIKE="\033[9m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+#
+#   This file echoes a bunch of color codes to the 
+#   terminal to demonstrate what's available.  Each 
+#   line is the color code of one forground color,
+#   out of 17 (default + 16 escapes), followed by a 
+#   test use of that color on all nine background 
+#   colors (default + 8 escapes).
+#
+
+typeset -A FORE
+BLBL=('Default' 'Black' 'Red' 'Green' 'Yellow' 'Blue' 'Magenta' 'Cyan' 'White')
+BACK=(40m 41m 42m 43m 44m 45m 46m 47m)
+FORE=('  m' 'Default' '30m' 'Black' '31m' 'Red' '32m' 'Green' '33m' 'Yellow' '34m' 'Blue' '35m' 'Magenta' '36m' 'Cyan' '37m' 'White')
+
+T='###'   # The test text
+
+printf "Background        ${WHITE_FG}%7s %7s %7s %7s %7s %7s %7s %7s %7s${RESET}\n" ${BLBL}
+printf "                          %7s %7s %7s %7s %7s %7s %7s %7s %7s\n" ${BACK}
+
+for F in ${(kOn)FORE};do
+	for SWITCH in {1..2};do
+		FG=${F// /}
+		if [[ ${SWITCH} -eq 1 ]];then
+			printf "${WHITE_FG}%7s${RESET} %7s Norm:%7s " "${FORE[${F}]}" "${F}" " $(echo "\033[${FG}${T}")"
+		else
+			if [[ ${F} == '  m' ]];then
+				printf "${WHITE_FG}%7s${RESET} %7s Bold:%7s " "Default" "1m" " $(echo "\033[${FG}${BOLD}${T}")"
+			else
+				printf "${WHITE_FG}%7s${RESET} %7s Bold:%7s " "${FORE[${F}]}" "1m;${F}" " $(echo "\033[${FG}${BOLD}${T}")"
+			fi
+		fi
+		for B in ${BACK};do 
+			printf "%7s" "$(echo "\033[${FG}\033[${B}  ${T}  \033[0m") "
+		done
+		echo
+	done
+done
+echo

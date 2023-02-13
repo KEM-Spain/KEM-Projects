@@ -1,0 +1,25 @@
+#!/usr/bin/zsh
+typeset -a DISKS
+
+LIST=("${(f)$(sudo fdisk -l | grep -i sd | grep -i disk)}")
+for L in ${LIST};do
+	DISKS+=$(cut -d: -f1 <<<${L} | cut -d'/' -f3)
+done
+
+for D in ${DISKS};do
+	BUS=$(udevadm info --query=all --name=${D} | grep -wi "id_bus" | cut -d'=' -f2)
+	[[ ${BUS:l} == 'usb' ]] && STICK=/dev/${D}
+done
+
+for L in ${LIST};do
+	if [[ ${L} =~ ${STICK} ]];then
+		PART=$(cut -d: -f1 <<<${L} | cut -d' ' -f2)
+		STR=$(mount | grep ${PART}1 | tr -s '[:space:]')
+		DIR=$(cut -d' ' -f3- <<<${STR})
+		STICK_DIR=$(sed 's/ type .*//g' <<<${DIR})
+	fi
+done
+
+[[ -z ${STICK} ]] && echo "No USB stick detected" && exit 1
+echo ${STICK_DIR}
+exit 0

@@ -1,0 +1,231 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+#Declarations
+typeset -A _BLACKLIST=(usage 1 parse_opts 1 opt_type 1 opt_exists 1)
+
+#Functions
+cleanup () {
+	[[ ${REPLACE_SORTED} == 'true' ]] && rm -f ${FN}.sorted.functions || rm -f ${FN}.new
+	rm -f ${FN}.normalized
+	exit
+}
+
+delete_func () {
+	local FUNC=${1}
+	local FN=${2}
+
+	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return
+
+	sed -i "/${FUNC}.*() {/,/^}/d" ${FN}
+}
+
+list_func () {
+	local FN=${1}
+
+	grep -P "^\S.*\(\) {$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//'
+}
+
+normalize_functions () {
+	local FN=${1}
+
+	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g' < ${FN} > ${FN}.normalized
+}
+
+print_func () {
+	local FUNC=${1}
+	local FN=${2}
+	
+	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return 1
+
+	perl -ne "print if /^${FUNC} \(\) {$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
+}
+
+replace_functions () {
+	local FN=${1}
+	local L
+
+	[[ ! -e ${FN}.sorted.functions ]] && echo "Unable to proceed.  No file containing sorted functions found." && cleanup
+
+	#Prepend function section if needed
+	grep -i '#functions' < ${FN}.normalized
+	if [[ $? -ne 0 ]];then
+		sed -i '0,/.*() {$/s/.*() {$/#Functions\n&/' ${FN}.normalized
+	fi
+
+	LIST=($(list_func ${FN}.normalized))
+
+	#delete existing funcs
+	for L in ${(o)LIST};do
+		delete_func ${L} ${FN}.normalized
+	done
+
+	#insert sorted funcs
+	sed -i "/^#Functions/r ${FN}.sorted.functions" ${FN}.normalized
+}
+
+sort_functions () {
+	local FN=${1}
+	local -a LIST
+	local L
+	local NDX=0
+
+	[[ ! -e ${FN}.normalized ]] && echo "Unable to proceed.  No file containing normalized functions found." && cleanup
+	[[ ${DEBUG} == 'true' ]] && echo "${FN}.normalized was created..."
+
+	grep -Pq '^\S*\s\(\) {' <${FN}.normalized
+	[[ $? -ne 0 ]] && echo "No functions found..." && cleanup
+
+	LIST=($(list_func ${FN}.normalized))
+	[[ ${DEBUG} == 'true' ]] && echo "LIST:${LIST}"
+
+	#sort function alpha
+	for L in ${(o)LIST};do
+		[[ ${USE_BLACKLIST} == 'true' && ${_BLACKLIST[${L}]} -eq 1 ]] && continue
+		((NDX++))
+		if [[ ${LIST_FUNCS} == 'true' ]];then
+			[[ ${NDX} -eq 1 ]] && echo "${WHITE_FG}Functions in ${FN}${RESET}"
+			echo "${WHITE_FG}${NDX}${RESET}) ${L}"
+		else
+			tput el; printf "\rProcessing function ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} functions ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#LIST} $(( NDX * 100. / ${#LIST} ))
+			print_func ${L} ${FN}.normalized >>${FN}.sorted.functions
+		fi
+	done
+	[[ ${LIST_FUNCS} == 'false' ]] && echo "\n${WHITE_FG}${NDX}${RESET} ${FN} functions written to:${WHITE_FG}${FN}.sorted.functions${RESET} by function name in alphanumeric order"
+	echo
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+
+read -r -d '' DESC<<EOF
+Sort script functions
+\tSorted script functions may be placed:
+\t 1) into a copy of the original as <script>.new (-r)
+\t 2) into the original script (-R)
+\t 3) into a file (functions only) as <script>.sorted.functions (${WHITE_FG}default${RESET})
+\tBlacklisted functions are skipped
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		b) echo "<FUNCTION>";;
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	tabs 5
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} <SCRIPT FILE>\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-B${RESET} disable blacklist"
+	echo -e "${WHITE_FG}-R${RESET} replace original source file"
+	echo -e "${WHITE_FG}-b $(opt_type b)${RESET} add function to blacklist"
+	echo -e "${WHITE_FG}-r${RESET} sort and replace functions into separate file"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit
+}
+
+OPTSTR=":HDRBb:lr"
+
+DEBUG=false
+REPLACE_SORTED=false
+REPLACE_FILE=false
+LIST_FUNCS=false
+USE_BLACKLIST=true
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) DEBUG=true;;
+     B) USE_BLACKLIST=false;;
+	  b) _BLACKLIST[${OPTARG}]=1;;
+	  l) LIST_FUNCS=true;;
+     r) REPLACE_SORTED=true;;
+     R) REPLACE_FILE=true;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+FN=${1}
+[[ ! -e ${FN} ]] && usage
+
+[[ -e ${FN}.normalized ]] && rm -f ${FN}.normalized
+[[ -e ${FN}.sorted.functions ]] && rm -f ${FN}.sorted.functions
+
+
+if [[ ${USE_BLACKLIST} == 'true' ]];then
+	echo "${WHITE_FG}Blacklisted Functions${RESET}:"
+	for B in ${(k)_BLACKLIST};do
+		echo "${WHITE_FG}${RESET}>${B}"
+	done
+	echo
+fi
+
+normalize_functions ${FN} #normalize function declaration syntax
+sort_functions ${FN} #extract sorted functions
+
+#Early exits
+[[ ${LIST_FUNCS} == 'true' ]] && exit
+[[ ! -e ${FN}.sorted.functions ]] && echo "sort_functions: failed to create and output. Exiting..." && exit
+
+#Processing
+grep '() {' < ${FN}.sorted.functions | sort | uniq -c | grep -v ' 1 '
+[[ ${?} -ne 1 ]] && echo "WARNING:Found duplicates..." && exit
+
+if [[ ${REPLACE_FILE} == 'true' || ${REPLACE_SORTED} == 'true' ]];then 
+	replace_functions ${FN}
+	[[ ! -e ${FN}.normalized ]] && echo "Option -r failed - unable to locate ${FN}.normalized" && exit
+	cat -s ${FN}.normalized | cat -s > ${FN}.new
+	echo "Modified script with sorted functions in file:${FN}.new"
+fi
+
+if [[ ${REPLACE_FILE} == 'true' ]];then 
+	 [[ ! -e ${FN}.new ]] && echo "Option -R failed - unable to locate ${FN}.new" && exit
+	 mv -f ${FN}.new ${FN}
+	 chmod 775 ${FN}
+	 [[ ! -e ${FN}.sort_functions ]] && rm -f ${FN}.sort_functions #cleanup
+	echo "Replaced original file: ${FN} with sorted functions"
+fi
+
+cleanup

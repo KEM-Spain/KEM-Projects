@@ -1,0 +1,50 @@
+#!/usr/bin/zsh
+DIRS=false
+HIDDEN=false
+LINKS=false
+[[ $1 == "-d" ]] && DIRS=true && shift
+[[ $1 == "-g" ]] && GARB=true && shift
+[[ $1 == "-h" ]] && HIDDEN=true && shift
+[[ $1 == "-l" ]] && LINKS=true && shift
+[[ $1 == "-H" ]] && echo "Usage:fgen [-Hdhl] [count] [path] -H=help -h=hidden,-d=dirs,l=links,g=garbage default=1 regular file" && exit
+
+[[ -z $1 ]] && CNT_ARG=1 || CNT_ARG=${1}
+if [[ ${CNT_ARG} = <-> ]];then
+	COUNT=$1
+else
+	echo "Bad count"
+	exit
+fi
+
+[[ -n ${2} ]] && FGPATH=${2} || FGPATH=.
+
+if [[ ${DIRS} == "true" ]];then
+	echo "Creating ${COUNT} directories in ${FGPATH}"
+elif [[ ${HIDDEN} == "true" ]];then
+	echo "Creating ${COUNT} hidden files in ${FGPATH}"
+elif [[ ${LINKS} == "true" ]];then
+	echo "Creating ${COUNT} regular files in ${FGPATH}"
+	echo "Creating ${COUNT} links in ${FGPATH}"
+elif [[ ${GARB} == "true" ]];then
+	echo "Creating ${COUNT} garbage files in ${FGPATH}"
+else
+	echo "Creating ${COUNT} regular files in ${FGPATH}"
+fi
+
+NDX=0
+for f in {{1..${COUNT}}};do
+	((NDX++))
+	if [[ ${DIRS} == "true" ]];then
+		[[ ! -e ${FGPATH}/dir_${NDX} ]] && mkdir ${FGPATH}/dir_${NDX}
+	elif [[ ${HIDDEN} == "true" ]];then
+		[[ ! -e ${FGPATH}/.file_${NDX} ]] && touch ${FGPATH}/.file_${NDX}
+	elif [[ ${LINKS} == "true" ]];then
+		[[ ! -e ${FGPATH}/file_${NDX} ]] && touch ${FGPATH}/file_$NDX
+		[[ ! -e ${FGPATH}/link_${NDX} ]] && ln -s ${FGPATH}/file_$NDX ${FGPATH}/link_$NDX
+	elif [[ ${GARB} == "true" ]];then
+		FN="lousy-file-name, with lot's of [(bullshit)]"
+		[[ ! -e ${FGPATH}/${FN}_${NDX} ]] && touch ${FGPATH}/file_$NDX ${FGPATH}/"${FN}_$NDX"
+	else
+		[[ ! -e ${FGPATH}/file_${NDX} ]] && touch ${FGPATH}/file_$NDX
+	fi
+done

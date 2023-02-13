@@ -1,0 +1,15 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+echo "${WHITE_FG}Listening TCP/UDP${RESET}"
+ss -l -utp
+echo "${WHITE_FG}Connections TCP/UDP${RESET}"
+ss -utp

@@ -1,0 +1,282 @@
+#!/usr/bin/zsh
+#TODO: no sourcing: use application to open found files
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a LOCAL_LIST
+typeset -a LIST
+typeset -a MUSIC_DIRS
+typeset -g SEARCHTERM
+typeset -g _DEBUG=0
+
+#Constants
+_LIB=/usr/local/lib
+_MD_EXTERNAL="/media/kmiller/KEM_Misc/Music/KEM-B9"
+_MD_LOCAL="/home/kmiller/Documents/Music"
+_PRINTED='\(\.pdf\|\.txt\|\.doc\|\.odg\)$'
+_RECORDED='\(\.mp3\|\.m4a\|\.flac\|\.ogg\|\.wav\|\.mp4\)$'
+_NOTATION='\.mscz$'
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+dbg_set_level () {
+	((_DEBUG++))
+}
+
+get_selection () {
+	local ROWS=${1}
+	local MSG="Please enter a valid list item (${WHITE_FG}1...${ROWS}${RESET})"
+	local RESPONSE
+
+	echo -n "\n${MSG}${RESET}:" >&2
+	read RESPONSE
+	[[ -z ${RESPONSE} ]] && return 1
+
+	if validate_is_integer ${RESPONSE};then
+		if validate_is_list_item ${RESPONSE} ${ROWS};then
+			echo ${RESPONSE}
+		else
+			say_err ${MSG}
+			return 2
+		fi
+	else
+		say_err ${MSG}
+		return 2
+	fi
+	return 0
+}
+
+is_sourced() {
+   if [ -n "$ZSH_VERSION" ]; then
+       case $ZSH_EVAL_CONTEXT in *:file:*) return 0;; esac
+   else  # Add additional POSIX-compatible shell names here, if needed.
+       case ${0##*/} in dash|-dash|bash|-bash|ksh|-ksh|sh|-sh) return 0;; esac
+   fi
+   return 1  # NOT sourced.
+}
+
+my_exit () {
+	if is_sourced;then
+		kill -INT $$
+	else
+		exit
+	fi
+}
+
+say_err () {
+	MSG=${@}
+	echo "${RED_FG}Error${RESET}: ${MSG}" >&2
+}
+
+say_msg_search_info () {
+	local EXT_DRV=${1:=null}
+
+	[[ ${EXT_DRV} == 'false' ]] && echo "${RED_FG}No${RESET} external drives found${CYAN_FG}\nSearch limited to local files only${RESET}\n" || echo
+	if [[ ${FIND_PRINTED} == 'true' ]];then
+		echo "Searching for ${BOLD}${ITALIC}printable${RESET} matching:${WHITE_FG}${SEARCHTERM}${RESET}"
+	elif [[ ${FIND_NOTATION} == 'true' ]];then
+		echo "Searching for ${BOLD}${ITALIC}notation${RESET} matching:${WHITE_FG}${SEARCHTERM}${RESET}"
+	else
+		echo "Searching for ${BOLD}${ITALIC}recordings${RESET} matching:${WHITE_FG}${SEARCHTERM}${RESET}"
+	fi
+	echo
+
+}
+
+say_msg_search_err () {
+	if [[ ${FIND_RECORDED} == 'true' ]];then
+		echo "${RED_FG}No ${RESET}${ITALIC}${BOLD}recorded ${RESET}music found matching${RESET}:${WHITE_FG}${SEARCHTERM}${RESET}"
+	elif [[ ${FIND_PRINTED} == 'true' ]];then
+		echo "${RED_FG}No ${RESET}${ITALIC}${BOLD}printed ${RESET}music found matching${RESET}:${WHITE_FG}${SEARCHTERM}${RESET}"
+	else 
+		echo "${RED_FG}No ${RESET}${ITALIC}${BOLD}musical notation ${RESET}found matching${RESET}:${WHITE_FG}${SEARCHTERM}${RESET}"
+	fi
+}
+
+validate_is_integer () {
+	local VAL=${1}
+	local RET
+
+	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${@}"
+
+	RET=$( echo "${VAL}" | sed 's/^[-+]*[0-9]*//g' )
+	if [[ -z ${RET} ]];then
+		return 0
+	else
+		return 1
+	fi
+}
+
+validate_is_list_item () {
+	local ITEM_NDX=${1}
+	local MAX_ITEM=${2}
+
+	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${@}"
+
+	[[ ${ITEM_NDX} -gt 0 && ${ITEM_NDX} -le ${MAX_ITEM} ]] && return 0 || return 1
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Find recorded, printed, or notation music files
+\t<TITLE> is either a full or partial search parameter
+\tThe default search is for recorded music
+\tIf script is sourced, a list selection will offer a 
+\tchange to the corresponding directory. Otherwise a 
+\tlist is displayed but directory change is not available
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} <TITLE>\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-n${RESET} find music notation"
+	echo -e "${WHITE_FG}-p${RESET} find printed music"
+	echo -e "${WHITE_FG}-r${RESET} find recorded music (default)"
+	echo -e "${WHITE_FG}-x${RESET} exact match"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+	
+	echo $(msg_err ${PENDING_MSGS})
+	my_exit
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDnprx"
+OPTIND=0
+FIND_PRINTED=false
+FIND_RECORDED=true #default
+FIND_NOTATION=false
+EXACT_MATCH=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     n) FIND_NOTATION=true;;
+     p) FIND_PRINTED=true;;
+     r) FIND_RECORDED=true;;
+     x) EXACT_MATCH=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+ 
+ARGS=${@}
+[[ -z ${ARGS} ]] && usage "Missing argument:<TITLE>"
+
+SEARCHTERM=${ARGS}
+SEARCH_REGEX=".*${ARGS}.*"
+
+MUSIC_DIRS+=${_MD_LOCAL}
+EXTERNAL_DRIVE=false
+if [[ -e ${_MD_EXTERNAL} ]];then
+	MUSIC_DIRS+=${_MD_EXTERNAL}
+	EXTERNAL_DRIVE=true
+fi
+
+if [[ ${FIND_PRINTED} == 'true' ]];then
+	EXTENSIONS=${_PRINTED}
+elif [[ ${FIND_NOTATION} == 'true' ]];then
+	EXTENSIONS=${_NOTATION}
+else
+	EXTENSIONS=${_RECORDED} #default
+fi
+
+tput cup 0 0 
+say_msg_search_info ${EXTERNAL_DRIVE}
+
+for D in ${MUSIC_DIRS};do
+	LIST+=("${(f)$(find -L ${D} -type f -iregex ${SEARCH_REGEX}${EXTENSIONS})}")
+done
+
+if arr_is_populated "${LIST}";then
+	LIST=(${(u)LIST})
+
+	while true;do
+		NDX=0
+		for L in ${LIST};do
+			if [[ ${EXACT_MATCH} == 'true' ]];then
+				grep -qwi ${ARGS} <<<${L}
+				[[ ${?} -ne 0 ]] && continue
+			fi
+			[[ ${L} =~ ${_MD_EXTERNAL} ]] && TITLE=${L##${_MD_EXTERNAL}/}
+			[[ ${L} =~ ${_MD_LOCAL} ]] && TITLE=${L##${_MD_LOCAL}/}
+			((NDX++))
+			printf "${WHITE_FG}%4d${RESET}) %s\n" ${NDX} ${TITLE}
+		done
+		if is_sourced;then
+			ITEM=$(get_selection ${#LIST})
+			case ${?} in
+				0) cd "${LIST[${ITEM}]:h}"; break;;
+				1) break;;
+				2) continue;;
+			esac
+		else
+			echo
+			break
+		fi
+	done | mypager
+else
+	say_msg_search_err
+fi
+

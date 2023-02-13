@@ -1,0 +1,81 @@
+#!/usr/bin/zsh
+
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+FILTER=false
+[[ -n $1 ]] && USER=$1 && FILTER=true
+
+PWDF=/etc/passwd
+GRPF=/etc/group
+
+(
+PASSWD=("${(@f)$(cat ${PWDF} | sed -e 's/::/:empty:/g' -e 's/,,,//g' | sort)}")
+GROUPS=("${(@f)$(cat ${GRPF} | sed -e 's/::/:empty:/g' -e 's/,,,//g' | sort)}")
+GRPSEEN=()
+
+is-group-user () {
+	for (( g=1; g<${#GROUPS[@]}; g++ ));do
+		GLINE=(${(@s.:.)GROUPS[$g]})
+		[[ $1 != ${GLINE[3]} ]] && continue
+		[[ -n ${GLINE[4]} ]] && [[ ${GLINE[4]} =~ "${USER}" ]] && return 0
+	done
+	return 1
+}
+
+get-group-info () {
+	for (( g=1; g<${#GROUPS[@]}; g++ ));do
+		GLINE=(${(@s.:.)GROUPS[$g]})
+		[[ $1 != ${GLINE[3]} ]] && continue
+		GRPSEEN+=${GLINE[3]}
+		printf "${WHITE_FG}%12s${RESET}: ${GREEN_FG}%-20s\n" "Group Name" ${GLINE[1]}
+		[[ -n ${GLINE[4]} ]] && printf "${GREEN_FG}%12s${RESET}: ${WHITE_FG}%-30s${RESET}\n" "Members" ${GLINE[4]}
+	done
+}
+
+echo "------------------------------------------"
+echo "${WHITE_FG}Password file${RESET}:${PWDF}"
+echo "------------------------------------------"
+for (( i=1; i<${#PASSWD[@]}; i++ ));do
+	PLINE=(${(@s.:.)PASSWD[$i]})
+	[[ ${FILTER} = true ]] && is-group-user ${PLINE[4]} && SKIP=false || SKIP=true
+	[[ ${SKIP} = true ]] && [[ ${PLINE[1]} = ${USER} ]] && SKIP=false 
+	[[ ${FILTER} = true ]] && [[ ${SKIP} = true ]] && continue
+	printf "${WHITE_FG}%12s${RESET}: ${GREEN_FG}%-20s\n" "User" ${PLINE[1]}
+	printf "%12s: %-3s\n" "UID" ${PLINE[3]}
+	printf "%12s: %-3s\n" "GID" ${PLINE[4]}
+	get-group-info ${PLINE[4]}
+	printf "%12s: %-30s\n" "Comment" ${PLINE[5]}
+	printf "%12s: %-30s\n" "Home" ${PLINE[6]}
+	printf "%12s: %-30s\n" "Shell" ${PLINE[7]}
+	echo "${RED_FG}>${RESET}"
+done
+HDR=false
+for (( i=1; i<${#GROUPS[@]}; i++ ));do
+	GLINE=(${(@s.:.)GROUPS[$i]})
+	#set -xv
+	SKIP=false
+	for s in ${GRPSEEN};do
+		[[ $s -eq ${GLINE[3]} ]] && SKIP=true
+	done
+	[[ ${SKIP} = true ]] && continue
+	[[ ${FILTER} = true ]] && is-group-user ${GLINE[3]} && SKIP=false || SKIP=true
+	[[ ${SKIP} = true ]] && [[ ${GLINE[1]} = ${USER} ]] && SKIP=false 
+	[[ ${FILTER} = true ]] && [[ ${SKIP} = true ]] && continue
+	[[ ${HDR} = false ]] && echo "------------------------------------------"
+	[[ ${HDR} = false ]] && echo "${WHITE_FG}Group file${RESET}:${GRPF}"
+	[[ ${HDR} = false ]] && echo "(${YELLOW_FG}only groups not already referenced above${RESET})"
+	[[ ${HDR} = false ]] && echo "------------------------------------------"
+	HDR=true
+	printf "${WHITE_FG}%12s${RESET}: ${GREEN_FG}%-20s\n" "Group Name" ${GLINE[1]}
+	printf "%12s: %-3s\n" "GID" ${GLINE[3]}
+	[[ -n ${GLINE[4]} ]] && printf "${GREEN_FG}%12s${RESET}: ${WHITE_FG}%-30s${RESET}\n" "Members" ${GLINE[4]}
+	echo "${RED_FG}>${RESET}"
+done
+) | less -R

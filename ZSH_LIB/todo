@@ -1,0 +1,90 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+RESET="\033[m"
+BOLD="\033[1m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Declarations
+typeset -a SOURCES
+typeset -a LIST
+typeset -A SEEN
+
+#Constants
+_THIS=${0:t}
+_LIB=/usr/local/lib
+CACHED_TARGETS=~/.tvi/cached_targets
+SOURCES+="/usr/local/bin"
+SOURCES+="/usr/local/bin/system"
+SOURCES+="/usr/local/lib"
+SOURCES+=${PWD}
+
+#Imports
+source ${_LIB}/common.zsh
+
+read -r -d '' DESC<<EOF
+Show list of TODO labels embedded in scripts"
+EOF
+
+#Functions
+usage () {
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo "Usage: ${_SCRIPT}"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+#Execution
+[[ ${1} == '-H' ]] && usage
+
+echo "${CYAN_FG}${BOLD}Cached edits${WHITE_FG}...${RESET}"
+while read F;do
+	[[ ${F} =~ ${_THIS} ]] && continue
+	FN=$(echo ${F} | cut -d \| -f2 2>/dev/null)
+	[[ ${SEEN[${FN}]} -eq 1 ]] && continue
+	[[ ! -e ${FN} || ${FN:t} == ${_SCRIPT} ]] && continue
+	grep -qP "#TODO" ${FN}
+	if [[ $? -eq 0 ]];then
+		SEEN[${FN}]=1
+		echo "File:${WHITE_FG}${FN}${RESET}"
+		TXT=$(grep -P "#TODO" ${FN})
+		TXT=$(echo ${TXT} | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
+		echo "${MAGENTA_FG}$(str_trim ${TXT})${RESET}\n"
+	fi
+done < ${CACHED_TARGETS}
+
+for S in ${(ou)SOURCES};do
+	LIST+=("${(f)$(find ${S} -maxdepth 1 -type f)}")
+done
+
+echo "${GREEN_FG}${BOLD}Local source and non cached${WHITE_FG}...${RESET}"
+LAST_FN=?
+for F in ${LIST};do
+	[[ ${F} =~ ${_THIS} ]] && continue
+	[[ ! $(file -b ${F}) =~ 'zsh' ]] && continue
+	[[ ${SEEN[${F}]} -eq 1 ]] && continue
+	[[ ! -r ${F} ]] && continue
+	grep -qP "#TODO" ${F}
+	if [[ $? -eq 0 ]];then
+		[[ ${LAST_FN} != ${F} ]] && echo "File:${WHITE_FG}${F}${RESET}"
+		LAST_FN=${F}
+		TXT=$(grep -P "#TODO" ${F})
+		TXT=$(echo ${TXT} | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
+		echo "${MAGENTA_FG}$(str_trim ${TXT})${RESET}\n"
+	fi
+done

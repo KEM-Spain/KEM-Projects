@@ -1,0 +1,271 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Constants
+DESC=$(lsb_release -d | cut -d:  -f2-)
+NAME=$(lsb_release -c | cut -d:  -f2-)
+OS=$(uname)
+ARCH=$(uname -m)
+CPU=$(cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d: -f2 | sed 's/^ *//g')
+KERNEL=$(uname -r) 
+GNOME_SHELL=$(gnome-shell --version)
+GTK2=$(dpkg -l | grep "libgtk2.*bin\b" | tr -s '[:space:]' | cut -d' ' -f2,3)
+GTK3=$(dpkg -l | grep "libgtk-3.*bin\b" | tr -s '[:space:]' | cut -d' ' -f2,3)
+QT=($(qmake --version))
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Declarations
+HDW_DTLS=( \
+bios-vendor
+system-manufacturer
+system-product-name
+system-version
+system-uuid
+baseboard-manufacturer
+baseboard-product-name
+baseboard-version
+baseboard-serial-number
+chassis-manufacturer
+chassis-type
+chassis-serial-number
+processor-family
+processor-manufacturer
+processor-version
+processor-frequency
+)
+_VERBOSITY=0
+
+#Functions
+format () {
+	local -a LIST
+	local -a LABELS
+	local -a TEXTS
+	local -i LONGEST=0
+	local -i PADDING=0
+	local -i NDX=0
+	local PAD
+	local LABEL
+	local TEXT
+	local L
+
+	if [[ ! -t 0 ]];then
+		while read PIPE;do
+			LIST+=${PIPE}
+		done
+	fi
+
+	for L in ${LIST};do
+		LABEL=$(echo ${L} | sed 's/\(^.*\)\(:.*\)/\1/g')
+		TEXT=$(echo ${L} | sed 's/\(^.*\)\(:.*\)/\2/g')
+		[[ ${#LABEL} -gt ${LONGEST} ]] && LONGEST=${#LABEL}
+		LABELS+=${LABEL}
+		[[ ${TEXT} != ${LABEL} ]] && TEXTS+=${TEXT} || TEXTS+=''
+	done
+
+	for L in ${LABELS};do
+		((NDX++))
+		(( PADDING = LONGEST - ${#L} ))
+		[[ ${PADDING} -eq 0 ]] && PAD=$(printf ' %.0s' {1..$((LONGEST - 10))}) #not working as intended - not sure what was intended...
+		[[ ! ${LABELS[${NDX}]} =~ '-' &&  -z ${TEXTS[${NDX}]} ]] && echo 
+		echo "${PAD}${L}${TEXTS[${NDX}]}"
+	done
+}
+
+get_video () {
+	local VENDOR
+	local PRODUCT
+	local DRIVER
+
+	VENDOR=$(sudo lshw -c video 2>/dev/null | egrep 'vendor' | awk '{print $2}')
+	PRODUCT=$(sudo lshw -c video 2>/dev/null | egrep 'product' | awk '{$1="-"; print $0}')
+	DRIVER=$(sudo lshw -c video 2>/dev/null | egrep 'driver' | awk '{print $2}')
+	echo "${VENDOR} ${PRODUCT} (${DRIVER})"
+}
+
+verb_set_level () {
+	((_VERBOSITY++))
+}
+
+str_trim () {
+	local TEXT=${@}
+
+	if [[ -z ${TEXT} && ! -t 0 ]];then
+		read TEXT
+		sed -e 's/^[[:space:]]*//' <<<${TEXT}
+	else
+		echo ${TEXT} | sed -e 's/^[[:blank:]]*//' 
+	fi
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-v${RESET} verbosity level - increasable"
+	echo -e "${WHITE_FG}\nDESC${RESET}:Display system information"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDv"
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     v) verb_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+clear
+
+PROD_NAME=$(sudo dmidecode -s system-product-name | sed 's/_.*//g')
+BIOS_VERSION=$(sudo dmidecode -t bios | grep -i version | cut -d: -f2 | sed 's/^ //')
+BIOS_RELEASE=$(sudo dmidecode -s bios-release-date)
+SERIAL_NO=$(sudo dmidecode -s system-serial-number)
+
+echo "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}"
+printf "${WHITE_FG}Machine${RESET}:%s ${WHITE_FG}\n   BIOS${RESET}:%s\n${WHITE_FG} Serial${RESET}:%s" "${(U)PROD_NAME}" "${BIOS_VERSION} ${BIOS_RELEASE}" ${SERIAL_NO}
+echo "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}"
+
+printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
+printf "${CYAN_FG}Operating System Info${RESET}\n"
+printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
+
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "OS" "$(str_trim ${OS})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "KERNEL" "$(str_trim ${KERNEL})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "DESC" "$(str_trim ${DESC})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "NAME" "$(str_trim ${(C)NAME})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "CPU" "$(str_trim ${CPU})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "ARCHITECTURE" "$(str_trim ${ARCH})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "GNOME SHELL" "$(str_trim ${GNOME_SHELL})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "GTK2" "$(str_trim ${GTK2})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "GTK3" "$(str_trim ${GTK3})"
+printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "QT" "$(str_trim ${QT})"
+
+if [[ ${_VERBOSITY} -ge 1 ]];then
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 30)${RESET}\n"
+	printf "${CYAN_FG}Fetching memory and video...${RESET}\n"
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 30)${RESET}\n"
+
+	MEMORY=$(grep -i MemTotal /proc/meminfo | cut -d: -f2 | tr -d '[:space:]' | sed 's/kb//i')
+	MEMORY=$((9.5367431640625E-7 * MEMORY))
+	VIDEO=$(get_video)
+
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%.1f${RESET}\n" "Total Memory GB" "${MEMORY}"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "Video" "${VIDEO}"
+fi
+
+if [[ ${_VERBOSITY} -ge 2 ]];then
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
+	printf "${CYAN_FG}Disk Details${RESET}\n"
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
+
+	DISKS=($(sudo fdisk -l | grep sd | grep bytes | cut -d' ' -f2 | cut -d: -f1))
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%d${RESET}\n" "Disk Count" ${#DISKS}
+
+	for D in ${DISKS};do
+		printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "DISK" "${D}"
+
+		DINFO=("${(@f)$(sudo smartctl -i ${D} | grep ':')}")
+
+		for I in ${DINFO};do
+			HDDESC=$(echo ${I} | cut -d: -f1)
+			HDINFO=$(echo ${I} | cut -d: -f2 | sed 's/^[\t ]*//g')
+			printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "${HDDESC}" "${HDINFO}"
+		done
+	done
+fi
+
+
+
+if [[ ${_VERBOSITY} -ge 3 ]];then
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 30)${RESET}\n"
+	printf "${CYAN_FG}Fetching hardware details...${RESET}\n"
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 30)${RESET}\n"
+	for S in ${HDW_DTLS};do
+		OUT=$(sudo dmidecode -s ${S})
+		printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "${(C)S:gs/-/ /}" "${OUT:gs/ //}"
+	done
+
+	LIST=("${(@f)$(xinput --list --name-only | grep -i touch)}")
+	for I in ${LIST};do
+		printf  "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "Touch Device" "${I}"
+	done
+fi
+
+if [[ ${_VERBOSITY} -ge 4 ]];then
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+	printf "${CYAN_FG}Extended Information - Detailed Hardware Info\n"
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+	LIST=(bios system baseboard chassis processor memory cache connector slot)
+	for T in ${LIST};do
+		printf "${WHITE_FG}%13s${RESET}:${GREEN_FG}%s${RESET}\n" "HARDWARE TYPE" "${T}"
+		sudo dmidecode -t ${T}
+	done
+
+	printf "\n${CYAN_FG}PCI Info\n${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+	lspci
+	printf "\n${CYAN_FG}USB Info\n${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+	lsusb
+	printf "\n${CYAN_FG}Bluetooth Info\n${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+	hwinfo --bluetooth
+	printf "\n${CYAN_FG}WebCam Info\n${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+	sys_cam
+	[[ ${?} -eq 0 ]] && v4l2-ctl --list-device
+fi
+exit_leave

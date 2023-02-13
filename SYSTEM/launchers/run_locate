@@ -1,0 +1,42 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+[[ ${#} -eq 0 ]] && exit
+echo "${GREEN_FG}Updating locate db${RESET}" && sudo updatedb 2>/dev/null
+
+ARGLIST=(${@})
+CASE=false
+NO_OPTS=true
+
+NDX=0
+for A in ${ARGLIST};do
+	((NDX++))
+	if [[ ${A} =~ "^-I" ]];then
+		CASE=true 
+		ARGLIST[${NDX}]=''
+		continue
+	fi
+	[[ ${A} =~ "^-" ]] && NO_OPTS=false
+done
+
+echo "NO_OPTS:${NO_OPTS}, CASE:${CASE}, ARGLIST:${ARGLIST}"
+
+if [[ ${NO_OPTS} == "true" ]];then
+	echo "${WHITE_FG}locate is case insensitive: Use -I for case sensitivity${RESET}"
+	locate -i ${ARGLIST} 2>/dev/null
+else
+	if [[ ${CASE} == "true" ]];then
+		echo "${WHITE_FG}locate is case sensitive${RESET}"
+		locate ${ARGLIST} 2>/dev/null
+	else
+		echo "${WHITE_FG}locate is case insensitive: Use -I for case sensitivity${RESET}"
+		locate -i ${ARGLIST} 2>/dev/null
+	fi
+fi

@@ -1,0 +1,36 @@
+#!/usr/bin/zsh
+E_BOLD=$(echo -n "\033[1m")
+E_ITALIC=$(echo -n "\033[3m")
+E_RESET=$(echo -n "\033[m")
+E_REVERSE=$(echo -n "\033[7m")
+E_STRIKE=$(echo -n "\033[9m")
+E_UNDER=$(echo -n "\033[4m")
+
+E_BLACK_FG=$(echo -n "\033[30m")
+E_BLUE_FG=$(echo -n "\033[34m")
+E_CYAN_FG=$(echo -n "\033[36m")
+E_GREEN_FG=$(echo -n "\033[32m")
+E_MAGENTA_FG=$(echo -n "\033[35m")
+E_RED_FG=$(echo -n "\033[31m")
+E_WHITE_FG=$(echo -n "\033[37m")
+E_YELLOW_FG=$(echo -n "\033[33m")
+
+
+HISTORY_LOG=/var/log/apt/history.log
+
+#if log rotation is recent and log is empty then use last log
+[[ ! -s ${HISTORY_LOG} ]] && zcat ${HISTORY_LOG}.1.gz > /tmp/history.log && HISTORY_LOG=/tmp/history.log 
+
+(
+grep -B1 -C2 'Install:\|Reinstall:\|Upgrade:\|Remove:\|Purge:' < ${HISTORY_LOG} | grep -iv 'commandline\|requested' | \
+	sed \
+	-e '/^$/d' \
+	-e 's/),/),\n/g' \
+	-e "s/Install/${E_GREEN_FG}Install${E_RESET}/g" \
+	-e "s/Reinstall/${E_GREEN_FG}Reinstall${E_RESET}/g" \
+	-e "s/Upgrade/${E_GREEN_FG}Upgrade${E_RESET}/g" \
+	-e "s/Remove/${E_RED_FG}Remove${E_RESET}/g" \
+	-e "s/Purge/${E_MAGENTA_FG}Purge${E_RESET}/g" \
+	-e "s/^--/${E_WHITE_FG}--${E_RESET}/g" \
+	-e "s/\([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\)/${E_WHITE_FG}\1${E_RESET}/g" 
+) | mypager

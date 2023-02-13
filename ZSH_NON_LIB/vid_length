@@ -1,0 +1,19 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+[[ ${#} -eq 0 ]] && echo "${WHITE_FG}${0:t}${RESET}:${RED_FG}need a video filename${RESET}" && exit
+[[ ! -f ${1} ]] && echo "${WHITE_FG}${1}${RESET}:${RED_FG}not a valid filename${RESET}" && exit
+
+file ${1} | grep -qi 'media\|matroska\|video'
+[[ ${?} -ne 0 ]] && echo "${WHITE_FG}${0:t}${RESET}:${RED_FG}not a video file${RESET}" && exit
+
+echo "The length of:${WHITE_FG}${1}${RESET}"
+ffmpeg -i "${1}"  2>&1 | grep Duration 

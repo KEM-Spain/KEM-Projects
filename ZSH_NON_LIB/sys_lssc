@@ -1,0 +1,55 @@
+#!/usr/bin/zsh
+
+BOLD="\033[1m"
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+WHITE_FG="\033[37m"
+
+hilite () {
+	sed -e "s/\benabled/$(echo ${GREEN_FG}enabled${RESET})/g" \
+	    -e "s/\brunning/$(echo ${GREEN_FG}running${RESET})/g" \
+		-e "s/\bdisabled/$(echo ${RED_FG}disabled${RESET})/g" \
+		-e "s/\binactive/$(echo ${RED_FG}inactive${RESET})/g" \
+		-e "s/\bactive/$(echo ${BOLD}${YELLOW_FG}active${RESET})/g" \
+		-e "s/\bloaded/$(echo ${BOLD}${YELLOW_FG}loaded${RESET})/g" \
+		-e "s/\bmasked/$(echo ${BOLD}${YELLOW_FG}masked${RESET})/g" \
+		-e "s/\bstatic/$(echo ${BOLD}${YELLOW_FG}static${RESET})/g"
+}
+
+#Execution begins
+
+[[ -n $1 ]] && SEARCHTERM=$1
+
+if [[ -n ${SEARCHTERM} ]];then
+	#echo "Searching for:${WHITE_FG}${SEARCHTERM}${RESET}"
+	POST_PROCESS="grep -i ${SEARCHTERM} | tr -s '[:space:]' | sed 's/^[ \t]//g' | sort | hilite | mypager"
+else
+	POST_PROCESS="tr -s '[:space:]' | sed 's/^[ \t]//g' | hilite | mypager"
+fi
+
+(
+echo "${GREEN_FG}[ UNIT FILES ]\n"
+echo "${WHITE_FG}Enabled unit-files...${RESET}\n"
+sudo systemctl list-unit-files | grep enabled
+echo "\n${WHITE_FG}Disabled unit-files...${RESET}\n"
+sudo systemctl list-unit-files | grep disabled
+echo "\n${WHITE_FG}Static unit-files...${RESET}\n"
+sudo systemctl list-unit-files | grep static
+echo "\n${WHITE_FG}Masked unit-files...${RESET}\n"
+sudo systemctl list-unit-files | grep masked
+echo "\n${WHITE_FG}Indirect unit-files...${RESET}\n"
+sudo systemctl list-unit-files | grep indirect
+echo "\n${GREEN_FG}[ SERVICES ]"
+echo "\n${WHITE_FG}Running services...${RESET}\n"
+sudo systemctl list-units --type=service --all | grep running
+echo "\n${WHITE_FG}Exited services...${RESET}\n"
+sudo systemctl list-units --type=service --all | grep exited
+echo "\n${WHITE_FG}Inactive or Dead services...${RESET}\n"
+sudo systemctl list-units --type=service --all | grep inactive
+#echo "\n${WHITE_FG}Dead services...${RESET}\n"
+#sudo systemctl list-units --type=service --all | sort | grep dead
+) | eval "${POST_PROCESS}"
+
+

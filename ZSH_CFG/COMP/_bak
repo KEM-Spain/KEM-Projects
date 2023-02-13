@@ -1,0 +1,13 @@
+#compdef bak
+
+_files -W ${PWD} bak
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-b[make a current backup of <DEVELOPMENT>]' \
+'-c[copy <DEVELOPMENT> to <PRODUCTION>]' \
+'-s[copy <DEVELOPMENT> to <BACKUP>]' \
+'-L[show diff of <DEVELOPMENT> and <BACKUP>]' \
+'-P[show diff of <DEVELOPMENT> and <PRODUCTION>]' \
+'-B[show diff of <PRODUCTION> and <BACKUP>]'

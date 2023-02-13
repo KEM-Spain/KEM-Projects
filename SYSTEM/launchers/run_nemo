@@ -1,0 +1,5 @@
+#!/usr/bin/zsh
+[[ $# -eq 0 ]] && DIR=. || DIR=$1
+(
+	nohup /usr/bin/nemo ${DIR} &
+)>/dev/null 2>&1

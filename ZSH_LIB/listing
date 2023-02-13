@@ -1,0 +1,206 @@
+#!/usr/bin/zsh
+#TODO: implement tree options for llr
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a _LS_FORMAT
+
+#Constants
+_LIB=/usr/local/lib
+TODAY="-daystart -ctime 0"
+_LS_FORMAT+='--color=always'
+_LS_FORMAT+='--group-directories-first'
+_LS_FORMAT+='-h'
+_LS_FORMAT+='-v'
+_LS_FORMAT+='-N'
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+filter_pwd () {
+	local ARG
+
+	while read ARG;do
+		echo ${${ARG}##${PWD}/}
+	done
+}
+
+get_ls_opts () {
+	local CALLER=${1}
+
+	case ${CALLER} in
+		l) echo "-LAd";;
+		l.) echo "-LAd";;
+		ll) echo "-LlAd";;
+		ll.) echo "-LlAd";;
+	esac
+}
+
+is_hidden () {
+	local LINE=${@}
+	local FN
+
+	FN=$(echo ${LINE} | tr -s '[:space:]' | rev | cut -d' ' -f1 | rev)
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: FN=${FN}"
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: [[ ${FN:t} =~ "^\." && ! ${FN:t} =~ "^\.$" ]] && return 0 || return 1"
+	[[ ${FN:t} =~ "^\." && ! ${FN:t} =~ "^\.$" ]] && return 0 || return 1
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+List files
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-d${RESET} directories only"
+	echo -e "${WHITE_FG}-l${RESET} links only"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDdl"
+OPTIND=0
+
+DIRS_ONLY=false
+LINKS_ONLY=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     d) DIRS_ONLY=true;;
+     l) LINKS_ONLY=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+PATH_ARG=(${@})
+
+RECURSE=false
+case ${0:t} in
+	l) HIDDEN_ONLY=false;;
+	l.) HIDDEN_ONLY=true;;
+	ll) HIDDEN_ONLY=false;;
+	ll.) HIDDEN_ONLY=true;;
+	llr) RECURSE=true;;
+esac
+
+typeset -a LS_LIST
+
+RP=$(path_get_raw_path)
+[[ ${RP} =~ '\*' ]] && LS_OPTS=LAd || LS_OPTS=LA
+[[ ${_DEBUG} -gt 0 ]] && dbg "${WHITE_FG}LS_OPTS${RESET}:${LS_OPTS}"
+
+if [[ ${RECURSE} == 'false' ]];then
+	LIST=("${(f)$(ls -${LS_OPTS} ${PATH_ARG})}")
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${WHITE_FG}LIST${RESET}:${LIST} RP:${RP}"
+
+	if [[ -d ${PATH_ARG} ]];then
+		for ((N=1;N<=${#LIST};N++));do
+			LIST[${N}]=${PATH_ARG}/${LIST[${N}]} # add dir to bare FN from ls
+		done
+	fi
+fi
+
+PATH_TEST=$(realpath ${PATH_ARG[1]:h})
+[[ ${_DEBUG} -gt 0 ]] && dbg "PATH_TEST: ${PATH_TEST}"
+[[ ${PATH_TEST:h} == ${PWD} ]] && PATH_OUT='' || PATH_OUT="${PATH_TEST}/"
+[[ ${_DEBUG} -gt 0 ]] && dbg "${WHITE_FG}PATH_OUT set based on${RESET}:${PATH_TEST:h} == ${PWD} PATH_OUT:${PATH_OUT}"
+
+if [[ ${RECURSE} == 'true' ]];then
+	/usr/bin/tree -C ${PATH_ARG} | mypager
+else
+	HIDDEN_FOUND=false
+	for L in ${LIST};do
+		[[ ${_DEBUG} -gt 0 ]] && dbg "LIST: ${L}"
+		HIDDEN=false
+		if is_hidden ${PATH_OUT}${L};then
+			[[ ${_DEBUG} -gt 0 ]] && dbg "is_hidden returned true for:${PATH_OUT}${L}"
+			HIDDEN_FOUND=true
+			[[ ${HIDDEN_ONLY} == 'false' ]] && continue
+			HIDDEN=true
+		else
+			[[ ${_DEBUG} -gt 0 ]] && dbg "is_hidden returned false for:${PATH_OUT}${L}"
+		fi
+
+		if [[ ${HIDDEN_ONLY} == 'true' ]];then
+			[[ ${DIRS_ONLY} == 'true' && ! -d ${PATH_OUT}${L} ]] && continue
+			[[ ${LINKS_ONLY} == 'true' && ! -h ${PATH_OUT}${L} ]] && continue
+			[[ ${HIDDEN} == 'true' ]] && LS_LIST+=${L}
+			[[ ${_DEBUG} -gt 0 ]] && dbg "HIDDEN_ONLY:true LS_LIST:${LS_LIST}"
+		else
+			[[ ${DIRS_ONLY} == 'true' && ! -d ${PATH_OUT}${L} ]] && continue
+			[[ ${LINKS_ONLY} == 'true' && ! -h ${PATH_OUT}${L} ]] && continue
+			LS_LIST+=${L}
+			[[ ${_DEBUG} -gt 0 ]] && dbg "HIDDEN_ONLY:false LS_LIST:${LS_LIST}"
+		fi
+	done
+	/bin/ls ${_LS_FORMAT} $(get_ls_opts ${0:t}) ${LS_LIST}
+	[[ ${_DEBUG} -gt 0 ]] && dbg "/bin/ls ${_LS_FORMAT} $(get_ls_opts ${0:t}) ${LS_LIST}"
+	[[ ${HIDDEN_FOUND} == 'true' && ${HIDDEN_ONLY} == 'false' ]] && echo "(${BOLD}${RED_FG}H${RESET})"
+fi
+
+exit_leave

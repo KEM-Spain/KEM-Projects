@@ -1,0 +1,5 @@
+#!/usr/bin/zsh
+#fast method
+wget --timeout=1 -qO- http://ipecho.net/plain
+[[ $? -eq 4 ]] && echo "Network unreachable">&2
+echo

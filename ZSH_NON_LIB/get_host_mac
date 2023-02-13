@@ -1,0 +1,12 @@
+#!/usr/bin/zsh
+LIST=("${(f)$(ifconfig)}")
+
+IN_WIRELESS=false
+for L in ${LIST};do
+	if [[ ${L} =~ "^wlo1" ]];then
+		IN_WIRELESS=true
+	fi
+	if [[ ${IN_WIRELESS} == 'true' && ${L} =~ 'ether' ]];then
+		echo $L | tr -s '[:space:]' | cut -d' ' -f3
+	fi
+done

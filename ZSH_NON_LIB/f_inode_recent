@@ -1,0 +1,18 @@
+#!/usr/bin/zsh
+
+[[ -n $1 ]] && DIR=$1 || DIR=.
+
+LIST=("${(f)$(find ${DIR} -maxdepth 1 ! -path ${DIR} -printf '%TY-%Tm-%Td %i %p\n' | sort -r -k1)}") 
+
+#order by date - output all matching earliest date in list
+FIRSTDATE=?
+for L in ${LIST};do
+	DATE=$(echo $L | cut -d' ' -f1)
+	INODE=$(echo $L | cut -d' ' -f2)
+	NAME=$(echo $L | cut -d' ' -f3-)
+	[[ $FIRSTDATE == "?" ]] && FIRSTDATE=$DATE
+	if [[ $FIRSTDATE == $DATE ]];then
+		echo "$DATE|$INODE|$NAME"
+	fi
+done
+

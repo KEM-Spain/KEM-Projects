@@ -1,0 +1,101 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+function is_number {
+  if [[ -n $1 && $1 == ${1%%[!0-9]*} ]];then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function is_within_range {
+    if [[ $1 != 0 ]] && [[ $2 -ge $1 ]] && [[ $1 -le $2 ]];then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function is_valid_selection {
+	local MAX_NDX=$1
+	local SELECTION=$2
+
+	if ! is_number $SELECTION;then
+		return 1
+	elif ! is_within_range $SELECTION $MAX_NDX;then
+		return 1
+	fi
+	return 0
+}
+
+function pad {
+	local -i NUM=$1
+	if [[ $NUM -le 9 ]];then
+		echo "  $NUM"
+	elif [[ $NUM -le 99 ]];then
+		echo " $NUM"
+	else 
+		echo "$NUM"
+	fi
+}
+
+function get_response {
+	local RESPONSE
+
+	echo -n "\nSelect item or ${WHITE_FG}<enter>${RESET} to exit:${RESET}" >&2
+	
+	read RESPONSE
+	if [[ -z ${RESPONSE} ]];then
+		echo ''
+	fi
+	echo ${RESPONSE}
+}
+
+#---Execution---
+echo 'MAILTO=""' > /tmp/crontab
+echo 'LOGFILTER=/usr/local/bin/timestamp' >> /tmp/crontab
+echo 'STRIP_ANSI=/usr/local/bin/txt_strip_ansi' >> /tmp/crontab
+echo 'LOG=/home/kmiller/cron.log' >> /tmp/crontab
+
+[[ ! -e ~/.cron-jobs ]] && echo "Missing job file: ~/.cron-jobs" && exit
+
+LIST=("${(@f)$(cat ~/.cron-jobs | sed -e '/^#/d' -e '/LOG=/d' -e '/FILTER=/d' -e '/^MAILTO/d' -e '/^STRIP_ANSI/d' )}")
+
+NDX=0
+VIEWED=()
+WAITTIME=30
+while true;do
+	for L in ${LIST};do
+		((NDX++))
+		if [[ ${VIEWED[$NDX]} -eq $NDX ]];then
+			echo "${BOLD}${WHITE_FG}$(pad ${NDX})${RESET}) ${RED_FG}${L}${RESET}"
+		else
+			[[ $(($NDX % 2)) -eq 0 ]] && COLOR=${GREEN_FG} || COLOR=${MAGENTA_FG}
+			echo "${BOLD}${WHITE_FG}$(pad ${NDX})${RESET}) ${COLOR}${L}${RESET}"
+		fi
+	done
+	RESPONSE=$(get_response)
+	[[ -z $RESPONSE ]] && break
+	if is_valid_selection ${#LIST} $RESPONSE;then
+		HEAD=$(echo ${LIST[$RESPONSE]} | cut -d' ' -f1-5 | sed 's/[0-9][0-9]/\*/g' | sed 's/[0-9]-[0-9]/\*/g' | sed 's/[0-9]/\*/g')
+		TAIL=$(echo ${LIST[$RESPONSE]} | cut -d' ' -f6- )
+		echo "${HEAD} ${TAIL}" >>/tmp/crontab
+		crontab /tmp/crontab
+		echo "Waiting for cron to execute..."
+		sleep ${WAITTIME}
+		crontab ~/.cron-jobs
+		VIEWED[${RESPONSE}]=${RESPONSE}
+		NDX=0
+	fi
+done

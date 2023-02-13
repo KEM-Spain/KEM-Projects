@@ -1,0 +1,33 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+_LIB=/usr/local/lib
+source ${_LIB}/common.zsh
+
+DEAMONS=("${(f)$(ps -eo 'tty,comm,%mem,time,args' | grep '^?' | tr -s '[ \t]' | cut -d' ' -f2- | sort -u)}")
+
+(
+echo "${GREEN_FG}Current Daemon Processes${RESET}"
+printf "${CYAN_FG}%-30s %4s %8s %-.100s${RESET}\n" "Name" "Mem" "Time" "Args (truncated)"
+echo "${MAGENTA_FG}$(str_unicode_line 31) $(str_unicode_line 3) $(str_unicode_line 8) $(str_unicode_line 100)${RESET}"
+LAST_LEADING=?
+OUT=false
+for D in ${(n)DEAMONS};do
+	F1=$(echo ${D} | cut -d' ' -f1 | tr -cd '[:alnum:]')
+	F2=$(echo ${D} | cut -d' ' -f2)
+	F3=$(echo ${D} | cut -d' ' -f3)
+	F4=$(echo ${D} | cut -d' ' -f4-)
+	[[ ${LAST_LEADING} != ${F1[1,1]:l} ]] && LAST_LEADING=${F1[1,1]} && OUT=true
+	[[ ${LAST_LEADING} == '?' ]] && continue 
+	[[ ${OUT} == "true" ]] && echo "${WHITE_FG}${LAST_LEADING}${RESET}" && OUT=false
+	printf '%-30s %4s %8s %-.100s\n' ${F1} ${F2} ${F3} ${F4}
+done
+) | mypager
+

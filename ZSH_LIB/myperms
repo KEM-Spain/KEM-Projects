@@ -1,0 +1,427 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A EPERMS
+typeset -A FILES
+typeset -A FTYPES
+typeset -A GPERMS
+typeset -A GROUPS
+typeset -A OPERMS
+typeset -A OWNERS
+typeset -A PERMS
+typeset -A WPERMS
+typeset -A _PERM_LABELS=(s Special o Owner g Group w World)
+typeset -A _SORT_TABLE=(1 FILES 2 FTYPES 3 PERMS 4 OWNERS 5 GROUPS 6 EPERMS 7 OPERMS 8 GPERMS 9 WPERMS)
+typeset -a MARKED
+typeset -a RAWLIST
+typeset -i _FNDX=0
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+action_do () {
+	local -A POP_DECODE=('set permissions' sp 'change owner' co 'change group' cg 'change owner and group' cog)
+	local -A PTYPE_DECODE=(special s owner o group g world w all a umask u)
+	local -A PERM_DECODE=(no-access n execute x write w write-execute wx read r read-execute re read-write rw read-write-execute rwx)
+	local -A SPECIAL_DECODE=('no special permissions' none 'only user can delete or rename (sticky)' sticky 'run as group' setgid 'run as group (sticky)' stkgid 'run as user' setuid 'run as user (sticky)' stkuid 'run as user and group' setugd 'run as user and group (sticky)' stkugi)
+	local -a COMBO_PERMS=(rwxr-xr-x rwxrwxr-x rwxrwxrwx rw-rw-rw- rw-r--r-- rw-------)
+	local -a USER_LIST=($(cut -d: -f1 </etc/passwd))
+	local -a GROUP_LIST=($(cut -d: -f1 </etc/group))
+	local -a USER_GROUP_LIST
+	local G M U
+	local NDX
+	local PTYPE
+	local PERM_CODE
+	local POP
+	local STITLE
+	local CHOWN CHGRP
+	local UMASK_PERMS=false
+	local match mbegin mend
+	local RC1 RC2
+	local TOP_WIN_X=8 #cascade
+	local TOP_WIN_Y=30 #cascade
+
+	for U in ${USER_LIST};do
+		[[ ${GROUP_LIST[(i)${U}]} -le ${#GROUP_LIST} ]] && USER_GROUP_LIST+=${U}
+	done
+
+	selection_list_set ${(C)${(k)POP_DECODE}}
+	selection_list -x${TOP_WIN_X} -y${TOP_WIN_Y} "<w>Select Operation<N>"
+	[[ ${?} -gt 0 ]] && list_clear_selected && return 0
+	POP=${POP_DECODE[${_SELECTION_VALUE:l}]}
+
+	if [[ ${POP} == 'sp' ]];then
+		selection_list_set ${(C)${(k)PTYPE_DECODE}}
+		selection_list -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "<w>Set permissions<N>"
+		[[ ${?} -gt 0 ]] && list_clear_selected && return 0
+
+		PTYPE=${PTYPE_DECODE[${_SELECTION_VALUE:l}]}
+
+		STITLE="Select permission for "
+		case ${PTYPE} in
+			a) selection_list_set ${COMBO_PERMS};STITLE="<w>Select combo permissions<N>";;
+			s) selection_list_set ${(C)${(k)SPECIAL_DECODE}};STITLE+="Special";;
+			o) selection_list_set ${(C)${(k)PERM_DECODE}};STITLE+="Owner";;
+			g) selection_list_set ${(C)${(k)PERM_DECODE}};STITLE+="Group";;
+			w) selection_list_set ${(C)${(k)PERM_DECODE}};STITLE+="World";;
+			u) UMASK_PERMS=true;;
+		esac
+
+		if [[ ${UMASK_PERMS} == 'false' ]];then 
+			selection_list -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "${STITLE}"
+			[[ ${?} -gt 0 ]] && list_clear_selected && return 0
+			[[ ${PTYPE} == "a" ]] && PERM_CODE=${_SELECTION_VALUE:l}
+			[[ ${PTYPE} =~ "(o|g|w)" ]] && PERM_CODE=${PERM_DECODE[${_SELECTION_VALUE:l}]}
+			[[ ${PTYPE} == "s" ]] && PERM_CODE=${SPECIAL_DECODE[${_SELECTION_VALUE:l}]}
+		fi
+	else
+		case ${POP} in
+			co) selection_list_set ${USER_LIST};STITLE="<w>Select User<N>";;
+		  cog) selection_list_set ${USER_GROUP_LIST};STITLE="<w>Select Owner & Group<N>";;
+			cg) selection_list_set ${GROUP_LIST};STITLE="<w>Select Group<N>";;
+		esac
+		selection_list -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "${STITLE}"
+		[[ ${?} -gt 0 ]] && list_clear_selected && return 0
+		case ${POP} in
+			co) CHOWN=${_SELECTION_VALUE};;
+	  	  cog) CHOWN=${_SELECTION_VALUE} && CHGRP=${_SELECTION_VALUE};;
+			cg) CHGRP=${_SELECTION_VALUE};;
+		esac
+
+	fi
+
+	if [[ ${#MARKED} -gt 1 ]];then
+		action_warn ${POP}
+		[[ ${_MSG_KEY} != 'y' ]] && return 0
+	fi
+
+	for M in ${MARKED};do
+		NDX=${_LIST[${M}]}
+		if [[ ${FTYPES[${NDX}]} != 'l' ]];then #ignore links
+			case ${POP} in
+				co) sudo chown ${CHOWN} ${FILES[${NDX}]} 2>/dev/null && RC1=${?};;
+			  cog) sudo chown ${CHOWN}:${CHGRP} ${FILES[${NDX}]} 2>/dev/null && RC1=${?};;
+				cg) sudo chgrp ${CHGRP} ${FILES[${NDX}]} 2>/dev/null && RC2=${?};;
+				*) set_perms ${NDX} ${PTYPE} ${PERM_CODE} ${FTYPES[${NDX}]};;
+			esac
+			[[ ${RC1} -ne 0 ]] && msg_box -p -PK "chown returned an error (${RC1})"
+			[[ ${RC2} -ne 0 ]] && msg_box -p -PK "chgrp returned an error (${RC2})"
+			parse_stat ${NDX} ${FILES[${NDX}]}
+		fi
+		MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local POP=${1}
+	
+	case ${POP} in
+		co) msg_box -p -PC "This will change the owner on $(str_pluralize file ${#MARKED} true)";;
+		cg) msg_box -p -PC "This will change the group on $(str_pluralize file ${#MARKED} true)";;
+		*) msg_box -p -PC "This will change the permissions on $(str_pluralize file ${#MARKED} true)";;
+	esac
+}
+
+set_perms () {
+	local NDX=${1}
+	local PTYPE=${2}
+	local PERM_CODE=${3}
+	local FTYPE=${4}
+	local FN=${FILES[${NDX}]}
+	local PERMS=${PERMS[${NDX}]}
+	local OCT_B
+	local BIT_1=${PERMS[1]}
+	local BIT_2=${PERMS[2]}
+	local BIT_3=${PERMS[3]}
+	local BIT_4=${PERMS[4]}
+	local F_UMASK="0$(( 666-$(umask) ))"
+	local D_UMASK="0$(( 777-$(umask) ))"
+
+	#msg_box -p "PTYPE:${PTYPE} PERM_CODE:${PERM_CODE} FN:${FN}"
+	 
+	[[ ${FTYPE} == 'l' ]] && return 0 #ignore links
+
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:NDX:${1} PTYPE:${2} PERM_CODE:${3} FN:${FN} PERMS:${PERMS} BIT_1=${BIT_1} BIT_2=${BIT_2} BIT_3=${BIT_3} BIT_4=${BIT_4} F_UMASK:${F_UMASK} D_UMASK:${D_UMASK}"
+
+	[[ ${PTYPE} == 'u' && ${FTYPES[${NDX}]} == 'f' ]] && sudo chmod ${F_UMASK} ${FN} && return 0
+	[[ ${PTYPE} == 'u' && ${FTYPES[${NDX}]} == 'd' ]] && sudo chmod ${D_UMASK} ${FN} && return 0
+
+	if [[ ${PTYPE} == 'a' ]];then
+		case ${PERM_CODE} in
+			rwxr-xr-x) BIT_1=0;BIT_2=7;BIT_3=5;BIT_4=5;;
+			rwxrwxr-x) BIT_1=0;BIT_2=7;BIT_3=7;BIT_4=5;;
+			rwxrwxrwx) BIT_1=0;BIT_2=7;BIT_3=7;BIT_4=7;;
+			rw-rw-rw-) BIT_1=0;BIT_2=6;BIT_3=6;BIT_4=6;;
+			rw-r--r--) BIT_1=0;BIT_2=6;BIT_3=4;BIT_4=4;;
+			rw-------) BIT_1=0;BIT_2=6;BIT_3=0;BIT_4=0;;
+		esac
+
+		grep -q 'wx' <<<${PERM_CODE}
+		if [[ ${FTYPE} == 'd' && ${?} -ne 0 ]];then
+			msg_box -p -PC "If you apply non execute permissions a directory it not be accessible."
+			[[ ${_MSG_KEY} != 'y' ]] && return 2
+		fi
+		sudo chmod ${BIT_1}${BIT_2}${BIT_3}${BIT_4} ${FN} 2>/dev/null
+		[[ ${?} -ne 0 ]] && msg_box -p -PK "chmod returned an error (${?})"
+	else
+		case ${PERM_CODE} in
+			n) OCT_B=0;;
+			e) OCT_B=1;;
+			w) OCT_B=2;;
+			wx) OCT_B=3;;
+			r) OCT_B=4;;
+			re) OCT_B=5;;
+			rw) OCT_B=6;;
+			rwx) OCT_B=7;;
+			none) OCT_B=0;;
+			sticky) OCT_B=1;;
+			setgid) OCT_B=2;;
+			stkgid) OCT_B=3;;
+			setuid) OCT_B=4;;
+			stkuid) OCT_B=5;;
+			setugd) OCT_B=6;;
+			stkugi) OCT_B=7;;
+		esac
+
+		case ${PTYPE} in
+			a) sudo chmod ${BIT_1}${OCT_B}${OCT_B}${OCT_B} ${FN} 2>/dev/null;;
+			o) sudo chmod ${BIT_1}${OCT_B}${BIT_3}${BIT_4} ${FN} 2>/dev/null;;
+			g) sudo chmod ${BIT_1}${BIT_2}${OCT_B}${BIT_4} ${FN} 2>/dev/null;;
+			w) sudo chmod ${BIT_1}${BIT_2}${BIT_3}${OCT_B} ${FN} 2>/dev/null;;
+			s) sudo chmod ${OCT_B}${BIT_2}${BIT_3}${BIT_4} ${FN} 2>/dev/null;;
+		esac
+		[[ ${?} -ne 0 ]] && msg_box -p -PK "chmod returned an error (${?})"
+	fi
+
+	[[ ${?} -ne 0 ]] && return 1
+}
+
+item_decorate () {
+  local NDX=$1
+
+  case ${_LIST_SELECTED[${NDX}]} in
+			 2) echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}viewed${E_RESET}";;
+			 *) tput el;echo -n ${_LIST[${NDX}]};;
+  esac
+}
+
+coord_center () {
+	local AREA=${1}
+	local OBJ=${2}
+	local CTR
+	local REM
+	local AC
+	local OC
+	local C
+
+	CTR=$((AREA / 2))
+	REM=$((CTR % 2))
+	[[ ${REM} -ne 0 ]] && AC=$((CTR+1)) || AC=${CTR}
+
+	CTR=$((OBJ / 2))
+	REM=$((CTR % 2))
+	[[ ${REM} -ne 0 ]] && OC=$((CTR+1)) || OC=${CTR}
+
+	C=$((AC-OC))
+
+	echo ${C}
+}
+
+parse_perms () {
+	local PERMS=${1}
+	local POS=${2}
+	local LABEL
+
+	if [[ ${POS} -eq 1 ]];then
+		case ${PERMS[${POS}]} in 
+			0) LABEL="none";;
+			1) LABEL="sticky";;
+			2) LABEL="gid";;
+			3) LABEL="stk-gid";;
+			4) LABEL="uid";;
+			5) LABEL="stk-uid";;
+			6) LABEL="uid-gid";;
+			7) LABEL="stk-uid-gid";;
+		esac
+	else
+		case ${PERMS[${POS}]} in 
+			0) LABEL="---";;
+			1) LABEL="--x";;
+			2) LABEL="-w-";;
+			3) LABEL="-wx";;
+			4) LABEL="r--";;
+			5) LABEL="r-x";;
+			6) LABEL="rw-";;
+			7) LABEL="rwx";;
+		esac
+	fi
+
+	echo ${LABEL}
+}
+
+parse_stat () {
+	local NDX=${1}
+	local FN=${2}
+	local -a STAT
+	local L
+	local PERM
+
+	STAT=("${(f)$(stat -c"%n|%U|%G|%a" ${FN} 2>/dev/null;RC=$?)}")
+	[[ ${RC} -ne 0 ]] && msg_box -p -PK "stat returned an error (${RC})"
+
+	for L in ${STAT};do
+		FILES[${NDX}]=$(cut -d'|' -f1 <<<${L})
+		OWNERS[${NDX}]=$(cut -d'|' -f2 <<<${L})
+		GROUPS[${NDX}]=$(cut -d'|' -f3 <<<${L})
+		PERM=$(cut -d'|' -f4 <<<${L})
+		[[ ${#PERM} -eq 3 ]] && PERM="0${PERM}"
+		PERMS[${NDX}]=${PERM}
+	done
+	
+	[[ -d ${FN} ]] && FTYPES[${NDX}]=d
+	[[ -f ${FN} ]] && FTYPES[${NDX}]=f
+	[[ -L ${FN} ]] && FTYPES[${NDX}]=l
+	EPERMS[${NDX}]=$(parse_perms ${PERMS[${NDX}]} 1)
+	OPERMS[${NDX}]=$(parse_perms ${PERMS[${NDX}]} 2)
+	GPERMS[${NDX}]=$(parse_perms ${PERMS[${NDX}]} 3)
+	WPERMS[${NDX}]=$(parse_perms ${PERMS[${NDX}]} 4)
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "\n${WHITE_FG}DESC${RESET}:This script..."
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HD"
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+PATHLBL=$(path_get_label 40)
+
+RAWLIST=("${(f)$(eval "find ${FPATH:q} -maxdepth 1 ${FGLOB} ! -path ${FPATH:q}" 2>/dev/null )}")
+if [[ ${?} -ne 0 ]];then
+	dbg "${0}:${RED_FG}COMMAND FAILED${RESET}: find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path ${FPATH:q} 2>/dev/null" 
+else
+	dbg "${0}:${GREEN_FG}LIST COUNT${RESET}:${#_LIST}"
+fi
+
+[[ ${#RAWLIST} -gt 20 ]] && msg_box "Working..."
+for L in ${(o)RAWLIST};do
+	((_FNDX++))
+	parse_stat ${_FNDX} ${L}
+	[[ ${#FILES[${_FNDX}]:t} -gt ${LONGEST} ]] && LONGEST=${#FILES[${_FNDX}]:t} 
+	_LIST+=${_FNDX}
+done
+
+LBL_WIDTH=8
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET}\tPath:${WHITE_FG}%-*s${RESET}\tPage:${WHITE_FG}%-d${RESET} of ${WHITE_FG}%-d${RESET}\tSelected:${WHITE_FG}%-d${RESET}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${PAGE} ${MAX_PAGES} ${SELECTED_COUNT}'
+list_set_header 'printf " "'
+list_set_header 'printf "%*s %*s %4s %4s %10s %10s %-12s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s" 5 "" ${LONGEST} "File" "Type" "Perm" "Owner" "Group" ${_PERM_LABELS[s]} ${_PERM_LABELS[o]} ${_PERM_LABELS[g]} ${_PERM_LABELS[w]}'
+list_set_header 'printf "%*s ${CYAN_FG}%4s${RESET} ${CYAN_FG}%4s${RESET} ${CYAN_FG}%4s${RESET} ${CYAN_FG}%10s${RESET} ${CYAN_FG}%10s${RESET} ${MAGENTA_FG}%-12s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s${RESET}" $((LONGEST+1)) "" $(str_unicode_line 4) $(str_unicode_line 4) $(str_unicode_line 4)  $(str_unicode_line 10) $(str_unicode_line 10) $(str_unicode_line 12) $(str_unicode_line ${LBL_WIDTH}) $(str_unicode_line ${LBL_WIDTH}) $(str_unicode_line ${LBL_WIDTH})' 
+
+#set line item
+list_set_line_item ' 
+local FNDX=${_LIST[${ARRAY_NDX}]};
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%*s${RESET} %-4s ${SHADE}${BAR}%4s${RESET} ${SHADE}${BAR}%10s${RESET} ${SHADE}${BAR}%10s${RESET} ${SHADE}${BAR}%-12s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s\n" ${ARRAY_NDX} ${LONGEST} ${FILES[${FNDX}]:t} "(${FTYPES[${FNDX}]})" ${PERMS[${FNDX}]} ${OWNERS[${FNDX}]} ${GROUPS[${FNDX}]} ${EPERMS[${FNDX}]} ${OPERMS[${FNDX}]} ${GPERMS[${FNDX}]} ${WPERMS[${FNDX}]}
+'
+
+list_set_key_msg '
+printf "Press ${WHITE_FG}Home End PgUp PgDn, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}, <${WHITE_FG}s${RESET}>ort columns"
+'
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to reset permissions (${ITALIC}or exit if none selected${RESET})."
+list_set_barlines true
+list_set_clear_ghosts true
+list_set_sortable true
+list_set_sort_cols ${#_SORT_TABLE}
+list_set_sort_engine assoc
+
+while true;do
+	#get selection
+	list_select ${_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_do
+	fi
+done
+
+exit_leave

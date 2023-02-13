@@ -1,0 +1,256 @@
+#!/usr/bin/zsh
+#Init Script Creator
+# 2009 - Mike Golvach - eggi@comcast.net - heavily modified by mr miller
+#
+#Creative Commons License
+#rcscript.sh by Mike Golvach is licensed under a Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License.
+#Based on a work at linuxshellaccount.blogspot.com.
+#Permissions beyond the scope of this license may be available at http://linuxshellaccount.blogspot.com.
+#
+
+trap 'rm -f ${INIT_DIR}/${SCRIPT_NAME} ${RC3_DIR}/${SCRIPT_NAME} ${RC0_DIR}/${SCRIPT_NAME} ${SCRIPT_NAME}' 1 2 3 9 15
+
+# Tips for a few command line arguments - setting an argument to zero will not be considered equivalent to not defining it
+# a. set INIT_DIR to 0 if you don't want any scripts and links setup - set RC3_DIR, rc2_dir and/or INIT_DIR to "0" to not create that link/script.
+# b. If any of the INIT_DIR, rc2_dir and/or RC3_DIR variables are not set, they will default to the examples below.
+# c. options that include 0 in the example do not need to be set and are entirely optional
+# 
+
+INIT_DIR=/etc/init.d
+RC3_DIR=/etc/rc3.d
+RC0_DIR=/etc/rc0.d
+SCRIPT_NAME=myStartScript.sh
+PROGRAM_NAME=testProgram
+START_OPTIONS=start
+BIN_DIR=/bin
+GREP=/bin/grep
+AWK=/usr/bin/awk
+PS=/bin/ps
+CHMOD=/bin/chmod
+CP=/bin/cp
+LN=/bin/ln
+
+#FULLY_QUALIFIED_PROGRAM_NAME=/usr/local/bin/testProgram
+# sure_kill=   "space delimited list of extra programs to kill" or 0
+#
+
+function usage {
+ echo
+ echo "Usage: $0 [-h for this help screen]"
+ echo -e "\nRequired switches:"
+ echo "[-n init script name] [-f controlled program's fully qualified name]"
+ echo -e "\nOptional switches:"
+ echo "[-i init directory] [-3 rc3.d directory] [-0 rc0.d directory"
+ echo "[-s start options for your program]"
+ echo "[-k additional programs to kill on stop - space separated]"
+ echo "[-b common binary directory - defaults to /usr/bin]"
+ echo "[-d script_name - delete existing script_name"
+ echo -e "\nBe sure to \"double quote\" any switch arguments with spaces!\n"
+ exit 1
+}
+
+DELETE=false
+while getopts 0:3:b:f:hi:k:n:s:d option; do
+ case $option in
+  'i')
+   if [[ "$OPT_ARG" == "0" ]];then
+    INIT_DIR=0
+   else
+    INIT_DIR="$OPTARG"
+   fi;;
+  '3')
+   if [[ "$OPT_ARG" == "0" ]];then
+    RC3_DIR=0
+   else
+    RC3_DIR="$OPTARG"
+   fi;;
+  '0')
+   if [[ "$OPT_ARG" == "0" ]];then
+    RC0_DIR=0
+   else
+    RC0_DIR="$OPTARG"
+   fi;;
+  'n')
+   SCRIPT_NAME="$OPTARG";;
+  'f')
+   FULLY_QUALIFIED_PROGRAM_NAME="$OPTARG";;
+  's')
+   if [[ "$OPT_ARG" == "0" ]];then
+    START_OPTIONS=""
+   else
+    START_OPTIONS="$OPTARG"
+   fi;;
+  'k')
+   if [[ "$OPT_ARG" == "0" ]];then
+    ADDITIONAL_KILLS=""
+   else
+    ADDITIONAL_KILLS="$OPTARG"
+   fi;;
+  'b')
+   if [[ "$OPT_ARG" == "0" || -z "$OPT_ARG" ]];then
+    BIN_DIR="/usr/bin"
+   else
+    BIN_DIR="$OPTARG"
+   fi;;
+  'd')
+    DELETE=true
+    SCRIPT_NAME=$2
+    ;;
+  'h')
+    usage;;
+  *)
+    usage;;
+ esac
+done
+shift $(($OPTIND - 1))
+
+
+if $DELETE;then
+ if [[ -n "$SCRIPT_NAME" ]];then
+  echo "Removing all traces of:${INIT_DIR}/${SCRIPT_NAME}"
+  pushd
+  cd /
+  [[ -e ${INIT_DIR}/${SCRIPT_NAME} ]] && sudo rm -i ${INIT_DIR}/${SCRIPT_NAME}
+  [[ -e ${RC3_DIR}/${SCRIPT_NAME} ]] && sudo rm -i ${RC3_DIR}/${SCRIPT_NAME}
+  [[ -e ${RC0_DIR}/${SCRIPT_NAME} ]] && sudo rm -i ${RC0_DIR}/${SCRIPT_NAME}
+  popd
+  exit 0;
+ fi
+fi
+
+if [[ -z "$SCRIPT_NAME" || -z "$FULLY_QUALIFIED_PROGRAM_NAME" ]];then
+ echo -e "\nOptions -n and -f are required!\n"
+ usage
+fi
+
+PROGRAM_NAME=$(basename ${FULLY_QUALIFIED_PROGRAM_NAME})
+
+if [[ -z "$BIN_DIR" ]];then
+ BIN_DIR="/usr/bin"
+fi
+
+if [[ -e "$SCRIPT_NAME" ]];then
+ rm $SCRIPT_NAME
+fi
+
+cat<< EOT >>$SCRIPT_NAME
+#!/bin/sh 
+ 
+### BEGIN INIT INFO
+# Provides:          ${PROGRAM_NAME}
+# Required-Start:    ${PROGRAM_NAME}
+# Required-Stop:     ${PROGRAM_NAME} ${ADDITIONAL_KILLS}
+# Default-Start:     
+# Default-Stop:      
+# Short-Description: start ${PROGRAM_NAME}
+### END INIT INFO
+
+case \$1 in 
+ 'start') 
+  echo "\nStarting ${PROGRAM_NAME}....\n"
+  ${FULLY_QUALIFIED_PROGRAM_NAME} ${START_OPTIONS} >/dev/null 2>&1 &
+  sleep 2
+  ${PROGRAM_NAME}_RUNNING=\$($PS -ef | $GREP "${FULLY_QUALIFIED_PROGRAM_NAME}" | $GREP -v grep | $AWK '{print \$2}')
+  if [ "\$${PROGRAM_NAME}_RUNNING" = "" ];then
+   echo "${PROGRAM_NAME} start failed. Please check application logs"
+  else
+   echo "${PROGRAM_NAME} was started successfully"
+  fi;;
+ 'stop') 
+  echo
+  echo Stopping ${PROGRAM_NAME}....
+  echo
+  ${PROGRAM_NAME}_RUNNING=\$($PS -ef | $GREP "${FULLY_QUALIFIED_PROGRAM_NAME}" | $GREP -v grep | $AWK '{print \$2}')
+  if [ "\$${PROGRAM_NAME}_RUNNING" = "" ];then
+   echo "${PROGRAM_NAME} is stopped."
+  else
+   COUNTER=5
+   DEAD="alive"
+   echo "Shutting ${PROGRAM_NAME} [pid: \$${PROGRAM_NAME}_RUNNING] down."
+   while [ \$COUNTER -gt 0 ];do
+    ${PROGRAM_NAME}_STILL_RUNNING=\$($PS -ef | $GREP "${FULLY_QUALIFIED_PROGRAM_NAME}" | $GREP -v grep | $AWK '{print \$2}')
+    if [ "\$${PROGRAM_NAME}_STILL_RUNNING" != "" ];then
+     echo "killing pid: \$${PROGRAM_NAME}_STILL_RUNNING "
+     ${BIN_DIR}/kill \$${PROGRAM_NAME}_STILL_RUNNING
+     COUNTER=\$(expr \$COUNTER - 1)
+     sleep 1
+    else
+     DEAD="dead"
+     echo "process was killed"
+     COUNTER=0
+    fi
+   done
+   if [ \$DEAD = "alive" ];then
+    echo "Could not kill process after 5 attempts. Process: ${PROGRAM_NAME}_RUNNING is a zombie."
+   fi
+  fi
+EOT
+if [[ -n "$ADDITIONAL_KILLS" ]];then
+ cat << EOT >>$SCRIPT_NAME
+ for AKS in $(echo $ADDITIONAL_KILLS);do
+   echo
+   echo Stopping \$AKS....
+   echo
+   AKS_RUNNING=\$($PS -ef | $GREP "\$AKS" | $GREP -v grep | $AWK '{print \$2}')
+   if [ "\$AKS_RUNNING" = "" ];then
+    echo "\$AKS is stopped."
+   else
+    COUNTER=5
+    DEAD="alive"
+    echo "Shutting \$AKS [pid: \$$AKS_RUNNING] down."
+    while [ \$COUNTER -gt 0 ];do
+        AKS_STILL_RUNNING=\$($PS -ef | $GREP "\$AKS" | $GREP -v grep | $AWK '{print \$2}')
+     if [ "\$AKS_STILL_RUNNING" != "" ]
+     then
+      echo "killing pid: \$AKS_STILL_RUNNING"
+      ${BIN_DIR}/kill \$AKS_STILL_RUNNING
+      COUNTER=\$(expr \$COUNTER - 1)
+      sleep 1
+     else
+      DEAD="dead"
+      echo "process was killed"
+      COUNTER=0
+     fi
+    done
+    if [ \$DEAD = "alive" ];then
+     echo "Could not kill process after 5 attempts. Process: ${AKS}_RUNNING is a zombie."
+    fi
+   fi
+  done
+EOT
+fi
+cat << EOT >>$SCRIPT_NAME
+  ;; 
+ 'restart')
+  echo
+  echo Restarting ${PROGRAM_NAME}....
+  echo
+  \$0 stop
+  \$0 start
+  ;;
+ 'status') 
+  ${PROGRAM_NAME}_RUNNING=\$($PS -ef | $GREP "${FULLY_QUALIFIED_PROGRAM_NAME}" | $GREP -v grep | $AWK '{print \$2}')
+  if [ -z "\$${PROGRAM_NAME}_RUNNING" ];then
+   echo "${PROGRAM_NAME} is NOT running"
+  else
+   echo "${PROGRAM_NAME} is running as process \$${PROGRAM_NAME}_RUNNING"
+  fi;;
+ *) 
+  echo "Usage: \$0 [start|stop|restart]";;
+esac 
+EOT
+
+sudo $CHMOD 750 ${SCRIPT_NAME};
+RC1=$?
+sudo $CP ${SCRIPT_NAME} ${INIT_DIR}/${SCRIPT_NAME}
+RC2=$?
+sudo $LN -fs ${INIT_DIR}/${SCRIPT_NAME} ${RC3_DIR}/${SCRIPT_NAME}
+RC3=$?
+sudo $LN -fs ${INIT_DIR}/${SCRIPT_NAME} ${RC0_DIR}/${SCRIPT_NAME}
+RC4=$?
+((RC = $RC1 + $RC2 + $RC3 + $RC4))
+if [[ $RC -eq 0 ]];then
+ echo init script: $SCRIPT_NAME was created.
+else
+ echo An error occurred. init script: $SCRIPT_NAME was NOT created.
+fi

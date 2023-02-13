@@ -1,0 +1,717 @@
+#!/usr/bin/zsh
+REVERSE=$(echo "\033[7m")
+RESET=$(echo "\033[m")
+BOLD=$(echo "\033[1m")
+BLACK_FG=$(echo "\033[30m")
+RED_FG=$(echo "\033[31m")
+GREEN_FG=$(echo "\033[32m")
+YELLOW_FG=$(echo "\033[33m")
+BLUE_FG=$(echo "\033[34m")
+MAGENTA_FG=$(echo "\033[35m")
+CYAN_FG=$(echo "\033[36m")
+WHITE_FG=$(echo "\033[37m")
+
+(
+cat <<END_VIM_TIPS
+                                                                            
+                           Readline VI Editing Mode                         
+                      Default Keyboard Shortcuts for Bash                   
+                                Cheat Sheet                                 
+                                                                            
+
+END_VIM_TIPS
+ ======================== Keyboard Shortcut Summary ========================
+
+.--------------.------------------------------------------------------------.
+|              |                                                            |
+| Shortcut     | Description                                                |
+|              |                                                            |
+'--------------'------------------------------------------------------------'
+| Switching to COMMAND Mode:                                                |
+'--------------.------------------------------------------------------------'
+| ESC          | Switch to command mode.                                    |
+'--------------'------------------------------------------------------------'
+| Commands for Entering INPUT Mode:                                         |
+'--------------.------------------------------------------------------------'
+| i            | Insert before cursor.                                      |
+'--------------+------------------------------------------------------------'
+| a            | Insert after cursor.                                       |
+'--------------+------------------------------------------------------------'
+| I            | Insert at the beginning of line.                           |
+'--------------+------------------------------------------------------------'
+| A            | Insert at the end of line.                                 |
+'--------------+------------------------------------------------------------'
+| c<mov. comm> | Change text of a movement command <mov. comm> (see below). |
+'--------------+------------------------------------------------------------'
+| C            | Change text to the end of line (equivalent to c\$).         |
+'--------------+------------------------------------------------------------'
+| cc or S      | Change current line (equivalent to 0c\$).                   |
+'--------------+------------------------------------------------------------'
+| s            | Delete a single character under the cursor and enter input |
+|              | mode (equivalent to c[SPACE]).                             |
+'--------------+------------------------------------------------------------'
+| r            | Replaces a single character under the cursor (without      |
+|              | leaving command mode).                                     |
+'--------------+------------------------------------------------------------'
+| R            | Replaces characters under cursor.                          |
+'--------------+------------------------------------------------------------'
+| v            | Edit (and execute) the current command in the text editor. |
+|              | (an editor defined in \$VISUAL or \$EDITOR variables, or vi  |
+'--------------'------------------------------------------------------------'
+| Basic Movement Commands (in command mode):                                |
+'--------------.------------------------------------------------------------'
+| h            | Move one character right.                                  |
+'--------------+------------------------------------------------------------'
+| l            | Move one character left.                                   |
+'--------------+------------------------------------------------------------'
+| w            | Move one word or token right.                              |
+'--------------+------------------------------------------------------------'
+| b            | Move one word or token left.                               |
+'--------------+------------------------------------------------------------'
+| W            | Move one non-blank word right.                             |
+'--------------+------------------------------------------------------------'
+| B            | Move one non-blank word left.                              |
+'--------------+------------------------------------------------------------'
+| e            | Move to the end of the current word.                       |
+'--------------+------------------------------------------------------------'
+| E            | Move to the end of the current non-blank word.             |
+'--------------+------------------------------------------------------------'
+| 0            | Move to the beginning of line                              |
+'--------------+------------------------------------------------------------'
+| ^            | Move to the first non-blank character of line.             |
+'--------------+------------------------------------------------------------'
+| \$            | Move to the end of line.                                   |
+'--------------+------------------------------------------------------------'
+| %            | Move to the corresponding opening/closing bracket.         |
+'--------------'------------------------------------------------------------'
+| Character Finding Commands (these are also Movement Commands):            |
+'--------------.------------------------------------------------------------'
+| fc           | Move right to the next occurance of char c.                |
+'--------------+------------------------------------------------------------'
+| Fc           | Move left to the previous occurance of c.                  |
+'--------------+------------------------------------------------------------'
+| tc           | Move right to the next occurance of c, then one char       |
+|              | backward.                                                  |
+'--------------+------------------------------------------------------------'
+| Tc           | Move left to the previous occurance of c, then one char    |
+|              | forward.                                                   |
+'--------------+------------------------------------------------------------'
+| ;            | Redo the last character finding command.                   |
+'--------------+------------------------------------------------------------'
+| ,            | Redo the last character finding command in opposite        |
+|              | direction.                                                 |
+'--------------+------------------------------------------------------------'
+| |            | Move to the n-th column (you may specify the argument n by |
+|              | typing it on number keys, for example, 20|)                |
+'--------------'------------------------------------------------------------'
+| Deletion Commands:                                                        |
+'--------------.------------------------------------------------------------'
+| x            | Delete a single character under the cursor.                |
+'--------------+------------------------------------------------------------'
+| X            | Delete a character before the cursor.                      |
+'--------------+------------------------------------------------------------'
+| d<mov. comm> | Delete text of a movement command <mov. comm> (see above). |
+'--------------+------------------------------------------------------------'
+| D            | Delete to the end of the line (equivalent to d\$).          |
+'--------------+------------------------------------------------------------'
+| dd           | Delete current line (equivalent to 0d\$).                   |
+'--------------+------------------------------------------------------------'
+| CTRL-w       | Delete the previous word.                                  |
+'--------------+------------------------------------------------------------'
+| CTRL-u       | Delete from the cursor to the beginning of line.           |
+'--------------'------------------------------------------------------------'
+| Undo, Redo and Copy/Paste Commands:                                       |
+'--------------.------------------------------------------------------------'
+| u            | Undo previous text modification.                           |
+'--------------+------------------------------------------------------------'
+| U            | Undo all previous text modifications.                      |
+'--------------+------------------------------------------------------------'
+| .            | Redo the last text modification.                           |
+'--------------+------------------------------------------------------------'
+| y<mov. comm> | Yank a movement into buffer (copy).                        |
+'--------------+------------------------------------------------------------'
+| yy           | Yank the whole line.                                       |
+'--------------+------------------------------------------------------------'
+| p            | Insert the yanked text at the cursor.                      |
+'--------------+------------------------------------------------------------'
+| P            | Insert the yanked text before the cursor.                  |
+'--------------'------------------------------------------------------------'
+| Commands for Command History:                                             |
+'--------------.------------------------------------------------------------'
+| k            | Insert the yanked text before the cursor.                  |
+'--------------+------------------------------------------------------------'
+| j            | Insert the yanked text before the cursor.                  |
+'--------------+------------------------------------------------------------'
+| G            | Insert the yanked text before the cursor.                  |
+'--------------+------------------------------------------------------------'
+| /string or   | Search history backward for a command matching string.     |
+| CTRL-r       |                                                            |
+'--------------+------------------------------------------------------------'
+| ?string or   | Search history forward for a command matching string.      |
+| CTRL-s       | (Note that on most machines Ctrl-s STOPS the terminal      |
+|              | output, change it with 'stty' (Ctrl-q to resume)).         |
+'--------------+------------------------------------------------------------'
+| n            | Repeat search in the same direction as previous.           |
+'--------------+------------------------------------------------------------'
+| N            | Repeat search in the opposite direction as previous.       |
+'--------------'------------------------------------------------------------'
+| Completion commands:                                                      |
+'--------------.------------------------------------------------------------'
+| TAB or = or  | List all possible completions.                             |
+| CTRL-i       |                                                            |
+'--------------+------------------------------------------------------------'
+| *            | Insert all possible completions.                           |
+'--------------'------------------------------------------------------------'
+| Miscellaneous commands:                                                   |
+'--------------.------------------------------------------------------------'
+| ~            | Invert case of the character under cursor and move a       |
+|              | character right.                                           |
+'--------------+------------------------------------------------------------'
+| #            | Prepend '#' (comment character) to the line and send it to |
+|              | the history.                                               |
+'--------------+------------------------------------------------------------'
+| _            | Inserts the n-th word of the previous command in the       |
+|              | current line.                                              |
+'--------------+------------------------------------------------------------'
+| 0, 1, 2, ... | Sets the numeric argument.                                 |
+'--------------+------------------------------------------------------------'
+| CTRL-v       | Insert a character literally (quoted insert).              |
+'--------------+------------------------------------------------------------'
+| CTRL-r       | Transpose (exchange) two characters.                       |
+'--------------'------------------------------------------------------------'
+
+
+${WHITE_FG}Key Mapping${RESET}
+
+Check that the key is effectively mapped to what it should do
+
+   Vim provides a command :${WHITE_FG}map${RESET}. By default (when no argument is given) the command will show all the mappings currently created.
+   Here is an example of the result of the command:
+
+   result of <code>:${WHITE_FG}map${RESET}</code>
+
+   As always the doc is your friend: :h ${WHITE_FG}map${RESET}-listing
+
+   You can see in the first column the mode of the mapping (n for normal mode, v for visual mode, etc), the second column shows the
+   keys mapped and the last column what the keys are mapped to. Note that before the mapped actions some additional characters may
+   appear, it is important to understand them:
+     * * indicates that it is not remappable (i.e. it is not a recursive mapping, see know when to use nore later in this answer)
+     * & indicates that only script-local mappings are remappable
+     * @ indicates a buffer-local mapping
+
+   When asking for help about a mapping it is a good thing to add this information since it can help other people to understand the
+   behavior of your mapping.
+
+   It is possible to restrict the prompt to a particular mode with the sister-commands of :${WHITE_FG}map${RESET}, like :${WHITE_FG}vmap${RESET}, :${WHITE_FG}nmap${RESET}, :${WHITE_FG}omap${RESET}, etc.
+
+   Now to restrict your search to the problematic mapping you can pass the key sequence you're debugging as parameter of the
+   commands, like this:
+:${WHITE_FG}map${RESET} j
+:${WHITE_FG}map${RESET} <Leader>m
+:${WHITE_FG}map${RESET} <F5>
+
+   Note that the <Leader> key will be replaced by its actual value in the list.
+
+   If the result of the command shows that your keys are correctly mapped, it probably means that the problem doesn't come from Vim
+   but from your terminal or your desktop environment. See the part Check if your mapping is actually intercepted by Vim
+
+   If the result of the command show that your keys are not correctly mapped see the following part.
+
+Check what overrode your mapping
+
+   Another convenient use of the :${WHITE_FG}map${RESET} command is to combine it with verbose: This will prompt the last file which modified your
+   mapping.
+
+   For example see these two screen-shots: the first one is a mapping modified by my .vimrc and the second a mapping created by a
+   plugin:
+
+   Mapping set from vimrc
+
+   Mapping set from a plugin
+
+   Now if you see that another script modified your mapping you'll have to see if you can remove it or modify its behavior. (Note
+   that some plugins provides variable to enable/disable their mappings, unfortunately not all of the plugins do that)
+
+   If the last file which changed your mapping is your .vimrc, make sure there is no other line that also defines a mapping for the
+   same key. The .vimrc file will happily override any mappings with the last one of its kind in the file.
+
+Check if your mapping is actually intercepted by Vim
+
+   Several situations may indicate that Vim doesn't intercept your key:
+     * The command :${WHITE_FG}map${RESET} show that your key is correctly mapped but pressing it does nothing.
+     * Your mapping works on gVim (GUI) but does nothing in terminal Vim
+     * Your mapping works on a defined terminal emulator but not on another
+     * Your mapping works on a defined OS but not another one.
+
+   It is probably caused by one of the two following things:
+
+     * Something intercepts the key before Vim: It can be different applications: your OS, your desktop environment, your terminal
+       emulator, Tmux (if you use it)....
+       To troubleshoot that, you should:
+          + Try to temporary remove your .tmux.conf if you use tmux
+          + Refer to the doc of your terminal or of your desktop environment.
+       You could also refer to sister-sites like super-user, Unix and Linux, askUbuntu, etc...
+       If this is the problem, you then have two solutions: either you spend (a lot of) time to change the behavior of the
+       application which causes the problem or you find another key combination to ${WHITE_FG}map${RESET} which isn't intercepted by another
+       application.
+
+     * Your terminal emulator can't handle the key combination you're trying to ${WHITE_FG}map${RESET}: Terminal emulators are implemented differently
+       and some of them are not able to handle some particular key combination. (The reason why they can't is out of the scope of
+       this question, see their doc or the sister-sites mentioned before for more details).
+       In this case you don't have a lot of solutions: either you change your key for another one which is handled properly by your
+       terminal or you change your terminal emulator.
+
+Check for the common pitfalls
+
+   Some problems in mappings are pretty recurrent and mostly related to the vimscript syntax. If your mapping has an unexpected
+   behavior remember to check the following points:
+     * Do not put a comment on the same line as your mapping, instead put the comment on the line above. 
+	 
+	 Example:
+       Don't do: ${WHITE_FG}inoremap${RESET} ii <esc>    " ii to go back into normal mode
+
+       Vim will consider the whitespaces, the " and the comment as a part of the mapping which will result in an unexpected behavior.
+       Instead do: 
+		" ii to go back into normal mode
+		${WHITE_FG}inoremap${RESET} ii <esc>
+
+       This is easier to read and won't mess your mapping.
+
+     * Do not pipe your commands with |. 
+	 Example:
+       Don't do: ${WHITE_FG}nnoremap${RESET} <Leader>x :w | !% python -m json.tools
+
+       Vim will consider the pipe | as a command termination: When you source your .vimrc the mapping ${WHITE_FG}nnoremap${RESET} <Leader>x :w will be
+       created then the external command !% python -m json.tools will be executed.
+
+       Instead do: ${WHITE_FG}nnoremap${RESET} <Leader>x :w <bar> !% python -m json.tools
+
+       See an explanation about <bar>.
+
+     * Know when to use nore: always.
+
+       LearnVimscriptTheHardWay explains it pretty clearly: never use ${WHITE_FG}map${RESET}, ${WHITE_FG}nmap${RESET}, ${WHITE_FG}vmap${RESET}, etc... Always prefer the nore version:
+       ${WHITE_FG}noremap${RESET}, ${WHITE_FG}nnoremap${RESET}, ${WHITE_FG}${WHITE_FG}vnoremap${RESET}${RESET}, etc... Why? nore stands for non recursive mapping it means that the right hand side of the
+       mapping will be considered as the built in feature even if you remmaped it. 
+
+	   Example:
+       Let's say you want to ${WHITE_FG}map${RESET} > to delete a line and - to increment the indent of a line. If you don't use non recursive
+       mappings you'll do that: (Do not do it; it's only for the example)
+
+${WHITE_FG}nmap${RESET} > dd
+${WHITE_FG}nmap${RESET} - >
+
+       When you'll hit > your line will be deleted, that's good. But when you'll hit - your line will also be deleted instead of
+       being indented. Why? Because Vim understood "I received a hit on - which I should translate to > which I should in turn
+       translate to dd".
+
+       Instead do:
+${WHITE_FG}nnoremap${RESET} > dd
+${WHITE_FG}nnoremap${RESET} - >
+
+       This way Vim will translate - as > and will not try to do any other translation because of the nore.
+       Edit note "Always" may be an exaggerated answer in some cases you'll need to use the recursive mapping form but it is not
+       really common. 
+	   
+	   To clarify, I'll quote @romainl from this answer:
+
+     Use a recursive mapping only if you intend to use any other mapping in your mapping. Use non-recursive mappings if you don't.
+
+     * Remember that some key combinations are equivalent: Because of the hexadecimal codes that are produced some key combinations
+       will be interpreted by Vim as another key. For example
+          + <C-h> is equivalent to <backspace>
+          + <C-j> as <enter>
+          + On French keyboards <M-a> is the same as á and the same goes with all the <m- mappings. As @LucHermitte pointed out in
+            the comment that is a problem with plugins using this type of mappings like vim-latex.
+          + <C-S-a> is equivalent to <C-a>. Mapping Ctrl+upper case letter separately from Ctrl+lower case letter is not possible
+            cause of the way the terminals send ASCII codes.
+       When your mapping seems to affect another key try to use another lhs combination, if that solves the problem inspect which
+       hexadecimal codes are sent to Vim.
+
+     * Check that your leader is correctly defined: If your mappings involving <leader> doesn't work and you changed your leader
+       with the command mapleader, check that the definition of your leader is done before the definition of the mappings.
+       Otherwise, Vim will try to create mappings with a key which is not the one you think. Also if you want to use the space bar
+       as your leader (which is pretty current) make sure that you used the correct notation: let mapleader = "\<Space>"
+
+Your mapping still doesn't work?
+
+   If you went through all the steps of this answer and your mapping still doesn't work like you want, you'll probably want to ask
+   for help on this site.
+
+   To help people to help you remember to provide some crucial information like:
+     * The command you used to define your mapping.
+     * What you are expecting your mapping to do.
+     * A precise description of the problem:
+       "It doesn't work" won't be really helpful to people who will try to help you. You should precise if the mapping doesn't do
+       anything or how it behaves differently than what you was expecting.
+     * Also indicate that you actually followed the steps described here and the results you get with :${WHITE_FG}map${RESET} and :verbose ${WHITE_FG}map${RESET}
+
+   All of this will save you and the users of the site a lot of time.
+   ___________________________________________________________________________________________________________________________
+
+A useful command: :${WHITE_FG}unmap${RESET}
+
+   Sometimes it can be useful to reset a mapping without quitting Vim to help debugging its behavior.
+
+   To do so you can use the command :${WHITE_FG}unmap${RESET} <key> which will remove the mapping assigned to <key> for Normal, Visual and
+   Operating-pending modes. :iunmap will remove mappings for Insert mode. For other modes see :help :${WHITE_FG}unmap${RESET}.
+   ___________________________________________________________________________________________________________________________
+
+${WHITE_FG}Common Settings${RESET}
+
+Indention Options
+
+  • set autoindent: New lines inherit the indentation of previous lines.
+  • set expandtab: Convert tabs to spaces.
+  • set filetype indent on: Enable indentation rules that are file-type specific.
+  • set shiftround: When shifting lines, round the indentation to the nearest multiple of “shiftwidth.”
+  • set shiftwidth=4: When shifting, indent using four spaces.
+  • set smarttab: Insert “tabstop” number of spaces when the “tab” key is pressed.
+  • set tabstop=4: Indent using four spaces.
+
+Search Options
+
+  • set hlsearch: Enable search highlighting.
+  • set ignorecase: Ignore case when searching.
+  • set incsearch: Incremental search that shows partial matches.
+  • set smartcase: Automatically switch search to case-sensitive when search query contains an uppercase letter.
+
+Performance Options
+
+  • set complete-=i: Limit the files searched for auto-completes.
+  • set lazyredraw: Don’t update screen during macro and script execution.
+
+Text Rendering Options
+
+  • set display+=lastline: Always try to show a paragraph’s last line.
+  • set encoding=utf-8: Use an encoding that supports unicode.
+  • set linebreak: Avoid wrapping a line in the middle of a word.
+  • set scrolloff=1: The number of screen lines to keep above and below the cursor.
+  • set sidescrolloff=5: The number of screen columns to keep to the left and right of the cursor.
+  • syntax enable: Enable syntax highlighting.
+  • set wrap: Enable line wrapping.
+
+User Interface Options
+
+  • set laststatus=2: Always display the status bar.
+  • set ruler: Always show cursor position.
+  • set wildmenu: Display command line’s tab complete options as a menu.
+  • set tabpagemax=50: Maximum number of tab pages that can be opened from the command line.
+  • set colorscheme wombat256mod: Change color scheme.
+  • set cursorline: Highlight the line currently under cursor.
+  • set number: Show line numbers on the sidebar.
+  • set relativenumber: Show line number on the current line and relative numbers on all other lines.
+  • set noerrorbells: Disable beep on errors.
+  • set visualbell: Flash the screen instead of beeping on errors.
+  • set mouse=a: Enable mouse for scrolling and resizing.
+  • set title: Set the window’s title, reflecting the file currently being edited.
+  • set background=dark: Use colors that suit a dark background.
+
+Code Folding Options
+
+  • set foldmethod=indent: Fold based on indention levels.
+  • set foldnestmax=3: Only fold up to three nested levels.
+  • set nofoldenable: Disable folding by default.
+
+Miscellaneous Options
+
+  • set autoread: Automatically re-read files if unmodified inside Vim.
+  • set backspace=indent,eol,start: Allow backspacing over indention, line breaks and insertion start.
+  • set backupdir=~/.cache/vim: Directory to store backup files.
+  • set confirm: Display a confirmation dialog when closing an unsaved file.
+  • set dir=~/.cache/vim: Directory to store swap files.
+  • set formatoptions+=j: Delete comment characters when joining lines.
+  • set hidden: Hide files in the background instead of closing them.
+  • set history=1000: Increase the undo limit.
+  • set nomodeline: Ignore file’s mode lines; use vimrc configurations instead.
+  • set noswapfile: Disable swap files.
+  • set nrformats-=octal: Interpret octal as decimal when incrementing numbers.
+  • set shell: The shell used to execute commands.
+  • set spell: Enable spellchecking.
+  • set wildignore+=.pyc,.swp: Ignore files matching these patterns when opening files based on a glob pattern.
+
+${WHITE_FG}Advanced Regex${RESET}
+
+${WHITE_FG}look-behind${RESET} and ${WHITE_FG}look-ahead${RESET} Regex in Vim
+
+Here's a nifty little vim tip for you.
+
+I recently had to switch a few variables in PHP from ${WHITE_FG}\$varname${RESET} to ${WHITE_FG}\$somearray['varname']${RESET}. 
+Since there were quite a few of these replacements to be done, 
+I found it convenient to use vim's search/replace regex feature. 
+In this case, I have to use ${WHITE_FG}look-behind${RESET}, since the matching string is simply varname, and 
+I'm not interested in catching the ${WHITE_FG}\$${RESET} at the beginning. I just want the regex to match 
+anything starting with the ${WHITE_FG}\$${RESET}, without having the ${WHITE_FG}\$${RESET} as part of the matching string itself.
+
+So, let’s try to replace the following line:
+
+${WHITE_FG}authenticate(\$key, \$secret, \$uri);${RESET}
+
+with this one:
+
+${WHITE_FG}authenticate(\$somearray['key'], \$somearray['secret'], \$somearray['uri']);${RESET}
+
+We’ll want to construct a ${WHITE_FG}look-behind${RESET} for the ${WHITE_FG}\$${RESET}, with some string in front. 
+Then, we’ll replace it with ${WHITE_FG}\$somearray[‘matching_string‘]${RESET}. 
+In vim, ${WHITE_FG}look-behind${RESET} uses the special ${WHITE_FG}@${RESET} symbol, rather than the perl (?<=somestring) syntax. 
+
+This will do the trick:
+
+${WHITE_FG}1,\$s/\\$\@<=[a-z]\+/\$somearray['&']/g${RESET}
+
+As you can see, the ${WHITE_FG}'\$'${RESET}, ${WHITE_FG}'@'${RESET}, and ${WHITE_FG}'+'${RESET} must all be escaped. 
+The ${WHITE_FG}look-behind${RESET} positive search chars: ${WHITE_FG}@<=${RESET} can be replaced with: ${WHITE_FG}@<!${RESET} if a negative search is desired. 
+
+${WHITE_FG}look-ahead${RESET} is similar to ${WHITE_FG}look-behind${RESET} syntax, but uses ${WHITE_FG}@=${RESET} and ${WHITE_FG}@!${RESET} instead. 
+
+The special ${WHITE_FG}'&'${RESET} character in the replace string designates a matching token, which you can use to 
+place the matching string in your replacement.
+
+So for reference:
+
+${WHITE_FG}LOOKBEHIND${RESET}
+--------------------------
+${WHITE_FG}s/\(some\)\\${GREEN_FG}@<=${RESET}thing/one/g${RESET}
+-------------------------
+searches for all strings ${WHITE_FG}starting with 'some'${RESET}, then matching 'thing'; changes 'thing' into 'one'
+-> ${WHITE_FG}end result${RESET}: 'something' becomes 'someone'
+
+--------------------------
+${WHITE_FG}s/\(some\)\\${GREEN_FG}@<${RESET}${RED_FG}!${RESET}thing/one/g${RESET}
+--------------------------
+searches for all strings ${RED_FG}not${WHITE_FG} starting with 'some'${RESET}, then matching 'thing'; changes 'thing' into 'one'
+-> ${WHITE_FG}end result${RESET}: 'something' is not changed, 'everything' changes to 'everyone'
+
+${WHITE_FG}LOOKAHEAD${RESET}
+--------------------------
+${WHITE_FG}s/some\(thing\)\\${GREEN_FG}@=${RESET}/every/g${RESET}
+--------------------------
+searches for all strings ${WHITE_FG}ending with 'thing'${RESET}, then matching 'some'; changes 'some' into 'every'
+-> ${WHITE_FG}end result${RESET}: 'something' becomes 'everything'
+
+--------------------------
+${WHITE_FG}s/some\(thing\)\\${GREEN_FG}@${RESET}${RED_FG}!${RESET}/every/g${RESET}
+--------------------------
+searches for all strings ${RED_FG}not${WHITE_FG} ending with 'thing'${RESET}, then matching 'some'; changes 'some' into 'every'
+-> ${WHITE_FG}end result${RESET}: 'something' is not changed, but 'someone' becomes 'everyone'
+
+${WHITE_FG}============================ P A T T E R N S =============================${RESET}
+
+An atom can be followed by an indication of how many times the atom can be
+matched and in what way.  This is called a multi.  See |/multi| for an
+overview.
+
+							*/star* */\star*
+*	(use \* when 'magic' is not set)
+	Matches 0 or more of the preceding atom, as many as possible.
+
+	${WHITE_FG}Example${RESET}  'nomagic'	${GREEN_FG}Matches${RESET}
+	a*	   a\*		"", "a", "aa", "aaa", etc.
+	.*	   \.\*		anything, also an empty string, no end-of-line
+	\_.*	   \_.\*	everything up to the end of the buffer
+	\_.*END	   \_.\*END	everything up to and including the last "END" in the buffer
+
+	Exception: When "*" is used at the start of the pattern or just after
+	"^" it matches the star character.
+
+	Be aware that repeating "\_." can match a lot of text and take a long
+	time.  For example, "\_.*END" matches all text from the current
+	position to the last occurrence of "END" in the file.  Since the "*"
+	will match as many as possible, this first skips over all lines until
+	the end of the file and then tries matching "END", backing up one
+	character at a time.
+
+							*/\+*
+\+	Matches 1 or more of the preceding atom, as many as possible. {not in
+	Vi}
+
+	${WHITE_FG}Example${RESET}		${GREEN_FG}Matches${RESET}
+	^.\+$		any non-empty line
+	\s\+		white space of at least one character
+
+							*/\=*
+\=	Matches 0 or 1 of the preceding atom, as many as possible. {not in Vi}
+
+	${WHITE_FG}Example${RESET}		${GREEN_FG}Matches${RESET}
+	foo\=		"fo" and "foo"
+
+							*/\?*
+\?	Just like \=.  Cannot be used when searching backwards with the "?"
+	command. {not in Vi}
+
+					*/\{* *E60* *E554* *E870*
+\{n,m}	Matches n to m of the preceding atom, as many as possible
+\{n}	Matches n of the preceding atom
+\{n,}	Matches at least n of the preceding atom, as many as possible
+\{,m}	Matches 0 to m of the preceding atom, as many as possible
+\{}	Matches 0 or more of the preceding atom, as many as possible (like *)
+							*/\{-*
+\{-n,m}	matches n to m of the preceding atom, as few as possible
+\{-n}	matches n of the preceding atom
+\{-n,}	matches at least n of the preceding atom, as few as possible
+\{-,m}	matches 0 to m of the preceding atom, as few as possible
+\{-}	matches 0 or more of the preceding atom, as few as possible
+	{Vi does not have any of these}
+
+	n and m are positive decimal numbers or zero
+								*non-greedy*
+	If a "-" appears immediately after the "{", then a shortest match
+	first algorithm is used (see example below).  In particular, "\{-}" is
+	the same as "*" but uses the shortest match first algorithm.  BUT: A
+	match that starts earlier is preferred over a shorter match: "a\{-}b"
+	matches "aaab" in "xaaab".
+
+	${WHITE_FG}Example${RESET}			${GREEN_FG}Matches${RESET}
+	ab\{2,3}c		"abbc" or "abbbc"
+	a\{5}			"aaaaa"
+	ab\{2,}c		"abbc", "abbbc", "abbbbc", etc.
+	ab\{,3}c		"ac", "abc", "abbc" or "abbbc"
+	a[bc]\{3}d		"abbbd", "abbcd", "acbcd", "acccd", etc.
+	a\(bc\)\{1,2}d		"abcd" or "abcbcd"
+	a[bc]\{-}[cd]		"abc" in "abcd"
+	a[bc]*[cd]		"abcd" in "abcd"
+
+	The } may optionally be preceded with a backslash: \{n,m\}.
+
+							*/\@=*
+\@=	Matches the preceding atom with zero width. {not in Vi}
+
+	${WHITE_FG}Like "(?=pattern)" in Perl.${RESET}
+
+	${WHITE_FG}Example${RESET}			${GREEN_FG}Matches${RESET}
+	foo\(bar\)\@=		"foo" in "foobar"
+	foo\(bar\)\@=foo	nothing
+							*/zero-width*
+	When using "\@=" (or "^", "$", "\<", "\>") no characters are included
+	in the match.  These items are only used to check if a match can be
+	made.  This can be tricky, because a match with following items will
+	be done in the same position.  The last example above will not match
+	"foobarfoo", because it tries match "foo" in the same position where
+	"bar" matched.
+
+	Note that using "\&" works the same as using "\@=": "foo\&.." is the
+	same as "\(foo\)\@=..".  But using "\&" is easier, you don't need the
+	braces.
+
+
+							*/\@!*
+\@!	Matches with zero width if the preceding atom does NOT match at the
+	current position. |/zero-width| {not in Vi}
+
+	${WHITE_FG}Like "(?!pattern)" in Perl.${RESET}
+
+	${WHITE_FG}Example${RESET}			${GREEN_FG}Matches${RESET}
+	foo\(bar\)\@!		any "foo" not followed by "bar"
+	a.\{-}p\@!		"a", "ap", "app", "appp", etc. not immediately
+				followed by a "p"
+	if \(\(then\)\@!.\)*$	"if " not followed by "then"
+
+	Using "\@!" is tricky, because there are many places where a pattern
+	does not match.  "a.*p\@!" will match from an "a" to the end of the
+	line, because ".*" can match all characters in the line and the "p"
+	doesn't match at the end of the line.  "a.\{-}p\@!" will match any
+	"a", "ap", "app", etc. that isn't followed by a "p", because the "."
+	can match a "p" and "p\@!" doesn't match after that.
+
+	You can't use "\@!" to look for a non-match before the matching
+	position: "\(foo\)\@!bar" will match "bar" in "foobar", because at the
+	position where "bar" matches, "foo" does not match.  To avoid matching
+	"foobar" you could use "\(foo\)\@!...bar", but that doesn't match a
+	bar at the start of a line.  Use "\(foo\)\@<!bar".
+
+	Useful example: to find "foo" in a line that does not contain "bar": >
+		/^\%(.*bar\)\@!.*\zsfoo
+<	This pattern first checks that there is not a single position in the
+	line where "bar" matches.  If ".*bar" matches somewhere the \@! will
+	reject the pattern.  When there is no match any "foo" will be found.
+	The "\zs" is to have the match start just before "foo".
+
+							*/\@<=*
+\@<=	Matches with zero width if the preceding atom matches just before what
+	follows. |/zero-width| {not in Vi}
+
+	${WHITE_FG}Like "(?<=pattern)" in Perl, but Vim allows non-fixed-width patterns.${RESET}
+
+	${WHITE_FG}Example${RESET}			${GREEN_FG}Matches${RESET}
+	\(an\_s\+\)\@<=file	"file" after "an" and white space or an
+				end-of-line
+	For speed it's often much better to avoid this multi.  Try using "\zs"
+	instead |/\zs|.  To match the same as the above example:
+		an\_s\+\zsfile
+	At least set a limit for the look-behind, see below.
+
+	"\@<=" and "\@<!" check for matches just before what follows.
+	Theoretically these matches could start anywhere before this position.
+	But to limit the time needed, only the line where what follows matches
+	is searched, and one line before that (if there is one).  This should
+	be sufficient to match most things and not be too slow.
+
+	In the old regexp engine the part of the pattern after "\@<=" and
+	"\@<!" are checked for a match first, thus things like "\1" don't work
+	to reference \(\) inside the preceding atom.  It does work the other
+	way around:
+	${RED_FG}Bad example${RESET}			${GREEN_FG}Matches${RESET}
+	\%#=1\1\@<=,\([a-z]\+\)		",abc" in "abc,abc"
+
+	However, the new regexp engine works differently, it is better to not
+	rely on this behavior, do not use \@<= if it can be avoided:
+
+	${WHITE_FG}Example${RESET}				${GREEN_FG}Matches${RESET}
+	\([a-z]\+\)\zs,\1		",abc" in "abc,abc"
+
+\@123<=
+	Like "\@<=" but only look back 123 bytes. This avoids trying lots
+	of matches that are known to fail and make executing the pattern very
+	slow.  
+
+	${WHITE_FG}Example${RESET} check if there is a "<" just before "span": /<\@1<=span
+
+	This will try matching "<" only one byte before "span", which is the
+	only place that works anyway.
+	After crossing a line boundary, the limit is relative to the end of
+	the line.  Thus the characters at the start of the line with the match
+	are not counted (this is just to keep it simple).
+	The number zero is the same as no limit.
+
+							*/\@<!*
+\@<!	Matches with zero width if the preceding atom does NOT match just
+	before what follows.  Thus this matches if there is no position in the
+	current or previous line where the atom matches such that it ends just
+	before what follows.  |/zero-width| {not in Vi}
+
+	${WHITE_FG}Like "(?<!pattern)" in Perl, but Vim allows non-fixed-width patterns.${RESET}
+
+	The match with the preceding atom is made to end just before the match
+	with what follows, thus an atom that ends in ".*" will work.
+	Warning: This can be slow (because many positions need to be checked
+	for a match).  Use a limit if you can, see below.
+
+	${WHITE_FG}Example${RESET}			${GREEN_FG}Matches${RESET}
+	\(foo\)\@<!bar		any "bar" that's not in "foobar"
+	\(\/\/.*\)\@<!in	"in" which is not after "//"
+
+\@123<!
+	Like "\@<!" but only look back 123 bytes. This avoids trying lots of
+	matches that are known to fail and make executing the pattern very
+	slow.
+
+							*/\@>*
+\@>	Matches the preceding atom like matching a whole pattern. {not in Vi}
+
+	${WHITE_FG}Like "(?>pattern)" in Perl.${RESET}
+
+	${WHITE_FG}Example${RESET}		${GREEN_FG}Matches${RESET}
+	\(a*\)\@>a	nothing (the "a*" takes all the "a"'s, there can't be
+			another one following)
+
+	This matches the preceding atom as if it was a pattern by itself.  If
+	it doesn't match, there is no retry with shorter sub-matches or
+	anything.  Observe this difference: "a*b" and "a*ab" both match
+	"aaab", but in the second case the "a*" matches only the first two
+	"a"s.  "\(a*\)\@>ab" will not match "aaab", because the "a*" matches
+	the "aaa" (as many "a"s as possible), thus the "ab" can't match.
+
+
+${WHITE_FG}=========================================================================${RESET}
+END_VIM_TIPS
+) | less -R

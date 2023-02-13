@@ -1,0 +1,10 @@
+#!/usr/bin/zsh
+/opt/viber/run_viber_app_image &
+while true;do
+	WDW_ID=$(wmctrl -l | grep -i viber | tr -s '[:space:]' | cut -d' ' -f1)
+	if [[ -n ${WDW_ID} ]];then
+		wmctrl -i -r ${WDW_ID} -b toggle,maximized_vert,maximized_horz
+		break
+	fi
+	sleep 1
+done

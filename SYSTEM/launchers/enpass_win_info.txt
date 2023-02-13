@@ -1,0 +1,1270 @@
+Thu Jan 19 11:02:30 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02a00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 84020  KEM-AS Terminal
+0x02a00005  0 84290  KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02a00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02a00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:84290
+Thu Jan 19 01:03:22 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x02a0000a  0 KEM-AS Terminal
+0x02400005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x02a0000a  0 132155 KEM-AS Terminal
+0x02400005  0 132477 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x02a0000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02400005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x02a0000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02400005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:132477
+Thu Jan 19 08:37:27 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x02c0000a  0 KEM-AS Terminal
+0x00e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x02c0000a  0 315527 KEM-AS Terminal
+0x00e00005  0 315846 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x02c0000a  0 0    54   1920 1053 KEM-AS Terminal
+0x00e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x02c0000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x00e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:315846
+Thu Jan 19 08:53:37 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x02c0000a  0 KEM-AS Terminal
+0x02a00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x02c0000a  0 345573 KEM-AS Terminal
+0x02a00005  0 345960 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x02c0000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02a00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x02c0000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02a00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:345960
+Thu Jan 19 11:41:32 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x02a0000a  0 KEM-AS Terminal
+0x00e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x02a0000a  0 430702 KEM-AS Terminal
+0x00e00005  0 430948 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x02a0000a  0 0    0    1920 1080 KEM-AS Terminal
+0x00e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x02a0000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x00e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,0 1920x1080  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,0 1920x1080  
+XPROP_ENP_WDW_PID:430948
+Fri Jan 20 12:06:13 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x02c00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0240000a  0 3242   KEM-AS Terminal
+0x02c00005  0 3644   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02c00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02c00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3644
+Fri Jan 20 09:56:36 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0280000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0280000a  0 58404  KEM-AS Terminal
+0x02e00005  0 58727  KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0280000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0280000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:58727
+Sun Jan 22 10:33:24 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0280000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0280000a  0 845801 KEM-AS Terminal
+0x02e00005  0 846111 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0280000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0280000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:846111
+Sun Jan 22 10:48:11 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x02c0000a  0 KEM-AS Terminal
+0x02200005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x02c0000a  0 877113 KEM-AS Terminal
+0x02200005  0 877402 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x02c0000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02200005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x02c0000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02200005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:877402
+Sun Jan 22 11:12:56 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x02a0000a  0 KEM-AS Terminal
+0x00e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x02a0000a  0 920024 KEM-AS Terminal
+0x00e00005  0 920328 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x02a0000a  0 0    54   1920 1053 KEM-AS Terminal
+0x00e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x02a0000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x00e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:920328
+Sun Jan 22 08:43:32 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0220000a  0 KEM-AS Terminal
+0x02c00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0220000a  0 3951   KEM-AS Terminal
+0x02c00005  0 4469   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0220000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02c00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0220000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02c00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:4469
+Mon Jan 23 08:27:50 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+0x03200003 -1 KEM-AS @!0,0;BDHF
+
+Window list w/PID
+-------------------
+0x0260000a  0 83289  KEM-AS Terminal
+0x02e00005  0 83669  KEM-AS Enpass
+0x03200003 -1 83709  KEM-AS @!0,0;BDHF
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+0x03200003 -1 0    0    1920 1080 KEM-AS @!0,0;BDHF
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+0x03200003 -1 gjs.Gjs               KEM-AS @!0,0;BDHF
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:83669
+Mon Jan 23 03:26:59 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0240000a  0 3381   KEM-AS Terminal
+0x02e00005  0 3825   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3825
+Tue Jan 24 10:44:59 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0240000a  0 3426   KEM-AS Terminal
+0x02e00005  0 3827   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3827
+Wed Jan 25 10:44:47 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0280000a  0 KEM-AS Terminal
+0x02200005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0280000a  0 373203 KEM-AS Terminal
+0x02200005  0 373477 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0280000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02200005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0280000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02200005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:373477
+Thu Jan 26 09:09:37 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 789971 KEM-AS Terminal
+0x02e00005  0 790509 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:790509
+Fri Jan 27 10:43:54 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x02e00006  0 KEM-AS Enpass Crash Reporter
+
+Window list w/PID
+-------------------
+0x0240000a  0 3444   KEM-AS Terminal
+0x02e00006  0 3825   KEM-AS Enpass Crash Reporter
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00006  0 770  383  380  325  KEM-AS Enpass Crash Reporter
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00006  0 Enpass.Enpass         KEM-AS Enpass Crash Reporter
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:
+Sat Jan 28 09:10:13 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 414304 KEM-AS Terminal
+0x02e00005  0 414671 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:414671
+Sat Jan 28 01:48:08 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 692856 KEM-AS Terminal
+0x02e00005  0 693272 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:693272
+Sat Jan 28 07:03:39 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0280000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0280000a  0 772847 KEM-AS Terminal
+0x02e00005  0 773214 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0280000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0280000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:773214
+Sun Jan 29 11:03:13 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x00600005  0 KEM-AS Enpass
+0x03000003 -1 KEM-AS @!0,0;BDHF
+
+Window list w/PID
+-------------------
+0x0260000a  0 944754 KEM-AS Terminal
+0x00600005  0 945298 KEM-AS Enpass
+0x03000003 -1 945345 KEM-AS @!0,0;BDHF
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x00600005  0 530  325  880  520  KEM-AS Enpass
+0x03000003 -1 0    0    200  27   KEM-AS @!0,0;BDHF
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x00600005  0 Enpass.Enpass         KEM-AS Enpass
+0x03000003 -1 gjs.Gjs               KEM-AS @!0,0;BDHF
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:945298
+Sun Jan 29 02:02:40 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0240000a  0 3374   KEM-AS Terminal
+0x02e00005  0 3791   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3791
+Tue Jan 31 11:27:21 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x00600005  0 KEM-AS Enpass
+0x03000003 -1 KEM-AS @!0,0;BDHF
+
+Window list w/PID
+-------------------
+0x0260000a  0 832099 KEM-AS Terminal
+0x00600005  0 832480 KEM-AS Enpass
+0x03000003 -1 832520 KEM-AS @!0,0;BDHF
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x00600005  0 530  325  880  520  KEM-AS Enpass
+0x03000003 -1 0    0    1920 1080 KEM-AS @!0,0;BDHF
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x00600005  0 Enpass.Enpass         KEM-AS Enpass
+0x03000003 -1 gjs.Gjs               KEM-AS @!0,0;BDHF
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:832480
+Wed Feb 1 10:22:07 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x02c0000a  0 KEM-AS Terminal
+0x02a00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x02c0000a  0 1287225 KEM-AS Terminal
+0x02a00005  0 1287528 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x02c0000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02a00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x02c0000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02a00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:1287528
+Thu Feb 2 09:02:42 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0240000a  0 3375   KEM-AS Terminal
+0x02e00005  0 3773   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3773
+Fri Feb 3 09:16:36 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0240000a  0 3282   KEM-AS Terminal
+0x02e00005  0 3685   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3685
+Fri Feb 3 09:41:52 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x00600006  0 KEM-AS Enpass Crash Reporter
+
+Window list w/PID
+-------------------
+0x0240000a  0 3305   KEM-AS Terminal
+0x00600006  0 3700   KEM-AS Enpass Crash Reporter
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x00600006  0 770  383  380  325  KEM-AS Enpass Crash Reporter
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x00600006  0 Enpass.Enpass         KEM-AS Enpass Crash Reporter
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:
+Sat Feb 4 04:23:00 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 3570   KEM-AS Terminal
+0x02e00005  0 3953   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3953
+Sun Feb 5 09:36:12 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 287449 KEM-AS Terminal
+0x02e00005  0 287845 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:287845
+Mon Feb 6 11:48:38 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 3451   KEM-AS Terminal
+0x02e00005  0 3833   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3833
+Tue Feb 7 07:35:14 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 541153 KEM-AS Terminal
+0x02e00005  0 541523 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:541523
+Tue Feb 7 08:43:06 PM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 3230   KEM-AS Terminal
+0x02e00005  0 3637   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3637
+Wed Feb 8 11:21:58 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 3186   KEM-AS Terminal
+0x02e00005  0 3592   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3592
+Thu Feb 9 09:51:53 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0260000a  0 3297   KEM-AS Terminal
+0x02e00005  0 3721   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3721
+Thu Feb 9 09:57:45 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0220000a  0 KEM-AS Terminal
+0x02e00005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x0220000a  0 3215   KEM-AS Terminal
+0x02e00005  0 3637   KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x0220000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02e00005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x0220000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02e00005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:3637
+Fri Feb 10 11:17:28 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x02a0000a  0 KEM-AS Terminal
+0x02800005  0 KEM-AS Enpass
+
+Window list w/PID
+-------------------
+0x02a0000a  0 938179 KEM-AS Terminal
+0x02800005  0 938516 KEM-AS Enpass
+
+Window list w/Group
+-------------------
+0x02a0000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02800005  0 530  325  880  520  KEM-AS Enpass
+
+Window list w/Class
+-------------------
+0x02a0000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02800005  0 Enpass.Enpass         KEM-AS Enpass
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:938516
+Sat Feb 11 10:46:47 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0260000a  0 KEM-AS Terminal
+0x02800005  0 KEM-AS Enpass
+0x00600003 -1 KEM-AS @!0,0;BDHF
+
+Window list w/PID
+-------------------
+0x0260000a  0 1308487 KEM-AS Terminal
+0x02800005  0 1308906 KEM-AS Enpass
+0x00600003 -1 1308983 KEM-AS @!0,0;BDHF
+
+Window list w/Group
+-------------------
+0x0260000a  0 0    54   1920 1053 KEM-AS Terminal
+0x02800005  0 530  325  880  520  KEM-AS Enpass
+0x00600003 -1 0    0    1920 1080 KEM-AS @!0,0;BDHF
+
+Window list w/Class
+-------------------
+0x0260000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x02800005  0 Enpass.Enpass         KEM-AS Enpass
+0x00600003 -1 gjs.Gjs               KEM-AS @!0,0;BDHF
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:1308906
+Sun Feb 12 11:36:35 AM CET 2023
+wmctrl Info
+-------------------
+Name: GNOME Shell
+Class: N/A
+PID: N/A
+Window manager's "showing the desktop" mode: OFF
+
+Plain window list
+-------------------
+0x0240000a  0 KEM-AS Terminal
+0x00600006  0 KEM-AS Enpass Crash Reporter
+
+Window list w/PID
+-------------------
+0x0240000a  0 3221   KEM-AS Terminal
+0x00600006  0 3764   KEM-AS Enpass Crash Reporter
+
+Window list w/Group
+-------------------
+0x0240000a  0 0    54   1920 1053 KEM-AS Terminal
+0x00600006  0 770  383  380  325  KEM-AS Enpass Crash Reporter
+
+Window list w/Class
+-------------------
+0x0240000a  0 gnome-terminal-server.Gnome-terminal  KEM-AS Terminal
+0x00600006  0 Enpass.Enpass         KEM-AS Enpass Crash Reporter
+
+Desktops
+-------------------
+0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1
+1  - DG: 1920x1080  VP: N/A  WA: 0,27 1920x1053  
+XPROP_ENP_WDW_PID:

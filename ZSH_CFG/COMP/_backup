@@ -1,0 +1,8 @@
+#compdef backup
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-f[force]' \
+'-s[status]' \
+'-i[date of last backup]'

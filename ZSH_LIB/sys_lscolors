@@ -1,0 +1,181 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A OBJ_COLOR
+typeset -A ATTRIBUTE_CODES=(00 none 01 bold 04 underscore 05 blink 07 reverse 08 concealed)
+typeset -A FOREGROUND_COLOR_CODES=(30 black 31 red 32 green 33 yellow 34 blue 35 magenta 36 cyan 37 white)
+typeset -A BACKGROUND_COLOR_CODES=(40 black 41 red 42 green 43 yellow 44 blue 45 magenta 46 cyan 47 white)
+typeset -A CC
+typeset -a FOUND_TYPES
+typeset -a FOUND_EXT
+typeset -A FIELD_LEN
+
+#Constants
+_LIB=/usr/local/lib
+_DIR_COLORS=/etc/zsh/_DIR_COLORS
+_CANDIDATES=("${(@f)$(sudo find . -maxdepth 1 ! -path . 2>/dev/null)}")
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+set_color_code () {
+	local CODE=${1}
+	local K
+
+	if [[ ${CODE} -ge 0 && ${CODE} -le 8 ]];then
+		echo ${ATTRIBUTE_CODES[${CODE}]}
+	elif [[ ${CODE} -ge 30 && ${CODE} -le 37 ]];then
+		echo ${FOREGROUND_COLOR_CODES[${CODE}]}
+	elif [[ ${CODE} -ge 40 && ${CODE} -le 47 ]];then
+		echo ${BACKGROUND_COLOR_CODES[${CODE}]}
+	else
+		echo "normal"
+	fi
+}
+
+get_ansi () {
+	local CODE=${1}
+
+	if [[ ${CODE} -eq 99 ]];then
+		echo ''
+	else
+		echo "\033[${CODE}m"
+	fi
+}
+
+parse_code_string () {
+	local CODE_STRING=${1}
+	local CODE
+	local -a CODES
+	local X
+	local LIMIT=$((${#CODE_STRING}+1))
+
+	if [[ -n ${CODE_STRING} ]];then
+		for ((X=1;X<=${LIMIT};X++));do
+			if [[ ${CODE_STRING[${X}]} == ';' || ${X} == ${LIMIT} ]];then
+				CODES+=${CODE}
+				CODE=''
+			else
+				CODE+=${CODE_STRING[${X}]}
+			fi
+		done
+	else
+		CODES+=99
+	fi
+
+	echo ${CODES}
+}
+
+parse_dir_colors () {
+	local LINE
+	local EXT
+	local CODE_STRING
+	local F1
+	local F2
+
+	while read LINE;do
+		[[ ${LINE} =~ "^#" ]] && continue
+		if [[ ${LINE} =~ "^\.[A-Za-z0-9]" ]];then
+			EXT=$(cut -d ' ' -f1 <<<${LINE})
+			CODE_STRING=$(cut -d ' ' -f2- <<<${LINE} | sed -e 's/#.*$//g' -e 's/\t//g')
+			OBJ_COLOR[${EXT}]=${CODE_STRING}
+		else
+			EXT=$(cut -d ' ' -f1 <<<${LINE})
+			CODE_STRING=$(cut -d ' ' -f2- <<<${LINE} | sed -e 's/#.*$//g' -e 's/\t//g')
+			OBJ_COLOR[${EXT}]=${CODE_STRING}
+		fi
+	done < /etc/zsh/_DIR_COLORS
+}
+
+#Execution
+
+parse_dir_colors
+
+#Parse local file types...
+for F in ${_CANDIDATES};do
+	if [[ -d ${F} && -k ${F} && ! -O ${F} && -w ${F} ]];then
+		FOUND_TYPES+="STICKY_OTHER_WRITABLE"
+	elif [[ -d ${F} && ! -k ${F} && ! -O ${F} && -w ${F} ]];then
+		FOUND_TYPES+="OTHER_WRITABLE"
+	elif [[ -d ${F} && -k ${F} && ! -O ${F} && ! -w ${F} ]];then
+		FOUND_TYPES+="STICKY_DIR"
+	elif [[ -h ${F} ]];then
+		FOUND_TYPES+="LINK"
+	elif [[ -S ${F} ]];then
+		FOUND_TYPES+="SOCK"
+	elif [[ -b ${F} ]];then
+		FOUND_TYPES+="BLK"
+	elif [[ -c ${F} ]];then
+		FOUND_TYPES+="CHR"
+	elif [[ -u ${F} ]];then
+		FOUND_TYPES+="SETUID"
+	elif [[ -g ${F} ]];then
+		FOUND_TYPES+="SETGID"
+	elif [[ -k ${F} ]];then
+		FOUND_TYPES+="STICKY_FILE"
+	elif [[ -p ${F} ]];then
+		FOUND_TYPES+="NAMED-PIPE"
+	elif [[ -d ${F} ]];then
+		FOUND_TYPES+="DIR"
+	elif [[ -x ${F} ]];then
+		FOUND_TYPES+="EXEC"
+	elif [[ -f ${F} ]];then
+		FOUND_TYPES+="FILE"
+	fi
+	[[ ${#FOUND_TYPES[-1]} -gt ${FIELD_LEN[TYPE]} ]] && FIELD_LEN[TYPE]=${#FOUND_TYPES[-1]}
+done 
+
+#Parse local file extensions...
+for F in ${_CANDIDATES};do
+	[[ -d ${F} ]] && continue
+	T=${F:t}
+	[[ -n ${T:r} && -n ${T:e} ]] && FOUND_EXT+=".${T:e}"
+	[[ ${#FOUND_EXT[-1]} -gt ${FIELD_LEN[EXT]} ]] && FIELD_LEN[EXT]=${#FOUND_EXT[-1]}
+done
+
+[[ ${FIELD_LEN[TYPE]} -gt ${FIELD_LEN[EXT]} ]] && WIDTH=${FIELD_LEN[TYPE]} || WIDTH=${FIELD_LEN[EXT]}
+[[ ${WIDTH} -lt 6 ]] && WIDTH=6
+
+printf "\n${WHITE_FG}%-*s %26s${RESET}\n" ${WIDTH} "Object" "Colors and Attributes"
+printf "${MAGENTA_FG}%-*s %26s${RESET}\n" ${WIDTH} $(str_unicode_line 6) $(str_unicode_line 21)
+local -a COLORS
+local -a ANSI
+NDX=0
+for K in ${(ku)FOUND_TYPES};do
+	COLORS=()
+	ANSI=()
+	for C in ${$(parse_code_string ${OBJ_COLOR[${K}]})};do
+		COLORS+=$(set_color_code ${C})
+		ANSI+=$(get_ansi ${C})
+	done
+	[[ -z ${ANSI} ]] && ANSI=" "
+	printf "${ANSI}%-*s${RESET} %-s %-s %-s\n" $((WIDTH+4)) ${K} ${COLORS[1]} ${COLORS[2]} ${COLORS[3]}
+done
+
+for K in ${(ku)FOUND_EXT};do
+	COLORS=()
+	ANSI=()
+	for C in ${$(parse_code_string ${OBJ_COLOR[${K}]})};do
+		COLORS+=$(set_color_code ${C})
+		ANSI+=$(get_ansi ${C})
+	done
+	[[ -z ${ANSI} ]] && ANSI=" "
+	printf "${ANSI}%-*s${RESET} %-s %-s %-s\n" $((WIDTH+4)) ${K} ${COLORS[1]} ${COLORS[2]} ${COLORS[3]}
+done
+echo
+

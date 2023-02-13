@@ -1,0 +1,136 @@
+#!/usr/bin/zsh
+typeset -A SINKS
+typeset -A SELECTED
+typeset -i INDEX
+typeset -i DEFAULT_INDEX=0
+typeset -L DEVICE
+
+source /usr/local/etc/color.template
+
+function is_number {
+  if [[ -n $1 && $1 == ${1%%[!0-9]*} ]];then
+    return 0
+  else
+    echo "key entered is not numeric..." >&2
+    return 1
+  fi
+}
+
+function is_within_range {
+    if [[ $1 != 0 ]] && [[ $2 -ge $1 ]] && [[ $1 -le $2 ]];then
+        return 0
+    else
+        echo "Number is out of range..." >&2
+        return 1
+    fi
+}
+
+is_valid_menukey () {
+	local KEY=$1
+	local NDX=$2
+	is_number ${KEY}
+	RC=$?
+	if [[ ${RC} -eq 0 ]];then
+		is_within_range ${KEY} ${NDX}
+		RC=$?
+	fi
+	return ${RC}
+}
+
+get_sink_info () {
+	while read line;do
+		case $line in
+		     \**) INDEX=$(echo $line | cut -d: -f2); DEFAULT_INDEX=$INDEX;;
+		  index*) INDEX=$(echo $line | cut -d: -f2);;
+		 device*) DEVICE=$(echo $line | cut -d= -f2 | sed 's/\"//g');;
+		esac
+		if [[ -n ${INDEX} && -n ${DEVICE} ]];then
+			[[ ${DEBUG} == "true" ]] && echo "SINKS[${INDEX}]=${DEVICE}"
+			SINKS[${INDEX}]=${DEVICE}
+			unset INDEX
+			unset DEVICE
+		fi
+	done < <(pacmd list-sinks | egrep 'index:|device.description' | sed -e 's/^[ \t]*//' -e 's/: /:/g' -e 's/ = /=/g' -e 's/\* /\*/')
+}
+
+show_sinks () {
+	get_sink_info
+	NDX=0
+	for i in ${(k)SINKS};do
+		((NDX++))
+		SELECTED[$NDX]=$i
+		if [[ $i -eq ${DEFAULT_INDEX} ]];then
+			if [[ ${SHOW_ACTIVE} == "true" ]];then
+				echo "${WHITE_FG}Active sink${RESET}:${GREEN_FG}${SINKS[$i]}${RESET}" #show the active
+			else
+				echo "${WHITE_FG}${NDX}${RESET})${GREEN_FG}->${WHITE_FG}${SINKS[$i]}${RESET}" #highlite the default
+			fi
+		else
+			[[ ${SHOW_ACTIVE} == "false" ]] && echo "${WHITE_FG}${NDX}${RESET})${RED_FG}->${RESET}${SINKS[$i]}${RESET}"
+		fi
+	done
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+function parse_opts {
+	local OPTS=$@
+	local -a OPTSTRING
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
+		OPTSTRING+="-${OPTS[$O]}"
+	done
+	echo $OPTSTRING
+}
+
+function usage {
+	local OPTS=$(parse_opts $OPTSTR)
+	
+	echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a${RESET} show active sink"
+	echo -e "${WHITE_FG}-i${RESET} show sink info"
+	echo -e "\n${WHITE_FG}DESC${RESET}:show pulseaudio sink state. Optionally select sink from active sink list.\n"
+	exit
+}
+
+OPTSTR=":HDai"
+
+DEBUG=false
+SHOW_ACTIVE=false
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) DEBUG=true;;
+     a) SHOW_ACTIVE=true; show_sinks; exit;;
+     i) show_sinks; exit;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#--Execution--
+while true;do
+	show_sinks
+	echo "Press <${WHITE_FG}ENTER${RESET}> to exit...${RESET}"
+	echo -n "Enter sink to activate:"
+	read RESPONSE
+	if [[ -z ${RESPONSE} ]];then
+	  kill -SIGINT $$ 
+	fi
+	if is_valid_menukey ${RESPONSE} ${NDX};then
+		pacmd set-default-sink ${SELECTED[$RESPONSE]} > /dev/null
+		show_sinks
+		break
+	fi
+done
+

@@ -1,0 +1,54 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+JAR=/usr/local/lib/jdraw_v1.1.5.jar
+
+center_wdw () {
+	local DEBUG=false
+
+	DIMS=$(xdpyinfo | grep dimension | perl -pe 's/^(.*:\s+)(.*)( pix.*$)/$2/g')
+	RES_W=$(cut -d'x' -f1 <<<${DIMS})
+	RES_H=$(cut -d'x' -f2 <<<${DIMS})
+
+	NDX=0
+	while true;do
+		((NDX++))
+		[[ ${NDX} -gt 5 ]] && break #testing shows at least 5 trips for the id to settle
+		WID_1=$(xdotool search --name jdraw 2>/dev/null | sed -n '1{p;q}')
+		WID_2=$(xdotool search --name jdraw 2>/dev/null | sed -n '2{p;q}')
+		[[ ${DEBUG} == 'true' ]] && echo "WID_1:${WID_1} WID_2:${WID_2}" >&2
+		[[ ${WID_2} -gt ${WID_1} ]] && WID=${WID_2} #want the largest (latest) window id
+		[[ ${DEBUG} == 'true' ]] && echo "IDS:${IDS} OUT:${OUT} WID:${WID}" >&2
+		sleep 1
+	done
+	[[ -z ${WID} ]] && echo "${0}:${RED_FG}Unable to locate window${RESET}:${WHITE_FG}$1${RESET}" && exit
+
+	[[ ${DEBUG} == 'true' ]] && echo "Calling: xdotool windowsize ${WID} 700 600"
+	xdotool windowsize ${WID} 700 600
+
+	[[ ${DEBUG} == 'true' ]] && echo "Calling: xdotool getwindowgeometry --shell ${WID}"
+	WIN_W=$(xdotool getwindowgeometry --shell ${WID} | head -4 | tail -1 | sed 's/[^0-9]*//')
+	WIN_H=$(xdotool getwindowgeometry --shell ${WID} | head -5 | tail -1 | sed 's/[^0-9]*//')
+
+	PX=$((RES_W/2 - WIN_W/2))
+	PY=$((RES_H/2 - WIN_H/2))
+
+	[[ ${DEBUG} == 'true' ]] && echo "Calling: xdotool windowmove ${WID} $PX $PY"
+	xdotool windowmove ${WID} $PX $PY
+}
+
+#Execution
+[[ ! -e ${JAR} ]] && echo "${0}:JAR:${JAR} not found" && exit
+
+(
+	nohup java -jar ${JAR} &
+	center_wdw jdraw &
+)> /dev/null 2>&1

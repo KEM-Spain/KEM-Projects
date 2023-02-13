@@ -1,0 +1,129 @@
+#!/usr/bin/zsh
+#Constants
+GEO_PROVIDER="https://extreme-ip-lookup.com"
+OUTPUT_FN=/tmp/geo.out
+KEY="key=uMibiyDeEGlYxeK3jx6J"
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Declarations
+typeset -A GEO
+
+#Functions
+load_geo_data () {
+	local IP=$(ip_ext)
+	local GEO_DATA_REQUEST GEO_URL
+	local F1 F2
+	local LIST
+	local L
+
+	[[ -z ${IP} ]] && echo "${_SCRIPT} cannot continue - unable to determine external IP address" && exit
+
+	GEO_URL="${GEO_PROVIDER}/json/${IP}?${KEY}"
+	[[ ${_DEBUG} -gt 0 ]] && echo "Executing: wget -O${OUTPUT_FN} ${GEO_URL}"
+	GEO_DATA_REQUEST=$(wget -O${OUTPUT_FN} "${GEO_URL}" >/dev/null 2>&1)
+
+	if [[ -e ${OUTPUT_FN} ]];then
+		LIST=("${(f)$(cat ${OUTPUT_FN} | grep -v '""' | tr -d '[{}",]' | tr -s '[:space:]')}")
+		for L in ${LIST};do
+			F1=$(echo ${L} | cut -d: -f1 | sed -e 's/^[ \t]*//g' -e 's/[ \t]*$//g')
+			F2=$(echo ${L} | cut -d: -f2 | sed -e 's/^[ \t]*//g')
+			F1=${F1:u}
+			[[ ${F1} == "CITY" && -z ${F2} ]] && F2=unknown
+			[[ ${F1} == "COUNTRYCODE" ]] && F1=CODE
+			[[ ${F1} == "COUNTRY" ]] && F1=COUNTRY_NAME
+			[[ ${F1} == "LAT" ]] && F1=LATITUDE
+			[[ ${F1} == "LON" ]] && F1=LONGITUDE
+			[[ ${F1} == "QUERY" ]] && F1=IP
+			GEO[${F1}]=${F2}
+		done
+		if [[ ${_DEBUG} -gt 0 ]];then
+			for K in ${(k)GEO};do
+				echo ${K} ${GEO[${K}]}
+			done
+		fi
+	else
+		echo "GEO_DATA_REQUEST failed for IP:${IP}"
+		exit 1
+	fi
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} linear output"
+	echo -e "\n${WHITE_FG}DESC${RESET}:provides geographic info for external IP"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDl"
+LINEAR=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     l) LINEAR=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#--Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ -e ${OUTPUT_FN} ]] && /bin/rm -f ${OUTPUT_FN}
+
+load_geo_data
+
+tput cup 0 0
+for K in ${(ko)GEO};do
+	[[ ${K} == "CITY" && ${GEO[${K}]} == "unknown" ]] && continue
+	[[ ${LINEAR} == "true" ]] && echo -n "\"$K\":\"${GEO[$K]}\" " || echo $K:${GEO[$K]:q}
+done
+echo -n "\nPress any key..." && read
+
+[[ -e ${OUTPUT_FN} ]] && /bin/rm -f ${OUTPUT_FN} #clean any leftover garbage
+
+exit_leave

@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+/usr/bin/killall -I -v -s9 viber

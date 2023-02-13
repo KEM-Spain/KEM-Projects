@@ -1,0 +1,84 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+read -r -d '' DESC<<EOF
+Set update action for package
+EOF
+
+SCRIPT=$(basename $0)
+function usage {
+	echo -e "Usage: ${SCRIPT} -hxus package \n"
+	echo -e "-h help"
+	echo -e "-x hold current release"
+	echo -e "-u update current release"
+	echo -e "-s current update status"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit
+}
+
+function status {
+    echo -e "\nCurrent update status for package: $1"
+    echo "---------------------------------"
+    s=$(sudo dpkg --get-selections $1 | tr -s '[:space:]' | cut -f2)
+    [[ $s == install ]] && echo "$1 $s (updates will be applied)"
+    [[ $s == hold ]] && echo "$1 $s (updates will NOT be applied)"
+    echo -e "---------------------------------\n"
+    sudo dpkg -s $1 | egrep 'Package:|Status:|Maintainer:|Version:|Description:'
+    exit
+}
+
+ACTION=none
+OPTIND=0
+while getopts ":hxus" opts;do
+	case $opts in
+     h) usage;;
+     x) ACTION=hold;;
+     u) ACTION=install;;
+     s) ACTION=status;;
+    \?) print -u2 "\nERR:$0 - unknown option $OPTARG"; usage ;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+[[ -z $1 ]] && echo -e "\nMissing package name\n" && usage
+[[ $ACTION == none ]] && echo -e "\nNo action specified\n" && usage
+
+PACKAGES=($(dpkg --get-selections | cut -f1))
+
+FOUND=false
+for p in $PACKAGES;do
+    [[ $p == $1 ]] && FOUND=true
+done
+
+if [[ $FOUND == false ]];then
+    echo -e "\nInvalid package: $1\n"
+    echo -e "\nHINTS: packages matching: $1 ..."
+    echo "==============================="
+    for p in $PACKAGES;do
+        [[ $p =~ "$1"  ]] && echo $p
+    done
+    echo "==============================="
+    exit
+fi
+
+[[ $ACTION == status ]] && status $1
+
+#prevent/allow update
+echo $1 $ACTION | sudo dpkg --set-selections
+status $1
+

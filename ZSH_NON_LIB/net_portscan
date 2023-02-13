@@ -1,0 +1,6 @@
+#!/usr/bin/zsh
+SUBNET=192.168.18.0
+echo "Scanning localhost"
+sudo nmap -T4 -Pn --osscan-guess -min-rate 5000 -v 127.0.0.1 -p 1-65000
+echo "Scanning LAN subnet ${SUBNET}/24 (skipping down hosts)"
+sudo nmap -T4 -Pn --osscan-guess -min-rate 5000 -v ${SUBNET}/24 | grep -v "host down" 

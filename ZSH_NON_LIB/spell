@@ -1,0 +1,37 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+typeset -A LANGTYPE=(en English es Spanish)
+
+read -r -d '' DESC<<EOF
+Spell check word
+EOF
+
+if [[ ${#} -eq 0 ]];then
+	echo "Usage:${0} <WORD> <LANG>"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+	exit
+fi
+
+LANG=${2:=en}
+
+OUT=$(echo ${1} | aspell -l ${LANG} -a)
+grep -q '*' <<<${OUT}
+RC=${?}
+
+echo "Current language:${WHITE_FG}${LANGTYPE[${2}]}${RESET}\n"
+
+if [[ ${RC} -eq 0 ]];then
+	echo "\"$1\" is ${GREEN_FG}correct${RESET}"
+else
+	echo "\"$1\" is ${RED_FG}mispelled${RESET}\n"
+	echo -n "${WHITE_FG}Suggestions${RESET}:";echo ${OUT} | grep '&' | cut -d':' -f2- | fold -80 -s | tr '[A-Z]' '[a-z]'
+fi

@@ -1,0 +1,75 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a WIN_LIST
+
+read -r -d '' DESC<<EOF
+Convert wmctrl win id's to xdotool compatible id's
+
+\tReturn an XDO compatable Win Id based on
+\t1) wmctrl id (piped or argument)
+\t2) a full or partial win title
+
+\tOption:[${WHITE_FG}-l${RESET}] produces listing of all current wid's
+EOF
+
+#Execution
+
+#Piped
+if [[ ! -t 0 ]];then
+	while read LINE;do
+		printf "%d" $(cut -d' ' -f1 <<<${LINE})
+	done
+	exit
+fi
+
+#Arguments
+if [[ ${#} -eq 0 ]];then
+	echo "Usage: ${0:t} [-l]"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+	exit
+fi
+
+WIN_LIST=("${(f)$(wmctrl -l | tr -s '[:space:]')}")
+
+if [[ ${#} -eq 1 ]];then
+	case ${1} in
+		-l)	printf "%-10s %-10s %-5s %-50s\n" "WID" "XDO" "DISP" "TITLE"
+				for W in ${WIN_LIST};do
+					WID=$(cut -d' ' -f1 <<<${W})
+					XDO=$(printf "%d" ${WID})
+					DISP=$(cut -d' ' -f2 <<<${W})
+					TITLE=$(cut -d' ' -f3- <<<${W})
+					[[ ${TITLE} =~ "BDH" ]] && TITLE="${TITLE} (Desktop)"
+					printf "%-10s %-10s %-5s %-50s\n" ${WID} ${XDO} ${DISP} ${TITLE}
+				done
+				;;
+		0x*)	printf "%d" ${1}
+				;;
+		*)		for W in ${WIN_LIST};do
+					WID=$(cut -d' ' -f1 <<<${W})
+					XDO=$(printf "%d" ${WID})
+					DISP=$(cut -d' ' -f2 <<<${W})
+					TITLE=$(cut -d' ' -f3- <<<${W})
+					if [[ ${TITLE:l} =~ ${1:l} ]];then
+						printf "%d" ${WID}
+					fi
+				done
+				;;
+	esac
+fi

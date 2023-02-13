@@ -1,0 +1,62 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+LOG=/var/log/syslog
+PAGER=/usr/local/bin/mypager
+
+SCRIPT=${0:t}
+
+read -r -d '' DESC<<EOF
+Monitor or search ${LOG} entries
+EOF
+
+function usage {
+	echo -e "\nUsage:${SCRIPT} ${OPTSTR} [<SEARCHTERM>]\n"
+	echo -e "-H help"
+	echo -e "-t tail"
+	echo -e "-l lines to display (default=25)"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+	exit
+}
+
+OPTSTR=":Htl:"
+TAIL=false
+TAIL_LINES=25
+EDIT=false
+OPTIND=0
+
+while getopts ${OPTSTR} OPT;do
+	case ${OPT} in
+     H) usage;;
+     t) TAIL=true;;
+     l) TAIL_LINES=${OPTARG};;
+    \?) print -u2 "${0}: unknown option ${OPTARG}"; usage;;
+	  :) print -u2 "${0}: option -${OPTARG} requires an argument"; usage;;
+	esac
+done
+shift $((${OPTIND} - 1))
+
+SEARCHTERM=${1:=null}
+
+if [[ ${TAIL} == 'true' ]];then
+		tail -v -f --lines=${TAIL_LINES} ${LOG}
+elif [[ ${SEARCHTERM} != 'null' ]];then
+	grep -qi ${SEARCHTERM} ${LOG}
+	if [[ ${?} -eq 0 ]];then
+		grep --color=always -i -a ${SEARCHTERM} ${LOG} | ${PAGER}
+	else
+		echo "No matching syslog entries for:${WHITE_FG}${SEARCHTERM}${RESET}"
+	fi
+else
+	tail -v --lines=${TAIL_LINES} ${LOG}
+fi

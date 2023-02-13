@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+exec /opt/AnthemScore/run_anthemscore_app_image

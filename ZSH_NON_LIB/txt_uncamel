@@ -1,0 +1,57 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+if [[ ${1} == '-d' ]];then
+	while read LINE;do
+		echo ${LINE} | perl -pe "s{./}{}g; s/(?<=[a-z])(?=[A-Z])/ \1/g;\
+			s/^(.*)(\d)(of)(\d)(.*)$/\1 \2 \3 \4/g;\
+			s/complete/ Complete/g;\
+			s/FLAC//g;\
+			s/mp3//g;\
+			s/with/ with/g;\
+			s/live/ live/g;\
+			s/stereo//g;\
+			s/([A-Za-z])(\d)/\1 \2/g;\
+			s/(\d)([A-Za-z])/\1 \2/g;\
+			s/(\d{4}) (s) /\1\2 /g;\
+			s/^(\d{4})([A-Z])/\1 \2/g;\
+			s/([[:alpha:]])([\(])/\1 \2/g;\
+			s/\((\d+)\) /\1-/g;\
+			s/([IA])([A-Z])/\1 \2/g;\
+			s/\s+([\&])\s+/ \1 /g;\
+			s/([-])$//g;\
+			s/ \-/\-/g;\
+			s/\- /\-/g;\
+			s/_ / /g;\
+			s/(\d) (th)/\1\2/g;\
+			s/ $//g"
+	done
+else
+	while read LINE;do
+		echo ${LINE} | perl -pe "s{./}{}g; s/(?<=[a-z])(?=[A-Z])/ \1/g;\
+			s/([[:alpha:]])([\(])/\1 \2/g;\
+			s/^(\d+)\s+([-])\s+/\1\2/g;\
+			s/^(\d+)\s+/\1-/g;\
+			s/^\d{2}(\d{2})/\1/g;\
+			s/^(\d+)\.\s+/\1-/g;\
+			s/\((\d+)\) /\1-/g;\
+			s/^(\d+)(\.|_)/\1-/g;\
+			s/([IA])([A-Z])/\1 \2/g;\
+			s/\s+([\-&])\s+/ \1 /g;\
+			s/_/ /g"
+	done
+fi

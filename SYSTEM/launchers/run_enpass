@@ -1,0 +1,201 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+BOLD="\033[1m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+ 
+#desktop file calls this script
+
+DEBUG=false
+[[ $1 == "-d" ]] && DEBUG=true && shift
+
+#INTERACTIVE=true
+INTERACTIVE=false
+[[ $1 == "interactive" ]] && INTERACTIVE=true && shift
+
+#Constants
+ENP_PW=flappy
+DELAY=1
+LOG=/tmp/init_enpass.log
+ENPASS=/opt/enpass/Enpass 
+ENP_LOGIN_WIN='880x520+10+45' #best indentified by dimensions
+ENP_CRASH_WIN='Enpass Crash Reporter'
+[[ -e ${LOG} ]] && rm -f ${LOG}
+
+start_enpass () {
+	local ENP_WDW_PID
+
+	echo "${0} -> Looking for running Enpass instance..." >> ${LOG}
+	send-notification ${DELAY} "Looking for running Enpass instance..."
+	ENPASS_WDW_PID=$(get_enpass_wdw_pid)
+
+	if [[ -n ${ENPASS_WDW_PID} ]];then
+		echo "${0} -> Enpass already running...killing instance" >> ${LOG}
+		sudo killall -I enpass
+	fi
+
+	#Start Enpass...
+	echo "${0} -> Starting Enpass..." >> ${LOG}
+	exec ${ENPASS} 2>/dev/null & 
+
+	echo "${0} -> Waiting for Enpass to start..." >> ${LOG}
+	send-notification ${DELAY} "Waiting for Enpass instance..."
+
+	ENPASS_WDW_PID=?
+	while [[ ! -e /proc/${PID} ]];do
+		ENPASS_WDW_PID=($(pgrep -xf ${ENPASS})) #get PID for Enpass
+		break
+		sleep .2
+	done
+
+	echo "${0} -> Enpass has started..." >> ${LOG}
+	echo $(date) >> /usr/local/bin/system/launchers/enpass_win_info.txt
+	/usr/local/bin/x_lswin >> /usr/local/bin/system/launchers/enpass_win_info.txt
+}
+
+dump_current_windata () {
+	xwininfo -root -tree | grep -i enpass >> ${LOG}
+}
+
+get_enpass_wdw_pid () {
+	local -a ENPASS_WDW_PID
+
+	#get enpass PID from pgrep
+	ENPASS_WDW_PID=($(pgrep -xf ${ENPASS})) #get PID for Enpass
+	[[ -z ${ENPASS_WDW_PID} ]] && echo "${0} -> ${RED_FG}ERROR${RESET}:pgrep returned NULL (Enpass not started?)" >> ${LOG} && exit
+	[[ ${#ENPASS_WDW_PID} -ne 1 ]] && echo "${0} -> ${RED_FG}ERROR${RESET}:pgrep returned more than 1 PID:${ENPASS_WDW_PID}" >> ${LOG} && exit
+	echo "${0} -> got ENPASS_WDW_PID:${WHITE_FG}${ENPASS_WDW_PID} from pgrep${RESET}" >> ${LOG}
+
+	echo ${ENPASS_WDW_PID[1]}
+}
+
+get_xwin_term_id () {
+	local XWIN_TERM_WDW_ID
+
+	#get terminal window ID from xwininfo
+	echo "${0} -> getting terminal window ID from xwininfo..." >> ${LOG}
+	XWIN_TERM_WDW_ID=$(xwininfo -root -tree | grep -i terminal | awk '{print $1}' | head -n 1)
+	[[ -z ${XWIN_TERM_WDW_ID} ]] && echo "${0} -> Failed to get XWIN_TERM_WDW_ID" && exit
+
+	echo ${XWIN_TERM_WDW_ID}
+}
+
+get_xwin_enpass_wdw_id () {
+	local XWIN_ENP_WDW_ID
+	local -a ENPASS_WDWS
+	local W 
+	local WDW_ID
+	local RC=0
+
+	ENPASS_WDWS=("${(f)$(xwininfo -root -tree | grep -i enpass)}")
+	echo "${0} -> got ${#ENPASS_WDWS} enpass windows" >> ${LOG}
+
+	for W in ${ENPASS_WDWS};do
+		WDW_ID=$(tr -s '[:blank:]' <<<${W} | cut -d' ' -f2)
+		grep -qi ${ENP_LOGIN_WIN} <<<${W}
+
+		if [[ ${?} -eq 0 ]];then
+			echo "${0} -> got ${ENP_LOGIN_WIN} login window" >> ${LOG}
+			XWIN_ENP_WDW_ID=${WDW_ID}
+			break
+		fi
+
+		grep -qi ${ENP_CRASH_WIN} <<<${W}
+		if [[ ${?} -eq 0 ]];then
+			echo "${0} -> got ${ENP_CRASH_WIN} crash dialog" >> ${LOG}
+			echo "${0} -> got ENP_CRASH_WIN:${W}" >> ${LOG}
+			XWIN_ENP_WDW_ID=${WDW_ID}
+			RC=1
+			exit
+			#break
+		fi
+	done
+
+	echo "${0} -> XWIN_ENP_WDW_ID:${XWIN_ENP_WDW_ID}" >> ${LOG}
+	echo ${XWIN_ENP_WDW_ID}
+	return ${RC}
+}
+
+get_xprop_win_pid () {
+	local XPROP_ENP_WDW_PID
+	local XWIN_ENP_WDW_ID
+
+	#get window PID from xprop
+	sleep .2
+
+	XWIN_ENP_WDW_ID=$(get_xwin_enpass_wdw_id)
+	[[ -z ${XWIN_ENP_WDW_ID} ]] && echo "${0} -> ${RED_FG}ERROR${RESET}: XWIN_ENP_WDW_ID not populated" >> ${LOG} && exit
+	echo "${0} -> got XWIN_ENP_WDW_ID:${WHITE_FG}${XWIN_ENP_WDW_ID}${RESET}" >> ${LOG}
+
+	echo "${0} -> getting enpass window pid from xprop..." >> ${LOG}
+	XPROP_ENP_WDW_PID=$(xprop -id ${XWIN_ENP_WDW_ID} _NET_WM_PID | cut -d= -f2 | tr -d '[:space:]')
+	[[ -z ${XPROP_ENP_WDW_PID} ]] && echo "${0} -> Failed to get XPROP_ENP_WDW_PID" >> ${LOG} && exit
+	echo "${0} -> got XPROP_ENP_WDW_PID:${WHITE_FG}${XPROP_ENP_WDW_PID} from xprop${RESET}" >> ${LOG}
+
+	echo ${XPROP_ENP_WDW_PID}
+}
+
+pass_login_to_enpass () {
+	local XWIN_ENP_WDW_ID
+	local ENP_CRASH=false
+
+	XWIN_ENP_WDW_ID=$(get_xwin_enpass_wdw_id)
+	[[ ${?} -ne 0 ]] && ENP_CRASH=true
+	[[ -z ${XWIN_ENP_WDW_ID} ]] && echo "${0} -> ${RED_FG}ERROR${RESET}: XWIN_ENP_WDW_ID not populated" >> ${LOG} && exit
+
+	if [[ ${ENP_CRASH} == 'true' ]];then
+		echo "${0} -> Enpass startup crashed - need code to close this window" >> ${LOG}
+		xdotool mousemove 972 637 click 1
+		sleep 2
+	fi
+
+	echo "${0} -> passing credentials to Enpass..." >> ${LOG}
+	send-notification ${DELAY} "Sending credentials to Enpass..."
+
+	/usr/local/bin/system/kbd-toggle off
+	/usr/local/bin/system/kbd-flush
+
+	sleep .2
+	xdotool type --window ${XWIN_ENP_WDW_ID} ${ENP_PW}
+	sleep .2
+
+	xdotool key --window ${XWIN_ENP_WDW_ID} Return
+	/usr/local/bin/system/kbd-toggle on
+	/usr/local/bin/system/kbd-flush
+}
+
+close_enpass_window () {
+	local XWIN_ENP_WDW_ID
+	local XWIN_TERM_WDW_ID
+
+	echo "${0} -> closing Enpass window..." >> ${LOG}
+
+	XWIN_ENP_WDW_ID=$(get_xwin_enpass_wdw_id)
+	[[ -z ${XWIN_ENP_WDW_ID} ]] && echo "${0} -> ${RED_FG}ERROR${RESET}: XWIN_ENP_WDW_ID not populated" >> ${LOG} && exit
+
+	XWIN_TERM_WDW_ID=$(get_xwin_term_id)
+	[[ -z ${XWIN_TERM_WDW_ID} ]] && echo "${0} -> ${RED_FG}ERROR${RESET}: XWIN_TERM_WDW_ID not populated" >> ${LOG} && exit
+
+	xdotool windowfocus ${XWIN_TERM_WDW_ID}
+	xdotool windowclose ${XWIN_ENP_WDW_ID}
+}
+
+#Execution begins...
+start_enpass
+XPROP_ENP_WDW_PID=$(get_xprop_win_pid)
+echo XPROP_ENP_WDW_PID:${XPROP_ENP_WDW_PID} >> /usr/local/bin/system/launchers/enpass_win_info.txt
+
+pass_login_to_enpass
+
+[[ ${INTERACTIVE} == "false" ]] && close_enpass_window

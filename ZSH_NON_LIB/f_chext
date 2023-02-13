@@ -1,0 +1,48 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+THIS_FILE=${0:t}
+COPY=false
+
+read -r -d '' DESC<<EOF
+Copies/Moves all files of file(s).EXT1 to file(s).EXT2
+EOF
+
+function usage {
+	echo "${(C)0}: ${THIS_FILE} [ -c ] from <FILES>.<OLD> to <FILES>.<NEW>"
+	echo "\nOpts: -c: COPY versus MOVE"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+	exit
+}
+
+#Execution
+[[ ${#} -lt 2 ]] && usage
+
+if [[ ${1} == -c ]];then
+    COPY=true
+    shift
+fi
+
+for F in *.${1};do
+    if [[ ${COPY} == true ]];then
+    	echo "Copying: ${F:r}.${1} to ${F:r}.${2}"
+		cp ${F:r}.${1} ${F:r}.${2}
+	else
+    	echo "Moving: ${F:r}.${1} to ${F:r}.${2}"
+		mv ${F:r}.${1} ${F:r}.${2}
+	fi
+done

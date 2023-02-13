@@ -1,0 +1,10 @@
+#compdef wless
+
+_arguments \
+'-H[help]' \
+'-D[Debug]' \
+'-b[find best connection based on strength]' \
+'-c[choose connection from list]' \
+'-n[no prompts after wifi selection]' \
+'-s[get current SSID]' \
+'-t[do speedtest]'

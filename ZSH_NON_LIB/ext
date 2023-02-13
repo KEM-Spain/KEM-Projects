@@ -1,0 +1,51 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+read -r -d '' DESC<<EOF
+Extract any archive
+EOF
+
+if [[ ${#} -eq 0 ]];then
+	echo "Usage:ext <FILE>|<DIR>"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+	kill -SIGINT $$
+fi
+
+LIST=(${@})
+for F in ${LIST};do
+	[[ ! -f ${F} ]] && echo "${0:t}(error) - Not a file:${1}" && continue
+	case ${F} in
+	  *.tar.bz2) tar xvjf ${F};;
+	  *.tar.gz) tar xvzf ${F};;
+	  *.tar.xz) tar xvJf ${F};;
+	  *.tar.lzma) tar --lzma xvf ${F};;
+	  *.bz2) bunzip2 ${F};;
+	  *.rar) unrar e ${F};;
+	  *.gz) gunzip ${F};;
+	  *.tar) tar xvf ${F};;
+	  *.tbz2) tar xvjf ${F};;
+	  *.tgz) tar xvzf ${F};;
+	  *.zip) unzip -d ${F:r} ${F};;
+	  *.jar) unzip -d ${F:r} ${F};;
+	  *.Z) uncompress ${F};;
+	  *.7z) p7zip -d ${F};;
+	  *.dmg) hdiutul mount ${F};; # mount OS X disk images
+	  *.xz) tar --lzma xvf ${F};;
+	  *.zst) zstd -d ${F};;
+	  *) echo "${0:t}(info) - No mapping to extract file of type: ${F}";;
+	esac
+done

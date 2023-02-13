@@ -1,0 +1,424 @@
+#!/usr/bin/zsh
+
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Declarations
+typeset -A SINKS
+typeset -A SINK_HDRS
+typeset -A DEVICES
+typeset -A DEV_HDRS
+
+#Constants
+BT_COMMAND=/usr/local/bin/bt-command-run
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+bt-command () {
+	local CMDOUT=$(${BT_COMMAND} $@)
+	echo ${CMDOUT} | tr -d '[\r,\]' #garbage from expect
+}
+
+connect-device () {
+	local MAC=${1}
+	local EATOUTPUT=$(bt-command connect ${MAC})
+
+	[[ ${_DEBUG} -gt 0 ]] && echo "${RED_FG}bt-command connect${RESET}:$(txt_strip_ansi ${EATOUTPUT})" >&2
+	connect-msgs ${MAC}
+	return $?
+}
+
+disconnect-device () {
+	local MAC=${1}
+	local EATOUTPUT=$(bt-command disconnect ${MAC})
+
+	[[ ${_DEBUG} -gt 0 ]] && echo "${RED_FG}bt-command disconnect${RESET}:$(txt_strip_ansi ${EATOUTPUT})" >&2
+	disconnect-msgs ${MAC}
+	return $?
+}
+
+connect-msgs () {
+	local MAC=${1}
+
+	echo "Connecting..."
+	wait-status-change disconnected ${MAC}
+	if [[ $? -eq 0 ]];then
+		echo "Connection successful..."
+	else
+		echo "Connection failed..."
+		return 1
+	fi
+}
+
+disconnect-msgs () {
+	local MAC=${1}
+
+	echo "Waiting for disconnection..."
+	wait-status-change connected ${MAC}
+	if [[ $? -eq 0 ]];then
+		echo "Disconnecting..."
+		return 0
+	else
+		echo "Disconnection failed..."
+		return 1
+	fi
+}
+
+wait-status-change () {
+	local INITIAL_STATUS=${1}
+	local MAC=${2}
+	local TIMEOUT=5
+	local CURRENT_STATUS
+	local RC
+
+	TIMER=0
+	echo "Current status:${WHITE_FG}${1}${RESET}"
+	while true;do
+		(( TIMER++ ))
+		CURRENT_STATUS=$(is_mac_connected ${MAC})
+		if [[ ${INITIAL_STATUS} != ${CURRENT_STATUS} ]];then
+			echo "Changed status:${GREEN_FG}${CURRENT_STATUS}${RESET}"
+			RC=0
+			break
+		fi
+		sleep 1 
+		[[ ${TIMER} -gt ${TIMEOUT} ]] && echo "${RED_FG}Command timed out${RESET}" && RC=1 && break #wait 30 seconds
+	done
+	return ${RC}
+}
+
+get_device_info () {
+	local NDX=0
+	local NAME 
+	local MAC 
+	local CLEAN_LINE
+	local LINE
+
+	while read LINE;do
+		((NDX++))
+		[[ ${NDX} -eq 1 ]] && continue #skip header
+		CLEAN_LINE=$(echo ${LINE} | sed -e 's/ (/|/g' -e 's/)//g')
+		NAME=$(echo ${CLEAN_LINE} | cut -d\| -f1)
+		MAC=$(echo ${CLEAN_LINE} | cut -d\| -f2)
+		DEVICES[${MAC}]=${NAME}
+		[[ ${#NAME} -gt ${DEV_HDRS[NAME]} ]] && DEV_HDRS[NAME]=${#NAME}
+		[[ ${#MAC} -gt ${DEV_HDRS[MAC]} ]] && DEV_HDRS[MAC]=${#MAC}
+	done < <(bt-device --list)
+}
+
+get_sink_info () {
+	local STATE 
+	local INDEX 
+	local DESC 
+	local MAC
+	local LINE
+
+	while read LINE;do
+		case ${LINE} in
+			\**) STATE=active;INDEX=$(echo ${LINE} | tr -d '[:space:]' | cut -d: -f2);;
+			index*)  STATE=inactive;INDEX=$(echo ${LINE} | tr -d '[:space:]' | cut -d: -f2);;
+			*device.description*) DESC=$(echo ${LINE} | sed 's/= /=/g' | cut -d= -f2 | tr -d '[\"]');;
+			*device.string*) MAC=$(echo ${LINE} | sed 's/= /=/g' | cut -d= -f2 | tr -d '[\"]');;
+		esac
+		if [[ -n ${INDEX} && -n ${DESC} && -n ${MAC} ]];then
+			INDEX=${INDEX}
+			SINKS[${INDEX}:${STATE:u}]="${DESC}|${MAC}"
+			[[ ${#INDEX} -gt ${SINK_HDRS[INDEX]} ]] && SINK_HDRS[INDEX]=${#INDEX}
+			[[ ${#STATE} -gt ${SINK_HDRS[STATE]} ]] && SINK_HDRS[STATE]=${#STATE}
+			[[ ${#DESC} -gt ${SINK_HDRS[DESC]} ]] && SINK_HDRS[DESC]=${#DESC}
+			unset INDEX
+			unset DESC
+			unset MAC
+		fi
+	done < <(pacmd list-sinks)
+}
+
+get_mac_by_desc () {
+	local DESC=$@
+
+	for D in ${(v)DEVICES};do
+		[[ ${_DEBUG} -gt 0 ]] && echo "${0:t} Scanning for device:${D} -> ${(k)DEVICES[(r)${D}]}" >&2
+		echo ${D} | grep -iq ${DESC}
+		if [[ $? -eq 0 ]];then
+			[[ ${_DEBUG} -gt 0 ]] && echo "${0:t} ${WHITE_FG}Found${RESET} ${D}" >&2
+			echo ${(k)DEVICES[(r)${D}]} #reverse lookup return value
+			break
+		fi
+	done
+}
+
+is_mac_connected () {
+	local MAC=${1}
+	local STATE=0
+
+	[[ -z ${MAC} ]] && echo "${0:} missing MAC arg" >&2 && return
+
+	for D in ${(k)DEVICES};do
+		[[ ${_DEBUG} -gt 0 ]] && echo "${0:t} Scanning for device:${D}" >&2
+		if [[ ${MAC} == ${D} ]];then
+			STATE=$(bt-device -i ${D} | grep -i connected | tr -d '[:space:]' | cut -d: -f2)
+			[[ ${_DEBUG} -gt 0 && ${STATE} == "1" ]] && echo "${0:t} ${WHITE_FG}Connected${RESET} ${D}" >&2
+			[[ ${STATE} == "1" ]] && echo "connected" || echo "disconnected" #return value
+			return
+		fi
+	done
+}
+
+get_sink_by_mac () {
+	local MAC_ARG=${1}
+	local DESC MAC
+
+	[[ -z ${MAC_ARG} ]] && echo "${0:} missing MAC arg" >&2 && return
+
+	for S in ${(v)SINKS};do
+		[[ ${_DEBUG} -gt 0 ]] && echo "${0:t} Scanning for sink:${S}" >&2
+		DESC=$(echo ${S} | cut -d\| -f1)
+		MAC=$(echo ${S} | cut -d\| -f2)
+		if [[ ${MAC} == ${MAC_ARG} ]];then
+			[[ ${_DEBUG} -gt 0 ]] && echo "${0:t} ${WHITE_FG}Found${RESET} ${S}" >&2
+			echo true #return value
+			return
+		fi
+	done
+	echo false #return value
+}
+
+is_connected_nosink () {
+	local DESC=$@
+	local CONNECTED=false
+	local HAS_SINK=false
+
+	[[ -z ${DESC} ]] && echo "${0:} missing device DESC arg" >&2 && return
+
+	MAC=$(get_mac_by_desc $@)
+
+	[[ -z ${MAC} ]] && echo "${0:} no MAC found for ${DESC}" >&2 && return
+
+	STATE=$(is_mac_connected ${MAC})
+	if [[ ${STATE} == "connected" ]];then
+		CONNECTED=true
+		SINK=$(get_sink_by_mac ${MAC})
+		if [[ ${SINK} == "true" ]];then
+			HAS_SINK=true
+		fi
+	fi
+
+	if [[ ${CONNECTED} == "true" && ${HAS_SINK} == "false" ]];then
+		[[ ${_DEBUG} -gt 0 ]] && echo "${0:t} Device:${DESC}:${MAC} is connected but has no sink" >&2
+		echo true #return value
+	else
+		echo false #return value
+	fi
+}
+
+toggle_device () {
+	local DESC=$@
+	local MAC=$(get_mac_by_desc ${DESC})
+
+	disconnect-device ${MAC}
+	connect-device ${MAC}
+}
+
+list_devices () {
+	local STATE
+	local COLOR
+	local D
+
+
+	get_device_info
+	
+	echo
+	echo "Trusted Devices (bt-device)"
+	printf "\n${WHITE_FG}%-32s %-32s %5s${RESET}\n" 'MAC' 'Device' 'State'
+	printf "${MAGENTA_FG}%-32s %-32s %5s${RESET}\n" $(str_unicode_line ${DEV_HDRS[MAC]}) $(str_unicode_line ${DEV_HDRS[NAME]}) $(str_unicode_line 12)
+	for D in ${(k)DEVICES};do
+		STATE=$(is_mac_connected ${D})
+		[[ ${STATE:l} == "connected" ]] && COLOR=${GREEN_FG} || COLOR=${RED_FG}
+		printf "%-32s${RESET} %-32s ${COLOR}%5s${RESET}\n" ${D} ${DEVICES[${D}]} ${STATE}
+	done
+	echo
+}
+
+list_sinks () {
+	local INDEX 
+	local STATE 
+	local COLOR 
+	local DESC
+	local S
+
+	get_sink_info
+
+	echo "Devices with Sinks (pulseaudio)"
+	printf "\n${WHITE_FG}%-8s %-10s %-50s${RESET}\n" 'Index' 'State' 'Device'
+	printf "${MAGENTA_FG}%-8s %-10s %-50s${RESET}\n" $(str_unicode_line 5) $(str_unicode_line ${SINK_HDRS[STATE]}) $(str_unicode_line ${SINK_HDRS[DESC]})
+	for S in ${(onk)SINKS};do
+		INDEX=$(echo ${S} | cut -d: -f1)
+		STATE=$(echo ${S} | cut -d: -f2)
+		DESC=$(echo ${SINKS[${S}]} | cut -d\| -f1)
+		[[ ${STATE:l} == "active" ]] && COLOR=${GREEN_FG} || COLOR=${RED_FG}
+		printf "%-8d ${COLOR}%-10s${RESET} %-50s\n" ${INDEX} ${STATE} ${DESC}
+	done
+	echo
+}
+
+set_sink () {
+	local DEVICE_DESC=${1:l} #lower case
+	local INDEX
+	local STATE
+	local DESC
+	local K
+	local HIT=false
+
+	get_sink_info
+	
+	[[ ${_DEBUG} -gt 0 ]] && echo "Searching for SINK matching device:${WHITE_FG}${DEVICE_DESC}${RESET}"
+
+	for K in ${(k)SINKS};do
+		INDEX=$(echo ${K} | cut -d: -f1)
+		STATE=$(echo ${K} | cut -d: -f2)
+		DESC=${SINKS[${K}]}
+		[[ ${_DEBUG} -gt 0 ]] && echo "INDEX:${INDEX}, STATE:${STATE}, DESC:${DESC}"
+
+		echo ${DESC} | grep -qi ${DEVICE_DESC} #find match
+		if [[ $? -eq 0 ]];then
+			HIT=true
+			pacmd set-default-sink ${INDEX}
+			if [[ $? -eq 0 ]];then
+				[[ ${VERBOSE} == "true" ]] && echo "Sink was set to:${WHITE_FG}${DESC}${RESET}"
+				return 0
+			else
+				[[ ${VERBOSE} == "true" ]] && echo "${RED_FG}Error setting sink set to:${WHITE_FG}${DESC}${RESET}"
+				return 1
+			fi
+		fi
+	done
+	[[ ${HIT} == "false" && ${VERBOSE} == "true" ]] && echo "No sink matching device:${WHITE_FG}${DEVICE_DESC}${RESET} found" 
+	return 1
+}
+
+sink_info () {
+	local DEVICE=${1:l} #lower case
+	local INDEX
+	local STATE
+	local DESC
+	local K
+	local HIT=false
+
+	get_sink_info
+	
+	[[ ${_DEBUG} -gt 0 ]] && echo "Searching for DEVICE:${WHITE_FG}${DEVICE}${RESET}"
+	for K in ${(k)SINKS};do
+		INDEX=$(echo ${K} | cut -d: -f1)
+		STATE=$(echo ${K} | cut -d: -f2)
+		DESC=${SINKS[${K}]}
+		[[ ${_DEBUG} -gt 0 ]] && echo "INDEX:${INDEX}, STATE:${STATE}, DESC:${DESC}"
+		echo ${DESC} | grep -qi ${DEVICE}
+		if [[ $? -eq 0 ]];then
+			HIT=true
+			[[ ${_DEBUG} -gt 0 || ${VERBOSE} == "true" ]] && echo "DEVICE:${WHITE_FG}${DEVICE} ${GREEN_FG}found${RESET}, STATE:${STATE}"
+			[[ ${STATE:l} == "active" ]] && echo "true" || echo "false"
+		fi
+	done
+
+	if [[ ${HIT} == "false" ]];then
+		[[ ${VERBOSE} == "true" ]] && echo "Device:${WHITE_FG}${DEVICE} ${RED_FG}not found${RESET}" 
+		echo "false"
+	fi
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+function parse_opts {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+="<device>" && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+read -r -d '' DESC<<EOF
+Get/Set pulse audio sink 
+EOF
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-v${RESET} verbose output"
+	echo -e "${WHITE_FG}-i${RESET} <device> state info (true/false)"
+	echo -e "${WHITE_FG}-l${RESET} list sinks (default)"
+	echo -e "${WHITE_FG}-s${RESET} <device> set sink"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave
+}
+
+OPTSTR=":HDvli:s:"
+
+VERBOSE=false 
+INFO=false 
+LIST=true 
+SET=false 
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     v) VERBOSE=true;;
+     l) LIST=true;;
+     i) INFO=true;DEVICE_DESC=${OPTARG};LIST=false;;
+     s) SET=true;DEVICE_DESC=${OPTARG};LIST=false;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+if [[ ${_DEBUG} -gt 0 ]];then
+	echo "_DEBUG:${WHITE_FG}${_DEBUG}${RESET}"
+	echo "VERBOSE:${WHITE_FG}${VERBOSE}${RESET}"
+	echo "LIST:${WHITE_FG}${LIST}${RESET}"
+	echo "INFO:${WHITE_FG}${INFO}${RESET}"
+	echo "SET:${WHITE_FG}${SET}${RESET}"
+fi
+
+if [[ ${LIST} == "true" ]];then
+	list_devices
+	list_sinks
+	if [[ $# -ne 0 ]];then
+		PARTIAL_CONNECT=$(is_connected_nosink $@)
+		if [[ ${PARTIAL_CONNECT} == "true" ]];then
+			toggle_device $@
+		fi
+	fi
+elif [[ ${SET} == "true" ]];then
+	set_sink ${DEVICE_DESC}
+elif [[ ${INFO} == "true" ]];then
+	sink_info ${DEVICE_DESC}
+fi
+

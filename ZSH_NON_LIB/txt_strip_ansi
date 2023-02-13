@@ -1,0 +1,4 @@
+#!/usr/bin/zsh
+while read -r LINE;do
+	echo ${LINE} | perl -pe 's/(\e|\\C-\[)\[+[\d;]*[mK]//g'
+done

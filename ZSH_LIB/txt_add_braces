@@ -1,0 +1,51 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+read -r -d '' DESC<<EOF
+Add braces to zsh variables"
+EOF
+
+#Functions
+usage () {
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo "Usage:${_SCRIPT} [-H] <zsh script file>"
+	echo "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+#Execution
+[[ ${1} == '-H' ]] && usage
+
+if [[ $# -ne 1 ]];then
+	usage
+else
+	[[ ! $(file -b ${1}) =~ "zsh" ]] && usage "File:${1} is not a <zsh script file>"
+fi
+
+while read LINE;do
+	echo ${LINE} | perl -pe 's/\$([0-9A-Za-z?#@_:]*)(\b|$|")/\${$1}$2/g'
+done < ${1}

@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+exec /opt/jubler/run_jubler_app_image

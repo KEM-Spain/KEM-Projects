@@ -1,0 +1,356 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _BLACKLIST=(usage 2 parse_opts 1 opt_type 1 opt_exists 1)
+typeset -A _FOUND
+typeset -a _FUNCTEXT
+typeset -a _FLIST
+typeset -i _VERBOSE_LVL=0
+typeset -A _SEEN
+typeset -a _OUT_LIST
+
+#Constants
+_LIB=/usr/local/lib/common.zsh
+_SCRIPT_PATH=/usr/local/bin
+ 
+#Globals
+g_MODE=file
+ 
+#Imports
+source ${_LIB}
+
+#Functions
+verbose_set_level () {
+	((_VERBOSE_LVL++))
+}
+
+summarize () {
+	local FN=${1}
+	local -F TFUNCS=${2}
+	local -F NO_CALL=${3}
+	local CALLED=$(( TFUNCS - NO_CALL ))
+	local TITLE
+	local TAG
+
+	TITLE="Current Utilization for:${FN}"
+	TAG=$(( 34 - ${#TITLE} )) #longest detail is 34
+	[[ ${TAG} -le 0 ]] && TAG=0
+
+	printf "\n${CYAN_FG}%s${RESET}:${WHITE_FG}%s${RESET}\n" "Current Utilization for" ${FN}
+	echo $(str_unicode_line $(( ${#TITLE} + TAG )) )
+	printf "${CYAN_FG}%26s${RESET}:${WHITE_FG}%d${RESET}\n" "Total Function Count" ${TFUNCS}
+	printf "${CYAN_FG}%26s${RESET}:${WHITE_FG}%d${RESET}\n" "Total Functions Called" ${CALLED}
+	printf "${CYAN_FG}%26s${RESET}:${WHITE_FG}%d${RESET}\n" "Total Functions Not Called" ${NO_CALL}
+	printf "${CYAN_FG}%26s${RESET}:${WHITE_FG}%.2f%%${RESET}\n\n" "Percent Utilized" $(( (CALLED/TFUNCS) * 100 ))
+}
+
+collect_funcs () {
+	local FN=${1}
+	local VB_LIMIT
+
+	[[ ${g_MODE} == 'lib' ]] && VB_LIMIT=3 || VB_LIMIT=3 #now equal; could change
+
+	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:collecting funcs in:${FN}"
+	[[ ${_VERBOSE_LVL} -ge ${VB_LIMIT} ]] && echo "${0}:collecting funcs in:${FN}" >&2
+
+	grep -P "^\S.*\(\) {$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+save_func () {
+	local FN=${1}
+	local FUNC=${2}
+	local VB_LIMIT
+
+	[[ ${g_MODE} == 'lib' ]] && VB_LIMIT=3 || VB_LIMIT=3 #now equal; could change
+	
+	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:saving lines in func:${FUNC} in:${FN}"
+	[[ ${_VERBOSE_LVL} -ge ${VB_LIMIT} ]] && echo "${0}:saving lines in func:${FUNC} in:${FN}" >&2
+
+	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return 1
+
+	_FUNCTEXT+=("${(f)$(perl -ne "print if /^${FUNC}\s+\(\)\s+{$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}/g')}")
+}
+
+delete_func () {
+	local FN=${1}
+	local FUNC=${2}
+	local VB_LIMIT
+
+	[[ ${g_MODE} == 'lib' ]] && VB_LIMIT=3 || VB_LIMIT=3 #now equal; could change
+	
+	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:deleting func:${FUNC} in:${FN}"
+	[[ ${_VERBOSE_LVL} -ge ${VB_LIMIT} ]] && echo "${0}:deleting func:${FUNC} in:${FN}" >&2
+
+	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return 1
+
+	sed -i -E "/^${FUNC}\s+[(][)]\s+[{]$/,/^[}]$/d" ${FN} # pattern inclusive
+}
+
+
+print_func () {
+	local FN=${1}
+	local FUNC=${2}
+	local VB_LIMIT
+
+	[[ ${g_MODE} == 'lib' ]] && VB_LIMIT=4 || VB_LIMIT=4 #not implemented
+	
+	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:printing lines in func:${FUNC} in:${FN}"
+	[[ ${_VERBOSE_LVL} -ge 1 ]] && echo "${0}:printing lines in func:${FUNC} in:${FN}" >&2
+
+	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return 1
+
+	perl -ne "print if /^${FUNC}\s+\(\) {$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Scan individual files for function usage
+\tUnused functions are identified
+\tOptionally scan all scripts for library utilization
+\tUnused library functions are identified
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type f)]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "${WHITE_FG}-L${RESET} test all scripts for lib utilization"
+	echo -e "${WHITE_FG}-v${RESET} verbosity (repeats increase level)"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}\n"
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDLv"
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     L) g_MODE=lib;;
+     v) verbose_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+#Execution
+if [[ ${g_MODE} == 'lib' ]];then
+	[[ ${#} -ne 0 ]] && usage "Too many arguments. Option:-L requires no argument"
+else
+	[[ ${#} -ne 1 ]] && usage "Missing argument:$(opt_type f)"
+	[[ ! -e ${1} ]] && usage "File not found:${1}"
+fi
+
+if [[ ${g_MODE} == 'file' ]];then
+	ORIG_FN=${1}
+	cp ${ORIG_FN} /tmp/${ORIG_FN:t}
+	TMP_FN=/tmp/${ORIG_FN:t}
+
+	FUNCLIST=("${(f)$(collect_funcs ${TMP_FN})}")
+
+	for L in ${FUNCLIST};do
+		save_func ${TMP_FN} ${L}
+		_FOUND[${L}]=0
+	done
+
+	#delete the functions
+	for L in ${FUNCLIST};do
+		delete_func ${TMP_FN} ${L}
+	done
+
+	#test for calls to function
+	_OUT_LIST=()
+	for L in ${FUNCLIST};do
+		grep -q ${L} ${TMP_FN}
+		RC=${?}
+		if [[ ${RC} -eq 0 ]];then
+			_FOUND[${L}]=1
+			if [[ ${_VERBOSE_LVL} -ge 2 || ${_DEBUG} -gt 0 ]];then
+				[[ -z ${_SEEN[${L}]} ]] && _OUT_LIST+=$(echo "${CYAN_FG}${L}${RESET} called in body of ${WHITE_FG}${ORIG_FN}${RESET}")
+				_SEEN[${L}]=1
+			fi
+		fi
+	done 
+
+	if [[ ${#_OUT_LIST} -gt 0 ]];then
+		echo "\n${WHITE_FG}Functions called in body of file...${RESET}"
+		for O in ${(o)_OUT_LIST};do
+			echo ${O}
+		done
+	fi
+
+	#test for calls to functions from other functions
+	_OUT_LIST=()
+	for ((T=1; T<=${#_FUNCTEXT}; T++));do
+		[[ ${_FUNCTEXT[${T}]} =~ "\(\) \{" ]] && continue
+		for L in ${FUNCLIST};do
+			if [[ ${_FUNCTEXT[${T}]} =~ "${L}" ]];then
+				_FOUND[${L}]=1
+				if [[ ${_VERBOSE_LVL} -ge 2 || ${_DEBUG} -gt 0 ]];then
+					[[ -z ${_SEEN[${L}]} ]] && _OUT_LIST+=$(echo "${CYAN_FG}${L}${RESET} called from within function")
+					_SEEN[${L}]=1
+				fi
+			fi
+		done
+	done
+
+	if [[ ${#_OUT_LIST} -gt 0 ]];then
+		echo "\n${WHITE_FG}Functions called from within functions...${RESET}"
+		for O in ${(o)_OUT_LIST};do
+			echo ${O}
+		done
+	fi
+
+	_OUT_LIST=()
+	NO_CALL=0
+	for K in ${(k)_FOUND};do
+		if [[ ${_FOUND[${K}]} -eq 0 ]];then
+			((NO_CALL++))
+			if [[ ${_VERBOSE_LVL} -ge 1 ]];then
+				_OUT_LIST+=("${(f)$(echo "${CYAN_FG}${K}${RESET} was ${RED_FG}not${RESET} called")}")
+			fi
+		fi
+	done 
+
+	if [[ ${NO_CALL} -gt 0 ]];then
+		echo "\n${WHITE_FG}There are uncalled functions...${RESET}"
+		for O in ${(o)_OUT_LIST};do
+			echo ${O}
+		done
+	else
+		echo "\nAll functions in file:${WHITE_FG}${ORIG_FN}${RESET} were called"
+	fi
+
+	summarize ${ORIG_FN} ${#FUNCLIST} ${NO_CALL}
+else #lib utilization
+	echo "Working..."
+	ORIG_FN=${_LIB}
+	cp ${ORIG_FN} /tmp/${ORIG_FN:t}
+	TMP_FN=/tmp/${ORIG_FN:t}
+
+	RAWLIST=("${(f)$(find ${_SCRIPT_PATH} -maxdepth 1 -type f)}")
+	for F in ${RAWLIST};do
+		grep -q common.zsh ${F}
+		[[ ${?} -eq 0 ]] && _FLIST+=${F}
+	done
+
+	SCRIPTLIST=("${(f)$(grep -Pl '\(\)\s+\{' ${_FLIST})}")
+	LIBFUNCLIST=("${(f)$(collect_funcs ${_LIB})}")
+
+	#save lib function text
+	for L in ${LIBFUNCLIST};do
+		save_func ${_LIB} ${L}
+	done
+
+	#test for calls of lib functions within lib itself
+	[[ ${_VERBOSE_LVL} -ge 2 ]] && echo "${BOLD}${MAGENTA_FG}Library functions that are called within the library${RESET}\n"
+	for ((T=1; T<=${#_FUNCTEXT}; T++));do
+		[[ ${_FUNCTEXT[${T}]} =~ "\(\) \{" ]] && continue
+		for L in ${LIBFUNCLIST};do
+			if [[ ${_FUNCTEXT[${T}]} =~ "${L}" ]];then
+				_FOUND[${L}]=1
+				 if [[ ${_VERBOSE_LVL} -ge 2 || ${_DEBUG} -gt 0 ]];then
+					[[ -z ${_SEEN[${L}]} ]] && echo "Function ${CYAN_FG}${L}${RESET} called ${ITALIC}within${RESET} library" >&2
+					_SEEN[${L}]=1
+				 fi
+			fi
+		done
+	done
+
+	#test for calls to lib functions
+	[[ ${_VERBOSE_LVL} -ge 2 ]] && echo "\n${BOLD}${MAGENTA_FG}Library functions that are called from a script${RESET}\n"
+	for S in ${SCRIPTLIST};do
+		for L in ${LIBFUNCLIST};do
+			grep -q ${L} ${S}
+			RC=${?}
+			if [[ ${RC} -eq 0 ]];then
+				_FOUND[${L}]=1
+				 if [[ ${_VERBOSE_LVL} -eq 2 || ${_DEBUG} -gt 0 ]];then
+					[[ -z ${_SEEN[${L}]} ]] && echo "Function ${CYAN_FG}${L}${RESET} was called" >&2
+					_SEEN[${L}]=1
+				 elif [[ ${_VERBOSE_LVL} -eq 3 ]];then
+					echo "Function ${CYAN_FG}${L}${RESET} called from:${WHITE_FG}${S}${RESET}" >&2
+				 fi
+			fi
+		done
+	done
+
+
+	[[ ${_VERBOSE_LVL} -ge 1 ]] && echo "\n${BOLD}${MAGENTA_FG}Library functions that were never called${RESET}\n"
+	NO_CALL=0
+	for F in ${LIBFUNCLIST};do
+		if [[ -z ${_FOUND[${F}]} ]];then
+			((NO_CALL++))
+			[[ ${_VERBOSE_LVL} -ge 1 ]] && echo "Function ${CYAN_FG}${F}${RESET} was ${RED_FG}not${RESET} called"
+		fi
+	done
+
+	summarize ${_LIB} ${#LIBFUNCLIST} ${NO_CALL}
+fi
+
+#cleanup
+[[ ${_DEBUG} -eq 0 ]] && rm -f ${TMP_FN}
+
+exit_leave

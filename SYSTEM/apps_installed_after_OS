@@ -1,0 +1,45 @@
+i|anydesk|The fastest remote desktop software on the market.
+i|apt-transport-https|transitional package for https support
+i|aptitude|terminal-based package manager
+i|audacity|fast, cross-platform audio editor
+i|chrome-gnome-shell|GNOME Shell extensions integration for web browsers
+i|curl|command line tool for transferring data with URL syntax
+i|dconf-editor|simple configuration storage system - graphical editor
+i|deluge|bittorrent client written in Python/PyGTK
+i|enpass|A cross-platform, complete password management solution that securely manages passwords and all other life important credentials like bank accounts, Credit cards, IDs, passport, driving licenses etc. Everything is saved locally on user device and optionally he can sync through other devices using his accounts of Dropbox, Box, Google Drive, OneDrive and ownCloud.
+i|ffmpeg|Tools for transcoding, streaming and playing of multimedia files
+i|fim|scriptable frame buffer, X.org and ascii art image viewer
+i|font-manager|font management application for the GNOME desktop
+i|git|fast, scalable, distributed revision control system
+i|gnome-tweaks|tool to adjust advanced configuration settings for GNOME
+i|google-chrome-stable|The web browser from Google
+i|google-drive-ocamlfuse|FUSE filesystem for Google Drive
+i|guvcview|GTK+ base UVC Viewer
+i|html2text|advanced HTML to text converter
+i|htop|interactive processes viewer
+i|i2c-tools|heterogeneous set of I2C tools for Linux
+i|kazam|Easy to use screencast and screenshot application.
+i|kodi|Open Source Home Theatre (executable binaries)
+i|libcanberra-gtk-module|translates GTK+ widgets signals to event sounds
+i|libglib2.0-dev|Development files for the GLib library
+i|libi2c-dev|userspace I2C programming library development files
+i|locate|maintain and query an index of a directory tree
+i|meson|high-productivity build system
+i|nemo|File manager and graphical shell for Cinnamon
+i|net-tools|NET-3 networking toolkit
+i|nordvpn|NordVPN protects your privacy online and lets access media content without regional restrictions. Strong encryption and no-log policy with 6000+ servers in 60+ countries.
+i|notify-osd|daemon that displays passive pop-up notifications
+i|notify-osd-icons|Notify-OSD icons
+i|obs-studio|OBS Studio for Ubuntu
+i|python3-aionotify|Simple, asyncio-based inotify library for Python
+i|python3-libevdev|Python 3 wrapper for libevdev
+i|python3-notify2|desktop notifications API for Python 3
+i|python3-pip|Python package installer
+i|python3-pyinotify|simple Linux inotify Python bindings
+i|sassc|C/C++ port of the Sass CSS precompiler - command-line tool
+i|viber|Free Text & Calls.
+i|vim|Vi IMproved - enhanced vi editor
+i|vlc|multimedia player and streamer
+i|wmctrl|control an EWMH/NetWM compatible X Window Manager
+i|xdotool|simulate (generate) X11 keyboard/mouse input events
+i|zsh|shell with lots of features

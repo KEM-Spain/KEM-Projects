@@ -1,0 +1,218 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+WHITE_FG="\033[37m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+EBOLD=$(echo "\033[1m")
+EWHITE_FG=$(echo "\033[37m")
+EGREEN_FG=$(echo "\033[32m")
+ERESET=$(echo "\033[m")
+
+#Constants
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Declarations
+typeset -a PART_DATA
+typeset -a PART_DETAIL
+
+#Globals
+g_SYSTEM_TOTAL=0
+
+#Functions
+convert_GMK () {
+	local ARG=${1}
+	local NUM=${ARG[1,-2]}
+
+	case ${ARG[-1]} in
+		G) echo ${NUM};;
+		M) bc <<<"scale=8; (${NUM} * 0.0009765625)";;
+		K) bc <<<"scale=8; (${NUM} * 0.000001)";;
+		*) echo ${NUM};;
+	esac
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Display disk space consumed by the current directory
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a${RESET} ascending file sizes"
+	echo -e "${WHITE_FG}-d${RESET} ascending file sizes (default)"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	exit_leave ${msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDad"
+OPTIND=0
+
+DESCENDING=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     a) DESCENDING=false;;
+     d) DESCENDING=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+PARTITIONS=("${(f)$(lsblk -nif | grep -v "truecrypt\|loop" | sed '1d' | cut -c3- | tr -s '[:blank:]' | cut -d' ' -f1)}") 
+DIRCNT=$(find . ! -path . -type d 2>/dev/null | wc -l)
+
+tput cup 0 0
+{
+	for P in ${PARTITIONS};do
+		[[ ${P} == "b" ]] && continue
+		PART_DATA+=$P
+	done
+
+	for P in ${PART_DATA};do
+		PART_DETAIL+=("${(f)$( sudo df -h /dev/${P} 2>/dev/null | awk 'NR==2{print $0}' | tr -s '[:space:]' | sed 's/ /\|/g')}")
+	done
+
+	echo "${WHITE_FG}Disk Space\n${RESET}"
+	printf "${WHITE_FG}%16s %6s${RESET} ${RED_FG}%6s${RESET} ${GREEN_FG}%6s ${WHITE_FG}%8s %-20s${RESET}\n" "File System" "Size" "Used" "Avail" "Pct Used" "Mounted On"
+
+	MP=$(findmnt -nT ${PWD} | tr -s '[:space:]' | cut -d' ' -f2)
+
+	for P in ${PART_DETAIL};do
+		FS=$(echo $P | cut -d\| -f1)
+		SZ=$(echo $P | cut -d\| -f2)
+		US=$(echo $P | cut -d\| -f3)
+		AV=$(echo $P | cut -d\| -f4)
+		PU=$(echo $P | cut -d\| -f5)
+		MN=$(echo $P | cut -d\| -f6)
+		[[ ${FS} == ${MP} ]] && MN="${MN} $(echo "${BOLD}${GREEN_FG}<-- <-- <--${RESET}")" && g_SYSTEM_TOTAL=${SZ}
+		printf "%16s %6s %6s %6s %8s %-20s\n" ${FS} ${SZ} ${US} ${AV} ${PU} ${MN}
+	done
+
+	echo "\n${WHITE_FG}  Current Directory${RESET}:$(pwd)\n"
+
+	typeset -A NORMAL
+	typeset -A HIDDEN
+
+	HDR=Ascending
+	LONGEST=0
+
+	[[ ${DESCENDING} == "true" ]] && SORT=r && HDR=Descending
+
+	if [[ ${DIRCNT} -ne 0 ]];then
+		LIST=("${(f)$(sudo du --max-depth 1 2>/dev/null)}") 
+
+		for L in ${LIST};do
+			SZ=$(echo ${L} | tr -s '[:space:]' | cut  -f1)
+			FN=$(echo ${L} | tr -s '[:space:]' | cut  -f2)
+			[[ ${FN:t} =~ "^\." ]] && HIDDEN[${FN:t}]=${SZ} || NORMAL[${FN:t}]=${SZ}
+			[[ ${#FN:t} -gt ${LONGEST} ]] && LONGEST=${#FN:t}
+		done 
+
+		[[ ${LONGEST} -lt 20 ]] && LONGEST=18
+
+		DO_HDR=true
+		if [[ ${DO_HDR} == "true" ]];then
+			DO_HDR=false
+			printf "${HDR} order...\n"
+			printf "%-10s %-${LONGEST}s %s\n" "KBytes" "Directory" "Human"
+			printf "\\u2500%.0s" {1..$((LONGEST+17))}
+			printf "\n"
+		fi
+
+		(
+		for N in ${(k)NORMAL};do
+			printf "${CYAN_FG}%10s ${WHITE_FG}%-${LONGEST}s ${GREEN_FG}%s${RESET}\n" ${NORMAL[${N}]} ${N} $(numfmt --to=iec $((${NORMAL[${N}]}*1024)))
+		done
+		) | sort -k1.6 -n${SORT}
+
+		(
+		for H in ${(k)HIDDEN};do
+			[[ ${H} == "." ]] && continue
+			printf "${CYAN_FG}%10s ${WHITE_FG}%-${LONGEST}s ${GREEN_FG}%s${RESET}\n" ${HIDDEN[${H}]} ${H} $(numfmt --to=iec $((${HIDDEN[${H}]}*1024)))
+		done
+		) | sort -k1.6 -n${SORT}
+	fi
+
+	DU=$(sudo du -s 2>/dev/null | sed -e 's/\t/ /' -e 's/\./Total (including non directories)/g')
+	SZ=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f1)
+	FN=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f2)
+	HU=$(numfmt --to=iec $((${SZ}*1024)))
+
+	if [[ ${DIRCNT} -ne 0 ]];then
+		printf "\\u2500%.0s" {1..$((LONGEST+17))}
+		printf "\n"
+		printf "${CYAN_FG}%10s ${WHITE_FG}%-${LONGEST}s ${GREEN_FG}%s${RESET}\n" ${SZ} ${FN} ${HU}
+	else
+		printf "  "
+		printf "\\u2500%.0s" {1..${#DU}}
+		printf "\n  %s\n" ${DU}
+		printf "  "
+		printf "\\u2500%.0s" {1..${#DU}}
+		printf "\n"
+	fi
+
+	#Percentage of total
+	D=$(convert_GMK ${HU})
+	S=$(convert_GMK ${g_SYSTEM_TOTAL})
+	PCT=$(format_pct $(( D*1.0/S*1.0 * 100 )))
+
+	echo "\nDirectory:${WHITE_FG}${PWD:t}${RESET} is ${CYAN_FG}${PCT}%${RESET} of total disk space ${RESET}(${WHITE_FG}${g_SYSTEM_TOTAL}${RESET})"
+} | mypager

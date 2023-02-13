@@ -1,0 +1,26 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+exec /usr/bin/gnome-tweaks &
+
+while true;do
+	WDW_ID=$(wmctrl -l | grep -i "GNOME Tweaks" | tr -s '[:space:]' | cut -d' ' -f1)
+	if [[ -n ${WDW_ID} ]];then
+		wmctrl -i -r ${WDW_ID} -b toggle,maximized_vert,maximized_horz
+		sleep .5
+		wmctrl -i -r ${WDW_ID} -b toggle,maximized_vert,maximized_horz
+		break
+	fi
+done
+
+#bizarre behaviour - it retracts after maximizing - have to do it again
+sleep 1
+wmctrl -i -r ${WDW_ID} -b toggle,maximized_vert,maximized_horz

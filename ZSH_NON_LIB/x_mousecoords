@@ -1,0 +1,26 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+for SIG in {1..9}; do
+	trap 'tput cnorm;echo "\n${0} has been brutally ${RED_FG}${ITALIC}${BOLD}murdered${RESET}";exit' ${SIG}
+done
+
+tput civis
+while true;do
+	read F1 F2 F3 F4 <<<$(xdotool getmouselocation)
+	printf "\r%10s %10s" ${F1}  ${F2}
+	sleep .5
+done
+tput cnorm

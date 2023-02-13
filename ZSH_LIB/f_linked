@@ -1,0 +1,186 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+STRIKE="\033[9m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+E_RED_FG=$(echo "\033[31m")
+E_RESET=$(echo "\033[m")
+
+_LIB=/usr/local/lib
+
+#import utils library
+source ${_LIB}/common.zsh
+
+#Declarations
+typeset -a LINKED
+typeset -a BY_LEVEL
+
+#Functions
+
+say_level () {
+	local HEAD=${@}
+
+	if [[ ${HEAD} == ${PWD} ]];then
+		echo 1 
+	else
+		echo "${HEAD##${PWD}}/" | grep -o '/' | wc -l
+	fi
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<INTEGER>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} [OPTION] [DIR]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-d $(opt_type d)${RESET} increase depth of scan"
+	echo -e "${WHITE_FG}-f${RESET} format output as delimited"
+	echo -e "${WHITE_FG}-i${RESET} ignore broken links"
+	echo -e "\n${WHITE_FG}DESC${RESET}:This script dereferences symbolic links"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDid:f"
+
+DEPTH=1
+IGNORE_BROKEN=false
+FORMAT=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     d) DEPTH=${OPTARG};;
+     f) FORMAT=true;;
+     i) IGNORE_BROKEN=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+APP=${0:t}
+
+#User messages
+if [[ ${DEPTH} -ne 1 ]];then
+	if ! validate_is_integer ${DEPTH};then
+		echo "${APP} - ${RED_FG}DEPTH${RESET}:integer required!"
+		exit
+	else
+		echo "${APP} - DEPTH of search is now:${WHITE_FG}${DEPTH}${RESET} levels deep${RESET}"
+	fi
+fi
+[[ ${IGNORE_BROKEN} == 'true' ]] && echo "${APP} - Ignoring broken links..."
+
+#Execution
+[[ -n ${1} ]] && EXEC_PATH=${1} || EXEC_PATH=${PWD} #set path if passed
+[[ ! -d ${EXEC_PATH} ]] && usage "${EXEC_PATH} is not a directory!"
+
+echo "${APP} - Scanning:${EXEC_PATH}..."
+
+cd ${EXEC_PATH} #run in path
+
+LINKED+=("${(f)$(sudo find $(pwd) -maxdepth ${DEPTH} ! -path . -type l)}") #build list of links
+
+[[ -z ${LINKED[1]} ]] && echo "No linked files or directories found" && exit
+
+if [[ ${FORMAT} == 'true' ]];then
+	for L in ${LINKED};do
+		echo "$L|$(realpath $(readlink ${L}))"
+	done
+	exit
+fi
+
+LONGEST=0
+#Sort LINKED by level and record longest path
+for L in ${LINKED};do
+	BY_LEVEL+="$(say_level ${L:h})|${L}" #build array with level,path
+	[[ ${#L:t} -gt ${LONGEST} ]] && LONGEST=${#L:t}
+done
+
+NDX=0
+LAST_LINK_LEVEL=?
+LAST_LINK_PATH=?
+for L in ${(on)BY_LEVEL};do #sort by level,path
+	LINK_LEVEL=$(echo ${L} | cut -d '|' -f1)
+	LINK_PATH=$(echo ${L} | cut -d '|' -f2)
+
+	TARGET_TYPE="${E_RED_FG}[UNKN]${E_RESET}" #default type
+	[[ -d ${LINK_PATH} ]] && TARGET_TYPE=" <DIR>"
+	[[ -f ${LINK_PATH} ]] && TARGET_TYPE="<FILE>"
+	if [[ ${TARGET_TYPE} =~ "<UNKN>" ]];then 
+		F_INFO=$(file -L ${LINK_PATH}) #using dereference option
+		if [[ ${F_INFO} =~ 'broken' ]];then
+			if [[ ${IGNORE_BROKEN} == 'true' ]];then
+				continue
+			else
+				TARGET_TYPE="${E_RED_FG}[BRKN]${E_RESET}"
+			fi
+		elif [[ ${F_INFO} =~ 'cannot open' ]];then
+			if [[ ${IGNORE_BROKEN} == 'true' ]];then
+				continue
+			else
+				TARGET_TYPE="${E_RED_FG}[BRKN]${E_RESET}"
+			fi
+		elif [[ ${F_INFO} =~ 'character' ]];then
+			TARGET_TYPE='<CHAR>'
+		fi
+	fi
+
+	if [[ "${LINK_LEVEL}" != "${LAST_LINK_LEVEL}" ]];then
+		LAST_LINK_LEVEL=${LINK_LEVEL}
+		echo "\n${CYAN_FG}Level${RESET}: ${LINK_LEVEL}"
+	fi
+
+	if [[ "${LINK_PATH:h}" != "${LAST_LINK_PATH}" ]];then
+		echo "\n${CYAN_FG}Path${RESET}: ${LINK_PATH:h}"
+		LAST_LINK_PATH=${LINK_PATH:h}
+	fi
+	printf "%s ${WHITE_FG}%*s ${RESET}is linked to ${CYAN_FG}%.65s${RESET}\n" ${TARGET_TYPE} ${LONGEST} "${LINK_PATH:t}" $(readlink ${LINK_PATH})
+done
+
+exit_leave

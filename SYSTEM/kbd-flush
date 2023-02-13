@@ -1,0 +1,9 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use diagnostics;
+use Term::ReadKey;
+
+ReadMode 'restore';    # Flush the keyboard and returns input stream to initial state
+# ReadMode 0;            # Numerical equivalent of keyboard restore (move comment marker to use instead)
+ 

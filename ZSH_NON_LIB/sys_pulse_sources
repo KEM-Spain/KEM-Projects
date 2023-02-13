@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+pacmd list-sources | grep 'index:\|device.description' 

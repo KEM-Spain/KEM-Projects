@@ -1,0 +1,198 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A BOOKS
+typeset -a RAWLIST
+typeset -a LOCAL_LIST
+typeset -A COL_WIDTHS
+typeset -a MARKED
+
+#Constants
+_LIB=/usr/local/lib
+FAKEBOOKS=/home/kmiller/Documents/Music/Printed/FakeBooks/RealBook
+BOOKS["New Real Book Vol 1"]=13
+BOOKS["New Real Book Vol 2"]=12
+BOOKS["New Real Book Vol 3"]=10
+BOOKS["Real Book Vol 1"]=8
+BOOKS["Real Book Vol 2"]=7
+BOOKS["Real Book Vol 3"]=5
+
+#Imports
+source ${_LIB}/common.zsh
+
+#Functions
+action_do () {
+	local M
+	local BOOK
+	local PG
+
+	for M in ${MARKED};do
+		BOOK=$(get_book ${_LIST[${M}]})
+		PG=$(get_pg ${_LIST[${M}]})
+		okular -p $((PG+${BOOKS["${BOOK}"]})) ${FAKEBOOKS}/${BOOK}.pdf 2>/dev/null & #add the offset to access the correct page in the various books
+	done
+
+	for M in ${MARKED};do
+		[[ ${M} -eq 0 ]] && continue
+		MARKED[${M}]=0
+		list_set_selected ${M} 0
+	done
+}
+
+get_book () {
+	local LINE=${@}
+
+	cut -d'|' -f1 <<<${LINE}
+}
+
+get_title () {
+	local LINE=${@}
+
+	cut -d'|' -f2 <<<${LINE}
+}
+
+get_pg () {
+	local LINE=${@}
+
+	cut -d'|' -f3 <<<${LINE}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Find and open pages from local fakebooks
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} <SEARCHTERM>\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HD"
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ ${#} -eq 0 ]] && usage "Missing <SEARCHTERM>"
+
+SEARCHTERM=${@}
+
+RAWLIST=("${(f)$(
+for B in ${(k)BOOKS:Q};do
+	GLIST=("${(f)$(grep -i ${SEARCHTERM} "${FAKEBOOKS}/${B}-index.txt")}")
+	for G in ${GLIST};do
+		echo "${B}|${G}"
+	done
+done
+)}")
+
+if ! arr_is_populated "${RAWLIST}";then
+	exit_leave $(msg_warn "No titles matching:${SEARCHTERM} were found")
+fi
+
+for L in ${RAWLIST};do
+	BOOK=$(cut -d'|' -f1 <<<${L})
+	TITLE=$(cut -d'|' -f2 <<<${L})
+	PG=$(parse_get_last_field ' ' "${TITLE}")
+	[[ -z ${PG} ]] && continue
+	TITLE=$(sed -e "s/${PG}//g" <<<${TITLE})
+	[[ ${#BOOK} -gt ${COL_WIDTHS[BOOK]} ]] && COL_WIDTHS[BOOK]=${#BOOK}
+	[[ ${#TITLE} -gt ${COL_WIDTHS[TITLE]} ]] && COL_WIDTHS[TITLE]=${#TITLE}
+	[[ ${#PG} -gt ${COL_WIDTHS[PG]} ]] && COL_WIDTHS[PG]=${#PG}
+	LOCAL_LIST+="${BOOK}|${TITLE}|${PG}"
+done
+
+#set headings
+list_set_header 'printf "Song titles found:${WHITE_FG}%-d${RESET} matching:${WHITE_FG}${(C)SEARCHTERM}${RESET}\t\tPage:${WHITE_FG}%-d${RESET} of ${WHITE_FG}%-d${RESET}" ${#_LIST} ${PAGE} ${MAX_PAGES}'
+list_set_header 'printf ""'
+list_set_header 'printf "%*s${WHITE_FG}%-*s   %-*s %-*s${RESET}" 6 "" ${COL_WIDTHS[BOOK]} "Book" ${COL_WIDTHS[TITLE]} "Title" 4 "Page"'
+list_set_header 'printf "%*s${MAGENTA_FG}%*s   %*s %*s${RESET}" 6 "" ${COL_WIDTHS[BOOK]} $(str_unicode_line ${COL_WIDTHS[BOOK]}) ${COL_WIDTHS[TITLE]} $(str_unicode_line ${COL_WIDTHS[TITLE]}) 4 $(str_unicode_line 4)'
+
+#set line item
+list_set_line_item '
+printf "${WHITE_FG}%4s${RESET}) ${BAR}${SHADE}%-*s   %-*s %-*s${RESET}\n" ${ARRAY_NDX} ${COL_WIDTHS[BOOK]} "$(get_book ${_LIST[${ARRAY_NDX}]})" ${COL_WIDTHS[TITLE]} "$(get_title ${_LIST[${ARRAY_NDX}]})" ${COL_WIDTHS[PG]} "$(get_pg ${_LIST[${ARRAY_NDX}]})"
+'
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select song(s) then <${GREEN_FG}ENTER${RESET}> to view (${ITALIC}or exit if none selected${RESET})."
+
+while true;do
+	#get selection
+	list_select ${LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+	
+	action_do
+done
+
+exit_leave

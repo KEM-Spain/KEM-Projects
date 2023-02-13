@@ -1,0 +1,124 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Declarations
+typeset -L DEVICE
+
+#Functions
+dev_scan () {
+	local TARGET=$1
+	local LINE
+	local INDEX
+	local DEVICE
+	local HIT=1
+	local ACTIVE=false
+
+	while read LINE;do
+		case $LINE in
+				\**) INDEX=$(echo $LINE | cut -d: -f2);ACTIVE=true;;
+		  	  index*) INDEX=$(echo $LINE | cut -d: -f2);;
+	    	device*) DEVICE=$(echo $LINE | cut -d= -f2 | sed 's/\"//g');;
+		esac
+		[[ ${ACTIVE} == 'true' ]] && ACTIVE=${LINE}
+		if [[ -n ${INDEX} && -n ${DEVICE} ]];then
+			[[ ${VERBOSE} == "true" ]] && echo -n "${INDEX} -> ${DEVICE}"
+			if [[ ${DEVICE:l} =~ ${TARGET} ]];then
+				pacmd set-default-source ${INDEX}
+				HIT=0
+				[[ ${VERBOSE} == "true" ]] && echo " ${WHITE_FG}*${RESET}"
+				break
+			else
+				[[ ${VERBOSE} == "true" ]] && echo ""
+			fi
+			unset INDEX
+			unset DEVICE
+		fi
+	done < <(pacmd list-sources | egrep 'index:|device.description' | sed -e 's/^[ \t]*//' -e 's/: /:/g' -e 's/ = /=/g' -e 's/\* /\*/')
+
+	if [[ ${INFO} == "true" ]];then
+		if [[ ${HIT} -eq 0 ]];then
+			echo "Device:${WHITE_FG}${TARGET}${RESET} was ${GREEN_FG}found${RESET} and set as the default"
+		else
+			echo "Device:${WHITE_FG}${TARGET}${RESET} ${RED_FG}not found${RESET}" 
+			echo "The active device is ${ACTIVE}"
+		fi
+	fi
+	return ${HIT}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<PULSEAUDIO DEVICE>";;
+	esac
+}
+
+usage () {
+	tabs 5
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type d)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-i${RESET} show device info"
+	echo -e "${WHITE_FG}-v${RESET} verbose output"
+	echo -e "\n${WHITE_FG}DESC${RESET}:Set active pulseaudio device\n\tPartial matches are allowed when searching devices"
+
+	echo ${PENDING_MSGS}
+	exit 1
+}
+
+OPTSTR=":HDiv"
+VERBOSE=false
+INFO=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     i) INFO=true;;
+     v) VERBOSE=true;;
+     :) print -u2 "${RED_FG}${SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ $# -eq 0 ]] && usage "Missing pulseaudio device name"
+
+TARGET=${1:l}
+dev_scan ${TARGET} #find it-set it

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PyCharm
+Exec=/home/kmiller/Code/LANG/Python/pycharm-community-2021.2/bin/run_pycharm
+Icon=/home/kmiller/Code/LANG/Python/pycharm-community-2021.2/bin/pycharm.png
+Terminal=false
+TryExec=/home/kmiller/Code/LANG/Python/pycharm-community-2021.2/bin/run_pycharm
+Categories=IDE;Development;

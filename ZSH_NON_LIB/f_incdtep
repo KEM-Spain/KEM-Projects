@@ -1,0 +1,205 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+
+function is_integer {
+	local CANDIDATE=${1}
+	local RE='^[0-9]+$'
+
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:CANDIDATE:${CANDIDATE}" >&2
+
+	if ! [[ ${CANDIDATE} =~ $RE ]] ; then
+		[[ ${DEBUG} == 'true' ]] && echo "${0:t}:CANDIDATE:${CANDIDATE} not a valid integer" >&2
+   		return 1
+	fi
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:CANDIDATE:${CANDIDATE} is valid integer" >&2
+   	return 0
+
+}
+
+function increment_date {
+	local PREFIX
+	local SUFFIX
+	local DECREMENT=false
+	local DATE_IN
+
+	DECREMENT=false
+	[[ ${1} == "-p" ]] && DECREMENT=true && shift
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:DECREMENT:${DECREMENT}" >&2
+
+	DATE_IN=${1}
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:DATE_IN:${DATE_IN}" >&2
+
+	if [[ ! ${DATE_IN} =~ '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]' ]];then
+		echo "${RED_FG}No date detected${RESET} Expected format:9999-99-99 or 9999.99.99" >&2
+		return
+	fi
+
+	PREFIX=$(echo ${DATE_IN} | sed 's/\(^.*\)\([0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]\)\(.*\)/\1/g')
+	DATEARG=$(echo ${DATE_IN} | sed 's/\(^.*\)\([0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]\)\(.*\)/\2/g')
+	SUFFIX=$(echo ${DATE_IN} | sed 's/\(^.*\)\([0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]\)\(.*\)/\3/g')
+
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:PREFIX:${PREFIX}, DATEARG:${DATEARG}, SUFFIX:${SUFFIX}" >&2
+
+	DATEARG=$(echo ${DATEARG} | sed 's/\./-/g')
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:DATEARG:${DATEARG} cleaned after sed" >&2
+
+	[[ ${DECREMENT} == "false" ]] && DATEOUT=$(date --date="${DATEARG} +1 day" +'%Y.%m.%d') || DATEOUT=$(date --date="${DATEARG} -1 day" +'%Y.%m.%d')
+	echo "${PREFIX}${DATEOUT}${SUFFIX}"
+}
+
+function increment_episode {
+	local PROGRAM_STR
+	local DO_SEASON=false
+	local DO_EPISODE=false
+	local DECREMENT=false
+	local PREFIX
+	local SUFFIX
+	local SEASON
+	local EPISODE
+	local EP_NUM
+	local SE_NUM
+
+	typeset -Z2 EP_NUM
+	typeset -Z2 SE_NUM
+
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:Received ARGC:${#}, ARGV:${@}" >&2
+
+	[[ ${1} == "-p" ]] && DECREMENT=true && shift
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:DECREMENT:${DECREMENT}" >&2
+
+	[[ ${1} == "-e" ]] && DO_EPISODE=true && shift 
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:DO_EPISODE:${DO_EPISODE}" >&2
+
+	[[ ${1} == "-s" ]] && DO_SEASON=true && shift 
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:DO_SEASON:${DO_SEASON}" >&2
+
+	PROGRAM_STR=${@}
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:PROGRAM_STR:${PROGRAM_STR}" >&2
+
+	if [[ ! ${PROGRAM_STR:l} =~ 's[0-9][0-9]e[0-9][0-9]' ]];then
+		echo "${RED_FG}No episode detected${RESET}" >&2
+		return
+	fi
+
+	PREFIX=$(echo ${PROGRAM_STR:l} | sed 's/\(^.*\)s[0-9][0-9]e[0-9].*/\1/g')
+	SEASON=$(echo ${PROGRAM_STR:l} | sed 's/^.*\(s[0-9][0-9]\)e[0-9].*/\1/g')
+	EPISODE=$(echo ${PROGRAM_STR:l} | sed 's/^.*s[0-9][0-9]\(e[0-9][0-9]\).*/\1/g')
+	SE_NUM=$(echo ${PROGRAM_STR:l} | sed 's/^.*s\([0-9][0-9]\)e[0-9].*/\1/g')
+	EP_NUM=$(echo ${PROGRAM_STR:l} | sed 's/^.*s[0-9][0-9]e\([0-9][0-9]\).*/\1/g')
+	SUFFIX=$(echo ${PROGRAM_STR:l} | sed 's/^.*s[0-9][0-9]e[0-9][0-9]\(.*\)/\1/g')
+
+	[[ ${DEBUG} == 'true' ]] && echo "${0:t}:PREFIX:${PREFIX}, SEASON:${SEASON}, EPISODE:${EPISODE}, SE_NUM:${SE_NUM}, EP_NUM:${EP_NUM}, SUFFIX:${SUFFIX}" >&2
+
+	if is_integer ${EP_NUM};then
+		if [[ ${DO_SEASON} == "true" ]];then
+			[[ ${DECREMENT} == "false" ]] && ((SE_NUM++)) || ((SE_NUM--))
+			[[ ${DEBUG} == 'true' ]] && echo "${0:t}:Altered SE_NUM:${SE_NUM}" >&2
+		else
+			[[ ${DECREMENT} == "false" ]] && ((EP_NUM++)) || ((EP_NUM--))
+			[[ ${DEBUG} == 'true' ]] && echo "${0:t}:Altered EP_NUM:${EP_NUM}" >&2
+		fi
+		[[ ${EP_NUM} -lt 1 ]] && EP_NUM=1
+		[[ ${SE_NUM} -lt 1 ]] && SE_NUM=1
+		echo ${PREFIX}s${SE_NUM}e${EP_NUM}${SUFFIX}
+	else
+		echo ${PROGRAM_STR:l}
+	fi
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+function parse_opts {
+	local OPTS=$@
+	local -a OPTSTRING
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
+		OPTSTRING+="-${OPTS[$O]}"
+	done
+	echo $OPTSTRING
+}
+
+function usage {
+	local OPTS=$(parse_opts $OPTSTR)
+	echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-d${RESET} entity is date"
+	echo -e "${WHITE_FG}-e${RESET} entity is episode"
+	echo -e "${WHITE_FG}-s${RESET} entity is season"
+	echo -e "${WHITE_FG}-r${RESET} decrement"
+	echo -e "\n${WHITE_FG}DESC${RESET}:\tThis utility functions as a filter only.\n\tInput is a date or episode indicator to be incremented or decremented.\n\tEx: increment or decrement:s01e01 or 2020-01-03"
+	exit
+}
+
+OPTSTR=":HDdesr"
+
+DEBUG=false
+OPTIND=0
+IS_DATE=false
+IS_EPISODE=false
+IS_SEASON=false
+DECREMENT=false
+DEFAULT=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) DEBUG=true;;
+     d) IS_DATE=true;;
+     e) IS_EPISODE=true;;
+     s) IS_SEASON=true;;
+     r) DECREMENT=true;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+SUM=0
+if [[ ${DECREMENT} == 'true' ]];then
+	[[ ${IS_DATE} == 'false' ]] && ((SUM++))
+	[[ ${IS_EPISODE} == 'false' ]] && ((SUM++))
+	[[ ${IS_SEASON} == 'false' ]] && ((SUM++))
+	[[ ${SUM} -eq 3 ]] && echo "Decrement requires an entity:\nAdd option to select which entities to decrement: -d, -e, -s" && leave
+fi
+#Execution
+typeset -a LINES_IN=()
+
+while read LINE;do
+	LINES_IN+=${LINE}
+done
+
+[[ (${IS_DATE} == 'false' && (${IS_EPISODE} == 'false' && ${IS_SEASON} == 'false')) ]] && IS_EPISODE=true && DEFAULT=true #default
+
+if [[ ${DEBUG} == 'true' ]];then
+	echo "IS_DATE:${IS_DATE}" >&2
+	echo "IS_EPISODE:${IS_EPISODE} DEFAULT:${DEFAULT}" >&2
+	echo "IS_SEASON:${IS_SEASON}" >&2
+	echo "DECREMENT:${DECREMENT}" >&2
+fi
+
+for L in ${LINES_IN};do
+	if [[ ${DECREMENT} == 'true' ]];then
+		[[ ${IS_DATE} == 'true' ]] && increment_date -p ${L}
+		[[ ${IS_EPISODE} == 'true' ]] && increment_episode -p -e ${L}
+		[[ ${IS_SEASON} == 'true' ]] && increment_episode -p -s ${L}
+	else
+		[[ ${IS_DATE} == 'true' ]] && increment_date ${L}
+		[[ ${IS_EPISODE} == 'true' ]] && increment_episode -e ${L}
+		[[ ${IS_SEASON} == 'true' ]] && increment_episode -s ${L}
+	fi
+done

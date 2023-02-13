@@ -1,0 +1,1057 @@
+#!/usr/bin/zsh
+
+RESET=$(echo "\033[m")
+RED_FG=$(echo "\033[31m")
+GREEN_FG=$(echo "\033[32m")
+YELLOW_FG=$(echo "\033[33m")
+WHITE_FG=$(echo "\033[37m")
+CYAN_FG=$(echo "\033[36m")
+BOLD=$(echo "\033[1m")
+
+(
+cat << DOC1
+${WHITE_FG}Pup Documentation${RESET}
+------------------------------------
+
+${WHITE_FG}pup${RESET} is a command line tool for processing HTML. It reads from stdin, prints to stdout, and allows the user to filter 
+parts of the page using CSS selectors.
+
+
+${GREEN_FG}Implemented Selectors${RESET}
+---------------------------------
+${WHITE_FG}pup '.class'${RESET}
+${WHITE_FG}pup '#id'${RESET}
+${WHITE_FG}pup 'element'${RESET}
+${WHITE_FG}pup 'selector + selector' (adjacent sibling)${RESET}
+${WHITE_FG}pup 'selector > selector' (direct descendent)${RESET}
+${WHITE_FG}pup '[attribute]'${RESET}
+${WHITE_FG}pup '[attribute="value"]'${RESET}
+${WHITE_FG}pup '[attribute*="value"]'${RESET}
+${WHITE_FG}pup '[attribute~="value"]'${RESET}
+${WHITE_FG}pup '[attribute^="value"]'${RESET}
+${WHITE_FG}pup '[attribute\$="value"]'${RESET}
+${WHITE_FG}pup ':empty'${RESET}
+${WHITE_FG}pup ':first-child'${RESET}
+${WHITE_FG}pup ':first-of-type'${RESET}
+${WHITE_FG}pup ':last-child'${RESET}
+${WHITE_FG}pup ':last-of-type'${RESET}
+${WHITE_FG}pup ':only-child'${RESET}
+${WHITE_FG}pup ':only-of-type'${RESET}
+${WHITE_FG}pup ':contains("text")'${RESET}
+${WHITE_FG}pup ':nth-child(n)' ${BOLD}${RED_FG}*${RESET}
+${WHITE_FG}pup ':nth-of-type(n)' ${BOLD}${RED_FG}*${RESET}
+${WHITE_FG}pup ':nth-last-child(n)' ${BOLD}${RED_FG}*${RESET}
+${WHITE_FG}pup ':nth-last-of-type(n)' ${BOLD}${RED_FG}*${RESET}
+${WHITE_FG}pup ':not(selector)'${RESET}
+${WHITE_FG}pup ':parent-of(selector)'${RESET}
+
+${GREEN_FG}Basic Usage${RESET}
+-----------
+$ cat index.html | ${WHITE_FG}pup [flags] '[selectors] [display function]'${RESET}
+
+${GREEN_FG}Examples${RESET}
+--------
+$ curl -s https://news.ycombinator.com/
+
+Ew, HTML. Let's run that through some ${WHITE_FG}pup${RESET} selectors:
+$ curl -s https://news.ycombinator.com/ | ${WHITE_FG}pup 'table table tr:nth-last-of-type(n+2) td.title a'${RESET}
+
+Okay, how about only the links?
+$ curl -s https://news.ycombinator.com/ | ${WHITE_FG}pup 'table table tr:nth-last-of-type(n+2) td.title a attr{href}'${RESET}
+
+Even better, let's grab the titles too:
+$ curl -s https://news.ycombinator.com/ | ${WHITE_FG}pup 'table table tr:nth-last-of-type(n+2) td.title a json{}'${RESET}
+
+--------
+Download a webpage with wget.
+--------
+
+$ wget http://en.wikipedia.org/wiki/Robots_exclusion_standard -O robots.html
+
+-->${GREEN_FG}Clean and indent${RESET}
+-------------------
+By default ${WHITE_FG}pup${RESET} will fill in missing tags and properly indent the page.
+
+$ cat robots.html
+# nasty looking HTML
+$ cat robots.html | ${WHITE_FG}pup --color${RESET}
+# cleaned, indented, and colorful HTML
+
+-->${GREEN_FG}Filter by tag${RESET}
+----------------
+$ cat robots.html | ${WHITE_FG}pup 'title'${RESET}
+<title>
+ Robots exclusion standard - Wikipedia, the free encyclopedia
+</title>
+
+-->${GREEN_FG}Filter by id${RESET}
+---------------
+$ cat robots.html | ${WHITE_FG}pup 'span#See_also'${RESET}
+<span class="mw-headline" id="See_also">
+ See also
+</span>
+
+-->${GREEN_FG}Filter by attribute${RESET}
+----------------------
+$ cat robots.html | ${WHITE_FG}pup 'th[scope="row"]'${RESET}
+<th scope="row" class="navbox-group">
+ Exclusion standards
+</th>
+<th scope="row" class="navbox-group">
+ Related marketing topics
+</th>
+<th scope="row" class="navbox-group">
+ Search marketing related topics
+</th>
+<th scope="row" class="navbox-group">
+ Search engine spam
+</th>
+<th scope="row" class="navbox-group">
+ Linking
+</th>
+<th scope="row" class="navbox-group">
+ People
+</th>
+<th scope="row" class="navbox-group">
+ Other
+</th>
+
+${GREEN_FG}Pseudo Classes${RESET}
+---------------------------------
+
+CSS selectors have a group of specifiers called "pseudo classes" which are pretty cool. 
+${WHITE_FG}pup${RESET} implements a majority of the relevant ones them.
+
+${YELLOW_FG}Here are some examples.
+
+$ cat robots.html | ${WHITE_FG}pup 'a[rel]:empty'${RESET}
+<a rel="license" href="//creativecommons.org/licenses/by-sa/3.0/" style="display:none;">
+</a>
+$ cat robots.html | ${WHITE_FG}pup ':contains("History")'${RESET}
+<span class="toctext">
+ History
+</span>
+<span class="mw-headline" id="History">
+ History
+</span>
+$ cat robots.html | ${WHITE_FG}pup ':parent-of([action="edit"])'${RESET}
+<span class="wb-langlinks-edit wb-langlinks-link">
+ <a action="edit" href="//www.wikidata.org/wiki/Q80776#sitelinks-wikipedia" text="Edit links" title="Edit interlanguage links" class="wbc-editpage">
+  Edit links
+ </a>
+</span>
+
+============================================================
+For a complete list, view the implemented selectors section.
+============================================================
+
+${GREEN_FG}+, >, and ,${RESET}
+---------------------------------
+These are intermediate characters that declare special instructions. 
+
+${GREEN_FG}For instance, a comma , allows ${WHITE_FG}pup${RESET} to specify multiple groups of selectors.${RESET}
+---------------------------------------------------------------------------
+$ cat robots.html | ${WHITE_FG}pup 'title, h1 span[dir="auto"]'${RESET}
+<title>
+ Robots exclusion standard - Wikipedia, the free encyclopedia
+</title>
+<span dir="auto">
+ Robots exclusion standard
+</span>
+
+Chain selectors together...
+${GREEN_FG}When combining selectors, the HTML nodes selected by the previous selector will be passed to the next ones.${RESET}
+-----------------------------------------------------------------------------------------------------------
+$ cat robots.html | ${WHITE_FG}pup 'h1#firstHeading'${RESET}
+<h1 id="firstHeading" class="firstHeading" lang="en">
+ <span dir="auto">
+  Robots exclusion standard
+ </span>
+</h1>
+$ cat robots.html | ${WHITE_FG}pup 'h1#firstHeading span'${RESET}
+<span dir="auto">
+ Robots exclusion standard
+</span>
+
+
+${BOLD}${RED_FG}*${RESET}${WHITE_FG} Optionally use a formula (an + b).${RESET}
+Description: 'a' represents a cycle size, 'n' is a counter (starts at 0), and 'b' is an offset value.
+So, ${WHITE_FG}p:nth-child(3n+0)${RESET} references all p elements whose index is a multiple of 3
+
+${GREEN_FG}You can mix and match selectors as you wish.${RESET}
+--------------------------------------------
+cat index.html | ${WHITE_FG}pup 'element#id[attribute="value"]:first-of-type'${RESET}
+
+${GREEN_FG}Display Functions${RESET}
+---------------------------------
+Non-HTML selectors which effect the output type are implemented as functions which can be provided as a final argument.
+
+${WHITE_FG}text{}${RESET} -> Print all text from selected nodes and children in depth first order.
+------------------------------------------------------------------------------
+$ cat robots.html | ${WHITE_FG}pup '.mw-headline text{}'${RESET}
+History
+About the standard
+Disadvantages
+Alternatives
+Examples
+Nonstandard extensions
+Crawl-delay directive
+Allow directive
+Sitemap
+Host
+Universal "*" match
+Meta tags and headers
+See also
+References
+External links
+
+${WHITE_FG}attr{attrkey}${RESET} -> Print the values of all attributes with a given key from all selected nodes.${RESET}
+---------------------------------------------------------------------------------------------
+$ cat robots.html | ${WHITE_FG}pup '.catlinks div attr{id}'${RESET}
+mw-normal-catlinks
+mw-hidden-catlinks
+
+${WHITE_FG}json{}${RESET} -> Print HTML as JSON.${RESET}
+-----------------------------
+$ cat robots.html  | ${WHITE_FG}pup 'div#p-namespaces a'${RESET}
+<a href="/wiki/Robots_exclusion_standard" title="View the content page [c]" accesskey="c">
+ Article
+</a>
+<a href="/wiki/Talk:Robots_exclusion_standard" title="Discussion about the content page [t]" accesskey="t">
+ Talk
+</a>
+$ cat robots.html | ${WHITE_FG}pup 'div#p-namespaces a json{}'${RESET}
+[
+ {
+  "accesskey": "c",
+  "href": "/wiki/Robots_exclusion_standard",
+  "tag": "a",
+  "text": "Article",
+  "title": "View the content page [c]"
+ },
+ {
+  "accesskey": "t",
+  "href": "/wiki/Talk:Robots_exclusion_standard",
+  "tag": "a",
+  "text": "Talk",
+  "title": "Discussion about the content page [t]"
+ }
+]
+
+${GREEN_FG}Use the -i / --indent flag to control the indent level.${RESET}
+-------------------------------------------------------
+$ cat robots.html | ${WHITE_FG}pup -i 4 'div#p-namespaces a json{}'${RESET}
+[
+    {
+        "accesskey": "c",
+        "href": "/wiki/Robots_exclusion_standard",
+        "tag": "a",
+        "text": "Article",
+        "title": "View the content page [c]"
+    },
+    {
+        "accesskey": "t",
+        "href": "/wiki/Talk:Robots_exclusion_standard",
+        "tag": "a",
+        "text": "Talk",
+        "title": "Discussion about the content page [t]"
+    }
+]
+
+${GREEN_FG}If the selectors only return one element the results will be printed as a JSON object, not a list.${RESET}
+--------------------------------------------------------------------------------------------------
+$ cat robots.html  | ${WHITE_FG}pup --indent 4 'title json{}'${RESET}
+{
+    "tag": "title",
+    "text": "Robots exclusion standard - Wikipedia, the free encyclopedia"
+}
+
+Because there is no universal standard for converting HTML/XML to JSON, a method has been 
+chosen which hopefully fits. The goal is simply to get the output of ${WHITE_FG}pup${RESET} into a more consumable format.
+
+${GREEN_FG}Flags${RESET}
+---------------------------------
+Run ${WHITE_FG}pup --help${RESET} for a list of further options:
+
+Usage
+    -pup [flags] [selectors] [optional display function]
+Version
+    0.4.0
+Flags
+    -c --color         print result with color
+    -f --file          file to read from
+    -h --help          display this help
+    -i --indent        number of spaces to use for indent or character
+    -n --number        print number of elements selected
+    -l --limit         restrict number of levels printed
+    -p --plain         don't escape html
+    --pre              preserve preformatted text
+    --charset          specify the charset for pup to use
+    --version          display version
+
+
+${BOLD}${WHITE_FG}Pup Tutorial${RESET}
+------------------------------------
+${WHITE_FG}Selecting elements by tag${RESET}
+
+Given this HTML snippet below:
+<img src="/files/pages/nyt-displays.jpg">
+  the tag of this element is img
+
+To select the img tag, via ${WHITE_FG}pup${RESET}: cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'img' 
+This returns:
+
+${GREEN_FG}<img src="/files/pages/nyt-displays.jpg">${RESET}
+
+${WHITE_FG}Selecting elements by id or class${RESET}
+
+In HTML, there's relatively few kinds of tags. To differentiate between elements with the same tag, 
+elements are given different ids or classes.
+
+For example, try selecting all the h1 tags: cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'h1'
+
+You'll see output that includes this:
+
+${GREEN_FG}<h1 id="main-title">
+${GREEN_FG} Stories from the New York Times
+${GREEN_FG}</h1>
+${GREEN_FG}<h1 class="headline">
+${GREEN_FG} <a href="http://www.nytimes.com/2015/01/09/business/honda-fined-70-million-in-underreporting-safety-issues-to-government.html">
+${GREEN_FG}  Honda Hit With Record Fine for Not Reporting Deaths
+${GREEN_FG} </a>
+${GREEN_FG}</h1>${RESET}
+
+${WHITE_FG}Selecting elements by id attribute${RESET}
+
+To select the first h1 element (that has the text, Stories from the New York Times), 
+we can select it exclusively by targeting its id attribute: cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'h1#main-title'
+
+In this case, since it happens to be the only element on the page with an 
+id of main-title, this selector would work just as well:
+
+cat nyt-sample.html | ${WHITE_FG}pup${RESET} '#main-title'
+
+${WHITE_FG}Selecting elements by class attribute${RESET}
+
+To get the other h1-tagged elements, we see that they all have a class of headline. 
+
+The dot is used to select for class: cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'h1.headline'
+
+${WHITE_FG}Selecting child elements${RESET}
+
+Given this HTML snippet:
+<article>
+  <h1 class="headline">
+    <a href="http://www.nytimes.com/2015/01/09/sports/program-prepares-the...\>
+  </h1>
+  <p class="description">
+    After becoming a grandmaster at the tender age of 13, Sam Sevian is getting some help from the chess champion Garry Kasparov.
+  </p>
+</article>
+
+The p element can be thought of as the child of the article element. 
+
+To target that p element: cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'article p'
+
+And you can also see that that a element is a child of the h1 element which itself is a 
+child of that article. Here's the most specific way to target that a element:
+
+cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'article h1 a'
+
+${WHITE_FG}Selecting the attribute value of an element${RESET}
+
+In the img tag, the src attribute points to where the image file is physically located:
+<img src="/files/pages/nyt-displays.jpg">
+
+To get the src attribute of this img tag: cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'img attr{src}' 
+
+${GREEN_FG}/files/pages/nyt-displays.jpg${RESET}
+
+The attribute that you'll deal with the most in web-scraping is the href attribute which 
+is part of standard a-tagged elements (i.e. anchor links, or, "hyperlinks").
+
+To get all the values of the href attributes for all the a tags on the page: cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'a attr{href}'
+
+${GREEN_FG}http://www.nytimes.com
+${GREEN_FG}https://www.flickr.com/photos/zokuga/5804588208/in/photostream/
+${GREEN_FG}http://www.nytimes.com/2015/01/09/business/honda-fined-70-million-in-underreporting-safety-issues-to-government.html
+${GREEN_FG}http://www.nytimes.com/2015/01/09/sports/program-prepares-the-chess-prodigy-sam-sevian-for-his-next-moves.html
+${GREEN_FG}http://www.nytimes.com/2015/01/09/us/in-san-franciscos-tenderloin-a-move-to-help-artists-as-wealth-moves-in.html
+${GREEN_FG}http://nytimes.com/2015/01/09/opinion/the-stumbling-tumbling-euro.html
+${GREEN_FG}http://www.nytimes.com/2015/01/09/business/democrats-step-up-efforts-to-block-obama-on-trade-promotion-authority.html
+${RESET}
+
+To get all the values of the href attributes for just the a-tagged elements that are 
+children of the h1-tagged elements (with a class of headline): cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'h1.headline a attr{href}'
+
+${GREEN_FG}http://www.nytimes.com/2015/01/09/business/honda-fined-70-million-in-underreporting-safety-issues-to-government.html
+${GREEN_FG}http://www.nytimes.com/2015/01/09/sports/program-prepares-the-chess-prodigy-sam-sevian-for-his-next-moves.html
+${GREEN_FG}http://www.nytimes.com/2015/01/09/us/in-san-franciscos-tenderloin-a-move-to-help-artists-as-wealth-moves-in.html
+${GREEN_FG}http://nytimes.com/2015/01/09/opinion/the-stumbling-tumbling-euro.html
+${GREEN_FG}http://www.nytimes.com/2015/01/09/business/democrats-step-up-efforts-to-block-obama-on-trade-promotion-authority.html
+${RESET}
+
+${WHITE_FG}Selecting text elements${RESET}
+
+Think of the text elements as the literal text that you see on a page when rendered by the browser.
+For example, given this HTML snippet:
+
+<h1 id="main-title">Stories from the New York Times</h1>
+
+The text of the h1 element is "Stories from the New York Times"
+
+Using ${WHITE_FG}pup${RESET} to select only the text of that h1 element: cat nyt-sample.html | ${WHITE_FG}pup${RESET} 'h1#main-title text{}'
+
+${GREEN_FG}Stories from the New York Times${RESET}
+
+${BOLD}${WHITE_FG}CSS Selector (30 Essential) Tutorial ${RESET}
+------------------------------------
+${BOLD}${CYAN_FG}1.${WHITE_FG} *${RESET}
+
+${WHITE_FG}* {  
+${WHITE_FG}    margin: 0;  
+${WHITE_FG}    padding: 0; 
+${WHITE_FG}}${RESET}
+
+Let's knock the obvious ones out, for the beginners, before we move onto the
+more advanced selectors.  The star symbol will target every single element on
+the page. Many developers will use this trick to zero out the margins and
+padding
+
+While this is certainly fine for quick tests, I'd advise you to never use this
+in production code.  It adds too much weight on the browser, and is unnecessary.
+The * can also be used with child selectors.
+
+${WHITE_FG}#container * {
+${WHITE_FG}    border: 1px solid black; 
+${WHITE_FG}}${RESET}
+
+This will target every single element that is a child of the #container div.
+Again, try not to use this technique very much, if ever.
+
+${BOLD}${CYAN_FG}2.${WHITE_FG} #X${RESET}
+
+${WHITE_FG}#container {
+${WHITE_FG}    width: 960px;    
+${WHITE_FG}    margin: auto; 
+${WHITE_FG}}${RESET}
+
+Prefixing the hash symbol to a selector allows us to target by using id. This is
+easily the most common usage, however be cautious when selectors.
+
+Ask yourself: do I absolutely need to apply an id to this element in order to
+target it?  selectors are rigid and don't allow for reuse.  If possible, first
+try to use a tag name, one of the new HTML5 elements, or even a pseudo-class.
+
+${BOLD}${CYAN_FG}3.${WHITE_FG} .X${RESET}
+
+${WHITE_FG}.error {
+${WHITE_FG}  color: red; 
+${WHITE_FG}}${RESET}
+
+This is a class selector. The difference between id's and classes is that, with
+the latter, you can target multiple elements. Use classes when you want your
+styling to apply to a group of elements. Alternatively, use id's to find a
+needle-in-a-haystack, and style only that specific element.
+
+${BOLD}${CYAN_FG}4.${WHITE_FG} X Y${RESET}
+
+${WHITE_FG}li a {
+${WHITE_FG}  text-decoration: none; 
+${WHITE_FG}}${RESET}
+
+The next most comment selector is the descendant selector.  When you need to be
+more specific with your selectors, you use these. For example, what if, rather
+than targeting all anchor tags, you only need to target the anchors which are
+within an unordered list? This is specifically when you'd use a descendant
+selector.
+
+${BOLD}${CYAN_FG}5.${WHITE_FG} X${RESET}
+
+${WHITE_FG}a {
+${WHITE_FG}    color: red; 
+${WHITE_FG}}
+${WHITE_FG}ul { 
+${WHITE_FG}    margin-left: 0; 
+${WHITE_FG}}${RESET}
+
+What if you want to target all elements on a page, according to their type,
+     rather than an id or class name? Keep it simple, and use a type selector.
+     If you need to target all unordered lists, use ul {}
+
+${BOLD}${CYAN_FG}6.${WHITE_FG} X:visited and X:link${RESET}
+
+${WHITE_FG}a:link {
+${WHITE_FG}    color: red; 
+${WHITE_FG}} 
+${WHITE_FG}a:visted { 
+${WHITE_FG}    color: purple; 
+${WHITE_FG}}${RESET}
+
+We use the :link pseudo-class to target all anchors tags which have yet to be
+clicked on.  Alternatively, we also have the :visited pseudo class, which, as
+you'd expected, allows us to apply specific styling to only the anchor tags on
+the page which have been clicked on, or visited.
+
+${BOLD}${CYAN_FG}7.${WHITE_FG} X + Y${RESET}
+
+${WHITE_FG}ul + p {
+${WHITE_FG}   color: red; 
+${WHITE_FG}}${RESET}
+
+This is referred to as an adjacent selector. It will select only the element
+that is immediately preceded by the former element. In this case, only the first
+paragraph after each ul will have red text.
+
+${BOLD}${CYAN_FG}8.${WHITE_FG} X > Y${RESET}
+
+${WHITE_FG}div#container > ul {
+${WHITE_FG}  border: 1px solid black; 
+${WHITE_FG}}${RESET}
+
+The difference between the standard X Y and X > Y is that the latter will only
+select direct children.  For example, consider the following markup.
+
+${WHITE_FG}<div id="container">    
+${WHITE_FG}    <ul>       
+${WHITE_FG}        <li> List Item
+${WHITE_FG}            <ul>            
+${WHITE_FG}                <li> Child </li>         
+${WHITE_FG}            </ul>       
+${WHITE_FG}        </li>       
+${WHITE_FG}        <li> List Item </li>       
+${WHITE_FG}        <li> List Item </li>       
+${WHITE_FG}        <li> List Item </li>    
+${WHITE_FG}    </ul> 
+${WHITE_FG}</div>${RESET}
+
+A selector of #container > ul will only target the ul' which are direct children
+of the div with an id of container. It will not target, for instance, the ul
+that is a child of the first li.  
+
+For this reason, there are performance benefits in using the child combinator.
+In fact, it's recommended particularly when working with JavaScript-based CSS
+selector engines.
+
+${BOLD}${CYAN_FG}9.${WHITE_FG} X ~ Y${RESET}
+
+${WHITE_FG}ul ~ p {
+${WHITE_FG}   color: red; 
+${WHITE_FG}}${RESET}
+
+This sibling combinator is similar to X + Y, however, it's less strict.  While
+an adjacent selector ( ul + p ) will only select the first element that is
+immediately preceded by the former selector, this one is more generalized.  It
+will select, referring to our example above, any p elements, as long as they
+follow a ul.
+
+${BOLD}${CYAN_FG}10.${WHITE_FG} X[title]${RESET}
+
+${WHITE_FG}a[title] {
+${WHITE_FG}   color: green; 
+${WHITE_FG}}${RESET}
+
+Referred to as an attributes selector, in our example above, this will only
+select the anchor tags that have a title attribute. Anchor tags which do not
+will not receive this particular styling. But, what if you need to be more
+specific? Well...
+
+${BOLD}${CYAN_FG}11.${WHITE_FG} X[href="foo"]${RESET}
+
+${WHITE_FG}a[href="http://net.tutsplus.com"] {
+${WHITE_FG}  color: #1f6053; /* nettuts green */ 
+${WHITE_FG}}${RESET}
+
+The snippet above will style all anchor tags which link to
+http://net.tutsplus.com; they'll receive our branded green color. All other
+anchor tags will remain unaffected.  Note that we're wrapping the value in
+quotes.  Remember to also do this when using a JavaScript CSS selector engine.
+When possible, always use CSS3 selectors over unofficial methods.
+
+This works well, though, it's a bit rigid. What if the link does indeed direct
+to Nettuts+, but, maybe, the path is nettuts.com rather than the full url? In
+those cases we can use a bit of the regular expressions syntax.
+
+${BOLD}${CYAN_FG}12.${WHITE_FG} X[href*="nettuts"]${RESET}
+
+${WHITE_FG}a[href*="tuts"] {
+${WHITE_FG}  color: #1f6053; /* nettuts green */ 
+${WHITE_FG}}${RESET}
+
+There we go; that's what we need. The star designates that the proceeding value
+must appear somewhere in the attribute's value. That way, this covers
+nettuts.com, net.tutsplus.com, and even tutsplus.com.  Keep in mind that this is
+a broad statement. What if the anchor tag linked to some non-Envato site with
+the string tuts in the url? 
+
+When you need to be more specific, use ^ and $, to reference the beginning and
+end of a string, respectively.
+
+${BOLD}${CYAN_FG}13.${WHITE_FG} X[href^="http"]${RESET}
+
+${WHITE_FG}a[href^="http"] { 
+${WHITE_FG}    background: url(path/to/external/icon.png) no-repeat;
+${WHITE_FG}    padding-left: 10px;
+${WHITE_FG}}${RESET}
+
+Ever wonder how some websites are able to display a little icon next to the
+links which are external? I'm sure you've seen these before; they're nice
+reminders that the link will direct you to an entirely different website.  This
+is a cinch with the carat symbol. It's most commonly used in regular expressions
+to designate the beginning of a string. If we want to target all anchor tags
+that have a href which begins with http, we could use a selector similar to the 
+snippet shown above.
+
+Notice that we're not searching for with https://; that's unnecessary, and doesn't 
+account for the urls that begin http://
+
+Now, what if we wanted to instead style all anchors which link to, say, a photo?
+In those cases, let's search for the end of the string.
+
+${BOLD}${CYAN_FG}14.${WHITE_FG} X[href\$=".jpg"]${RESET}
+
+${WHITE_FG}a[href\$=".jpg"] {
+${WHITE_FG}    color: red; 
+${WHITE_FG}}${RESET}
+
+Again, we use a regular expressions symbol, an image -- or at least a url that
+ends with $, to refer to the end of a string. 
+In this case, we're searching for all anchors which link to .jpg
+Keep in mind that this certainly won't work for gifs and pngs.
+
+Refer back to number eight; how do we compensate for all of the various image
+types: png , jpeg, jpg , gif? Well, we could create multiple selectors, such as:
+
+${WHITE_FG}a[href\$=".jpg"], a[href\$=".jpeg"], a[href\$=".png"], a[href\$=".gif"] {
+${WHITE_FG}    color:
+${WHITE_FG}    red; 
+${WHITE_FG}}${RESET}
+
+But, that's a pain in the butt, and is inefficient. Another possible solution is
+to use custom attributes. What if we added our own filetype data-attribute to each
+anchor that links to an image?  
+
+${WHITE_FG}<a href="path/to/image.jpg" data-filetype="image"> Image Link </a>${RESET}
+
+Then, with that hook in place, we can use a standard attributes selector to
+target only those anchors.
+
+${WHITE_FG}a[data-filetype="image"] {
+${WHITE_FG}    color: red; 
+${WHITE_FG}}${RESET}
+
+${BOLD}${CYAN_FG}16.${WHITE_FG} X[foo~="bar"]${RESET}
+
+${WHITE_FG}a[data-info~="external"] {
+${WHITE_FG}    color: red; 
+${WHITE_FG}}${RESET}
+
+${WHITE_FG}a[data-info~="image"] {
+${WHITE_FG}    border:
+${WHITE_FG}    1px solid black; 
+${WHITE_FG}}${RESET}
+
+Here's a special one that'll impress your friends. Not too many people know
+about this trick. The tilda ( ~ ) symbol allows us to target an attribute which
+has a spaced-separated list of values.  Going along with our custom attribute
+from number fifteen, above, we could create a data-info attribute, which can 
+receive a space-separated list of anything we need to make note of. 
+In this case, we'll make note of external links and links to images -- just for the example.
+
+${WHITE_FG}"<a href="path/to/image.jpg" data-info="external image"> Click Me, Fool </a>${RESET}
+
+With that markup in place, now we can target any tags that have either of those
+values, by using the ~ attributes selector trick.
+
+/* Target data-info attr that contains the value "external" */
+
+${WHITE_FG}a[data-info~="external"] {
+${WHITE_FG}    color: red;
+${WHITE_FG}}${RESET}
+
+/* And which contain the value "image" */
+
+${WHITE_FG}a[data-info~="image"] {
+${WHITE_FG}    border: 1px solid black;
+${WHITE_FG}}${RESET}
+
+Pretty nifty, ay?
+
+${BOLD}${CYAN_FG}17.${WHITE_FG} X:checked${RESET}
+
+${WHITE_FG}input[type=radio]:checked {
+${WHITE_FG}    border: 1px solid black;
+${WHITE_FG}}${RESET}
+
+This pseudo class will only target a user interface element that has been
+checked - like a radio button, or checkbox. It's as simple as that.
+
+${BOLD}${CYAN_FG}18.${WHITE_FG} X:after The before and after pseudo classes kick butt. 
+
+Every day, it seems, people are finding new and creative ways 
+to use them effectively.
+
+They simply generate content around the selected element.  Many were first
+introduced to these classes when they encountered the clear-fix hack.
+
+${WHITE_FG}.clearfix:after {
+${WHITE_FG}    content: "";     
+${WHITE_FG}    display: block;     
+${WHITE_FG}      clear: both;
+${WHITE_FG} visibility: hidden;     
+${WHITE_FG}  font-size: 0;     
+${WHITE_FG}     height: 0;    
+${WHITE_FG}}${RESET}
+
+${WHITE_FG}.clearfix {
+${WHITE_FG}    *display: inline-block;    
+${WHITE_FG}     _height: 1%; 
+${WHITE_FG}}${RESET}
+
+This hack uses the :after pseudo class to append a space after the element,
+and then clear it. It's an excellent trick to have in your tool bag, 
+particularly in the cases when the overflow: hidden; method isn't possible.
+
+For another creative use of this, refer to my quick tip on creating shadows.
+
+According to the CSS3 Selectors specification, you should technically use the
+pseudo element syntax of two colons :: . However, to remain compatible, the
+user-agent will accept a single colon usage as well. In fact, at this point,
+it's smarter to use the single-colon version in your projects.
+
+${BOLD}${CYAN_FG}19.${WHITE_FG} X:hover${RESET}
+
+${WHITE_FG}div:hover {
+${WHITE_FG}    background: #e3e3e3;
+${WHITE_FG}}${RESET}
+
+Oh come on. You know this one. The official term for this is user action pseudo class. 
+It sounds confusing, but it really isn't. Want to apply specific styling when a user 
+hovers over an element? This will get the job done!
+
+Keep in mind that older version of Internet Explorer don't respond 
+to anything other than an anchor tag when the :hover pseudo class is applied
+
+You'll most often use this selector when applying, for example, 
+a border-bottom to anchor tags, when hovered over.
+
+${WHITE_FG}a:hover {  border-bottom: 1px solid black; }${RESET}
+
+Pro-tip - border-bottom: 1px solid black; 
+looks better than text-decoration: underline.
+
+${BOLD}${CYAN_FG}20.${WHITE_FG} X:not(selector)${RESET}
+
+${WHITE_FG}The div:not(#container) {
+${WHITE_FG}    color: blue;
+${WHITE_FG}}${RESET}
+
+negation pseudo class is particularly helpful. Let's say I want to select all divs,
+except for the one which has an id of container.
+The snippet above will handle that task perfectly.  Or, if I wanted to select
+every single element (not advised) except for paragraph tags, we could do: 
+
+${WHITE_FG}*:not(p) {
+${WHITE_FG}      color: green; 
+${WHITE_FG}}${RESET}
+
+${BOLD}${CYAN_FG}21.${WHITE_FG} X::pseudoElement${RESET}
+
+${WHITE_FG}p::first-line {
+${WHITE_FG}    font-weight: bold;
+${WHITE_FG}    font-size: 1.2em;
+${WHITE_FG}}${RESET}
+
+We can use pseudo elements (designated by :: ) to style fragments of an element,
+such as the first line, or the first letter.  Keep in mind that these must be 
+applied to block level elements in order to take effect.
+
+A pseudo-element is composed of two colons: ::
+
+Target the First Letter of a Paragraph
+
+${WHITE_FG}p::first-letter {
+${WHITE_FG}    float: left;
+${WHITE_FG}    font-size: 2em;
+${WHITE_FG}    font-size: 2em;    
+${WHITE_FG}    font-weight: bold;    
+${WHITE_FG}    font-family: cursive;
+${WHITE_FG}    padding-right: 2px;
+${WHITE_FG}}${RESET}
+
+This snippet is an abstraction that will find all paragraphs on the page, and
+then sub-target only the first letter of that element.  This is most often used
+to create newspaper-like styling for the first-letter of an article.  
+
+Target the First Line of a Paragraph
+
+${WHITE_FG}p::first-line {
+${WHITE_FG}    font-weight: bold;
+${WHITE_FG}    font-size: 1.2em;
+${WHITE_FG}}${RESET}
+
+Similarly, the ::first-line pseudo element will, as expected, style the first line 
+of the element only.
+
+"For compatibility with existing style sheets, user agents must also accept the
+previous one-colon notation for pseudo-elements introduced in CSS levels 1 and 2
+(namely, :first-line, :first-letter, :before and :after). This compatibility is
+not allowed for the new pseudo-elements introduced in this specification." -
+
+${BOLD}${CYAN_FG}22.${WHITE_FG} X:nth-child(n)${RESET}
+
+${WHITE_FG}li:nth-child(3) {
+${WHITE_FG}    color: red; 
+${WHITE_FG}}${RESET}
+
+Remember the days when we had no way to target specific elements in a stack? 
+The nth-child pseudo class solves that!
+
+Please note that nth-child accepts an integer as a parameter, however, this is not zero-based.
+
+If you wish to target the second list item, use li:nth-child(2) 
+
+We can even use this to select a variable set of children. For example, we could
+do  li:nth-child(4n)  to select every fourth list item.
+
+
+${BOLD}${CYAN_FG}23.${WHITE_FG} X:nth-last-child(n)${RESET}
+
+${WHITE_FG}li:nth-last-child(2) {
+${WHITE_FG}    color: red; 
+${WHITE_FG}}${RESET}
+
+What if you had a huge list of items in a ul, and only needed to access, say, the 
+third to the last item?  Rather than doing nth-last-child(397), you could instead 
+use the nth-child pseudo class.
+
+This technique works almost identically from number sixteen above, however, the
+difference is that it begins at the end of the collection, and works its way
+back.
+
+${BOLD}${CYAN_FG}24.${WHITE_FG} X:nth-of-type(n)${RESET}
+
+${WHITE_FG}ul:nth-of-type(3) {
+${WHITE_FG}    border: 1px solid black;
+${WHITE_FG}}${RESET}
+
+There will be times when, rather than selecting a child, you instead need to select 
+according to the type of element.
+
+Imagine mark-up that contains five unordered lists. If you wanted to style only
+the third, and didn't have a unique id to hook into, you could use the nth-of-type(n) 
+pseudo class. In the snippet above, only the third ul will have a border around it.
+
+${BOLD}${CYAN_FG}25.${WHITE_FG} X:nth-last-of-type(n)${RESET}
+
+${WHITE_FG}ul:nth-last-of-type(3) {
+${WHITE_FG}    border: 1px solid black;
+${WHITE_FG}}${RESET}
+
+And yes, to remain consistent, we can also use nth-last-of-type to begin at the end 
+of the selectors list, and work our way back to target the desired element.
+
+${BOLD}${CYAN_FG}26.${WHITE_FG} X: first-child${RESET}
+
+${WHITE_FG}ul li:first-child {
+${WHITE_FG}    border-top: none; 
+${WHITE_FG}}${RESET}
+
+This structural pseudo class allows us to target only the first child of the element's 
+parent. You'll often use this to remove borders from the first and last list items.  
+
+For example, let's say you have a list of rows, and each one has a border-top and a
+border-bottom. Well, with that arrangement, the first and last item in that set will 
+look a bit odd.  Many designers apply classes of first and last to compensate for this. 
+Instead, you can use these pseudo classes.
+
+${BOLD}${CYAN_FG}27.${WHITE_FG} X:last-child${RESET}
+
+${WHITE_FG}ul > li:last-child {
+${WHITE_FG}    color: green; 
+${WHITE_FG}}${RESET}
+
+The opposite of first-child, last-child will target the last item of the element's parent.
+
+Example Let's build a simple example to demonstrate one possible use of these
+classes. We'll create a styled list item.  
+
+Markup 
+
+${WHITE_FG}<ul>
+${WHITE_FG}    <li> List Item </li>
+${WHITE_FG}    <li> List Item </li>
+${WHITE_FG}    <li> List Item </li>
+${WHITE_FG}</ul>${RESET}
+
+Nothing special here; just a simple list.  
+
+CSS
+
+${WHITE_FG}ul {
+${WHITE_FG}    width: 200px;  
+${WHITE_FG}    background: #292929;  
+${WHITE_FG}    color: white;  
+${WHITE_FG}    list-style: none;
+${WHITE_FG}    padding-left: 0; 
+${WHITE_FG}}${RESET}
+
+${WHITE_FG}li {  
+${WHITE_FG}    padding: 10px;  
+${WHITE_FG}    border-bottom: 1px solid black;
+${WHITE_FG}    border-top: 1px solid #3c3c3c; 
+${WHITE_FG}}${RESET}
+
+This styling will set a background, remove the browser-default padding on the ul, 
+and apply borders to each li to provide a bit of depth.
+
+To add depth to your lists, apply a border-bottom to each li that is a shade or
+two darker than the li's background color. Next, apply a border-top which is a couple
+shades lighter.  
+
+The only problem, as shown in the image above, is that a border will be applied
+to the very top and bottom of the unordered list - which looks odd. Let's use
+the :first-child and :last-child pseudo classes to fix this.
+
+${WHITE_FG}li:first-child {
+${WHITE_FG}    border-top: none; 
+${WHITE_FG}}${RESET}  
+
+${WHITE_FG}li:last-child {
+${WHITE_FG}    border-bottom:
+${WHITE_FG}    none; 
+${WHITE_FG}${RESET}}
+
+There we go; that fixes it!
+
+${BOLD}${CYAN_FG}28.${WHITE_FG} X:only-child${RESET}
+
+${WHITE_FG}div p:only-child {
+${WHITE_FG}    color: red; 
+${WHITE_FG}}${RESET}
+
+Truthfully, you probably won't find yourself using the only-child pseudo class too often.
+Nonetheless, it's available, should you need it.
+
+It allows you to target elements which are the only child of its parent. For
+example, referencing the snippet above, only the paragraph that is the only
+child of the div will be colored, red.
+
+Let's assume the following markup.
+
+${WHITE_FG}<div> <p> My paragraph here. </p> </div>${RESET}
+
+${WHITE_FG}<div>
+${WHITE_FG}    <p> Two paragraphs total. </p>
+${WHITE_FG}    <p> Two paragraphs total. </p> 
+${WHITE_FG}</div>${RESET}
+
+In this case, the second div's paragraphs will not be targeted; only the first
+div. As soon as you apply more than one child to an element, the only-child
+pseudo class ceases to take effect.
+
+${BOLD}${CYAN_FG}29.${WHITE_FG} X:only-of-type${RESET}
+
+${WHITE_FG}li:only-of-type {
+${WHITE_FG}    font-weight: bold; 
+${WHITE_FG}}${RESET}
+
+This structural pseudo class can be used in some clever ways. It will target
+elements that do not have any siblings within its parent container. As an
+example, let's target all ul's, which have only a single list item.
+
+First, ask yourself how you would accomplish this task? You could do ul li, 
+but, this would target all list items. The only solution is to use only-of-type.  
+
+${WHITE_FG}ul > li:only-of-type {
+${WHITE_FG}    font-weight: bold;
+${WHITE_FG}}${RESET}
+
+${BOLD}${CYAN_FG}30.${WHITE_FG} X: first-of-type ${RESET}
+
+The first-of-type pseudo class allows you to select the first siblings of its type.
+
+A Test To better understand this, let's have a test. Copy the following mark-up
+into your code editor:
+
+${WHITE_FG}<div> 
+${WHITE_FG}    <p> My paragraph here. </p>
+${WHITE_FG}    <ul>
+${WHITE_FG}        <li> List Item 1 </li>
+${WHITE_FG}        <li> List Item 2 </li>    
+${WHITE_FG}    </ul>      
+${WHITE_FG}    <ul>       
+${WHITE_FG}        <li> List Item 3 </li>
+${WHITE_FG}        <li> List Item 4 </li>    
+${WHITE_FG}    </ul>   
+${WHITE_FG}</div>${RESET}
+
+Now, without reading further, try to figure out how to target only "List Item
+2".  When you've figured it out (or given up), read on.
+
+Solution 1 There are a variety of ways to solve this test. We'll review a
+handful of them. Let's begin by using first-of-type.
+
+${WHITE_FG}ul:first-of-type > li:nth-child(2) {
+${WHITE_FG}    font-weight: bold; 
+${WHITE_FG}}${RESET}
+
+This snippet essentially says, "find the first unordered list on the page, then
+find only the immediate children, which are list items. Next, filter that
+down to only the second list item in that set.  
+
+Solution 2 Another option is to use the adjacent selector.
+
+${WHITE_FG}p + ul li:last-child {
+${WHITE_FG}    font-weight: bold;
+${WHITE_FG}}${RESET}
+
+In this scenario, we find the ul that immediately proceeds the p tag, and then
+find the very last child of the element.
+
+Solution 3 We can be as obnoxious or as playful as we want with these selectors.
+
+${WHITE_FG}ul:first-of-type li:nth-last-child(1) {
+${WHITE_FG}    font-weight: bold;
+${WHITE_FG}}${RESET}
+
+This time, we grab the first ul on the page, and then find the very first list
+item, but starting from the bottom! :)
+
+${WHITE_FG}And don't forget HTML-XML-utils${RESET}
+
+HTML-XML-utils provides a number of simple utilities for manipulating and
+converting HTML and XML files in various ways. The suite consists of the
+following tools:
+
+asc2xml      -  convert from UTF-8 to &#nnn; entities 
+xml2asc      -  convert from &#nnn; entities to UTF-8 
+hxaddid      -  add IDs to selected elements
+hxcite       -  replace bibliographic references by hyperlinks 
+hxcite-mkbib -  expand references and create bibliography 
+hxclean      -  apply heuristics to correct an HTML file 
+hxcopy       -  copy an HTML file while preserving relative links 
+hxcount      -  count elements and attributes in HTML or XML files
+hxextract    -  extract selected elements 
+hxincl       -  expand included HTML or XML files 
+hxindex      -  create an alphabetically sorted index 
+hxmkbib      -  create bibliography from a template 
+hxmultitoc   -  create a table of contents for a set of HTML files 
+hxname2id    -  move some ID= or NAME= from A elements to their parents 
+hxnormalize  -  pretty-print an HTML file 
+hxnum        -  number section headings in an HTML file 
+hxpipe       -  convert XML to a format easier to parse with Perl or AWK 
+hxprintlinks -  number links & add table of URLs at end of an HTML file 
+hxprune      -  remove marked elements from an HTML file 
+hxselect     -  extract elements that match a (CSS) selector 
+hxref        -  generate cross-references 
+hxtoc        -  insert a table of contents in an HTML file 
+hxuncdata    -  replace CDATA sections by character entities 
+hxunent      -  replace HTML predefined character entities to UTF-8 
+hxunpipe     -  convert output of pipe back to XML format 
+hxunxmlns    -  replace "global names" by XML Namespace prefixes 
+hxwls        -  list links in an HTML file 
+hxxmlns      -  replace XML Namespace prefixes by "global names"
+DOC1
+) | less -R
+

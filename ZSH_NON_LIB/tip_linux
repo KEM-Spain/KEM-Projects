@@ -1,0 +1,59 @@
+#!/usr/bin/zsh
+YELLOW_FG=$(echo "\033[33m")
+WHITE_FG=$(echo "\033[37m")
+RESET=$(echo "\033[m")
+RED_FG=$(echo "\033[31m")
+GREEN_FG=$(echo "\033[32m")
+
+(
+cat << "DOC1"
+
+ifconfig mapping
+----------------
+enp3s0:
+
+en     -- ethernet
+  p3   -- bus number  (3)
+    s0 -- slot number (0)
+
+wlp2s0:
+
+wl     -- wireless
+  p2   -- bus number  (2)
+    s0 -- slot number (0)
+
+
+auto login config
+-----------------
+To enable auto-login from the command line:
+
+edit: /etc/gdm3/custom.conf
+
+get the last field with cut:
+ZONES+=($(echo ${Z} | rev| cut -d'/' -f -2 | rev))
+
+Skip N first lines in file
+--------------------------
+tail -n +N
+
+Skip N last lines in file
+-------------------------
+head -n -N
+
+Extract N middle lines in file
+------------------------------
+Use the head and the tail together
+
+51st to the 55th line
+
+$ tail -n +51 numbers_en.txt | head -n 5
+fifty-one     : 51
+fifty-two     : 52
+fifty-three   : 53
+fifty-four    : 54
+fifty-five    : 55
+
+alternate method:
+head -n 55 numbers_en.txt | tail -n 5
+DOC1
+) | less -R

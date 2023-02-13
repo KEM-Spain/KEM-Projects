@@ -1,0 +1,42 @@
+#!/usr/bin/zsh
+(
+cat << 'DOC'
+
+Guide to dpkg -l ...
+
+First letter -> desired package state ("selection state"):
+
+u ... unknown
+i ... install
+r ... remove/deinstall
+p ... purge (remove including config files)
+h ... hold
+
+Second letter -> current package state:
+
+n ... not-installed
+i ... installed
+c ... config-files (only the config files are installed)
+u ... unpacked
+f ... half-configured (configuration failed for some reason)
+h ... half-installed (installation failed for some reason)
+w ... triggers-awaited (package is waiting for a trigger from another package)
+t ... triggers-pending (package has been triggered)
+
+Third letter -> error state (you normally shouldn't see a third letter):
+
+r ... reinst-required (package broken, reinstallation required)
+
+If this error occurs:
+
+dpkg: error processing archive (SOMEFILE).deb (--unpack):
+trying to overwrite '(SOMEFILE).deb (--unpack):(SOMEFILE)', which is also in package (SOMEFILE)
+dpkg-deb: error: paste subprocess was killed by signal (Broken pipe)
+Errors were encountered while processing:
+(SOMEFILE).deb
+E: Sub-process /usr/bin/dpkg returned an error code (1)
+
+Do: sudo dpkg -i --force-overwrite (SOMEFILE).deb
+Then: sudo apt --fix-broken install
+DOC
+) | less

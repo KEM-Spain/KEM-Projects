@@ -1,0 +1,6 @@
+#compdef f_finder
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-l[local files have priority]'

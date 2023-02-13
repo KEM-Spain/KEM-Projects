@@ -1,0 +1,12 @@
+#compdef f_surface
+ 
+_dirs -W f_surface
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-i[interactive prompts]' \
+'-t[<TARGET DIR> dir to hold surfaced files]' \
+'-d[do not remove empty dirs]' \
+'-j[do not remove junk files from torrent directories]' \
+'-s[simulate actions only]'

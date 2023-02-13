@@ -1,0 +1,170 @@
+#!/usr/bin/zsh
+
+BOLD="\033[1m"
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+WHITE_FG="\033[37m"
+
+#set -xv
+ERESET=$(echo "\033[m")
+EGREEN_FG=$(echo "\033[32m")
+
+
+function get_level {
+	local LIST
+	local LEVEL=0
+	local STATE=off
+
+	LIST=("${(f)$(amixer -D pulse)}")
+	
+	for L in ${LIST};do
+		[[ ! ${L:l} =~ "front.*playback" ]] && continue
+		LEVEL=$(echo ${L} | cut -d\[ -f2 | sed 's/%].*//g')
+		STATE=$(echo ${L} | cut -d\[ -f3 | sed 's/]//g')
+	done
+	echo "${LEVEL}:${STATE}"
+}
+
+function get_mode {
+	local MIX=("${(@f)$(amixer -D pulse)}")
+	local SCAN=false
+	local STATE="${RED_FG}muted${RESET}"
+	[[ ${DEBUG} == "true" ]] && set +xv
+	for M in ${MIX};do
+		[[ ${M:l} =~ "simple.*master" ]] && SCAN=true
+		[[ ${M:l} =~ "simple.*capture" ]] && SCAN=false
+		[[ ${SCAN} == "true" && ${M:l} =~ "^[ \t]*front[ \t]*left.*on" ]] && STATE="${GREEN_FG}unmuted${RESET}"
+	done
+	echo ${STATE}
+}
+
+function set_mode {
+	local MODE=$1
+	amixer -q -D pulse sset Master $MODE
+}
+
+function show-mix {
+	local STATE=$(get_mode)
+	local MIX=("${(@f)$(amixer -D pulse)}")
+	[[ ${DEBUG} == "true" ]] && set +xv
+	echo "Volume is currently:${BOLD}${STATE}${RESET}"
+	for M in ${MIX};do
+		if echo $M | grep -qi 'simple.*master';then
+			echo "Pulse ${WHITE_FG}Output${RESET} levels..."
+		fi
+		if echo $M | grep -qi 'simple.*capture';then
+			echo "\nPulse ${WHITE_FG}Input${RESET} levels..."
+		fi
+		echo $M | grep -i 'left\|right' | grep -vi 'channels' | sed "s/\[\(.*\)%/\[${EGREEN_FG}\1%${ERESET}/g"
+	done
+}
+
+function full_volume {
+	amixer -q -D pulse sset Master 100%
+	set_mode unmute
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+function parse_opts {
+	local OPTS=$@
+	local -a OPTSTRING
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
+		OPTSTRING+="-${OPTS[$O]}"
+	done
+	echo $OPTSTRING
+}
+
+function usage {
+	local OPTS=$(parse_opts $OPTSTR)
+    echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT $OPTS\n"
+    echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-m${RESET} mute"
+	echo -e "${WHITE_FG}-u${RESET} unmute"
+	echo -e "${WHITE_FG}-t${RESET} toggle mute"
+	echo -e "${WHITE_FG}-f${RESET} full volume"
+    echo -e "\n${WHITE_FG}DESC${RESET}:change volume I/O levels or mute state\n"
+	exit
+}
+
+OPTSTR=":HDmutf"
+
+DEBUG=false
+OPTIND=0
+ACTION=?
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) DEBUG=true;;
+     m) ACTION=mute;;
+     u) ACTION=unmute;;
+     t) ACTION=toggle;;
+     f) ACTION=full;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+CURR_LEVEL=$(get_level)
+
+#Execution
+if [[ ${ACTION} != "?" ]];then
+	case ${ACTION} in
+		mute) set_mode mute;;
+		unmute) set_mode unmute;;
+		toggle) set_mode toggle;;
+		full) full_volume;;
+		*) echo "Unknown ACTION:${ACTION}";;
+	esac
+	show-mix
+	exit
+fi
+
+[[ ${DEBUG} == "true" ]] && set -xv
+
+#no options - default action is to unmute and display settings
+if [[ $# -eq 0 ]];then
+	set_mode unmute
+	show-mix
+	exit
+fi
+
+[[ $# -eq 1 ]] && OLEVEL=$1
+[[ $# -eq 2 ]] && ILEVEL=$2
+
+
+[[ ${DEBUG} == "true" ]] && set +xv
+
+if [[ $OLEVEL -ge 0 && $OLEVEL -le 100 ]];then
+	[[ ${DEBUG} == "true" ]] && set -xv
+	amixer -q -D pulse sset Master ${OLEVEL}%
+	set_mode unmute
+	[[ ${DEBUG} == "true" ]] && set +xv
+else 
+	echo "${BOLD}${WHITE_FG}OUTPUT LEVEL:${YELLOW_FG}${OLEVEL}${RED_FG} invalid${RESET}"
+	exit 1
+fi
+
+if [[ -n $ILEVEL ]];then
+	if [[ $ILEVEL -ge 0 && $ILEVEL -le 100 ]];then
+		[[ ${DEBUG} == "true" ]] && set -xv
+		amixer -q -D pulse sset Capture ${ILEVEL}% 
+		[[ ${DEBUG} == "true" ]] && set +xv
+	else 
+		echo "${BOLD}${WHITE_FG}INPUT LEVEL:${YELLOW_FG}${ILEVEL}${RED_FG} invalid${RESET}"
+		exit 1
+	fi
+fi
+show-mix

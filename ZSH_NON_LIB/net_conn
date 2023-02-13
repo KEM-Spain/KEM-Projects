@@ -1,0 +1,30 @@
+#!/usr/bin/zsh
+#vim: syntax off
+RESET="\033[m"
+BOLD="\033[1m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+LIST=("${(f)$(ifconfig | grep -i running | grep -vi lo: | cut -d: -f1)}")
+[[ -z ${LIST} ]] && echo "${RED_FG}No network connection${RESET}" && exit 1
+
+for L in ${LIST};do
+	case ${L} in
+		en*) echo "Wired$:${WHITE_FG}${L}${RESET} ${GREEN_FG}${ITALIC}connected${RESET}";;
+		wl*) echo "Wireless:${WHITE_FG}${L}${RESET} ${GREEN_FG}${ITALIC}connected${RESET}";;
+		tun*) echo "VPN:${WHITE_FG}${L}${RESET} ${GREEN_FG}${ITALIC}active${RESET}";;
+		*) echo "Unknown device:${DEV}"
+	esac
+done
+exit 0
