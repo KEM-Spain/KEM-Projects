@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+cd ~/Code/LANG//Python/${1} 

@@ -91,7 +91,7 @@ EXCLUDE_OPT=''
 FILELIST=false
 LINENUM_OPT=''
 LISTFILES_OPT=''
-MYPATH=${PWD}
+MYPATH=${PWD}/*
 ONE_LINE=false
 ONLY_OPT=''
 RECURSE=false
@@ -111,7 +111,7 @@ while getopts ${OPTSTR} OPTION;do
      m) MAX_LINES=${OPTARG};;
      n) LINENUM_OPT=-n;;
      o) ONLY_OPT=-o;;
-     p) MYPATH=${OPTARG};;
+     p) MYPATH=${OPTARG}/*;;
      r) RECURSE_OPT=-r;RECURSE=true;;
      w) WORD_OPT=-w;;
      :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
@@ -126,8 +126,9 @@ SEARCHTERM=${@}
 [[ ${_DEBUG} -eq 0 && FILELIST == 'false' ]] && do_smcup
 
 [[ -z ${SEARCHTERM} ]] && usage "Missing argument: <SEARCHTERM>"
+[[ ! -t 0 ]] && exit_leave $(msg_warn "Unable to accept piped input")
 
-CMD=$(echo "grep -R -P -I -d skip --color=never ${RECURSE_OPT} ${LINENUM_OPT} ${EXCLUDE_OPT} ${ONLY_OPT} ${WORD_OPT} ${CASE_OPT} '"${SEARCHTERM}"' ${MYPATH}/* 2>/dev/null | grep --color=always '"${SEARCHTERM}"' ")
+CMD=$(echo "grep -R -P -I -d skip --color=never ${RECURSE_OPT} ${LINENUM_OPT} ${EXCLUDE_OPT} ${ONLY_OPT} ${WORD_OPT} ${CASE_OPT} '"${SEARCHTERM}"' ${MYPATH} 2>/dev/null | grep --color=always '"${SEARCHTERM}"' ")
 RAWLIST=("${(f)$(eval ${CMD})}")
 
 LONGEST_FN=0
@@ -218,7 +219,7 @@ else
 		fi
 	done
 	} | mypager
-	[[ ${?} -ne 0 ]] && echo -n "Press any key..." && read
+	[[ ${?} -ne 0 ]] && echo -n "${RESET}Press any key..." && read
 fi
 
 exit_leave

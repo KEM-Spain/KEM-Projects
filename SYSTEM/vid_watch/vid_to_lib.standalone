@@ -97,19 +97,26 @@ exit_pre_exit () {
 	if [[ ${XDG_SESSION_TYPE:l} == 'x11' ]];then
 		xset r on #reset key repeat
 		eval "xset ${_XSET_DEFAULT_RATE}" #reset key rate
+		[[ ${_DEBUG} -gt 0 ]] && echo "${0}: reset key rate:${_XSET_DEFAULT_RATE}"
 	fi
 
 	[[ ${_CURSOR} == 'off' ]] && cursor_on
+	[[ ${_DEBUG} -gt 0 && ${_CURSOR} == 'off' ]] && echo "${0}: restored cursor"
 
 	kbd_activate
+	[[ ${_DEBUG} -gt 0 ]] && echo "${0}: activated keyboard"
 
 	[[ -n ${_EXIT_MSGS} ]] && echo ${_EXIT_MSGS}
 
 	[[ ${$(tabs -d | grep --color=never -o "tabs 8")} != 'tabs 8' ]] && tabs 8
+	[[ ${_DEBUG} -gt 0 ]] && echo "${0}: reset tabstops"
 
 	if typeset -f _cleanup > /dev/null; then
+		[[ ${_DEBUG} -gt 0 ]] && echo "${0}: cleaning up"
 		_cleanup
 	fi
+
+	[[ ${_DEBUG} -gt 0 ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
 }
 
 str_unicode_line () {
@@ -344,13 +351,6 @@ sub_rename () {
 							echo "${GREEN_FG}Moving...${WHITE_FG}${S:t}${RESET} to ${WHITE_FG}${V:t:r}.${ORPHAN_TAG}${RESET}"
 							mv "${S}" "${V:r}.${ORPHAN_TAG}"
 						fi
-					else #handle subs that don't match the long video name (title, year, res)
-						#TODO: fix section - is moving the wrong series sub over the correct one
-						#if [[ -e ${S} && ! -e ${V:t:r}.${S:e} ]];then
-						#	HIT=true
-						#	echo "${GREEN_FG}Moving...${WHITE_FG}${S:t}${RESET} to ${WHITE_FG}${V:t:r}.${S:e}${RESET}"
-						#	mv "${S}" "${V:r}.${S:e}"
-						#fi
 					fi
 				fi
 			fi

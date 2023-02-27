@@ -179,7 +179,7 @@ while true;do
 		[[ ${TRYS} -gt 2 ]] && msg_box -p -PK "Unable to mount external drive" && break 2
 		[[ ${M:l} =~ ${_DISK_LBL:l} ]] && FOUND_EXT=true && break 2
 	done
-	msg_box "Mounting external drive..." && dsk_external >/dev/null 2>&1
+	msg_box "Mounting external drive..." && dsk_external -m >/dev/null 2>&1
 	mount | grep -qi ${_DEST_ID}
 	[[ ${?} -eq 0 ]] && FOUND_EXT=true
 	sleep 1

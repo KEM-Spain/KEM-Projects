@@ -68,6 +68,7 @@ action_warn () {
 	local -a DLIST
 	local INFO_MSG
 	
+	msg_box "Working..."
 	for M in ${MARKED};do
 		DLIST+=$(find ${FPATH} -inum ${INODE[${LIST[${M}]}]}) 
 		[[ ${_DEBUG} -gt 0 ]] && dbg "find ${FPATH} -inum ${INODE[${LIST[${M}]}]}"
@@ -75,6 +76,7 @@ action_warn () {
 			[[ ${DLIST[${X}]:h} == ${PWD} ]] && DLIST[${X}]=${DLIST[${X}]:t}
 		done
 	done
+	msg_box_clear
 
 	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="(<w><I>current page only<N>)|" || INFO_MSG=''
 	msg_box -p -PP "<I>Please respond<N>|$(str_unicode_line 14)|$(str_pluralize ${OBJTYPE} ${CNT} true) queued for deletion|${INFO_MSG}|$(msg_list ${(o)DLIST})"
@@ -143,6 +145,13 @@ read -r -d '' DESC<<EOF
 Select files or directories to delete from a list
 EOF
 
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		f) echo "<FILE>";;
+	esac
+}
+
 parse_opts () {
 	local OPTS=${@}
 	local -a OPTSTRING
@@ -163,7 +172,7 @@ usage () {
 	tabs 5
 	[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
-	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} [PATTERN]\n"
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-d${RESET} directories only (default:${WHITE_FG}files only${RESET})"

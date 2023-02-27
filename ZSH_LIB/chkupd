@@ -68,6 +68,7 @@ function usage {
 OPTSTR=":HDy"
 
 PRE_APPROVED=false
+INLINE=false
 
 OPTIND=0
 while getopts ${OPTSTR} OPTION;do
@@ -172,8 +173,8 @@ if [[ ${PRE_APPROVED} == false ]];then
 	fi
 fi
 
-if [ -f /var/run/reboot-required ]; then
-	echo "${RED_FG}Reboot required...${RESET}"
+if [ -x /var/run/reboot-required ]; then
+	exit_leave $(msg_warn "Reboot required")
 fi
 
 exit_leave

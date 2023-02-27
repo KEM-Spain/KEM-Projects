@@ -53,7 +53,7 @@ E_YELLOW_BG=$(echo -n "\033[43m")
 E_BLK_CSR=$(echo -n "\033[1 q")
 E_DSH_CSR=$(echo -n "\033[3 q")
 
-#Utilities
+#Utils
 tp () {
 	tput -T${TERM:=xterm} ${@}
 }
@@ -1859,6 +1859,7 @@ msg_box () {
 	local -a MSG
 	local CLEAR_MSG=false
 	local DELIM_ARG=false
+	local HEADER_LINES
 	local IGNORE_MARKUP=false
 	local INLINE_LIST=false
 	local MSG_DEBUG=false
@@ -3280,10 +3281,6 @@ str_unpipe () {
 
 	[[ -n ${FIELD} ]] && CUT_PARAM="-f${FIELD}" || CUT_PARAM="-f1-" 
 	cut --output-delimiter=' ' -d'|' ${CUT_PARAM} <<<${PIPE_DATA}
-}
-
-tp () {
-	tput -T${TERM:=xterm} ${@}
 }
 
 validate_is_integer () {

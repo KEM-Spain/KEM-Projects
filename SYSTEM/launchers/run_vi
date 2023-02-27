@@ -23,6 +23,8 @@ HEADERS=/usr/local/etc/app.template
 GETOPTS=/usr/local/etc/getopt.template
 CURSOR=/usr/local/etc/list_cursor.template
 _LIB=/usr/local/lib
+_DIR_USER=$(id -nu)
+_DIR_GROUP=$(id -ng)
 
 #Imports
 source ${_LIB}/common.zsh
@@ -74,10 +76,10 @@ is_file_editable () {
 		[[ ${DEBUG} == "true" ]] && echo "is_file_editable evaluated:FILE_GROUP:${WHITE_FG}${FILE_GROUP}${RESET}" >&2
 	fi
 
-	if [[ ${USER} == ${FILE_USER} && ${USER_PERMS} =~ '^7.' ]];then
+	if [[ ${USER} == ${FILE_USER} && ${USER_PERMS} =~ '^[76].' ]];then
 		[[ ${DEBUG} == "true" ]] && echo "is_file_editable evaluated:USER:${USER} == FILE_USER:${FILE_USER} ${GREEN_FG}not using sudo${RESET}" >&2
 		return 0
-	elif [[ ${GROUP} == "${FILE_GROUP}" && ${GROUP_PERMS} =~ '^.7' ]];then
+	elif [[ ${GROUP} == "${FILE_GROUP}" && ${GROUP_PERMS} =~ '^.[76]' ]];then
 		[[ ${DEBUG} == "true" ]] && echo "is_file_editable evaluated:GROUP:${GROUP} == FILE_GROUP:${FILE_GROUP} ${GREEN_FG}not using sudo${RESET}" >&2
 		return 0
 	else
@@ -88,9 +90,6 @@ is_file_editable () {
 
 make_zsh () {
 	local FN=${1}
-	local USE_SUDO=${2}
-	local DIR_USER=$(id -nu)
-	local DIR_GROUP=$(id -ng)
 
 	case ${MAKE_TYPE} in
 		ZSH_LIST)	echo '#!/usr/bin/zsh' > ${FN}
@@ -113,9 +112,6 @@ make_zsh () {
 
 make_perl () {
 	local FN=${1}
-	local USE_SUDO=${2}
-	local DIR_USER=$(id -nu)
-	local DIR_GROUP=$(id -ng)
 
 	echo '#!/usr/bin/env perl' > ${FN}
 	echo 'use warnings;'>> ${FN}
@@ -123,15 +119,34 @@ make_perl () {
 	echo 'use diagnostics;'>> ${FN}
 }
 
+make_python () {
+	local FN=${1}
+
+	echo '#!/usr/bin/env python' > ${FN}
+}
+
 #--Begin GetOpts--
 RESET="\033[m"
 RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 
-SCRIPT=${0:t}
+read -r -d '' DESC<<EOF
+Frontend for vi with added features
+EOF
+
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		f) echo "<FILE>";;
+	esac
+}
+
 function parse_opts {
 	local OPTS=${@}
 	local -a OPTSTRING
+	local O
+
 	for O in {1..${#OPTS}};do
 		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
 		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
@@ -140,38 +155,50 @@ function parse_opts {
 	echo ${OPTSTRING}
 }
 
-function usage {
+SCRIPT=vi
+usage () {
 	local OPTS=$(parse_opts ${OPTSTR})
-	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET} ${OPTS} ${WHITE_FG}]${RESET} <PARAM>\n"
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${OPTS} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-A${RESET} create scrollable list stub"
 	echo -e "${WHITE_FG}-E${RESET} create enhanced zsh shell script stub"
-	echo -e "${WHITE_FG}-e${RESET} create basic zsh shell script stub"
-	echo -e "${WHITE_FG}-p${RESET} create basic perl script stub"
-	echo -e "\n${WHITE_FG}DESC${RESET}:this script ...\n"
-	exit
+	echo -e "${WHITE_FG}-P${RESET} create python script"
+	echo -e "${WHITE_FG}-e${RESET} create zsh script"
+	echo -e "${WHITE_FG}-p${RESET} create perl script"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	exit_leave ${PENDING_MSGS}
 }
 
-OPTSTR=":HDAEep"
+OPTSTR=":HDAEPep"
 
 DEBUG=false
 MAKE_SCRIPT=false
 ZSH_SCRIPT=false
 PERL_SCRIPT=false
+PYTHON_SCRIPT=false
 OPTIND=0
+
 while getopts ${OPTSTR} OPTION;do
 	case ${OPTION} in
      H) usage;;
      D) DEBUG=true;;
      A) MAKE_SCRIPT=true;MAKE_TYPE=ZSH_LIST;;
      E) MAKE_SCRIPT=true;MAKE_TYPE=ZSH_FULL;;
+     P) MAKE_SCRIPT=true;MAKE_TYPE=PYTHON;;
      e) MAKE_SCRIPT=true;MAKE_TYPE=ZSH;;
      p) MAKE_SCRIPT=true;MAKE_TYPE=PERL;;
      :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
 	esac
 done
+
 shift $((OPTIND -1))
 #--End GetOpts--
 
@@ -179,8 +206,8 @@ shift $((OPTIND -1))
 FILES=(${@})
 SIZE=0
 
-[[ -z ${FILES} ]] && echo "Missing <file> arg..." && exit
-[[ ${#FILES} -gt 1 && ${MAKE_SCRIPT} == "true" ]] && echo "Only one file name allowed for make script option" && exit
+[[ ${#} -eq 0 ]] && usage $(msg_err "Missing arg:$(opt_type f)")
+[[ ${#FILES} -gt 1 && ${MAKE_SCRIPT} == "true" ]] && usage $(msg_err "Only one file name allowed for make script option")
 
 #check file list
 for F in ${FILES};do
@@ -200,17 +227,17 @@ done
 if [[ ${#FILES} -eq 1 ]];then
 	if [[ ${MAKE_SCRIPT} == "true" ]];then
 		if [[ ! -e ${F} ]];then #ignore for existing files
-			[[ ${MAKE_TYPE} =~ "ZSH" ]] && make_zsh ${F} ${USE_SUDO}
-			[[ ${MAKE_TYPE} == "PERL" ]] && make_perl ${F} ${USE_SUDO}
+			[[ ${MAKE_TYPE} =~ "ZSH" ]] && make_zsh ${F}
+			[[ ${MAKE_TYPE} == "PERL" ]] && make_perl ${F}
+			[[ ${MAKE_TYPE} == "PYTHON" ]] && make_python ${F}
 			SIZE=$(stat -c '%s' ${F} 2>/dev/null)
 			if [[ -e ${F} ]];then
 				sudo chmod 755 ${F}
-				sudo chown ${DIR_USER}:${DIR_GROUP} ${F}
+				sudo chown ${_DIR_USER}:${_DIR_GROUP} ${F}
 			fi
 		else
 			echo "FILE:${F} exists - editing existing file"
-			echo "Press any key..."
-			read x
+			echo "Press any key..."; read
 		fi
 	fi
 fi
@@ -234,3 +261,5 @@ if [[ ${#FILES} -eq 1 ]];then
 		fi
 	fi
 fi
+
+exit_leave

@@ -8,35 +8,11 @@ MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
-[[ ${#} -eq 0 ]] && exit
-echo "${GREEN_FG}Updating locate db${RESET}" && sudo updatedb 2>/dev/null
+[[ ${#} -eq 0 ]] && echo "${0:t} ${RED_FG}Missing arguments${RESET}" && exit
 
 ARGLIST=(${@})
-CASE=false
-NO_OPTS=true
 
-NDX=0
-for A in ${ARGLIST};do
-	((NDX++))
-	if [[ ${A} =~ "^-I" ]];then
-		CASE=true 
-		ARGLIST[${NDX}]=''
-		continue
-	fi
-	[[ ${A} =~ "^-" ]] && NO_OPTS=false
-done
+echo "${GREEN_FG}Updating locate db${RESET}" && sudo updatedb 2>/dev/null
 
-echo "NO_OPTS:${NO_OPTS}, CASE:${CASE}, ARGLIST:${ARGLIST}"
-
-if [[ ${NO_OPTS} == "true" ]];then
-	echo "${WHITE_FG}locate is case insensitive: Use -I for case sensitivity${RESET}"
-	locate -i ${ARGLIST} 2>/dev/null
-else
-	if [[ ${CASE} == "true" ]];then
-		echo "${WHITE_FG}locate is case sensitive${RESET}"
-		locate ${ARGLIST} 2>/dev/null
-	else
-		echo "${WHITE_FG}locate is case insensitive: Use -I for case sensitivity${RESET}"
-		locate -i ${ARGLIST} 2>/dev/null
-	fi
-fi
+echo "locate ${ARGLIST}"
+locate ${ARGLIST} 

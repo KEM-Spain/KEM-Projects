@@ -16,7 +16,7 @@ WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
 read PW < ~/.tcp
-MOUNTPOINT='/media/personal'
+MOUNTPOINT='/media/truecrypt1'
 VOLUME=~/PRS1;
 
 function dismount {

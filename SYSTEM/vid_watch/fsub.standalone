@@ -21,9 +21,11 @@ typeset -a _FILE_IN_LIST
 typeset -a _PIPELINE
 typeset -a _FILE_OUT_LIST
 typeset -a _INTERMEDIATE_LIST
+typeset -a _KEYWORDS
 
 #Constants
 _LIB=/usr/local/lib
+_KEYWORDS=(bluray)
 
 #Globals
 g_FROM_TEXT=?
@@ -64,7 +66,7 @@ exit_leave () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg_msg | mypager && /bin/rm -f ${_DEBUG_FILE}
 	
 	if [[ ${_APP_IS_SOURCED} == 'true' ]];then
-		cursor_on
+		[[ ${CURSOR} == 'off' ]] && cursor_on
 		_SOURCED_APP_EXIT=true
 		echo ${MSGS}
 		return 9
@@ -81,12 +83,44 @@ exit_pre_exit () {
 	if [[ ${XDG_SESSION_TYPE:l} == 'x11' ]];then
 		xset r on #reset key repeat
 		eval "xset ${_XSET_DEFAULT_RATE}" #reset key rate
+		[[ ${_DEBUG} -gt 0 ]] && echo "${0}: reset key rate:${_XSET_DEFAULT_RATE}"
 	fi
 
 	[[ ${_CURSOR} == 'off' ]] && cursor_on
+	[[ ${_DEBUG} -gt 0 && ${_CURSOR} == 'off' ]] && echo "${0}: restored cursor"
+
 	kbd_activate
+	[[ ${_DEBUG} -gt 0 ]] && echo "${0}: activated keyboard"
+
 	[[ -n ${_EXIT_MSGS} ]] && echo ${_EXIT_MSGS}
+
 	[[ ${$(tabs -d | grep --color=never -o "tabs 8")} != 'tabs 8' ]] && tabs 8
+	[[ ${_DEBUG} -gt 0 ]] && echo "${0}: reset tabstops"
+
+	if typeset -f _cleanup > /dev/null; then
+		[[ ${_DEBUG} -gt 0 ]] && echo "${0}: cleaning up"
+		_cleanup
+	fi
+
+	[[ ${_DEBUG} -gt 0 ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
+}
+
+msg_err () {
+	local MSG=${@}
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
+		echo "\\\n[${BOLD}${RED_FG}ERR${RESET}] ${MSG}\\\n"
+	fi
+}
+
+msg_warn () {
+	local MSG=${@}
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
+		echo "\\\n[${_SCRIPT}]:${BOLD}${RED_FG}${MSG}${RESET}\\\n"
+	fi
 }
 
 str_pluralize () {
@@ -197,7 +231,7 @@ exit_leave () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg_msg | mypager && /bin/rm -f ${_DEBUG_FILE}
 	
 	if [[ ${_APP_IS_SOURCED} == 'true' ]];then
-		cursor_on
+		[[ ${CURSOR} == 'off' ]] && cursor_on
 		_SOURCED_APP_EXIT=true
 		echo ${MSGS}
 		return 9
@@ -206,6 +240,24 @@ exit_leave () {
 	[[ ! ${functrace[1]} =~ 'usage' && ${_SMCUP} == 'true' ]] && do_rmcup
 
 	kill -SIGINT $$ #fire the traps
+}
+
+msg_err () {
+	local MSG=${@}
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
+		echo "\\\n[${BOLD}${RED_FG}ERR${RESET}] ${MSG}\\\n"
+	fi
+}
+
+msg_warn () {
+	local MSG=${@}
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
+		echo "\\\n[${_SCRIPT}]:${BOLD}${RED_FG}${MSG}${RESET}\\\n"
+	fi
 }
 
 str_pluralize () {
@@ -294,7 +346,7 @@ clean_show_fn () {
 	local -a TITLE=(${1})
 	local RES=${2}
 	local GREP_REGEX
-	local L N S D R Y
+	local K L N S D R Y
 	local FN
 
 	[[ -z ${TITLE} ]] && echo "${0}: Missing TITLE argument" >&2 && return 1
@@ -308,6 +360,10 @@ clean_show_fn () {
 
 		N=$(echo "${L:t}" | grep -io "${GREP_REGEX}" | sed 's/[\._]/ /g') #Get name, strip dots and underscores
 		[[ -z ${N} ]] && continue
+
+		for K in ${_KEYWORDS};do
+			N=$(sed "s/${K}//gi" <<<${N})
+		done
 
 		S=$(csf_get_series ${L}) #Get series
 		D=$(csf_get_date ${L}) #Get date
@@ -417,7 +473,7 @@ do_finalize () {
 	done
 
 	if ! arr_is_populated "${FINAL}";then
-		exit_leave "No files qualified as candidates"
+		exit_leave $(msg_warn "No files qualified as candidates")
 	fi
 
 	if [[ ${_DEBUG} -ne 0 ]];then
@@ -906,7 +962,7 @@ usage () {
 	echo -e "${WHITE_FG}\nNote${RESET}: (${CYAN_FG}M${RESET}) - ${CYAN_FG}M${RESET}acro option - args ignored"
 	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
 
-	exit_leave "\n${PENDING_MSGS}"
+	exit_leave $(msg_err ${PENDING_MSGS})
 }
 
 OPTSTR=":HDSae:irscCdm:pnNt:ux"
@@ -983,13 +1039,13 @@ if [[ -n ${@} ]];then
 fi
 
 #Validate args and options
-[[ ${#_ARG_LIST} -eq 0 && ${#OPTIONS} -eq 0 ]] && usage "[${RED_FG}ERR${RESET}] insufficient args"
-[[ $(( $OPTIONS[(Ie)i] )) -ne 0 && ${SEARCH_REPLACE} == 'false' ]] && usage "${RED_FG}Option${RESET}: -i only valid for search and replace"
-[[ $(( $OPTIONS[(Ie)r] )) -ne 0 && ${MEDIA_FILE} == 'false' ]] && usage "${RED_FG}Option${RESET}: -r only valid for media files"
+[[ ${#_ARG_LIST} -eq 0 && ${#OPTIONS} -eq 0 ]] && usage "Insufficient args"
+[[ $(( $OPTIONS[(Ie)i] )) -ne 0 && ${SEARCH_REPLACE} == 'false' ]] && usage "Option: -i only valid for search and replace"
+[[ $(( $OPTIONS[(Ie)r] )) -ne 0 && ${MEDIA_FILE} == 'false' ]] && usage "Option: -r only valid for media files"
 
 if [[ ${TRUNCATE} == 'true' && -n ${FN_LENGTH} ]];then
 	validate_is_integer ${FN_LENGTH}
-	[[ ${?} -ne 0 ]] && usage "${RED_FG}Invalid truncation length${RESET}:${FN_LENGTH} Must be an integer value"
+	[[ ${?} -ne 0 ]] && usage "Invalid truncation length:${FN_LENGTH} Must be an integer value"
 fi
 
 if [[ ${#OPTIONS} -ge 1 && $(( $OPTIONS[(Ie)m] )) -ne 0 ]];then
@@ -999,7 +1055,7 @@ if [[ ${#OPTIONS} -ge 1 && $(( $OPTIONS[(Ie)m] )) -ne 0 ]];then
 			*) HIT=false;break;;
 		esac
 	done
-	[[ ${HIT} == 'false' ]] && usage "${RED_FG}Option${RESET}: -m only compatible with -S -r -d -a"
+	[[ ${HIT} == 'false' ]] && usage "Option: -m only compatible with -S -r -d -a"
 fi
 
 #Prep for space dot camel
@@ -1057,7 +1113,7 @@ else
 fi
 
 if ! arr_is_populated "${_FILE_IN_LIST}";then
-	exit_leave "${_SCRIPT}:Can't continue - ${LIST_METHOD} failed - _FILE_IN_LIST is empty">&2
+	exit_leave $(msg_warn "${_SCRIPT}:Can't continue - ${LIST_METHOD} failed - _FILE_IN_LIST is empty">&2)
 fi
 
 if [[ ${_DEBUG} -gt 0 ]];then

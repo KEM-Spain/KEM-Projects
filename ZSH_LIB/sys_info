@@ -178,11 +178,10 @@ BIOS_VERSION=$(sudo dmidecode -t bios | grep -i version | cut -d: -f2 | sed 's/^
 BIOS_RELEASE=$(sudo dmidecode -s bios-release-date)
 SERIAL_NO=$(sudo dmidecode -s system-serial-number)
 
-echo "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}"
-printf "${WHITE_FG}Machine${RESET}:%s ${WHITE_FG}\n   BIOS${RESET}:%s\n${WHITE_FG} Serial${RESET}:%s" "${(U)PROD_NAME}" "${BIOS_VERSION} ${BIOS_RELEASE}" ${SERIAL_NO}
-echo "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}"
+echo "${BOLD}${BLACK_FG}$(str_unicode_line 31)${RESET}"
+printf "${WHITE_FG}Machine${RESET}:%s ${WHITE_FG}\n   BIOS${RESET}:%s\n${WHITE_FG} Serial${RESET}:%s\n" "${(U)PROD_NAME}" "${BIOS_VERSION} ${BIOS_RELEASE}" ${SERIAL_NO}
+echo "${BOLD}${BLACK_FG}$(str_unicode_line 31)${RESET}"
 
-printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
 printf "${CYAN_FG}Operating System Info${RESET}\n"
 printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
 

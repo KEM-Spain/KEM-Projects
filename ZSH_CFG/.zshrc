@@ -17,15 +17,16 @@ CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
 #Constants
-PATH=${PATH}:/usr/local/bin/system #add custom utils
-FAST_BASE_DIR=/usr/local/src/fast-syntax-highlighting
-SYS_FUNCTIONS=/etc/zsh/system_wide/functions
-LOC_FUNCTIONS=/home/kmiller/.zsh/completions
-ZSH_ALIAS=/etc/zsh/aliases
-ZSHRC_SYS=/etc/zsh/zshrc
 BATT_LIMIT=87
 CAL_LINES=12
+FAST_BASE_DIR=/usr/local/src/fast-syntax-highlighting
+LOC_FUNCTIONS=/home/kmiller/.zsh/completions
+MOTD_DIR=/etc/update-motd.d
+PATH=${PATH}:/usr/local/bin/system #add custom utils
+SYS_FUNCTIONS=/etc/zsh/system_wide/functions
 WIFI_PREF="WiFi_OliveNet-Casa 7_5G"
+ZSHRC_SYS=/etc/zsh/zshrc
+ZSH_ALIAS=/etc/zsh/aliases
 
 #Functions 
 cursor_row() {
@@ -51,23 +52,26 @@ export PRINTER=ENVY-5000
 export TERM=xterm
 export DEFAULT_PLAYER=CLMN
 
-#source ${FAST_BASE_DIR}/fast-syntax-highlighting.plugin.zsh
+#fast-syntax-highlighting.plugin
 source ${FAST_BASE_DIR}/F-Sy-H.plugin.zsh
  
 #MOTD
-typeset -a MOTD=()
-
-sudo chmod 644 /etc/update-motd.d/10-help-text #disable
-MOTDS=("${(f)$(sudo run-parts /etc/update-motd.d/)}")
-
-MOTD+="${MOTDS[1]}"
-
-chkupd -s
-if [[ ${?} -eq 0 ]];then
-	MOTD+="${GREEN_FG}${BOLD}${ITALIC}Updates are available...${RESET}"
-else
-	MOTD+="${ITALIC}No updates are available...${RESET}"
-fi
+typeset -a MOTD
+sudo chmod 644 ${MOTD_DIR}/10-help-text #disable
+MOTDS=("${(f)$(sudo run-parts ${MOTD_DIR})}")
+for L in ${MOTDS};do
+	if [[ ${L} =~ "update" ]];then
+		UPD_COUNT=$(cut -d' ' -f1 <<<${L})
+		if [[ ${UPD_COUNT} -ne 0 ]];then
+			MOTD+="${GREEN_FG}${BOLD}${ITALIC}Updates available:${RESET}(${WHITE_FG}${UPD_COUNT}${RESET})"
+			break
+		else
+			MOTD+="${ITALIC}No updates available...${RESET}"
+		fi
+	else
+		MOTD+=${L}
+	fi
+done
 
 #Standard
 umask 002
@@ -214,7 +218,7 @@ if [[ ${TERMS} -le 1 ]];then
 		echo "Last backup was:${WHITE_FG}$(backup -s)${RESET}" #show days since last backup 
 
 		#External disk status
-		dsk_external -s
+		dsk_external -b
 
 		#Google Drive status
 		gd -s

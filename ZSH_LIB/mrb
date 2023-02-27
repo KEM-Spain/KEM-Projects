@@ -121,6 +121,10 @@ msg_box -x35 -y150 "${MSG_OUT}<N>"
 msg_box -x35 -y3   "${MSG_OUT}<N>"
 msg_box -x3 -y150  "${MSG_OUT}<N>"
 
+tp cup  0 0
+sleep 1
+clear
+
 if [[ ${POWER_OFF} == 'true' ]];then
 	sudo shutdown now
 elif [[ ${LOGOUT} == 'true' ]];then

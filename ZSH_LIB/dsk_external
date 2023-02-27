@@ -200,6 +200,7 @@ usage () {
 	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type p)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-b${RESET} brief status message"
 	echo -e "${WHITE_FG}-u${RESET} unmount all"
 	echo -e "${WHITE_FG}-m${RESET} mount all"
 	echo -e "${WHITE_FG}-l${RESET} select disk(s) from a list"
@@ -210,23 +211,25 @@ usage () {
 }
 
 typeset -a OPTIONS
-OPTSTR=":HDlsmu"
+OPTSTR=":HDblsmu"
 OPTIND=0
 
+BRIEF=false
 SHOW_LIST=false
 STATUS=false
-TOGGLE=true
 FORCE_ALL_UNMOUNT=false
 FORCE_ALL_MOUNT=false
+TOGGLE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
+     b) BRIEF=true;;
      m) FORCE_ALL_MOUNT=true;;
      u) FORCE_ALL_UNMOUNT=true;;
-     s) STATUS=true;TOGGLE=false;;
-     l) SHOW_LIST=true;TOGGLE=false;;
+     s) STATUS=true;;
+     l) SHOW_LIST=true;;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
 	esac
@@ -234,9 +237,10 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
- 
 #Execution
+
 [[ -n ${1} ]] && PARTITION=${1} || PARTITION=''
+[[ ${#OPTIONS} -eq 0 ]] && TOGGLE=true  # default
 
 get_disk_info
 if ! arr_is_populated "${_LOCAL_LIST}";then
@@ -254,12 +258,14 @@ elif [[ ${FORCE_ALL_UNMOUNT} == 'true' ]];then # -u option
 	for L in ${(on)_LOCAL_LIST};do
 		do_unmount ${L}
 	done
-	STATUS=true
+	get_disk_info
+	show_status
 elif [[ ${FORCE_ALL_MOUNT} == 'true' ]];then # -m option
 	for L in ${(on)_LOCAL_LIST};do
 		do_mount ${L}
 	done
-	STATUS=true
+	get_disk_info
+	show_status
 elif [[ ${TOGGLE} == 'true' ]];then # default - toggle all mounts
 	show_status
 	msg_box -p -PP "Toggling external drive mounts"
@@ -277,16 +283,22 @@ elif [[ ${TOGGLE} == 'true' ]];then # default - toggle all mounts
 		fi
 		MSG_OUT=true
 	done
-	STATUS=true
-fi
-
-get_disk_info
-if [[ ${STATUS} == 'true' ]];then
+	get_disk_info
 	show_status
-	exit_leave
-fi
-
-if [[ ${SHOW_LIST} == 'true' ]];then
+elif [[ ${STATUS} == 'true' ]];then # -s option
+	show_status
+elif [[ ${BRIEF} == 'true' ]];then # -b option
+	set_exit_value 1
+	MSG_OUT="External disk is ${RED_FG}NOT${RESET} mounted"
+	for L in ${(on)_LOCAL_LIST};do
+		if [[ ${_MOUNT_POINTS[${L}]} != 'unmounted' ]];then
+			MSG_OUT="External disk is ${GREEN_FG}mounted${RESET}"
+			set_exit_value 0
+			break
+		fi
+	done
+	echo ${MSG_OUT}
+elif [[ ${SHOW_LIST} == 'true' ]];then # -l option
 	#set headings
 	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} Partitions\tSelected:${WHITE_FG}%-d${RESET}" ${#_LIST} ${SELECTED_COUNT}'
 	list_set_header 'printf " "'

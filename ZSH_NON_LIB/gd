@@ -29,7 +29,7 @@ status () {
 	if is_mounted ${MOUNTPOINT};then
 		echo "GoogleDrive is ${GREEN_FG}${ITALIC}mounted${RESET}"
 	else
-		echo "GoogleDrive is ${RED_FG}${ITALIC}unmounted${RESET} (Use:google-drive to mount)"
+		echo "GoogleDrive is ${RED_FG}NOT${RESET} mounted${RESET}"
 	fi
 }
 

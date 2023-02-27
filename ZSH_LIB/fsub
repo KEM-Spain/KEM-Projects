@@ -21,9 +21,11 @@ typeset -a _FILE_IN_LIST
 typeset -a _PIPELINE
 typeset -a _FILE_OUT_LIST
 typeset -a _INTERMEDIATE_LIST
+typeset -a _KEYWORDS
 
 #Constants
 _LIB=/usr/local/lib
+_KEYWORDS=(bluray)
 
 #Globals
 g_FROM_TEXT=?
@@ -37,7 +39,7 @@ clean_show_fn () {
 	local -a TITLE=(${1})
 	local RES=${2}
 	local GREP_REGEX
-	local L N S D R Y
+	local K L N S D R Y
 	local FN
 
 	[[ -z ${TITLE} ]] && echo "${0}: Missing TITLE argument" >&2 && return 1
@@ -51,6 +53,10 @@ clean_show_fn () {
 
 		N=$(echo "${L:t}" | grep -io "${GREP_REGEX}" | sed 's/[\._]/ /g') #Get name, strip dots and underscores
 		[[ -z ${N} ]] && continue
+
+		for K in ${_KEYWORDS};do
+			N=$(sed "s/${K}//gi" <<<${N})
+		done
 
 		S=$(csf_get_series ${L}) #Get series
 		D=$(csf_get_date ${L}) #Get date

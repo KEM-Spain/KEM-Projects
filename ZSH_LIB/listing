@@ -44,10 +44,10 @@ get_ls_opts () {
 	local CALLER=${1}
 
 	case ${CALLER} in
-		l) echo "-LAd";;
-		l.) echo "-LAd";;
-		ll) echo "-LlAd";;
-		ll.) echo "-LlAd";;
+		l) echo "-Ad";;
+		l.) echo "-Ad";;
+		ll) echo "-lAd";;
+		ll.) echo "-lAd";;
 	esac
 }
 

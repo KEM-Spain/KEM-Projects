@@ -210,7 +210,7 @@ sort_functions ${FN} #extract sorted functions
 [[ ! -e ${FN}.sorted.functions ]] && echo "sort_functions: failed to create and output. Exiting..." && exit
 
 #Processing
-grep '() {' < ${FN}.sorted.functions | sort | uniq -c | grep -v ' 1 '
+grep '() {' < ${FN}.sorted.functions | sort | uniq -c | grep -v -P '\s+1\s+'
 [[ ${?} -ne 1 ]] && echo "WARNING:Found duplicates..." && exit
 
 if [[ ${REPLACE_FILE} == 'true' || ${REPLACE_SORTED} == 'true' ]];then 

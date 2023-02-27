@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+cd ~/Code/LOCAL/${1} 

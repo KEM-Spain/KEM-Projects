@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+exec /opt/pycharm/bin/pycharm.sh
