@@ -1,0 +1,158 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_LIB_DIR=/usr/local/lib
+
+#Imports
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/ARRAY.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Declarations
+typeset -a LIST
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+
+read -r -d '' DESC<<EOF
+Search the system for perl modules. 
+If a <SEARCHTERM> is specified, returns any matching path
+or module. Without a <SEARCHTERM>, all modules are listed.
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		e) echo "<EXT>";;
+	esac
+}
+
+usage () {
+	tabs 5
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}] [<SEARCHTERM>]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-I${RESET} manage installed modules"
+	echo -e "${WHITE_FG}-i${RESET} case insensitive search"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	exit_leave "\n${PENDING_MSGS}\n"
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDIi"
+OPTIND=0
+CASE=true
+INSTALLED=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     I) INSTALLED=true;;
+     i) CASE=false;;
+     :) print -u2 "${RED_FG}${SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+# Execution
+[[ ${INSTALLED} == 'true' ]] && /usr/local/lib/perl_mods && exit_leave
+ 
+#Set case sensitivity
+[[ ${CASE} == 'false' ]] && CASE_OPT='-i' || CASE_OPT=''
+
+#Set SEARCHTERM
+[[ -n ${1} ]] && SEARCHTERM=${1}
+
+#Search for modules, prepend depth of path, sort by depth and path, remove depth
+[[ ${CASE} == 'true' ]] && MSG="(case sensitive search)" || MSG='(case insensitive)'
+if [[ -n ${SEARCHTERM} ]];then
+	echo "Searching for paths or modules matching:${WHITE_FG}${1}${RESET}..."
+	[[ -n ${MSG} ]] && echo ${MSG}
+else
+	echo "Searching for ALL perl modules..."
+fi
+
+LIST=("${(f)$(
+/usr/bin/locate ${CASE_OPT} -r ".*${SEARCHTERM}.*\.pm$" |
+while read LINE;do
+	[[ ${LINE:l} =~ "/build/" ]] && continue #ignore
+	[[ ${LINE:l} =~ "/test/" ]] && continue #ignore
+	[[ ${LINE:l} =~ "/work/" ]] && continue #ignore
+	DEPTH=$(awk '{print gsub(/[/]/,"")}' <<<${LINE})
+	echo "${DEPTH}|${LINE}"
+done | sort -n -t'_' -k2 -k1 | cut -d'|' -f2
+)}")
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "LIST contains ${#LIST} lines"
+
+if ! arr_is_populated "${LIST}";then
+	exit_leave "No matches for:${WHITE_FG}${SEARCHTERM}${RESET} ${MSG}"
+fi
+
+#Output list as path followed by modules
+LAST_HEAD=?
+for L in ${LIST};do
+	HEAD=${L:h}
+	TAIL=${L:t}
+	[[ ${LAST_HEAD} != ${HEAD} ]] && echo "\n${WHITE_FG}${HEAD}${RESET}"
+	echo "${TAIL}"
+	LAST_HEAD=${HEAD}
+done | mypager
+
+exit_leave

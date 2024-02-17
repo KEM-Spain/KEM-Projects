@@ -1,0 +1,95 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+#Constants
+_LOG=/tmp/${0:t}.log
+typeset -a _APPS_TO_SCAN=(deluge okular)
+typeset -A _RUNNING_APPS
+
+#Imports
+_LIB=/usr/local/lib
+source ${_LIB}/LIB_INIT.zsh
+source ${_LIB}/UTILS.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB}/${D} ]];then
+		source ${_LIB}/${D}
+	else
+		echo "Cannot source:${_LIB}/${D} - not found"
+		exit 1
+	fi
+done
+
+logit "Started scan for new windows"
+
+SCANS=0
+SCAN_LIMIT=50
+SSBN=false
+NDX=0
+while IFS= read -ru3 LINE || [ -n "$LINE" ]; do
+	if [[ ${LINE:l} =~ "interfacesadded" && ${LINE:l} =~ "terminal" ]];then
+		logit "Terminal opened a new window"
+		win_max terminal
+		logit "win_max terminal"
+	elif [[ ${LINE:l} =~ "startservicebyname" ]];then
+		SSBN=true
+	fi
+
+	if [[ ${LINE:l} =~ "\.desktop" ]];then
+		DTOP=true
+		((NDX++))
+		[[ ${NDX} -eq 1 ]] && logit "Starting app scan"
+	else
+		DTOP=false
+	fi
+
+	if [[ ${SSBN} == 'true' && ${DTOP} == 'true' ]];then
+		((SCANS++))
+		if [[ ${SCANS} -ge ${SCAN_LIMIT} ]];then
+			logit "Hit scan limit"
+			NDX=0
+			SCANS=0
+			SSBN=false
+			DTOP=false
+			continue
+		else
+			for A in ${_APPS_TO_SCAN};do
+				[[ ${SCANS} -eq 1 ]] && logit "Scanning for ${A}"
+				if [[ ${LINE:l} =~ "${A}" ]];then
+					logit "Scan matched ${A}"
+					PID=$(ps -e | grep deluge | grep -v grep | tr -s '[:space:]' | cut -d' ' -f2)
+					if [[ ! ${_RUNNING_APPS[${PID}]} =~ ${A} ]];then
+						win_max ${A}
+						logit "win_max ${A} ${PID}"
+					else
+						logit "win_max ${A} is already maximized"
+					fi
+					_RUNNING_APPS[${PID}]=${A}
+					NDX=0
+					SCANS=0
+					SSBN=false
+					DTOP=false
+					continue
+				fi
+			done
+		fi
+	fi
+done 3< <( dbus-monitor | grep --line-buffered -i "startservicebyname\|desktop\|interfacesadded")

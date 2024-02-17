@@ -1,0 +1,16 @@
+#!/usr/bin/zsh
+/usr/bin/gnome-tweaks &
+
+while true;do
+	WDW_ID=$(wmctrl -l | grep -i "GNOME Tweaks" | tr -s '[:space:]' | cut -d' ' -f1)
+	if [[ -n ${WDW_ID} ]];then
+		wmctrl -i -r ${WDW_ID} -b toggle,maximized_vert,maximized_horz
+		sleep .5
+		wmctrl -i -r ${WDW_ID} -b toggle,maximized_vert,maximized_horz
+		break
+	fi
+done
+
+#bizarre behaviour - it retracts after maximizing - have to do it again
+sleep 1
+wmctrl -i -r ${WDW_ID} -b toggle,maximized_vert,maximized_horz

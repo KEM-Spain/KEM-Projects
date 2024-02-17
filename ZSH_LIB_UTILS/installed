@@ -1,0 +1,267 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+#Declarations
+typeset -U _PKG_KEYS=()
+typeset -a _LOCAL_LIST=()
+typeset -a _INFO_MSG
+typeset -a _INSTALLED
+typeset -a _RELATED
+typeset -a _MARKED
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+#Functions
+action_do () {
+	local M
+
+	for M in ${_MARKED};do
+		msg_box "Getting data..."
+		get_detail ${_LOCAL_LIST[${M}]}
+	done
+
+	for M in ${_MARKED};do
+		list_clear_selected ${M}
+	done
+}
+
+action_warn () {
+	local _MARKED=(${@})
+	local CNT=$(list_get_selected_count ${_MARKED})
+	local M
+	local _INFO_MSG
+	
+	[[ ${_SELECT_ALL} == 'true' ]] && _INFO_MSG="|(<w><I>current page only<N>)" || _INFO_MSG=''
+	msg_box -p -PV "<I>Please respond<N>|$(str_unicode_line 14)| |$(str_pluralize application $CNT true) queued for viewing${_INFO_MSG}"
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${_MARKED};do
+			list_clear_selected ${M}
+		done
+	fi
+}
+
+get_dependencies () {
+	local KEY=${1}
+	local -a DEPS
+	local D
+
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} aptitude why ${KEY}"
+	DEPS=("${(f)$(aptitude why ${KEY} 2>/dev/null | perl -pe 's/^(i|p|r)\s+//g'  | tr -s '[:blank:]' | tr '|' '+')}")
+
+	for D in ${DEPS};do
+		echo "${D}"
+	done
+}
+
+get_detail () {
+	local KEY=${1}
+	local -a _RELATED=($(get_related ${KEY}))
+	local -a MSG
+	local -a DEPS
+	local D R
+	local HIT
+
+	MSG+="<w><U>Details for ${KEY}<N>| |"
+
+	DEPS=("${(f)$(get_dependencies ${KEY})}")
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} DEPS:${#DEPS} ${DEPS}"
+
+	HIT=false
+	for D in ${DEPS};do
+		[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} D:${D}"
+		MSG+="${D}|"
+		HIT=true
+	done
+
+	if [[ ${HIT} == 'false' ]];then
+		MSG+="<r><I>No Details for ${KEY}<N>|"
+	else
+		msg_stream "aptitude show ${KEY} 2>&1"
+	fi
+
+	MSG+="|<w><U>Related Packages<N>| |"
+
+	HIT=false
+	for R in ${_RELATED};do
+		MSG+="${R}|"
+		HIT=true
+	done
+
+	if [[ ${HIT} == 'false' ]];then
+		MSG+="No related packages|"
+	else
+		MSG+="|<I>Press (i)nfo to view related info"
+	fi
+
+	msg_box -p -PK "${MSG}"
+
+	[[ ${_MSG_KEY} != 'i' ]] && return
+
+	for R in ${_RELATED};do
+		msg_stream "aptitude show ${R} 2>&1"
+	done
+}
+
+get_related () {
+	local KEY=${1}
+	local R
+	local KEY_WORD_BOUNDARY
+
+	KEY_WORD_BOUNDARY="\\b${KEY}\\b"
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} KEY:${KEY}"
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} _INSTALLED:${#_INSTALLED}"
+
+	for R in ${_INSTALLED};do
+		[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} R:${R}"
+		[[ ${R} != ${KEY} && ${R} =~ "^${KEY_WORD_BOUNDARY}" ]] && echo ${R}
+	done
+}
+
+#Begin getopts
+read -r -d '' DESC<<EOF
+Search for installed packages
+\tDefault is to return all packages
+EOF
+
+OPTS=":HDadw"
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+	
+	(
+	echo -e "Usage: ${_SCRIPT} [OPTIONS] [SEARCHTERM]\n"
+	echo -e "-H help"
+	echo -e "-D debug"
+	echo -e "-a all (include libs,fonts)"
+	echo -e "-d details (show sub packages)"
+	echo -e "-w aptitude dependency info"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+ 
+OPTIND=0
+ALL=false
+AWHY=false
+while getopts ${OPTS} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     a) ALL=true;;
+     w) AWHY=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; exit_leave;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} ${OPTARG}"; exit_leave;;
+	esac
+done
+shift $((OPTIND -1))
+#End getopts
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+SEARCHTERM=${1}
+
+_INSTALLED=("${(@f)$(sudo dpkg --get-selections | grep -v deinstall | sed 's/\t.*//g' | sort -u)}")
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} sudo dpkg --get-selections | grep -v deinstall | sed 's/\t.*//g' | sort -u"
+
+NDX=0
+for I in ${_INSTALLED};do
+	[[ ${ALL} == "false" && ${I} =~ "font" ]] && continue
+	[[ ${ALL} == "false" && ${I} =~ "lib" ]]  && continue
+	[[ -n ${SEARCHTERM} ]] && [[ ! ${I} =~ "^${SEARCHTERM}" ]] && continue
+	((NDX++))
+	_PKG_KEYS+=$(sed 's/:/-/g' <<< ${I})
+	[[ -n ${_PKG_KEYS[1]} && ${#_PKG_KEYS} -gt 50 ]] && tput cup 0 0 && printf "\rCreating Keys:%s          " ${NDX}
+done
+
+if [[ ${NDX} -eq 0 ]];then
+	exit_leave "No package matching:${WHITE_FG}${SEARCHTERM}${RESET} (excluding snap and flatpak) was found"
+else
+	msg_box -t 1.5 "Found ${#_PKG_KEYS} packages. Gathering data. Please wait..."
+	msg_box_clear
+fi
+
+[[ -z ${_PKG_KEYS} ]] && exit_leave "\nNo package matching \"${SEARCHTERM}\" was found"
+
+[[ -n ${SEARCHTERM} ]] && _INFO_MSG+="Searching for:<B><I>${SEARCHTERM}<N>" || _INFO_MSG+="Showing <B><I>ALL<N> installed packages..."
+
+[[ ${ALL} == 'false' ]] && _INFO_MSG+="|<B><I>Skipping<N> all libraries and fonts..." || _INFO_MSG+="|<B><I>Including<N> all libraries and fonts..."
+
+[[ ${AWHY} == "false" ]] && _INFO_MSG+="|Dependency info is:<B><I>OFF<N>" || _INFO_MSG+="|Dependency info is:<B><I>ON<N>"
+
+msg_box -t 1.5 ${_INFO_MSG}
+
+tput cup 0 0
+echo "Installed package query results\tFound:${WHITE_FG}${#_PKG_KEYS}${RESET} packages\n"
+
+PNDX=${#_PKG_KEYS}
+typeset -A DESC
+LONGEST_PKG=0
+LONGEST_DESC=0
+tput cup 1 0
+for K in ${_PKG_KEYS};do
+	printf "\rGetting info:%-50s Remaining packages:%-5s        " ${K} ${PNDX}
+	((PNDX--))
+	_LOCAL_LIST+=${K}
+	[[ ${#K} -gt ${LONGEST_PKG} ]] && LONGEST_PKG=${#K}
+	DESC[${K}]="$(apt-cache show ${K} 2>/dev/null | grep -i description-en | head -n 1 | sed 's/description\-en://gI')"
+	[[ ${#DESC[${K}]} -gt ${LONGEST_DESC} ]] && LONGEST_DESC=${#DESC[${K}]}
+done
+
+#set headings
+SEARCHTERM=${SEARCHTERM:=None}
+list_set_header 'printf "Found:${WHITE_FG}%-*d${RESET} $(str_pluralize package ${#_LIST})  Filter:${WHITE_FG}%*s${RESET}  ${_PG}" ${#${#_LIST}} ${#_LIST} ${#SEARCHTERM} ${SEARCHTERM}'
+list_set_header 'printf " "'
+list_set_header 'printf "%5s %-*s  %-16s" "" ${LONGEST_PKG} "Package" "Description"'
+list_set_header 'printf "%5s ${MAGENTA_FG}%-*s  %-*s${RESET}" "" ${LONGEST_PKG} "$(str_unicode_line ${LONGEST_PKG})" ${LONGEST_DESC} "$(str_unicode_line ${LONGEST_DESC})"'
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${BAR} ${SHADE}%-*s${RESET} ${BAR} ${WHITE_FG}%-*s${RESET}\n" ${_LIST_NDX} ${LONGEST_PKG} "${_LIST[${_LIST_NDX}]}" ${LONGEST_DESC} "${(C)DESC[${_LIST[${_LIST_NDX}]}]}"
+'
+
+list_set_prompt "Select packages to inspect:"
+list_set_action_msgs inspect package
+list_set_clear_ghosts true
+list_set_barlines true
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+	
+	_MARKED=($(list_get_selected))
+
+	if [[ $(list_get_selected_count) -gt 1 ]];then
+		action_warn ${_MARKED} #warn if more than 1 selected
+	fi
+
+	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then
+		action_do ${_MARKED}
+	fi
+done
+
+exit_leave

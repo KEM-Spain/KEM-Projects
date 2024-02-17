@@ -1,0 +1,204 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a LOCAL_LIST
+typeset -a MARKED
+typeset -A NAME_INODE
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local M
+	local INODE
+	local FILE
+	local RESPONSE
+
+	for M in ${(on)MARKED};do
+		INODE=${NAME_INODE[${_LIST[${M}]}]}
+		[[ -z $INODE ]] && exit_leave $(msg_warn "Missing inode")
+
+		FILE=$(find ${FPATH} -maxdepth 1 -inum ${INODE} )
+		if [[ -n ${FILE} ]];then
+			msg_box -p -PP "Remove FILE:<w>${FILE}<N> [<r>${INODE}<N>]"
+			[[ ${_MSG_KEY} == 'y' ]] && find ${FPATH} -maxdepth 1 -inum ${INODE} -exec rm -f {} \;
+			[[ ${?} -ne 0 ]] && msg_box -p -PK "There was an error: File <r>NOT<N> removed"
+		fi
+	done
+
+	for M in ${MARKED};do
+		MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+
+}
+
+action_warn () {
+	local M
+	
+	msg_box -p -PP "<I>Please respond<N>|$(str_unicode_line 14)| |${#MARKED} items queued for deletion by inode."
+
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${MARKED};do
+			list_clear_selected ${M}
+		done
+	fi
+}
+
+item_decorate () {
+  local NDX=${1}
+
+  case ${_LIST_SELECTED[${NDX}]} in
+			 2) echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]:t}${E_RESET} ${E_ITALIC}deleted${E_RESET}";;
+			 *)      tput el;echo -n ${_LIST[${NDX}]:t};;
+  esac
+}
+
+#--Begin GetOpts--
+read -r -d '' DESC<<EOF
+Delete selected files by inode
+\tProduces a list of files from which to select
+EOF
+
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HD"
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FPATH=${FPATH:q}
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+
+[[ ${?} -ne 0 ]] && exit_leave $(msg_warn "no matches found for:${@}")
+PATHLBL=$(path_get_label 40)
+
+LOCAL_LIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} -type f ! -path ." 2>/dev/null )}")
+if [[ ${?} -ne 0 ]];then
+	dbg "${0}:${LINENO} ${RED_FG}COMMAND FAILED${RESET}: find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path . 2>/dev/null" 
+else
+	dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#LOCAL_LIST}"
+fi
+
+if ! arr_is_populated "${LOCAL_LIST}";then
+	exit_leave $(msg_warn "find ${FPATH} -maxdepth 1 ${FGLOB} -type f ! -path . was unsuccessful")
+fi
+
+for L in ${LOCAL_LIST};do
+	INODE=$(ls -i ${L} | cut -d' ' -f1)
+	NAME_INODE[${L}]=${INODE}
+done
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST})  Path:${WHITE_FG}%-*s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${SELECTED_COUNT}'
+list_add_header_break
+list_set_header_break_color ${RED_FG}
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> [to do some action] (${ITALIC}or exit if none selected${RESET})."
+
+while true;do
+	#get selection
+	list_select ${(o)LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_warn
+		if [[ ${_MSG_KEY} == "y" ]];then
+			action_do
+		fi
+	fi
+done
+
+exit_leave

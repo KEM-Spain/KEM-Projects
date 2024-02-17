@@ -1,0 +1,10 @@
+#compdef gal
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-a[match alias only]' \
+'-c[match command only]' \
+'-e[output only command]' \
+'-I[case sensitive]' \
+'-x[exact match]'

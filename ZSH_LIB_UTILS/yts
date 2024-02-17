@@ -1,0 +1,391 @@
+#!/usr/bin/zsh
+#Declarations
+typeset -a _LOCAL_LIST
+typeset -A _DOWNLOADS
+typeset -A _FIELD_LEN
+typeset -A _STATUS_MSGS
+
+#Constants
+_DOWNLOAD_DIR=~/Downloads
+_ERROR_MSG=''
+_FAVORITE=''
+_FIELD_LEN[age]=30
+_FIELD_LEN[author]=26
+_FIELD_LEN[title]=90
+_JS_SCRIPT=/usr/local/etc/yts.js
+_LOG=/tmp/yt.log
+_YTS_FAVORITES=~/.yts_history
+
+#Globals
+g_ACTION=action
+g_OBJECT=object
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local -A ERROR_SEEN=()
+	local -a ETA
+	local -a LOG_LINES
+	local -a MSGS
+	local DEST
+	local DEST_1
+	local DEST_2
+	local DL_CNT=0
+	local ERROR
+	local M
+	local NDX=0
+	local PARSED=false
+	local URL
+	local HAS_ERRORS=false
+
+	msg_box_clear
+
+	for M in ${_MARKED};do
+		((DL_CNT++))
+		_DOWNLOADS[${M}]=false
+		ERROR_SEEN[${DL_CNT}]=false
+		PARSED=false
+		URL=$(get_field url ${M})
+
+		[[ -e ${_LOG} ]] && rm -f ${_LOG}
+		nohup yt -i ${URL} >>${_LOG} 2>&1 &
+
+		while true;do
+			sleep .5
+			((NDX++))
+			if [[ ! -e ${_LOG} ]];then
+				[[ ${NDX} -gt 10 ]] && exit_leave "${_LOG} not detected" # 5 seconds no activity
+				continue
+			fi
+
+			if [[ ${ERROR_SEEN[${DL_CNT}]} == 'false' ]];then
+				ERROR=$(grep -i "error" ${_LOG})
+				if [[ ${?} -eq 0 ]];then
+					HAS_ERRORS=true
+					ERROR_SEEN[${DL_CNT}]=true
+					[[ ${ERROR:l} =~ 'retry' ]] && continue
+					_STATUS_MSGS[${DL_CNT}]="Download failed|<w>$(get_field title ${M})<N>|<r>${ERROR[1,70]}<N>"
+					break
+				fi
+			fi
+
+			LOG_LINES=("${(f)$(grep -i "already been" ${_LOG})}")
+			if [[ ${?} -eq 0 ]];then
+				HAS_ERRORS=true
+				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' <<<${LOG_LINES})}")
+				DEST_1=$(cut -d'|' -f1 <<<${DEST})
+				DEST_2=$(cut -d'|' -f2 <<<${DEST})
+				MSGS=("<r>[error]<N>|${DEST_1}")
+				DEST_2=("${(f)$(sed -e "s/has already/|has already/" <<<${DEST_2})}")
+				DEST_1=$(cut -d'|' -f1 <<<${DEST_2})
+				DEST_2=$(cut -d'|' -f2 <<<${DEST_2})
+				MSGS+="|${DEST_1}"
+				MSGS+="|<r>${DEST_2}<N>"
+				_STATUS_MSGS[${DL_CNT}]="<w>$(get_field title ${M})<N>|${MSGS}"
+				break
+			fi
+
+			LOG_LINES=("${(f)$(grep -i "destination" ${_LOG})}")
+			if [[ ${?} -eq 0 ]];then
+				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINES})}")
+				DEST_1=$(cut -d'|' -f1 <<<${DEST})
+				DEST_2=$(cut -d'|' -f2 <<<${DEST})
+				msg_box -C -jl -x10 -y40 -w80 -h10 ${DEST_1}
+				msg_box -C -jl "[title] ${DEST_2[1,65]}"
+				PARSED=true
+			fi
+
+			LOG_LINES=("${(f)$(grep -i "eta" ${_LOG})}")
+			if [[ ${?} -eq 0 ]];then
+				ETA+=("${(f)$(sed 's//\n/g' <<<${LOG_LINES} | grep -vi 'unknown')}")
+				msg_box -C -jl "<w>${ETA[-1]}<N>"
+				PARSED=true
+				if [[ ${ETA[-1]} =~ '100' ]];then
+					_STATUS_MSGS[${DL_CNT}]="completed"
+					msg_box "Download ${DL_CNT} complete - $((${#_MARKED}-DL_CNT)) remaining"
+					_DOWNLOADS[${M}]=true
+					break
+				fi
+			fi
+
+			if [[ ${NDX} -gt 30 && ${PARSED} == 'false' ]];then
+				exit_leave "${_LOG} not parsing"
+			else
+				NDX=0
+				MSGS=()
+			fi
+		done
+	done
+
+	if [[ -n ${_STATUS_MSGS} ]];then
+		if [[ ${HAS_ERRORS} == 'true' ]];then
+			MSGS=()
+			for M in ${(k)_STATUS_MSGS};do
+				MSGS+="Download:${M} ${_STATUS_MSGS[${M}]}|"
+			done
+			msg_box -c -p -PK "${MSGS}"
+		else
+			msg_box -c -p -PK "${DL_CNT} downloads completed"
+		fi
+	fi
+
+	for M in ${_MARKED};do
+		_MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local M
+	
+	msg_box -p -PG "<I>Please respond|$(str_unicode_line 14)| |${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected"
+
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${_MARKED};do
+			_MARKED[${M}]=0
+			list_set_selected ${M} ${_GHOST_ROW}
+		done
+	fi
+}
+
+item_decorate () {
+	local NDX=${1}
+	local STR
+
+	if [[ ${_DOWNLOADS[${NDX}]} == 'true' ]];then
+		STR="Downloaded..."
+	else
+		STR="$(get_field age ${NDX}) ($(get_field time ${NDX}))"
+		[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
+	fi
+
+	echo -n ${STR[1,${_FIELD_LEN[age]}]}
+}
+
+get_field () {
+	local FIELD=${1}
+	local NDX=${2}
+	local STR
+
+	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ARGS:FIELD:${FIELD}, NDX:${NDX}"
+	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} _LIST[NDX]:${_LIST[${NDX}]}"
+
+	case ${FIELD} in
+		age) STR=$(cut -d'|' -f1 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
+		author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
+		title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
+		url) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});;
+		time) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});;
+	esac
+
+	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
+
+	#STR=$(echo ${STR} | tr -cd '[:print:]') #Scrub non ascii
+	STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) #Scrub non ascii
+	echo -n ${STR}
+}
+
+query_is_valid () {
+	local RC1=0
+	local RC2=0
+	local RC=0
+	local FSIZE_1=0
+	local FSIZE_2=0
+	local NDX=0
+	local STABLE=0
+
+	if [[ -e ${_LOG} ]];then
+		while true;do
+			((NDX++))
+			FSIZE_1=$(wc -l < ${_LOG})
+			sleep .2
+			FSIZE_2=$(wc -l < ${_LOG})
+			[[ ${FSIZE_1} -ne ${FSIZE_2} ]] && continue || ((STABLE++))
+			[[ ${STABLE} -ge 10 ]] && break
+			grep -iq 'error' ${_LOG}
+			[[ ${?} -eq 0 ]] && break
+			[[ ${NDX} -ge 100 ]] && break
+		done
+
+		_ERROR_MSG=$(grep -i "error" ${_LOG})
+		RC1=${?}
+
+		if [[ ${RC1} -eq 0 ]];then
+			[[ ${_ERROR_MSG} =~ 'will begin' ]] && _ERROR_MSG=${(C)$(grep -o 'will begin .*' ${_LOG})}
+			RC2=${?}
+		else
+			_ERROR_MSG=''
+		fi
+	else
+		return 0
+	fi
+
+	echo ${_ERROR_MSG}
+
+	RC=$((RC1 + RC2))
+	[[ ${RC} -eq 0 ]] && return 1 || return 0
+}
+
+get_favorite () {
+	local -a _DISPLAY_LIST
+	local LINE
+
+	if [[ -s ${_YTS_FAVORITES} ]];then
+		while read LINE;do
+			_DISPLAY_LIST+=${LINE}
+		done < ${_YTS_FAVORITES}
+	else
+		exit_leave "No favorites have been saved"
+	fi
+
+	selection_list_set ${(o)_DISPLAY_LIST}
+
+	_SELECTION_VALUE=?
+	selection_list "<w>Run YouTube query  from history or <h>(q)uit<N>"
+	[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+
+	_FAVORITE=${_SELECTION_VALUE}
+}
+
+set_favorite () {
+	local ITEM=${1}
+	local -aU HISTORY
+	local LINE
+	local H
+
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: ITEM:${ITEM}"
+
+	ITEM=$(str_trim ${ITEM})
+
+	[[ ${#ITEM} -le 1 ]] && return
+
+	HISTORY+=${ITEM}
+
+	if [[ -e ${_YTS_FAVORITES} ]];then
+		while read LINE;do
+			HISTORY+=${LINE}
+		done < ${_YTS_FAVORITES}
+
+		/bin/rm -f ${_YTS_FAVORITES}
+	fi
+
+	for H in ${(o)HISTORY};do
+		echo ${H} >> ${_YTS_FAVORITES}
+	done
+}
+
+#--GetOpts--
+OPTSTR=":HDf"
+OPTIND=0
+
+DO_FAV=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) eval "node ${_JS_SCRIPT} -h";exit_leave;;
+     D) dbg_set_level;;
+     f) DO_FAV=true;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+PATHLBL=$(path_get_label 40)
+
+RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
+
+[[ ${_DEBUG} -ge 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL})
+
+if [[ ${DO_FAV} == 'true' || ${#} -eq 0 ]];then
+	do_smcup
+	get_favorite
+	[[ -n ${_FAVORITE} ]] && RCL=${_FAVORITE}
+fi
+
+#Youtube query log
+[[ -e ${_LOG} ]] && /usr/bin/rm -f ${_LOG} # clear log
+
+# Command line processing is in the js script - only proxy the script
+[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} PROXY COMMAND: ${WHITE_FG}node ${_JS_SCRIPT} ${RCL}${RESET}"
+
+DATA=false
+[[ ${RCL:l} =~ '-v' ]] && DATA=info
+
+while read LINE;do
+	[[ ${LINE:l} =~ 'matched' ]] && DATA=true && continue
+	[[ ${LINE:l} =~ 'usage' && ${DATA} != 'true' ]] && DATA=info
+	[[ ${LINE:l} =~ 'error' && ${DATA} != 'true' ]] && DATA=info
+	[[ ${DATA} == 'true' ]] && _LOCAL_LIST+=${LINE:s/Streamed //} || echo ${LINE}
+done <<< $(eval "node ${_JS_SCRIPT} ${RCL}")
+
+[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${WHITE_FG}${#_LOCAL_LIST}${RESET}"
+[[ ${_SMCUP} == 'false' ]] && do_smcup
+
+if [[ ${DATA} == 'info' ]];then
+	exit_leave
+fi
+
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	exit_leave $(msg_warn "No rows satisfied query:${@}")
+fi
+
+set_favorite ${RCL}
+
+[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
+[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST}) ${RESET} ${_PG}" ${#_LIST}'
+list_set_header 'printf " "'
+list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_FIELD_LEN[age]} "Age" ${_FIELD_LEN[author]} "Author" ${_FIELD_LEN[title]} "Title"'
+list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %*s %*s${RESET}" 5 "" ${_FIELD_LEN[age]} "$(str_unicode_line ${_FIELD_LEN[age]})" ${_FIELD_LEN[author]} "$(str_unicode_line ${_FIELD_LEN[author]})" ${_FIELD_LEN[title]} "$(str_unicode_line ${_FIELD_LEN[title]})"'
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-${_FIELD_LEN[age]}s %-${_FIELD_LEN[author]}s %-${_FIELD_LEN[title]}s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"  "$(get_field author ${_LIST_NDX})"  "$(get_field title ${_LIST_NDX})" 
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${g_ACTION} ${g_OBJECT}(s) (${ITALIC}or exit if none selected${RESET})"
+list_set_sortable true
+list_set_max_sort_col 3
+list_set_sort_default 1
+list_set_barlines true
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	_MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_warn
+		if [[ ${_MSG_KEY} == "y" ]];then
+			action_do
+		fi
+	fi
+done
+
+
+exit_leave

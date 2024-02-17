@@ -1,0 +1,9 @@
+#compdef mvqry
+ 
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-a[actor]' \
+'-d[director]' \
+'-e[decade]' \
+'-y[year]' 

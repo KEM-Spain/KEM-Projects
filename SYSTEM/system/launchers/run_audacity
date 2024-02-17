@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+/opt/audacity/audacity-linux-3.4.2-x64.AppImage ${@}

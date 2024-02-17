@@ -1,0 +1,15 @@
+#/lib/systemd/system/vid_watch.service
+
+[Unit]
+Description = Monitor and process Deluge completed Torrents
+
+[Service]
+User=kmiller
+Group=kmiller
+ExecStart=/usr/bin/zsh -c '/usr/local/bin/system/vid_watch/vid_watch.standalone'
+RestartSec=10
+WorkingDirectory=/usr/local/bin/system/vid_watch
+
+[Install]
+WantedBy=multi-user.target
+

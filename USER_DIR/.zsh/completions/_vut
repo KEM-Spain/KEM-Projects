@@ -1,0 +1,67 @@
+#comdef vut
+
+_vut() {
+    local line state
+
+    _arguments -C \
+               "1: :->cmds" \
+					"-H[help]" \
+					"-D[debug]" \
+               "*::arg:->args"
+    case "$state" in
+        cmds)
+				_values "Commands:" \
+				"info[Display video information]" \
+				"length[Display video length]" \
+				"merge[Merge videos]" \
+				"rescale[Rescale videos]" \
+				"dts2ac3[Convert DTS audio to AC3]" \
+				;;
+        args)
+            case $line[1] in
+                info) _do_info ;;
+                length) _do_length ;;
+                merge) _do_merge ;;
+                rescale) _do_rescale ;;
+                dts2ac3) _do_dts2ac3 ;;
+            esac
+            ;;
+    esac
+}
+
+_do_info() {
+    _arguments -s \
+			'-H[help]' 
+
+	_files -W ${PWD} ${0}
+}
+
+_do_length() {
+    _arguments -s \
+			'-H[help]' 
+
+	_files -W ${PWD} ${0}
+}
+
+_do_merge() {
+    _arguments -s \
+			'-H[help]' 
+
+	_files -W ${PWD} ${0}
+}
+
+_do_rescale() {
+    _arguments -s \
+			'-H[help]' 
+
+	_files -W ${PWD} ${0}
+}
+
+_do_dts2ac3() {
+    _arguments -s \
+			'-H[help]' 
+
+	_files -W ${PWD} ${0}
+}
+
+

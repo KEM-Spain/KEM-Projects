@@ -1,0 +1,100 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+#Declarations
+_OVPN_COMMAND=''
+
+#Constants
+_ETC=/usr/local/etc
+_BASEDIR=${HOME}/.openvp3/autoload
+_LOG=/tmp/ovpn.log
+_OVPN_CMD_TXT=${_ETC}/ovpn_cmds.txt
+_OVPN_CONFIG=${_BASEDIR}/opvn_client.ovpn
+
+#Globals
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+get_vpn_cmd () {
+	local -a _DISPLAY_LIST
+	local LINE
+
+	if [[ -s ${_OVPN_CMD_TXT} ]];then
+		while read LINE;do
+			_DISPLAY_LIST+=${LINE}
+		done < ${_OVPN_CMD_TXT}
+	else
+		exit_leave "No vpn_cmds have been saved"
+	fi
+
+	selection_list_set ${(V)_DISPLAY_LIST}
+
+	_SELECTION_VALUE=?
+	selection_list -sc -O ${CYAN_FG} -w4 -x11 -y32 "<w>Execute VPN Command or <h>(q)uit<N>"
+	[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+
+	_OVPN_COMMAND=$(cut -d':' -f1 <<<${_SELECTION_VALUE})
+}
+
+do_cmd () {
+	local CMD=${1}
+	local OP
+	local OUT
+
+	do_rmcup
+	case ${CMD} in
+			connect)	OUT=$(openvpn3-autoload --directory $HOME/.openvpn3/autoload)
+						echo "\n${OUT}"
+						;;
+		disconnect)	OP=$(str_trim $(openvpn3 sessions-list | grep -i path | cut -d':' -f2))
+						[[ -n ${OP} ]] && openvpn3 session-manage -o ${OP} -D || echo "\n${RED_FG}No active sessions${RESET}"
+						;;
+				list) OUT=$(openvpn3 sessions-list)
+						echo "\n${OUT}"
+						;;
+	esac
+}
+
+do_autoload () {
+	/usr/sbin/openvpn3-autoload --directory ${_BASEDIR}/.openvpn3/autoload
+}
+
+#Execution
+do_smcup
+ 
+get_vpn_cmd
+do_cmd ${_OVPN_COMMAND}
+
+exit_leave

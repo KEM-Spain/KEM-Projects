@@ -1,0 +1,53 @@
+#!/usr/bin/zsh
+IFACE=$(ifconfig -v | head -1 | grep 'RUNNING.*MULTICAST' | cut -d: -f1)
+
+arp-check () {
+	lan-devices | grep -qi hisense
+	if [[ ${?} -eq 0 ]];then
+		echo true
+	else
+		echo false
+	fi
+}
+
+mon-check () {
+	mon -s hdmi | grep -qi "connected"
+	if [[ ${?} -eq 0 ]];then
+		echo true
+	else
+		echo false
+	fi
+}
+
+send-notification 1 "Checking for active connection to Smart Tv..."
+
+SMART_TV=$(arp-check)
+if [[ ${SMART_TV} == "false" ]];then
+	HDMI_READY=$(mon-check)
+fi
+
+if [[ ${SMART_TV} == "true" ]];then
+	send-notification 1 "Smart Tv found"
+elif [[ ${HDMI_READY} == "true" ]];then
+	send-notification 1 "HDMI Cable is connected"
+else
+	send-notification 1 "No external display found"
+fi
+
+
+#select appropriate monitor for display
+if [[ ${SMART_TV} == "true" || ${HDMI_READY} == "true" ]];then
+	mon -h
+else
+	mon -i
+fi
+
+#start kodi as child process
+#echo "starting kodi" >> /tmp/${0:t}.log
+vol 100
+/usr/bin/google-chrome http://www.youtube.com 2>> /tmp/${0:t}.log 
+
+#restore monitor setting to both
+mon -b
+
+exit_leave 

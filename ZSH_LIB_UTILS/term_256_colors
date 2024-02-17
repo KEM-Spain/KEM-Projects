@@ -1,0 +1,134 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+BLACK_BG="\033[40m"
+BLUE_BG="\033[44m"
+CYAN_BG="\033[46m"
+GREEN_BG="\033[42m"
+MAGENTA_BG="\033[45m"
+RED_BG="\033[41m"
+WHITE_BG="\033[47m"
+YELLOW_BG="\033[43m"
+
+#Echoed ansi
+E_BOLD=$(echo -n "\033[1m")
+E_ITALIC=$(echo -n "\033[3m")
+E_RESET=$(echo -n "\033[m")
+E_REVERSE=$(echo -n "\033[7m")
+E_STRIKE=$(echo -n "\033[9m")
+E_UNDER=$(echo -n "\033[4m")
+
+E_BLUE_FG=$(echo -n "\033[34m")
+E_CYAN_FG=$(echo -n "\033[36m")
+E_GREEN_FG=$(echo -n "\033[32m")
+E_MAGENTA_FG=$(echo -n "\033[35m")
+E_RED_FG=$(echo -n "\033[31m")
+E_WHITE_FG=$(echo -n "\033[37m")
+E_YELLOW_FG=$(echo -n "\033[33m")
+
+E_BLACK_BG=$(echo -n "\033[40m")
+E_BLUE_BG=$(echo -n "\033[44m")
+E_CYAN_BG=$(echo -n "\033[46m")
+E_GREEN_BG=$(echo -n "\033[42m")
+E_MAGENTA_BG=$(echo -n "\033[45m")
+E_RED_BG=$(echo -n "\033[41m")
+E_WHITE_BG=$(echo -n "\033[47m")
+E_YELLOW_BG=$(echo -n "\033[43m")
+
+#Declarations
+typeset -a LIST
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/STR.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+function termcolors () 
+{
+	local b c g r
+
+    print TERM
+    print -P "Foreground: >█<"
+    print -P "Background: >%S█%s<\n"
+
+    print "      0 1 2 3 4 5 6 7" 
+    for b (0 1)
+    do
+        printf "%d %2d " $b $(( 8 * b ))
+        for r (0 1 2 3 4 5 6 7)
+        do
+            c=$(( 8 * b + r ))
+            print -nP "%K{$c}  %k"
+        done
+        printf " %2d\n" $(( 8 * b + 7 ))
+    done
+
+    print
+
+    print RGB
+    for r (0 1 2 3 4 5)
+    do 
+        print "$r $(( 16 + 36 * r )) - $(( 16 + 36 * r + 35 ))\n       0 1 2 3 4 5"
+        for g (0 1 2 3 4 5)
+        do
+            printf "%d %3d " $g $(( 16 + 36 * r + 6 * g ))
+            for b (0 1 2 3 4 5)
+            do
+                c=$(( 16 + 36 * r + 6 * g + b ))
+                print -nP "%K{$c}  %k"
+            done
+            printf " %3d\n" $(( 16 + 36 * r + 6 * g + 5))
+        done
+        print
+    done
+
+    print
+
+    print GRAY
+    for g in $(seq 0 23)
+    do
+        c=$(( 232 + g ))
+        printf "%2d %3d " $g $c
+        print -P "%K{$c}  %k"
+    done
+}
+
+echo ${TERM} | grep -qi '256color'
+if [[ $? -ne 0 ]];then
+	echo "Current TERM:${WHITE_FG}${TERM}${RESET} does ${RED_FG}NOT${RESET} support 256 colors\nConsider changing to one of the following:\n"
+	LIST=("${(f)$(toe -sa | grep -i '256' | cut -d: -f2 | sed -e 's/\t/ /g' -e 's/^ //g')}")
+	printf "${WHITE_FG}%30s ${CYAN_FG}%-s${RESET}\n" "Term Type" "Description"
+	printf "${WHITE_FG}%30s ${CYAN_FG}%-s${RESET}\n" $(str_unicode_line 9) $(str_unicode_line 11)
+	for L in ${LIST};do
+		TERM=$(cut -d' ' -f1 <<<${L})
+		DESC=$(cut -d' ' -f2- <<<${L})
+		printf "${WHITE_FG}%30s ${CYAN_FG}%-s${RESET}\n" ${TERM} ${DESC}
+	done
+	echo
+else
+	termcolors
+fi

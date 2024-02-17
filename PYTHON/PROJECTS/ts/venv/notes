@@ -1,0 +1,16 @@
+EXTERNAL
+
+start_thread query(key)
+	get_model(key)
+	model_query()
+
+thread_complete()
+	return to stop_spinner
+
+
+INTERNAL
+
+start_spinnter
+	start_thread()
+
+stop_spinner

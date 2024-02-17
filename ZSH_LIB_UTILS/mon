@@ -1,0 +1,232 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A MON_STATUS
+typeset -A MON_ABBV=(int eDP-1 ext HDMI-1)
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+get_mon_status () {
+	local -a LIST=("${(f)$(xrandr | grep "DP\|HDMI")}")
+	local L
+	local MON
+	local STATUS
+
+	for L in ${(o)LIST};do
+		MON=$(cut -d' ' -f1 <<<${L})
+		STATUS=$(cut -d' ' -f2 <<<${L})
+		MON_STATUS[${MON}]=${STATUS}
+	done
+}
+
+get_mon_state () {
+	local MON=${1}
+	local -a LIST
+	local STATE
+	local L
+
+	[[ -z ${MON} ]] && echo "${0} - Invalid arg:$1" >&2 && return 1
+
+	local LIST=("${(f)$(xrandr --verbose | grep -iw 'connected\|brightness')}")
+
+	for L in ${LIST};do
+		[[ ${L:l} =~ "${MON:l}" ]] && continue
+		STATE=$(echo ${L} | cut -d: -f2-)
+		break
+	done
+
+	[[ ! ${STATE} =~ "0.0" ]] && echo "on" || echo "off"
+}
+
+set_mon_state () {
+	local MON=${1}
+	local STATE=${2}
+	local M
+
+	for M in ${(k)MON_STATUS};do
+		[[ ${M:l} != "${MON:l}" ]] && continue
+		if [[ ${MON_STATUS[${M}]} == 'connected' ]];then
+			case ${STATE} in
+				on)	xrandr --output ${M} --brightness 1
+						echo "Activating display ${M}" >&2
+						;;
+				off)	xrandr --output ${M} --brightness 0
+						echo "De-activating display ${M}" >&2
+						;;
+			esac
+		else
+			echo "${MON} monitor is not connected" >&2
+		fi
+	done
+}
+
+send_status_request () {
+	local MON=${1}
+	local M
+
+	for M in ${(k)MON_STATUS};do
+		[[ ${M:l} != "${MON:l}" ]] && continue
+		echo ${MON_STATUS[${M}]} && break
+	done
+}
+
+validate_mon_arg () {
+	local MON_ARG=${1}
+
+	case ${MON_ARG:l} in
+		int)	return 0;;
+		ext)	return 0;;
+		  *)	return 1;;
+	  esac
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+
+	case ${OPT} in
+		s) echo "<EXT|INT>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}:${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-b${RESET} BOTH displays on"
+	echo -e "${WHITE_FG}-e${RESET} EXT (external) display only"
+	echo -e "${WHITE_FG}-i${RESET} INT (internal) display on"
+	echo -e "${WHITE_FG}-s${RESET} Request status for monitor (EXT/INT)"
+	echo -e "${WHITE_FG}-t${RESET} Toggle between EXT only and both"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Control active display(s). Default is current status."
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDbeits"
+
+BOTH_ON=false
+EXT_ONLY=false
+INT_ONLY=false
+MON_INFO=false
+TOGGLE_EXT_ONLY=false
+STATUS_REQUEST=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+		D) dbg_set_level;;
+		H) usage;;
+		b) BOTH_ON=true;;
+		e) EXT_ONLY=true;;
+		i) INT_ONLY=true;;
+		s) STATUS_REQUEST=true;;
+		t) TOGGLE_EXT_ONLY=true;;
+	:) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+	\?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+get_mon_status #load table with mon status data
+
+if [[ -n ${1} ]];then
+	if ! validate_mon_arg ${1};then
+		usage "${RED_FG}Error${RESET}: Monitor \"${1}\" invalid"
+	else
+		MON_ARG=${MON_ABBV[${1}]}
+	fi
+fi
+
+if [[ ${STATUS_REQUEST} == 'true' ]];then
+	exit_leave $(send_status_request ${MON_ARG})
+elif [[ ${BOTH_ON} == 'true' ]];then
+	set_mon_state ${MON_ABBV[int]} on
+	set_mon_state ${MON_ABBV[ext]} on
+elif [[ ${EXT_ONLY} == 'true' ]];then
+	set_mon_state ${MON_ABBV[ext]} on
+	set_mon_state ${MON_ABBV[int]} off
+elif [[ ${INT_ONLY} == 'true' ]];then
+	set_mon_state ${MON_ABBV[ext]} off
+	set_mon_state ${MON_ABBV[int]} on
+elif [[ ${TOGGLE_EXT_ONLY} == 'true' ]];then
+	EXT_STATE=$(get_mon_state ${MON_ABBV[ext]})
+	INT_STATE=$(get_mon_state ${MON_ABBV[int]})
+	if [[ ${INT_STATE} == 'off' ]];then #ext only to both
+		set_mon_state ${MON_ABBV[ext]} on 
+		set_mon_state ${MON_ABBV[int]} on
+	else #ext only
+		set_mon_state ${MON_ABBV[ext]} on 
+		set_mon_state ${MON_ABBV[int]} off
+	fi
+fi
+
+printf "\n${MAGENTA_FG}%7s %-20s %-4s${RESET}\n" "Mon" "Status" "State"
+printf "%-7s %-20s %-4s\n" "-------" "--------------------" "-----"
+for K in ${(ok)MON_STATUS};do
+	STATE=off
+	if [[ ${MON_STATUS[${K}]} == 'connected' ]];then
+		STATE=$(get_mon_state ${K})
+	fi
+	BC=$(boolean_color ${MON_STATUS[${K}]})
+	printf "%7s ${BC}%-20s %4s${RESET}\n" ${K} ${MON_STATUS[${K}]} ${STATE}
+done
+echo
+

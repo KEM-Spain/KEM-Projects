@@ -1,0 +1,331 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _UTILS
+typeset -A _UTILS_DESC
+
+#Constants
+_WRAPPER=${0:t}
+_UTILS=(
+add_braces 1
+ascii_only 1
+blank_lines 1
+strip_ansi 1
+to_lower 1
+)
+
+_UTILS_DESC=(
+add_braces "BRACES:Add braces to zsh vars"
+ascii_only "ASCII:Remove non ascii characters"
+blank_lines "BLANK:Remove blank lines"
+strip_ansi "ANSI:Remove ansi escape sequences"
+to_lower "CASE:Convert to lower case"
+)
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+add_braces () {
+	local DESC
+	local LINE
+	local FN
+
+	read -r -d '' DESC<<___EOF
+Add braces to zsh variables from <FILE> or <PIPE>
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] [<FILE|PIPE>]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	if [[ ! -t 0 ]];then
+		while read LINE;do
+			echo ${LINE} | perl -pe 's/\$([0-9A-Za-z?#@_:]*)(\b|$|")/\${$1}$2/g'
+		done
+	else
+		[[ ${#} -ne 0 ]] && FN=${1} || usage "missing required argument or piped input"
+		perl -pe 's/\$([0-9A-Za-z?#@_:]*)(\b|$|")/\${$1}$2/g' <${FN}
+	fi
+}
+
+ascii_only () {
+	local DESCj
+	local LINE
+	local FN
+
+	read -r -d '' DESC<<___EOF
+Filter any non ascii chars from <FILE> or <PIPE>
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|PIPE>]]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave ${PENDING_MSGS}
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	if [[ ! -t 0 ]];then
+		while read LINE;do
+			echo ${LINE} | perl -pe 's/[^[:ascii:]]//g' 
+		done
+	else
+		[[ ${#} -ne 0 ]] && FN=${1} || usage "missing required argument or piped input"
+		sed -r '/^\s*$/d' <${FN}
+	fi
+}
+
+blank_lines () {
+	local DESC
+	local LINE
+	local FN
+
+	read -r -d '' DESC<<___EOF
+Delete blank lines from <FILE? or <PIPE>
+___EOF
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|PIPE>]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave ${PENDING_MSGS}
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	if [[ ! -t 0 ]];then
+		while read LINE;do
+			echo ${LINE} | sed -r '/^\s*$/d'
+		done
+	else
+		[[ ${#} -ne 0 ]] && FN=${1} || usage "missing required argument or piped input"
+		sed -r '/^\s*$/d' <${FN}
+	fi
+}
+
+strip_ansi () {
+	local DESC
+	local LINE
+	local FN
+
+	read -r -d '' DESC<<___EOF
+Strip ansi escape sequences from <FILE> or <PIPE>
+___EOF
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|PIPE>]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave ${PENDING_MSGS}
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	if [[ ! -t 0 ]];then
+		while read LINE;do
+			echo ${LINE} | perl -pe 's/(\e|\\C-\[)\[+[\d;]*[mK]//g'
+		done
+	else
+		[[ ${#} -ne 0 ]] && FN=${1} || usage "missing required argument or piped input"
+		perl -pe 's/(\e|\\C-\[)\[+[\d;]*[mK]//g' <${FN}
+	fi
+}
+
+to_lower () {
+	local -a LIST
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Convert text to lowercase from <FILE> or <PIPE>
+___EOF
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|PIPE>]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave ${PENDING_MSGS}
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	if [[ ! -t 0 ]];then
+		while read LINE;do
+			echo ${LINE} | tr '[:upper:]' '[:lower:]'
+		done
+	else
+		[[ ${#} -ne 0 ]] && FN=${1} || usage "missing required argument or piped input"
+		tr '[:upper:]' '[:lower:]' < ${FN}
+	fi
+}
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+
+read -r -d '' DESC<<EOF
+Execute system utilities
+\t------------------------
+$(for K in ${(ok)_UTILS_DESC};do
+printf "${WHITE_FG}%-14s${RESET} %s\n" ${K} ${_UTILS_DESC[${K}]}
+done)
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		u) echo "<UTIL>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}\nUsage${RESET}:${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type u)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+OPTSTR=":HD"
+OPTIND=0
+
+UTIL=none
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+		H) usage;;
+		D) dbg_set_level;;
+		:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+
+[[ ${#} -ne 0 ]] && UTIL=${1}
+
+[[ ${UTIL} != 'none' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
+
+if [[ ${UTIL} != 'none' ]];then
+	UTIL=${1}
+	_SCRIPT=${UTIL}
+	[[ ${_UTILS[${UTIL}]} -eq 1 ]] && shift && ${UTIL} ${@}
+else
+	[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+	selection_list_set ${(v)_UTILS_DESC}
+	selection_list -c -O ${CYAN_FG} -x11 -y32 -w10 "<w>Show Text Utilities usage or <h>(q)uit<N>"
+
+	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
+	echo #clear read
+	${_SCRIPT} -H # call function help
+fi
+
+exit_leave

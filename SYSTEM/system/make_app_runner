@@ -1,0 +1,36 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+_DESKTOPS=/usr/share/applications
+
+[[ ${#} -eq 0 ]] && echo "Missing argument:<APPLICATION>" && exit 1 || APP=${1}
+
+[[ ! -e ${_DESKTOPS}/${APP}.desktop ]] && echo "Desktop file for:${APP} not found" && exit 1
+
+RUNNER_FILE="run_${APP}"
+[[ ${APP} =~ "\." ]] && WM_APP=$(echo ${APP} | rev | cut -d'.' -f1 | rev)
+
+EXEC_LINE=$(grep -m1 "^Exec=" ${_DESKTOPS}/${APP}.desktop | sed -e 's/Exec=//' -e 's/%U/\${@}/i')
+echo '#!/usr/bin/zsh' > ${RUNNER_FILE}
+echo "${EXEC_LINE} &" >> ${RUNNER_FILE}
+echo "win_max ${WM_APP} &" >> ${RUNNER_FILE}
+sudo chown root:kmiller ${RUNNER_FILE}
+sudo chmod 775 ${RUNNER_FILE}

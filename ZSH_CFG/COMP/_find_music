@@ -1,0 +1,9 @@
+#compdef find_music
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-n[find music notation]' \
+'-p[find printed music]' \
+'-r[find recorded music (default)]' \
+'-x[exact match]'

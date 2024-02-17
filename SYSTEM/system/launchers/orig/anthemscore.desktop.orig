@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=AnthemScore
+Comment=Transcribe music
+Exec=/usr/local/bin/system/launchers/run_anthemscore
+Icon=/opt/anthemscore/anthemscore.png
+Type=Application
+Categories=Music;Application;

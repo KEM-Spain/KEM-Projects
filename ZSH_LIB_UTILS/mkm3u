@@ -1,0 +1,303 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+AGREP=/usr/bin/agrep
+MUSIC_DIR=''
+
+#Declarations
+typeset -a SEARCHTERM
+typeset -a SUB_DIRS
+typeset -a FILTERED_LIST
+typeset -a QUERY
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Housekeeping
+if [[ -n ${MUSIC_DIR} ]];then
+	MUSIC_DIR=(${MUSIC_DIR}) #from the environment
+else
+	MUSIC_DIR=(/media/kmiller/KEM_Misc/Music/KEM-B9)
+fi
+
+[[ ! -e ${AGREP} ]] && exit_leave $(msg_err "Requires ${AGREP}")
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Creates an m3u playlist
+\tIf track argument is omitted, all tracks are selected
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		e) echo "<FILE_EXT>";;
+		f) echo "<FILE>";;
+		m) echo "<MUSIC_DIR>";;
+		t) echo "<TRACK_NAME>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type t)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-d $(opt_type d)${RESET} only directories matching argument"
+	echo -e "${WHITE_FG}-e $(opt_type e)${RESET} type search [mp3|m4a|flac|wav]"
+	echo -e "${WHITE_FG}-l${RESET} list directories matching search and exit"
+	echo -e "${WHITE_FG}-m $(opt_type m)${RESET} alternate MUSIC_DIR"
+	echo -e "${WHITE_FG}-x${RESET} exact match"
+	echo -e "${WHITE_FG}-s${RESET} display current MUSIC_DIR value and exit"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=(":HDd:lxst:m:v")
+OPTIND=0
+
+DIR_SEARCH=false
+TYPESEARCH=false
+FILETYPE=?
+EXACT=false
+SHOW_MUSIC_DIR=false
+OPTIND=0
+ALT_MUSIC_DIR=false
+VERBOSE=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+		H) usage;;
+		D) dbg_set_level;;
+		d) DIR_SEARCH=true;DIR_PHRASE=${OPTARG};;
+		l) LIST_DIR_SEARCH=true;;
+		m) ALT_MUSIC_DIR=${OPTARG};;
+		s) SHOW_MUSIC_DIR=true;;
+		t) TYPESEARCH=true;FILETYPE=${OPTARG};;
+		v) VERBOSE=true;;
+		x) EXACT=true;;
+		:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#--Execution--
+SEARCHTERM=($(for S in ${@};do echo ${S};done))
+[[ ${VERBOSE} == 'true' && -z ${SEARCHTERM} ]] && echo "SEARCHTERM is empty - will return all tracks"
+
+[[ ${ALT_MUSIC_DIR} != 'false' ]] && MUSIC_DIR=${ALT_MUSIC_DIR}
+
+MUSIC_DIR=$(echo ${MUSIC_DIR} | sed 's/^ [\t]*//g') #trim
+if [[ ! -d ${MUSIC_DIR} ]];then
+	echo "MUSIC_DIR:${MUSIC_DIR} is invalid" >&2
+	exit_leave
+fi
+
+if [[ ${SHOW_MUSIC_DIR} == "true" ]];then
+	echo "${WHITE_FG}MUSIC_DIR${RESET}:${MUSIC_DIR}"
+	exit_leave
+fi
+
+if [[ ${TYPESEARCH} == "true" ]];then
+	FILETYPES="${FILETYPE}"
+else
+	FILETYPES="(mp3|m4a|flac|ogg|wav)"
+fi
+
+if [[ ${_DEBUG} -gt 0 ]];then
+	(
+	echo "MUSIC_DIR:${WHITE_FG}${MUSIC_DIR}${RESET}"
+	echo "------------------"
+	echo "  OPTION READOUT   "
+	echo "------------------"
+	echo "DIR_SEARCH:${WHITE_FG}${DIR_SEARCH}${RESET}"
+	echo "DIR_PHRASE:${WHITE_FG}${DIR_PHRASE:=null}${RESET}"
+	echo "TYPESEARCH:${WHITE_FG}${TYPESEARCH:=null}${RESET}"
+	echo "FILETYPES:${WHITE_FG}${FILETYPES}${RESET}"
+	echo "EXACT:${WHITE_FG}${EXACT}${RESET}"
+	echo "SEARCHTERM:${WHITE_FG}${SEARCHTERM:=null}${RESET}"
+	) | dbg
+fi
+
+[[ ${VERBOSE} == 'true' ]] && echo "STEP 1:Build DIRECTORY master list from ${MUSIC_DIR}"
+[[ ${VERBOSE} == 'true' ]] && echo "Building list of top level directories under ${MUSIC_DIR}"
+
+LIST=("${(f)$(find ${MUSIC_DIR:q} -maxdepth 1 -type d ! -path ${MUSIC_DIR:q} ! -path "${MUSIC_DIR:q}/iPhone/*")}") #top level dirs under MUSIC_DIR
+
+[[ ${VERBOSE} == 'true' ]] && echo "List contains ${WHITE_FG}${#LIST}${RESET} entries."
+[[ ${VERBOSE} == 'true' && ${DIR_SEARCH} == "true" ]] && echo "STEP 2:DIRECTORY SEARCH:Limiting directories to those matching search term:${WHITE_FG}${DIR_PHRASE}${RESET}"
+
+DIR_PHRASE=$(echo ${DIR_PHRASE:Q} | tr -d '[:space:]')
+
+#Drill down through directories for a match
+[[ ${VERBOSE} == 'true' && ${DIR_SEARCH} == "true" ]] && echo "STEP 2:FILE SEARCH:Adding all qualifiying directories to work list"
+[[ ${VERBOSE} == 'true' && ${DIR_SEARCH} == "false" ]] && echo "STEP 2:FILE SEARCH:Adding all directories to work list"
+
+GOT_MATCH=false
+MATCH_COUNT=0
+
+echo "Collecting any subdirectories..."
+for L in ${LIST};do
+	if [[ ${DIR_SEARCH} == "true" ]];then
+		echo "${L}" | grep -qi ${DIR_PHRASE}; RC=$?
+	
+		if [[ ${RC} -eq 0 ]];then
+			SUB_DIRS+=${L} #only matching
+			(( MATCH_COUNT++ ))
+			GOT_MATCH=true
+		fi
+	
+		if [[ -n ${DIR_PHRASE} ]];then
+			SUB_LIST=("${(f)$(find ${L} -type d ! -path ${L} ! -path "${MUSIC_DIR}/iPhone/*")}") 
+			for D in ${SUB_LIST};do
+				echo "${D:t}" | grep -qi ${DIR_PHRASE}; RC=$?
+				if [[ ${RC} -eq 0 ]];then
+					SUB_DIRS+=${D} #only matching
+					(( MATCH_COUNT++ ))
+					GOT_MATCH=true
+				fi
+			done
+		fi
+	else
+		SUB_DIRS+=${L} #no dir search qualifier - all qualify
+	fi
+done
+
+if [[ ${VERBOSE} == 'true' ]];then
+	[[ ${MATCH_COUNT} -eq 1 ]] && PLURAL_DIR="y" || PLURAL_DIR="ies"
+	if [[ ${DIR_SEARCH} == "true" ]];then
+		if [[ ${GOT_MATCH} == "true" ]];then
+			echo "DIR_PHRASE:${WHITE_FG}${DIR_PHRASE}${RESET} matched ${WHITE_FG}${MATCH_COUNT}${RESET} director${PLURAL_DIR}"
+		else
+			echo "DIR_PHRASE:${WHITE_FG}${DIR_PHRASE}${RESET} did not match"
+		fi
+	fi
+fi
+
+if [[ ${LIST_DIR_SEARCH} == "true" && ${GOT_MATCH} == "true" ]];then
+	echo "Qualifiying Directories" >&2
+	echo "----------------------------------" >&2
+	for D in ${SUB_DIRS};do
+		echo ${WHITE_FG}${D}${RESET} >&2
+	done
+	echo "----------------------------------" >&2
+	exit_leave
+fi
+
+[[ ${VERBOSE} == 'true' ]] && echo "STEP 3:Filtering master list based on results from ${#SUB_DIRS} directories..."
+
+#Create file list and pipe to m3u to generate playlist
+for D in ${SUB_DIRS};do
+	CMD="find ${D:q} -type f | grep -E \"${FILETYPES}$\""
+	QUERY=("${(f)$(eval ${CMD})}") 
+	[[ -n ${QUERY} ]] && FILTERED_LIST+=(${QUERY})
+done
+
+[[ ${VERBOSE} == 'true' ]] && echo "Resulting FILTERED_LIST contains ${WHITE_FG}${#FILTERED_LIST}${RESET} entries"
+
+[[ ${#FILTERED_LIST} -eq 0 ]] && exit_leave $(msg_warn "No results")
+
+[[ ${VERBOSE} == 'true' ]] && echo "STEP 4:Build playlist..."
+
+if [[ ${EXACT} == "true" ]];then
+	[[ ${VERBOSE} == 'true' ]] && echo "Searching for exactly: ${WHITE_FG}${SEARCHTERM}${RESET}"
+else
+	[[ ${VERBOSE} == 'true' ]] && echo "Searching for any matching: ${WHITE_FG}${SEARCHTERM}${RESET}"
+fi
+
+echo "Processing final list..."
+(
+NDX=0
+CNT=0
+for P in ${FILTERED_LIST};do
+	((NDX++))
+	if [[ -z ${SEARCHTERM} ]];then
+		echo ${P}
+		((CNT++))
+		if [[ ${VERBOSE} == 'true' ]];then
+			printf "\r%100s" " ">&2
+			printf "\rAdding: ${WHITE_FG}%d${RESET} %.90s" ${CNT} ${${P}##${MUSIC_DIR}} >&2
+		fi
+	else
+		if [[ ${EXACT} == "true" ]];then
+			echo ${P:t} | grep -qiw "${SEARCHTERM}"
+		else
+			WORDS=$(echo ${SEARCHTERM} | wc -w)
+			[[ ${WORDS} -gt 1 ]] && SEARCHTERM=$(echo ${SEARCHTERM} | sed 's/ /\\|/g')
+			echo ${P:t} | grep -qi "${SEARCHTERM}"
+		fi
+		if [[ $? -eq 0 ]];then
+			 echo ${P}
+			 ((CNT++))
+			if [[ ${VERBOSE} == 'true' ]];then
+				printf "\r%100s" " ">&2
+				printf "\rAdding: ${WHITE_FG}%d${RESET} %.90s" ${CNT} ${${P}##${MUSIC_DIR}} >&2
+			fi
+		fi
+	fi
+	[[ ${NDX} -eq ${#FILTERED_LIST} ]] && echo
+done
+) | sort | m3u

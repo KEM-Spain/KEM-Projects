@@ -1,0 +1,5 @@
+#compdef lft
+
+_arguments \
+'-H[help]' \
+'-D[debug]'

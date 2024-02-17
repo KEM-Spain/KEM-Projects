@@ -1,0 +1,11 @@
+    def on_destroy(self, widget, event):
+        messagedialog = Gtk.MessageDialog(parent=self, message_type=Gtk.MessageType.QUESTION,
+                                          buttons=Gtk.ButtonsType.OK_CANCEL,text="Click on 'Cancel' to leave the application open.")
+        messagedialog.show_all()
+        result=messagedialog.run()
+        messagedialog.destroy()
+
+        if result==Gtk.ResponseType.CANCEL:
+            return True
+
+        app_exit()

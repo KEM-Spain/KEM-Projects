@@ -1,0 +1,538 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_SRC_DIR=/usr/local/src
+_LIB_DIR=/usr/local/lib
+_BIN=/usr/local/bin
+_PRODUCTION_DIR=${_BIN}
+
+_EM=${BOLD}${ITALIC}
+
+#Globals
+g_BACKUP_NAME=?
+g_BACKUP_VERSION=?
+g_BACKUP_VERSION_MSG=?
+g_EXISTING_BACKUP_FOUND=?
+g_IS_INITIAL_PRODUCTION=false
+g_LOCAL_EXISTS=?
+g_LOCAL_EXISTS_PROD=?
+g_LOCAL_IS_MORE_RECENT=?
+g_LOCAL_MATCHES_BACKUP=?
+g_LOCAL_NAME=?
+g_LOCAL_ONLY=false
+g_LOCAL_VERSION=?
+g_LOCAL_WILL_OVERWRITE=?
+g_PROD_DIFFERS_LOCAL=?
+g_PROD_IS_MORE_RECENT=?
+g_PROD_MATCHES_BACKUP=?
+g_PROD_MATCHES_LOCAL=?
+g_PROD_NAME=?
+g_PROD_VERSION=?
+g_PROD_WILL_OVERWRITE=?
+g_PROD_WILL_OVERWRITE_BACKUP=?
+
+#Imports
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/DATE.zsh
+source ${_LIB_DIR}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+get_prod_dir () {
+	local FN=${@}
+	local PROD_DIR
+	local CANDIDATE
+
+	if is_lib ${FN};then
+		echo ${_LIB_DIR}
+	else
+		CANDIDATE="$(fut findexe ${FN})"
+		echo "CANDIDATE:${CANDIDATE}" >&2
+		if [[ -f ${CANDIDATE} ]];then # a regular file 
+			if [[ ${CANDIDATE:l} =~ "etc|system|src" ]];then
+				echo ${CANDIDATE:h}
+			else
+				echo ${_PRODUCTION_DIR}
+			fi
+		else
+			echo "NOT_FOUND"
+		fi
+	fi
+}
+
+is_lib () {
+	local FN=${@}
+	local LIB=$(find ${_LIB_DIR} -type f -name ${FN})
+	
+	[[ -n ${LIB} ]] && return 0 || return 1
+}
+
+prod_to_local () {
+	local NEWEST
+
+	if [[ ! -e ${g_LOCAL_VERSION} ]];then #initial copy from production
+		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Local version NOT found - Initial copy"
+		echo "This appears to be an initial version..."
+		echo "Source file identified as:${WHITE_FG}${g_PROD_NAME}${RESET}"
+		do_copy ${g_PROD_VERSION} ${g_LOCAL_VERSION}
+		if [[ ${?} -eq 0 ]];then
+			echo "Creating an initial backup..."
+			if [[ ! -e ${g_ORIGINAL_VERSION} ]];then #initial backup from production
+				do_copy ${g_LOCAL_VERSION} ${g_ORIGINAL_VERSION} # one time only
+			else
+				do_copy ${g_LOCAL_VERSION} ${g_BACKUP_VERSION}
+			fi
+		fi
+	elif [[ ! -e ${g_PROD_VERSION} ]];then #local backup only
+		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Production version NOT found - Backup local only"
+		echo "This appears to be the only version..."
+		echo "Source file identified as:${WHITE_FG}${g_LOCAL_NAME}${RESET}"
+		echo "Creating an initial backup..."
+		do_copy ${g_LOCAL_VERSION} ${g_BACKUP_VERSION}
+	else
+		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Found local version"
+		echo "\nSOURCE"
+		echo ${g_LOCAL_EXISTS_PROD}
+
+		diff -b ${g_PROD_VERSION} ${g_LOCAL_VERSION} >/dev/null 2>&1
+
+		if [[ $? -eq 0 ]];then
+			echo ${g_PROD_MATCHES_LOCAL}
+		else
+			echo ${g_PROD_DIFFERS_LOCAL}
+
+			NEWEST=$(file_date_diff ${FN} ./${FN:t})
+			[[ ${NEWEST} == ${FN} ]] && echo ${g_PROD_IS_MORE_RECENT} || echo ${g_LOCAL_IS_MORE_RECENT}
+			echo ${g_PROD_WILL_OVERWRITE}
+			
+			get_response "Overwrite the ${_EM}local${RESET} version?\n(the ${_EM}local${RESET} version will be backed up first)"
+			if [[ ${?} -eq 0 ]];then
+				[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Local backed up; production will overwrite local"
+				echo "\nBACKUP"
+				do_copy ${g_LOCAL_VERSION} ${g_LOCAL_VERSION}.bak no_prompt
+
+				echo "\nSOURCE"
+				echo "Copying production:${WHITE_FG}${g_PROD_NAME}${RESET}..."
+				do_copy ${g_PROD_VERSION} ${g_LOCAL_VERSION} no_prompt
+			else
+				exit_leave $(msg_warn "Operation cancelled")
+			fi
+		fi
+	fi
+}
+
+do_copy () {
+	local SOURCE_FN=${1}
+	local DEST_FN=${2}
+	local PROMPT=${3:=true}
+	local RESPONSE
+	local MSG OP
+
+	[[ ${DEST_FN} =~ "\.bak$" ]] && OP="Backup" || OP="Copy"
+	[[ -e ${DEST_FN} ]] && MSG="Overwriting ${_EM}existing${RESET} ${OP:l}" || MSG="${OP} to"
+
+	[[ ${PROMPT} == 'true' ]] && get_response "${MSG} ${WHITE_FG}${DEST_FN}${RESET}"
+
+	if [[ ${?} -eq 0 || ${PROMPT} != 'true' ]];then
+		cp ${SOURCE_FN} ${DEST_FN}
+		echo "${OP} ${GREEN_FG}complete${RESET}"
+		return 0
+	else
+		echo "${RED_FG}${OP} cancelled${RESET}"
+		return 1
+	fi
+}
+
+format_for_less () {
+	local FN=${1}
+	local HEAD
+	local TAIL
+	local CD
+	local NO_EXT
+	local FN_OUT
+	local FNR
+	
+	HEAD=${FN:h}
+	TAIL=${FN:t}
+
+	[[ ${FN:h} == '.' ]] && CD=true || CD=false
+	[[ -z ${FN:e} ]] && NO_EXT=true || NO_EXT=false
+
+	#less doesn't display dots in filenames if passed to the prompt so they have to be escaped
+	[[ ${FN:r} =~ '\.' ]] && FNR=$(sed 's/\./\\./g' <<<${FN:r})
+
+	[[ ${CD} == 'true' && ${NO_EXT} == 'true' ]] && FN_OUT="\./${FN}"
+	[[ ${CD} == 'true' && ${NO_EXT} == 'false' ]] &&  FN_OUT="\./${FN:r}\.${FN:e}"
+	[[ ${CD} == 'true' && ${NO_EXT} == 'false' && -n ${FNR} ]] && FN_OUT="\./${FNR}\.${FN:e}"
+	[[ ${CD} == 'false' && ${NO_EXT} == 'true' ]] && FN_OUT="${HEAD}/${TAIL}"
+	[[ ${CD} == 'false' && ${NO_EXT} == 'false' ]] && FN_OUT="${HEAD}/${TAIL:h}${TAIL:r}\.${TAIL:e}"
+
+	echo ${FN_OUT}
+}
+
+get_response () {
+	local MSG=${1}
+	local RESPONSE
+
+	echo -n "${MSG}${RESET}?\n(y/n)${RESET}:"
+
+	read -sq RESPONSE;echo
+	[[ ${RESPONSE} == 'y' ]] && return 0 || return 1
+}
+
+make_backup () {
+	echo "\n${GREEN_FG}BACKUP${RESET} DEVELOPMENT"
+	if [[ -e ${g_LOCAL_VERSION} && ! -e ${g_BACKUP_VERSION} ]];then
+		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup NOT found; making initial backup"
+		echo ${g_BACKUP_VERSION_MSG}
+		do_copy ${g_LOCAL_VERSION} ${g_BACKUP_VERSION} no_prompt #make initial backup
+	elif [[ -e ${g_LOCAL_VERSION} && -e ${g_BACKUP_VERSION} ]];then
+		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup found; comparing backup"
+		diff -b ${g_LOCAL_VERSION} ${g_BACKUP_VERSION} >/dev/null 2>&1
+		if [[ $? -eq 0 ]];then
+			[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup is current"
+			echo ${g_LOCAL_MATCHES_BACKUP}
+		else #make new backup
+			[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup is NOT current"
+			echo ${g_EXISTING_BACKUP_FOUND}
+			echo ${g_LOCAL_WILL_OVERWRITE}
+			do_copy ${g_LOCAL_VERSION} ${g_BACKUP_VERSION}
+		fi
+	fi
+}
+
+prod_to_backup () {
+	echo "\n${MAGENTA_FG}BACKUP${RESET} PRODUCTION"
+	if [[ -e ${g_LOCAL_VERSION} && ! -e ${g_BACKUP_VERSION} ]];then
+		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup NOT found; making initial backup"
+		echo ${g_BACKUP_VERSION_MSG}
+		do_copy ${g_PROD_VERSION} ${g_BACKUP_VERSION} no_prompt #make initial backup
+	elif [[ -e ${g_PROD_VERSION} && -e ${g_BACKUP_VERSION} ]];then
+		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup found; comparing backup"
+		diff -b ${g_PROD_VERSION} ${g_BACKUP_VERSION} >/dev/null 2>&1
+		if [[ $? -eq 0 ]];then
+			[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup is current"
+			echo ${g_PROD_MATCHES_BACKUP}
+		else #make new backup
+			[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup is NOT current"
+			echo ${g_EXISTING_BACKUP_FOUND}
+			echo ${g_PROD_WILL_OVERWRITE_BACKUP}
+			do_copy ${g_PROD_VERSION} ${g_BACKUP_VERSION}
+		fi
+	fi
+}
+
+local_to_prod () {
+	echo "\n${RED_FG}RELEASE${RESET} TO PRODUCTION"
+	if [[ ${g_IS_INITIAL_PRODUCTION} == 'false' ]];then
+		#existing production copy
+		get_response "Overwrite the ${_EM}production${RESET} version: ${WHITE_FG}${g_PROD_NAME}${RESET}\nwith the ${_EM}local${RESET} version: ${WHITE_FG}${g_LOCAL_NAME}${RESET}"
+		if [[ ${?} -eq 0 ]];then
+			cp ${g_LOCAL_VERSION} ${g_PROD_VERSION}
+			echo "${WHITE_FG}${g_LOCAL_NAME}${RESET} was copied to ${WHITE_FG}${g_PROD_NAME}${RESET}"
+		else
+			exit_leave $(msg_warn "Release cancelled")
+		fi
+	else
+		#no existing production copy
+		echo "Creating an initial production copy:${_PRODUCTION_DIR}/${FILE_ARG}"
+		get_response "Create ${_EM}production${RESET} version: ${WHITE_FG}${_PRODUCTION_DIR}/${FILE_ARG}${RESET} with the ${_EM}local${RESET} version ${WHITE_FG}${g_LOCAL_NAME}${RESET}"
+		if [[ ${?} -eq 0 ]];then
+			cp ${g_LOCAL_VERSION} ${_PRODUCTION_DIR}/${FILE_ARG}
+			echo "${WHITE_FG}${g_LOCAL_NAME}${RESET} was copied to ${WHITE_FG}${_PRODUCTION_DIR}/${FILE_ARG}${RESET}"
+		else
+			exit_leave $(msg_warn "Release cancelled")
+		fi
+	fi
+	[[ -e "_${FILE_ARG}" ]] && install_comp ${FILE_ARG}
+}
+
+set_messages () {
+	if [[ ${g_LOCAL_ONLY} == 'true' ]];then
+		g_PROD_NAME="${RED_FG}${ITALIC}None${RESET}" 
+		g_BACKUP_NAME="${MAGENTA_FG}${g_BACKUP_VERSION:h}/${WHITE_FG}${g_LOCAL_VERSION:t}.${ITALIC}${WHITE_FG}${g_BACKUP_VERSION:e}${RESET}"
+	else
+		g_PROD_NAME="${CYAN_FG}${ITALIC}${g_PROD_VERSION:h}/${RESET}${WHITE_FG}${g_PROD_VERSION:t}${RESET}" 
+		g_BACKUP_NAME="${MAGENTA_FG}${g_BACKUP_VERSION:h}/${WHITE_FG}${g_PROD_VERSION:t}.${ITALIC}${WHITE_FG}${g_BACKUP_VERSION:e}${RESET}"
+	fi
+
+	g_LOCAL_NAME="${MAGENTA_FG}${ITALIC}${g_LOCAL_VERSION:h}/${RESET}${WHITE_FG}${g_LOCAL_VERSION:t}${RESET}"
+
+	g_EXISTING_BACKUP_FOUND="${RED_FG}Warning${RESET}:an ${_EM}existing${RESET} (non matching) backup:${g_BACKUP_NAME} was found..."
+	g_LOCAL_EXISTS="A ${_EM}local${RESET} version of ${WHITE_FG}${g_LOCAL_NAME}${RESET} exists..."
+	g_LOCAL_EXISTS_PROD="A ${_EM}local${RESET} version of ${WHITE_FG}${g_PROD_NAME}${RESET} exists..."
+
+	g_BACKUP_VERSION_MSG="Making backup of ${_EM}local${RESET} version ${WHITE_FG}${g_LOCAL_NAME}${RESET} to ${g_BACKUP_NAME}..."
+
+	g_LOCAL_MATCHES_BACKUP="The ${_EM}local${RESET} version:${g_LOCAL_NAME} ${GREEN_FG}${ITALIC}MATCHES${RESET} the ${_EM}existing${RESET} backup:${g_BACKUP_NAME}"
+	g_LOCAL_IS_MORE_RECENT="The ${GREEN_FG}${_EM}local${RESET} file:${g_LOCAL_NAME} is ${GREEN_FG}${_EM}more recent${RESET}"
+	g_LOCAL_WILL_OVERWRITE="File:${g_LOCAL_NAME} will ${RED_FG}${ITALIC}overwrite${RESET} the ${_EM}existing${RESET} backup:${g_BACKUP_NAME}"
+
+	g_PROD_DIFFERS_LOCAL="${RED_FG}Warning${RESET}:the ${_EM}production${RESET} version ${RED_FG}differs${RESET} from the ${_EM}local${RESET} version"
+	g_PROD_MATCHES_LOCAL="The ${_EM}production${RESET} version:${g_PROD_NAME} ${GREEN_FG}${ITALIC}MATCHES${RESET} the ${_EM}local${RESET} version:${g_LOCAL_NAME}"
+	g_PROD_IS_MORE_RECENT="The ${GREEN_FG}${_EM}production${RESET} file:${g_PROD_NAME} is ${GREEN_FG}${_EM}more recent${RESET}"
+	g_PROD_WILL_OVERWRITE="The ${_EM}production${RESET} version:${g_PROD_NAME} will ${RED_FG}${ITALIC}overwrite${RESET} the ${_EM}local${RESET} version:${g_LOCAL_NAME}"
+	g_PROD_MATCHES_BACKUP="The ${_EM}production${RESET} version:${g_PROD_NAME} ${GREEN_FG}${ITALIC}MATCHES${RESET} the ${_EM}backup${RESET} version:${g_BACKUP_NAME}"
+	g_PROD_WILL_OVERWRITE_BACKUP="The ${_EM}production${RESET} version:${g_PROD_NAME} will ${RED_FG}${ITALIC}overwrite${RESET} the ${_EM}local${RESET} version:${g_BACKUP_NAME}"
+
+	if [[ ${_DEBUG} -gt 0 ]];then
+		dbg "${0}:${LINENO} g_BACKUP_NAME ${g_BACKUP_NAME}"
+		dbg "${0}:${LINENO} g_PROD_NAME ${g_PROD_NAME}"
+		dbg "${0}:${LINENO} g_LOCAL_NAME ${g_LOCAL_NAME}"
+		dbg "${0}:${LINENO} g_BACKUP_VERSION_MSG ${g_BACKUP_VERSION_MSG}"
+		dbg "${0}:${LINENO} g_EXISTING_BACKUP_FOUND ${g_EXISTING_BACKUP_FOUND}"
+		dbg "${0}:${LINENO} g_LOCAL_EXISTS ${g_LOCAL_EXISTS}"
+		dbg "${0}:${LINENO} g_LOCAL_EXISTS_PROD ${g_LOCAL_EXISTS_PROD}"
+		dbg "${0}:${LINENO} g_LOCAL_VERSION ${g_LOCAL_MATCHES_BACKUP}"
+		dbg "${0}:${LINENO} g_LOCAL_IS_MORE_RECENT ${g_LOCAL_IS_MORE_RECENT}"
+		dbg "${0}:${LINENO} g_LOCAL_WILL_OVERWRITE ${g_LOCAL_WILL_OVERWRITE}"
+		dbg "${0}:${LINENO} g_PROD_DIFFERS_LOCAL ${g_PROD_DIFFERS_LOCAL}"
+		dbg "${0}:${LINENO} g_PROD_MATCHES_LOCAL ${g_PROD_MATCHES_LOCAL}"
+		dbg "${0}:${LINENO} g_PROD_MATCHES_BACKUP ${g_PROD_MATCHES_BACKUP}"
+		dbg "${0}:${LINENO} g_PROD_IS_MORE_RECENT ${g_PROD_IS_MORE_RECENT}"
+		dbg "${0}:${LINENO} g_PROD_WILL_OVERWRITE ${g_PROD_WILL_OVERWRITE}"
+		dbg "${0}:${LINENO} g_PROD_WILL_OVERWRITE_BACKUP ${g_PROD_WILL_OVERWRITE_BACKUP}"
+	fi
+}
+
+show_diff () {
+	local DIFF_TYPE=${1}
+
+	case ${DIFF_TYPE} in
+		local_dev_2_local_bak)	colordiff ${g_BACKUP_VERSION} ${g_LOCAL_VERSION} >/dev/null 2>&1
+					if [[ ${?} -eq 0 ]];then
+						echo ${g_LOCAL_MATCHES_BACKUP}
+						exit_leave
+					else
+						colordiff ${g_BACKUP_VERSION} ${g_LOCAL_VERSION} | less -RF -P "Comparing $(format_for_less ${g_BACKUP_VERSION}) and $(format_for_less ${g_LOCAL_VERSION}) [RED is BACKUP, GREEN is LOCAL source]"
+						exit_leave "Comparing:<${RED_FG}Local Backup${RESET}> to <${GREEN_FG}Local Development${RESET}>"
+					fi
+					;;
+
+		prod_2_local_dev)		colordiff ${g_LOCAL_VERSION} ${g_PROD_VERSION} >/dev/null 2>&1
+					if [[ ${?} -eq 0 ]];then
+						echo ${g_PROD_MATCHES_LOCAL}
+						exit_leave
+					else
+						colordiff ${g_LOCAL_VERSION} ${g_PROD_VERSION} | less -RF -P "Comparing $(format_for_less ${g_LOCAL_VERSION}) and $(format_for_less ${g_PROD_VERSION}) [RED is LOCAL source, GREEN is PRODUCTION source]"
+						exit_leave "Comparing:<${RED_FG}Local Development${RESET}> to <${GREEN_FG}Production${RESET}>"
+					fi
+					;;
+
+		prod_2_local_bak)		colordiff ${g_BACKUP_VERSION} ${g_PROD_VERSION} >/dev/null 2>&1
+					if [[ ${?} -eq 0 ]];then
+						echo ${g_PROD_MATCHES_BACKUP}
+						exit_leave
+					else
+						colordiff ${g_BACKUP_VERSION} ${g_PROD_VERSION} | less -RF -P "Comparing $(format_for_less ${g_BACKUP_VERSION}) and $(format_for_less ${g_PROD_VERSION}) [RED is g_BACKUP_VERSION source, GREEN is PRODUCTION source]"
+						exit_leave "Comparing:<${RED_FG}Local Backup${RESET}> to <${GREEN_FG}Production${RESET}>"
+					fi
+					;;
+	esac
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Manage script sources during the development cycle
+\t'bak' regards:
+\t\tthe version in the <PWD> as <DEVELOPMENT> and
+\t\tthe version in <PRODUCTION> (default: ${_PRODUCTION_DIR}) as <PRODUCTION> 
+\n\t'bak <FILE>' default is to copy <PRODUCTION> to <DEVELOPMENT> and optionally create <DEVELOPMENT>.bak 
+\n\tAll operations other than -b (local backup) require a <PRODUCTION> copy to exist
+\tNo actions are taken without consent
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-b${RESET} backup <DEVELOPMENT>"
+	echo -e "${WHITE_FG}-c${RESET} copy <DEVELOPMENT> -> <PRODUCTION>"
+	echo -e "${WHITE_FG}-s${RESET} copy <PRODUCTION> -> <BACKUP>"
+	echo -e "${WHITE_FG}-B${RESET} diff <DEVELOPMENT> <> <BACKUP>"
+	echo -e "${WHITE_FG}-C${RESET} diff <DEVELOPMENT> <> <PRODUCTION>"
+	echo -e "${WHITE_FG}-S${RESET} diff <PRODUCTION> <> <BACKUP>"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDBCSbcs"
+BACKUP_LOCAL=false
+SYNC_PROD_BAK=false
+SHOW_B_DIFF=false
+SHOW_C_DIFF=false
+SHOW_S_DIFF=false
+PROD_COPY=false
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     b) BACKUP_LOCAL=true;;
+     c) PROD_COPY=true;;
+     s) SYNC_PROD_BAK=true;;
+     B) SHOW_B_DIFF=true;;
+     C) SHOW_C_DIFF=true;;
+     S) SHOW_S_DIFF=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ -n ${TESTING} ]] && exit_leave $(msg_err "TESTING is set - unset before continuing")
+
+FILE_ARG=${1}
+[[ -z ${FILE_ARG} ]] && usage "Missing argument:${WHITE_FG}$(opt_type f)${RESET}"
+
+#if any options are present they will require a local copy of the file arg
+[[ ! -e ./${FILE_ARG} && ${#OPTIONS} -ne 0 ]] && exit_leave $(msg_warn "No such file:${FILE_ARG} exists in the current directory")
+
+if [[ ${BACKUP_LOCAL} == 'true' ]];then
+	g_LOCAL_ONLY=true # no production dir necessary
+	FN=${FILE_ARG}
+else
+	_PRODUCTION_DIR=$(get_prod_dir ${FILE_ARG}) # need a production dir
+	if [[ ${_PRODUCTION_DIR} == "NOT_FOUND" ]];then
+		if [[ ${PROD_COPY} == 'true' ]];then
+			LIST=('1) Normal Production' '2) Library Module' '3) Source File' '4) System Utility')
+			tput sc
+			msg_box -p  -P"Select Type" "<r>No production copy exists<N>|$(str_unicode_line 25)| |<w>What type of module is this?<N>| |$(msg_list ${LIST})"
+			msg_box_clear
+			tput rc
+			case ${_MSG_KEY} in
+				1) _PRODUCTION_DIR=${_BIN};;
+				2) _PRODUCTION_DIR=${_LIB_DIR};;
+				3) _PRODUCTION_DIR=${_SRC_DIR};;
+				4) _PRODUCTION_DIR=${_BIN}/system;;
+				*) echo; exit_leave $(msg_warn "Operation Cancelled");;
+			esac
+		else
+			exit_leave $(msg_err "Production file not found:${FILE_ARG}")
+		fi
+	fi
+
+	FN=$(fut findexe ${FILE_ARG})
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} fut findexe returned: ${FN} for FILE_ARG:${FILE_ARG}"
+
+	if [[ -f ${FN} && -x ${FN} ]];then # a regular file - executable
+		FN_PATH=$(realpath ${FN:h})
+	else
+		FN_PATH=${_PRODUCTION_DIR}
+	fi
+
+	if [[ ${FN_PATH} == ${_PRODUCTION_DIR} ]];then
+		FN=${_PRODUCTION_DIR}/${FILE_ARG}
+	elif [[ ${FN_PATH} == ${PWD} ]];then
+		g_LOCAL_ONLY=true
+	else
+		exit_leave $(msg_warn "fut findexe returned:${FN_PATH} There are other copies of this file in an unexpected location")
+	fi
+fi
+
+#Set targets and messages
+g_LOCAL_VERSION=${PWD}/${FN:t}
+g_BACKUP_VERSION=${PWD}/${FN:t}.bak
+g_ORIGINAL_VERSION=${PWD}/${FN:t}.orig
+
+[[ ${g_LOCAL_ONLY} == 'false' ]] && g_PROD_VERSION=${FN} || g_PROD_VERSION=None
+[[ ! -e ${g_PROD_VERSION} ]] && g_IS_INITIAL_PRODUCTION=true || g_IS_INITIAL_PRODUCTION=false
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} g_LOCAL_ONLY ${g_LOCAL_ONLY} g_PROD_VERSION=${g_PROD_VERSION} g_LOCAL_VERSION=${g_LOCAL_VERSION} g_BACKUP_VERSION=${g_BACKUP_VERSION}"
+
+set_messages
+
+if [[ ${BACKUP_LOCAL} == 'true' ]];then #backup local version
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} BACKUP_LOCAL:true"
+	make_backup
+elif [[ ${SHOW_B_DIFF} == 'true' ]];then #compare local version to local backup
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} SHOW_B_DIFF:true"
+	show_diff local_dev_2_local_bak
+elif [[ ${SHOW_C_DIFF} == 'true' ]];then #compare production to local version
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} SHOW_C_DIFF:true"
+	show_diff prod_2_local_dev
+elif [[ ${SHOW_S_DIFF} == 'true' ]];then #compare production to local backup
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} SHOW_S_DIFF:true"
+	show_diff prod_2_local_bak
+elif [[ ${PROD_COPY} == 'true' ]];then #copy local version out to production
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} PROD_COPY:true g_IS_INITIAL_PRODUCTION:${g_IS_INITIAL_PRODUCTION}"
+	local_to_prod
+elif [[ ${SYNC_PROD_BAK} == 'true' ]];then #copy production to local backup
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} SYNC_PROD_BAK:true"
+	prod_to_backup
+else
+	[[ ! -e ${FN} ]] && exit_leave $(msg_warn "File:${FN} not found")
+	prod_to_local #default is to copy production version to local version
+fi
+
+exit_leave

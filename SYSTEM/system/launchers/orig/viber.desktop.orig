@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Viber
+Comment=Viber VoIP and messenger
+Exec=/usr/local/bin/system/launchers/run_viber %u
+Icon=/usr/share/pixmaps/viber.png
+Terminal=false
+Type=Application
+Categories=Network;InstantMessaging;P2P;
+MimeType=x-scheme-handler/viber;
+Actions=Quit;
+
+[Desktop Action Quit]
+Exec=/usr/local/bin/system/viber_quit

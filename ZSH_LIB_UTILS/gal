@@ -1,0 +1,351 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+BLACK_BG="\033[40m"
+BLUE_BG="\033[44m"
+CYAN_BG="\033[46m"
+GREEN_BG="\033[42m"
+MAGENTA_BG="\033[45m"
+RED_BG="\033[41m"
+WHITE_BG="\033[47m"
+YELLOW_BG="\033[43m"
+
+#Echoed ansi
+E_BOLD=$(echo -n "\033[1m")
+E_ITALIC=$(echo -n "\033[3m")
+E_RESET=$(echo -n "\033[m")
+E_REVERSE=$(echo -n "\033[7m")
+E_STRIKE=$(echo -n "\033[9m")
+E_UNDER=$(echo -n "\033[4m")
+
+E_BLUE_FG=$(echo -n "\033[34m")
+E_CYAN_FG=$(echo -n "\033[36m")
+E_GREEN_FG=$(echo -n "\033[32m")
+E_MAGENTA_FG=$(echo -n "\033[35m")
+E_RED_FG=$(echo -n "\033[31m")
+E_WHITE_FG=$(echo -n "\033[37m")
+E_YELLOW_FG=$(echo -n "\033[33m")
+
+E_BLACK_BG=$(echo -n "\033[40m")
+E_BLUE_BG=$(echo -n "\033[44m")
+E_CYAN_BG=$(echo -n "\033[46m")
+E_GREEN_BG=$(echo -n "\033[42m")
+E_MAGENTA_BG=$(echo -n "\033[45m")
+E_RED_BG=$(echo -n "\033[41m")
+E_WHITE_BG=$(echo -n "\033[47m")
+E_YELLOW_BG=$(echo -n "\033[43m")
+
+#Constants
+_LIB_DIR=/usr/local/lib
+_ALIAS_FN=/etc/zsh/aliases
+
+#Imports
+zmodload zsh/pcre
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/MSG.zsh
+source ${_LIB_DIR}/VALIDATE.zsh
+source ${_LIB_DIR}/DURABLE.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+#Declarations
+typeset -A ALIAS_LIST
+typeset -a _SEARCH_MSGS
+typeset -a _SCOPE_MSGS
+typeset -a _MATCH_MSGS
+typeset -a _OUTPUT_MSGS
+
+#Functions
+function strip {
+	echo ${1} | sed "s/[\'\"]//g"
+}
+
+do_header () {
+	local M
+	local LONGEST=0
+
+	echo "Aliases defined in:${WHITE_FG}${_ALIAS_FN}${RESET}"
+
+	for M in ${_SEARCH_MSGS};do
+		printf "%7s:${WHITE_FG}%-s${RESET}\n" "SEARCH" ${M}
+		[[ ${#M} -gt ${LONGEST} ]] && LONGEST=${#M}
+	done
+	for M in ${_SCOPE_MSGS};do
+		printf "%7s:${WHITE_FG}%-s${RESET}\n" "SCOPE" ${(C)M} 
+		[[ ${#M} -gt ${LONGEST} ]] && LONGEST=${#M}
+	done
+	for M in ${_MATCH_MSGS};do
+		printf "%7s:${WHITE_FG}%-s${RESET}\n" "MATCH" ${(C)M}
+		[[ ${#M} -gt ${LONGEST} ]] && LONGEST=${#M}
+	done
+	for M in ${_OUTPUT_MSGS};do
+		printf "%7s:${WHITE_FG}%-s${RESET}\n" "OUTPUT" ${(C)M}
+		[[ ${#M} -gt ${LONGEST} ]] && LONGEST=${#M}
+	done
+	printf "${MAGENTA_FG}%s${RESET}\n"  $(str_unicode_line $(( LONGEST+8 )))
+	echo
+
+	printf "${CYAN_FG}%12s${RESET}    ${GREEN_FG}%-50s${RESET}\n"  "Alias" "Command"
+	printf "${CYAN_FG}%12s${RESET}    ${GREEN_FG}%-50s${RESET}\n"  $(str_unicode_line 5) $(str_unicode_line 7)
+}
+
+do_match () {
+	local WORD=$1
+	local STR=$2
+	local REGEX=$3
+	local OPTS
+	local RC
+
+	[[ ${WORD} == "true" ]] && OPTS="w" || OPTS=""
+	[[ ${CASE} == "true" ]] && OPTS+="qP" || OPTS+="qiP"
+
+	grep -${OPTS} "${REGEX}" <<<${STR}
+	RC=$?
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} STRING:${STR} | grep OPTS: -${OPTS} REGEX: ${REGEX} RC:$RC"
+
+	echo $RC
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Search/View aliases
+\tPass <SEARCHTERM> to limit criteria
+\tSearch is case insensitive by default
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		s) echo "<SEARCHTERM>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type s)]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a${RESET} match alias only"
+	echo -e "${WHITE_FG}-c${RESET} match command only"
+	echo -e "${WHITE_FG}-e${RESET} output command text"
+	echo -e "${WHITE_FG}-I${RESET} case sensitive"
+	echo -e "${WHITE_FG}-x${RESET} exact match"
+	echo -e "${WHITE_FG}-q${RESET} quiet"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDaceIqx"
+OPTIND=0
+
+EXACT=false
+QUIET=false
+MATCH_MODE=both
+OUTPUT_CMD_ONLY=false
+CASE=false
+OPT_Y=?
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     I) CASE=true;;
+     a) MATCH_MODE=alias;;
+     c) MATCH_MODE=cmd;;
+     e) OUTPUT_CMD_ONLY=true;;
+     q) QUIET=true;;
+     x) EXACT=true;;
+     :) print -u2 "[${WHITE_FG}${_SCRIPT}${RESET}]: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "[${WHITE_FG}${_SCRIPT}${RESET}]: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#---Execution---
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ -n ${1} ]] && SEARCHTERM=${1} && _SEARCH_MSGS+=${SEARCHTERM}
+
+[[ ${MATCH_MODE} != 'both' && -z ${SEARCHTERM} ]] && exit_leave "Matching requires a <SEARCHTERM>"
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} EXACT=${EXACT} OUTPUT_CMD_ONLY=${OUTPUT_CMD_ONLY} MATCH_MODE=${MATCH_MODE}"
+
+[[ ${QUIET} == 'true' ]] && WAIT='' || WAIT='wait'
+
+#Build list
+ALIASES=("${(@f)$(cat ${_ALIAS_FN} | grep ^alias | sort)}")
+for A in ${ALIASES};do
+	ALIAS=$(echo ${A} | cut -d= -f1 | sed -e 's/^alias//g' -e 's/.*-g//g')
+	DEF=$(echo ${A} | cut -d= -f2-)
+	ALIAS_LIST[${ALIAS}]=${DEF}
+	[[ ${_DEBUG} -gt 1 ]] && dbg "${0}:${LINENO} ALIASES:${#ALIASES} -> ALIAS:${ALIAS} DEF:${DEF}"
+done
+
+#Apply search criteria
+[[ -n ${SEARCHTERM} ]] && LIST_ALL=false || LIST_ALL=true
+
+if [[ ${LIST_ALL} == true ]];then
+	_SCOPE_MSGS+="all"
+elif [[ ${EXACT} == true ]];then
+	_SCOPE_MSGS+="exact"
+else
+	_SCOPE_MSGS+="fuzzy"
+fi
+
+if [[ -n ${SEARCHTERM} ]];then
+	if [[ ${MATCH_MODE} == "both" ]];then
+		_MATCH_MSGS+="aliases or commands"
+	elif [[ ${MATCH_MODE} == "alias" ]];then
+		_MATCH_MSGS+="aliases"
+	elif [[ ${MATCH_MODE} == "cmd" ]];then
+		_MATCH_MSGS+="commands"
+	fi
+fi
+
+if [[ ${OUTPUT_CMD_ONLY} == "true" ]];then
+	_OUTPUT_MSGS+="listing command output"
+fi
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} SEARCHTERM:${SEARCHTERM}"
+
+REGEX="${SEARCHTERM}"
+[[ ${EXACT} == "true" ]] && IS_WORD=true || IS_WORD=false
+
+#Process list
+{
+	durable_set EXV EV 0
+	_HIT=false
+	HEADER_OUT=false
+	for A in ${(ko)ALIAS_LIST};do
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} KEY:${A} VALUE:${GREEN_FG}$(strip ${ALIAS_LIST[${A}]})${RESET}"
+		if [[ ${LIST_ALL} == "true" ]];then
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LIST_ALL:${LIST_ALL}"
+			_HIT=true
+			if [[ ${OUTPUT_CMD_ONLY} == 'false' && ${HEADER_OUT} == 'false' ]];then
+				do_header
+				HEADER_OUT=true
+			fi
+			if [[ ${OUTPUT_CMD_ONLY} == "true" ]];then
+				echo $(strip ${ALIAS_LIST[${A}]})
+				continue
+			else
+				printf "${WHITE_FG}%12s${RESET} %-50s\n" ${A} "$(strip ${ALIAS_LIST[${A}]})"
+				continue
+			fi
+		fi
+		LAST_ALIAS=?
+		if [[ (${MATCH_MODE} == "alias" || ${MATCH_MODE} == "both" ) ]];then
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} MATCH_MODE:${MATCH_MODE}"
+			LEFT_SIDE=$(echo ${A} | sed -e 's/^[ \t]*//' | sed -e 's/[ \t]*$//')
+			if [[ $(do_match ${IS_WORD} ${LEFT_SIDE} ${REGEX}) -eq 0 ]];then
+				_HIT=true
+				if [[ ${OUTPUT_CMD_ONLY} == "true" ]];then
+					echo $(strip ${ALIAS_LIST[${A}]})
+					[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} OUTPUT_CMD_ONLY:${OUTPUT_CMD_ONLY}"
+				else
+					if [[ ${HEADER_OUT} == 'false' ]];then
+						do_header ${_SCOPE_MSGS}
+						HEADER_OUT=true
+					fi
+					printf "${CYAN_FG}%12s${RESET} -> ${WHITE_FG}%-50s${RESET}\n" ${A} "$(strip ${ALIAS_LIST[${A}]})"
+					LAST_ALIAS=${A}
+				fi
+			fi
+		fi
+		if [[ (${MATCH_MODE} == "cmd"  || ${MATCH_MODE} == "both" ) ]];then
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} MATCH_MODE:${MATCH_MODE}"
+			LEFT_SIDE=$(echo ${ALIAS_LIST[${A}]} | sed -e 's/^[ \t]*//' | sed -e 's/[ \t]*$//')
+			if [[ $(do_match ${IS_WORD} ${LEFT_SIDE} ${REGEX}) -eq 0 ]];then
+				_HIT=true
+				if [[ ${OUTPUT_CMD_ONLY} == "true" ]];then
+					echo $(strip ${ALIAS_LIST[${A}]})
+					[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} OUTPUT_CMD_ONLY:${OUTPUT_CMD_ONLY}"
+				else
+					if [[ ${HEADER_OUT} == 'false' ]];then
+						do_header ${_SCOPE_MSGS}
+						HEADER_OUT=true
+					fi
+					[[ ${A} == ${LAST_ALIAS} ]] && continue #Avoid duplicate output
+					printf "${CYAN_FG}%12s${RESET} -> ${WHITE_FG}%-50s${RESET}\n" ${A} "$(strip ${ALIAS_LIST[${A}]})"
+				fi
+			fi
+		fi
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _HIT:${_HIT}"
+	done
+
+	if [[ ${_HIT} == 'false' ]];then
+		durable_set EXV EV 1
+		if [[ ${MATCH_MODE} == "alias" ]];then
+			msg_warn "No alias matches for:${SEARCHTERM}"
+		elif [[ ${MATCH_MODE} == "cmd" ]];then
+			msg_warn "No command matches for:${SEARCHTERM}"
+		else
+			msg_warn "No matches for:${SEARCHTERM}"
+		fi
+	fi
+
+} | mypager ${WAIT}
+
+set_exit_value $(durable_get EXV EV)
+exit_leave
+

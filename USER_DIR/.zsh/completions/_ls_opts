@@ -1,0 +1,15 @@
+#compdef l ll l. ll.
+
+_files -W ${PWD} l ll
+_files -g "*/*(D)" l. ll.
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-a[view all files (hidden/non hidden)]' \
+'-d[view only directories]' \
+'-f[show full paths for subdirectories]' \
+'-h[view hidden files]' \
+'-l[view linked files]' \
+'-t[sort by time]' \
+'-x[sort by extension]'

@@ -1,0 +1,46 @@
+#!/usr/bin/zsh
+
+page () {
+	read -r -d '' PERL_SCRIPT <<'___EOF'
+	use strict;
+	use warnings;
+	use 5.010;
+	use Term::ReadKey;
+
+	my $BUFFER='';
+	my $LESS_CMD="less -R -F -P'COMMANDS\\: (h)elp (f,d)PgDn (b,u)PgUp (q)uit vi-keys arrows .?ltLine %lt .?e<EOF>'"; 
+	my $LINE;
+	my $LINES;
+	my $TERM_LINES = `tput lines`;
+	my $WAIT = $ARGV[0] if (defined($ARGV[0]));
+	 
+	for ($LINES=0; $LINES<$TERM_LINES; $LINES++) { 
+		if (defined($LINE=<STDIN>)) { 
+			$BUFFER .= $LINE;
+		} else { # Less than a full screen will be printed and exit
+			print $BUFFER;
+			print "\n";
+			if (defined $WAIT) { # if WAIT is populated end with msg
+				print "Press any key...";
+			}
+			exit 1;
+		} 
+	} # The first screen is bufferred
+
+	open LESS, "| $LESS_CMD"; # Feed the first screen to less
+	print LESS $BUFFER; 
+
+	while (defined($LINE=<STDIN>)) { # Feed any subsequent screens to less
+		print LESS $LINE; 
+	} 
+
+	close LESS;
+___EOF
+
+perl -e "$PERL_SCRIPT" ${1}
+}
+
+page ${1}
+RC=${?}
+
+[[ ${1} == 'wait' && ${RC} -eq 1 ]] && read -sk1

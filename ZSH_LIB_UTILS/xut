@@ -1,0 +1,260 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _UTILS
+typeset -A _UTILS_DESC
+
+#Constants
+_WRAPPER=${0:t}
+_UTILS=(
+list 1
+mc 1
+wid 1
+)
+
+_UTILS_DESC=(
+list "LIST:List current windows"
+mc "POINTER:Show mouse coordinates"
+wid "ID:Current win ID"
+)
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+list () {
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+List current windows
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	echo "wmctrl Info\n-------------------"
+	wmctrl -m
+	echo "\nPlain window list\n-------------------"
+	wmctrl -l
+	echo "\nWindow list w/PID\n-------------------"
+	wmctrl -lp
+	echo "\nWindow list w/Group\n-------------------"
+	wmctrl -lG
+	echo "\nWindow list w/Class\n-------------------"
+	wmctrl -lx
+	echo "\nDesktops\n-------------------"
+	wmctrl -d
+}
+
+mc  () {
+	local DESC
+	local SIG
+	local F1 F2 F3 F4
+	
+	read -r -d '' DESC<<___EOF
+Show current mouse coordinates
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	for SIG in {1..9}; do
+		trap 'echo "\n${0} has been brutally ${RED_FG}${ITALIC}${BOLD}murdered${RESET}";exit' ${SIG}
+	done
+
+	while true;do
+		read F1 F2 F3 F4 <<<$(xdotool getmouselocation)
+		printf "\r%10s %10s" ${F1}  ${F2}
+		sleep .5
+	done
+}
+
+wid () {
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Show current window ID
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	local -a WDW_LIST=("${(f)$( wmctrl -l | grep -i terminal)}") 
+	local WIN_ID
+	local W
+
+	for W in ${WDW_LIST};do
+		WIN_ID=$(echo ${W} | cut -d' ' -f1)
+		xprop -id ${WIN_ID} | grep -qi focused
+		[[ ${?} -eq 0 ]] && echo ${W} 
+	done
+}
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+
+read -r -d '' DESC<<EOF
+Execute system utilities
+\t------------------------
+$(for K in ${(ok)_UTILS_DESC};do
+printf "${WHITE_FG}%-14s${RESET} %s\n" ${K} ${_UTILS_DESC[${K}]}
+done)
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		u) echo "<UTIL>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}\nUsage${RESET}:${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type u)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+OPTSTR=":HD"
+OPTIND=0
+
+UTIL=none
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+		H) usage;;
+		D) dbg_set_level;;
+		:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+
+[[ ${#} -ne 0 ]] && UTIL=${1}
+
+[[ ${UTIL} != 'none' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
+
+if [[ ${UTIL} != 'none' ]];then
+	UTIL=${1}
+	_SCRIPT=${UTIL}
+	[[ ${_UTILS[${UTIL}]} -eq 1 ]] && shift && ${UTIL} ${@}
+else
+	[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+	selection_list_set ${(v)_UTILS_DESC}
+	selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show X Windows Utilites usage or <h>(q)uit<N>"
+
+	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
+
+	echo #clear read
+	${_SCRIPT} -H # call function help
+fi
+
+exit_leave

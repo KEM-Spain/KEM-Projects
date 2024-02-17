@@ -1,0 +1,362 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+RESET="\033[m"
+BOLD="\033[1m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Constants
+_WARN_LIMIT=5
+_DISPLAY_LIMIT=15
+_PWD=$(pwd)
+_RM='sudo /bin/rm'
+_RF='sudo /bin/rm -f'
+_RD='sudo /bin/rm -rf'
+_UL='sudo /bin/unlink'
+_LIB=/usr/local/lib
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/STR.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Declarations
+typeset -a OPTIONS
+typeset -a LIST
+typeset -A OBJ_OWNER
+typeset -A OBJ_GROUP
+typeset -A FIELD_OBJ
+typeset -A FIELD_LEN
+
+#Functions
+dir_resolve () { #unused but interesting...
+  local DIR=`dirname "${1}"`
+  local FILE=`basename "${1}"`
+
+  pushd "${DIR}" &>/dev/null || return ${?} # On error, return error code
+  echo "`pwd -P`/${FILE}" # output full, link-resolved path with filename
+  popd &> /dev/null
+}
+
+dir_obj_count () {
+	local DIRS=(${@})
+	local TOTAL=0
+	local D
+
+	for D in ${DIRS};do
+		(( TOTAL += $(find ${D} ! -path ${D} | wc -l) ))
+	done
+
+	echo ${TOTAL}
+}
+
+get_obj () {
+	local TRIM=false
+	local OBJ_NAME
+	local OBJ
+
+	[[ ${1} == "-t" ]] && TRIM=true && shift
+	OBJ_NAME=${1}
+
+	[[ -d ${OBJ_NAME} ]] && OBJ="Directory"
+	[[ -f ${OBJ_NAME} ]] && OBJ="Regular File"
+	[[ -h ${OBJ_NAME} ]] && OBJ="Symbolic Link"
+
+	[[ ${TRIM} == "true" ]] && OBJ=$(echo ${OBJ} | sed 's/^[ ]*//g')
+
+	echo ${OBJ}
+}
+
+get_myid () {
+	local MYID
+
+	MYID=$(for X in $(id);do echo ${X};done | grep uid | cut -d'(' -f2 | sed 's/)//g')
+
+	echo ${MYID}
+}
+
+get_mygroup () {
+	local MYGROUP
+
+	MYGROUP=$(for X in $(id);do echo ${X};done | grep gid | cut -d'(' -f2 | sed 's/)//g')
+
+	echo ${MYGROUP}
+}
+
+get_owner () {
+	local FILE=${1}
+	local OWNER
+
+	[[ -e ${FILE} ]] && OWNER=$(stat -c "%U" ${FILE}) || OWNER="${0}:file not found"
+
+	echo ${OWNER}
+}
+
+get_group () {
+	local FILE=${1}
+	local GROUP
+
+	[[ -e ${FILE} ]] && GROUP=$(stat -c "%G" ${FILE}) || GROUP="${0}:file not found"
+
+	echo ${GROUP}
+}
+
+get_response () {
+	local PROMPT=${@}
+	local RESPONSE
+
+	[[ -z ${PROMPT} ]] && PROMPT="Continue"
+
+	echo -n "\n${WHITE_FG}${PROMPT}${RESET} (y/n):"
+	read -q RESPONSE
+
+	[[ ${RESPONSE} == "n" ]] && echo "${RED_FG}Operation cancelled${RESET}\n" && exit_leave
+	[[ ${RESPONSE} == "y" ]] && echo && return 0
+}
+
+show_list() {
+	local TYPE=${1}
+	local L;shift
+	local LIST=("${(f)$(for L in ${@};do echo ${L};done)}") 
+
+	for L in ${LIST};do
+		[[ ("${TYPE}" == "a") ]] && echo "${BOLD}${YELLOW_FG}Queued${RESET}:${RED_FG}$(realpath ${L:h})/${WHITE_FG}${L:t}${RESET}"
+		[[ ("${TYPE}" == "d") && (-d ${L}) ]] && echo "${WHITE_FG}Queued${RESET}:$(realpath ${L:h})/${WHITE_FG}${L:t}${RESET}"
+		[[ ("${TYPE}" == "f") && (-f ${L}) ]] && echo "${WHITE_FG}Queued${RESET}:$(realpath ${L:h})/${WHITE_FG}${L:t}${RESET}"
+	done
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+
+read -r -d '' DESC<<EOF
+Front end for /bin/rm. If options are passed, 
+
+\tThere are user warnings if: 
+\t1) a wildcard is passed i.e. '*' 
+\t2) the number of items being deleted exceeds ${_WARN_LIMIT}
+
+\tWarnings will be preceeded by a detailed list 
+\tof the files to be deleted including ownership and group. 
+\tAlso, dead links are identifed.
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+typeset -a OPTIONS
+OPTSTR="HDfiIrdv"
+OPTIND=0
+RM_HELP=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) /bin/rm --help;exit_leave;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${SCRIPT}${RESET}: unknown option"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#---Execution---
+[[ ${#} -eq 0 ]] && usage "insufficient arguments"
+
+fc -R
+RAW_CMD_LINE=$(fc -lnr | head -1) #the unexpanded command line
+[[ ${_DEBUG} -gt 0 ]] && dbg "RAW_CMD_LINE:${RAW_CMD_LINE}"
+
+ARG_CNT=$(echo ${RAW_CMD_LINE} | wc -w)
+[[ ${_DEBUG} -gt 0 ]] && dbg "ARG_CNT:${ARG_CNT}, _WARN_LIMIT:${_WARN_LIMIT}, _DISPLAY_LIMIT:${_DISPLAY_LIMIT}"
+
+LAST_ARG=$(echo ${RAW_CMD_LINE} | cut -d' ' -f${ARG_CNT})
+WILD=$(echo ${LAST_ARG} | perl -ne 'print if /(^\*$|^.*\/\*$)/')
+[[ -n ${WILD} ]] && WILDCARD=true || WILDCARD=false
+
+MYID=$(get_myid)
+MYGROUP=$(get_mygroup)
+[[ ${_DEBUG} -gt 0 ]] && dbg "MYID:${MYID}, MYGROUP:${MYGROUP}, WILDCARD:${WILDCARD}"
+
+#Prescan
+LIST=("${(f)$(for L in ${@};do echo ${L};done)}") 
+[[ ${_DEBUG} -gt 0 ]] && dbg "LIST COUNT:${#LIST}"
+
+OBJ_COUNT=${#@}
+
+#Store meta information
+DIRS=0
+FILES=0
+LINKS=0
+FIELD_LEN[OWNER]=0
+FIELD_LEN[GROUP]=0
+FIELD_LEN[NAME]=0
+for L in ${LIST};do
+	[[ ${_DEBUG} -ge 2 ]] && dbg "L:${L}"
+	if [[ ! -e ${L} && -L ${L} ]];then
+		OBJ_OWNER[${L}]="dead link"
+		OBJ_GROUP[${L}]="dead link"
+	else
+		OBJ_OWNER[${L}]=$(get_owner ${L})
+		OBJ_GROUP[${L}]=$(get_group ${L})
+	fi
+	[[ ${_DEBUG} -ge 2 ]] && dbg "OBJ_OWNER:${OBJ_OWNER[${L}]}, OBJ_GROUP:${OBJ_GROUP[${L}]}"
+	[[ ${#OBJ_OWNER[${L}]} -gt ${FIELD_LEN[OWNER]} ]] && FIELD_LEN[OWNER]=${#OBJ_OWNER[${L}]}
+	[[ ${#OBJ_GROUP[${L}]} -gt ${FIELD_LEN[GROUP]} ]] && FIELD_LEN[GROUP]=${#OBJ_GROUP[${L}]}
+	[[ ${#L} -gt ${FIELD_LEN[NAME]} ]] && FIELD_LEN[NAME]=${#L}
+	[[ -d ${L} ]] && ((DIRS++))
+	[[ -f ${L} && ! -h ${L} ]] && ((FILES++))
+	[[ -L ${L} ]] && ((LINKS++))
+done
+[[ ${_DEBUG} -gt 0 ]] && dbg "FIELD_LEN[NAME]:${FIELD_LEN[NAME]}, FIELD_LEN[OWNER]:${FIELD_LEN[OWNER]}, FIELD_LEN[GROUP]:${FIELD_LEN[GROUP]}"
+[[ ${_DEBUG} -gt 0 ]] && dbg "DIRS:${DIRS}, FILES:${FILES}, LINKS:${LINKS}"
+
+[[ ${DIRS} -gt 0 ]] && DMSG="${WHITE_FG}${DIRS}${RESET}:$(str_pluralize directory ${DIRS})" || DMSG=''
+[[ ${FILES} -gt 0 ]] && FMSG=" ${WHITE_FG}${FILES}${RESET}:$(str_pluralize file ${FILES})" || FMSG=''
+[[ ${LINKS} -gt 0 ]] && LMSG=" ${WHITE_FG}${LINKS}${RESET}:$(str_pluralize link ${LINKS})" || LMSG=''
+[[ -n ${DMSG} ]] && FMSG=" ${FMSG}" || FMSG="${FMSG}"
+[[ -n ${LMSG} ]] && LMSG=" ${LMSG}" || LMSG="${LMSG}"
+
+#Detect/warn wildcard 
+if [[ ${WILDCARD} == "true" ]];then
+	echo "${BOLD}${RED_FG}Wildcard${RESET}${BOLD}${WHITE_FG} * ${RESET}detected ${ITALIC}ALL FILES${RESET} (${#LIST} $(str_pluralize item ${#LIST}))"
+fi
+
+[[ (${OBJ_COUNT} -gt ${_WARN_LIMIT}) || ${WILDCARD} == "true" ]] && WARN=true || WARN=false
+[[ ${OBJ_COUNT} -gt ${_DISPLAY_LIMIT} ]] && PARTIAL=true || PARTIAL=false
+
+if [[ ${WARN} == 'true' ]];then
+	#Summarize selection
+	echo "\n${WHITE_FG}Selected${RESET}: ${WHITE_FG}$(echo "${DMSG}${FMSG}${LMSG}" | tr -s '[:space:]' | sed 's/^[ ]*//g')${RESET}\n"
+
+	#Display files to be deleted
+	printf "${WHITE_FG}%14s %*s %*s %*s${RESET}\n" "Object" ${FIELD_LEN[NAME]} "Name" ${FIELD_LEN[OWNER]} "Owner" ${FIELD_LEN[GROUP]} "Group"
+	printf "${CYAN_FG}%14s %s %s %s${RESET}\n" $(str_unicode_line 14) $(str_unicode_line ${FIELD_LEN[NAME]}) $(str_unicode_line ${FIELD_LEN[OWNER]}) $(str_unicode_line ${FIELD_LEN[GROUP]})
+
+	NDX=0
+	for L in ${(onk)LIST};do
+		[[ ${L:h} == ${_PWD} ]] && OBJ_NAME=${L:t} || OBJ_NAME=${L}
+
+		[[ ${_DEBUG} -ge 2 ]] && dbg "OBJ_NAME:${OBJ_NAME}"
+
+		[[ ${MYID} != ${OBJ_OWNER[${L}]} ]] && O_COL=${RED_FG}${ITALIC}${BOLD} || O_COL='' #highlight non owner
+		[[ ${MYGROUP} != ${OBJ_GROUP[${L}]} ]] && G_COL=${RED_FG}${ITALIC}${BOLD} || G_COL='' #highlight non group
+
+		[[ $((NDX++)) -eq ${_DISPLAY_LIMIT} ]] && break
+
+		printf "${CYAN_FG}%14s${RESET} %*s ${O_COL}%*s${RESET} ${G_COL}%*s${RESET}\n" "$(get_obj ${L})" ${FIELD_LEN[NAME]} ${OBJ_NAME} ${FIELD_LEN[OWNER]} ${OBJ_OWNER[${L}]} ${FIELD_LEN[GROUP]} ${OBJ_GROUP[${L}]}
+	done
+	echo
+fi
+
+[[ ${PARTIAL} == "true" ]] && echo "\nItems queued for ${RED_FG}removal${RESET}: (${WHITE_FG}${_DISPLAY_LIMIT} ${GREEN_FG}displayed${RESET}) plus ${WHITE_FG}$((${OBJ_COUNT}-${_DISPLAY_LIMIT}))${RESET} additional${RESET}..."
+
+#Always warn for directories unless options were passed
+RM_DIRS=false
+if [[ -z ${OPTIONS} && ${DIRS} -ne 0 ]];then
+	DIR_OBJ_COUNT=$(dir_obj_count ${LIST})
+	echo -n "\n${WHITE_FG}${DIRS}${RESET} $(str_pluralize directory ${DIRS}) to be ${RED_FG}removed${RESET} containing ${WHITE_FG}${DIR_OBJ_COUNT} ${RESET}$(str_pluralize object ${DIR_OBJ_COUNT}) (y/n):"
+	read -q RESPONSE
+	[[ ${RESPONSE} == "n" ]] && echo "${RED_FG}Directories will be skipped${RESET}\n"
+	[[ ${RESPONSE} == "y" ]] && RM_DIRS=true && echo
+fi
+
+REMAINING=${OBJ_COUNT}
+if [[ ${DIRS} -ne 0 && ${RM_DIRS} == 'false' ]];then
+	REMAINING=$(( OBJ_COUNT - DIRS ))
+	MSG=" with ${REMAINING} remaining items"
+fi
+
+#Get user approval to proceed
+APPROVED=false
+if [[ ${REMAINING} -ne 0 && (${REMAINING} -gt ${_WARN_LIMIT} || ${WARN} == "true") ]];then
+	echo -n "${WHITE_FG}Continue${MSG}${RESET}:(y/n):"
+	read -q RESPONSE
+	[[ ${RESPONSE} == "n" ]] && echo "${RED_FG}Operation cancelled${RESET}\n" && exit_leave
+	[[ ${RESPONSE} == "y" ]] && APPROVED=true && echo
+fi
+OPTS=($(echo "-"${^OPTIONS}))
+if [[ ${APPROVED} == "true" || ${REMAINING} -lt ${_WARN_LIMIT} ]];then
+	for L in ${(onk)LIST};do
+		if [[ -n ${OPTIONS} ]];then
+			eval "${_RM} ${OPTS} ${L:q}" && MSG="${WHITE_FG}User options:${OPTS}${RESET}" #options
+		else
+			[[ ! -e ${L} && ! -L ${L} ]] && echo "${WHITE_FG}${L}${RESET}:${RED_FG}object not found${RESET}" && continue 
+			[[ -e ${L} && -d ${L} && ${RM_DIRS} == "false" ]] && MSG="${GREEN_FG}Skipped Dir${RESET}" #disallowed
+			[[ -L ${L} ]] && eval "${_UL} ${L:q}" && MSG="${RED_FG}Removed Link${RESET}" #symbolic link
+			[[ -e ${L} && -d ${L} && ${RM_DIRS} == "true" ]] && eval "${_RD} ${L:q}" && MSG="${RED_FG}Removed Dir${RESET}" #directory
+			[[ -e ${L} && ! -d ${L} ]] && eval "${_RF} ${L:q}" && MSG="${RED_FG}Removed File${RESET}" #regular file
+		fi
+		echo ${MSG}: ${L}
+	done
+fi
+
+exit_leave

@@ -1,0 +1,277 @@
+#!/usr/bin/env zsh
+ 
+#Declarations
+typeset -A _APP
+typeset -a _APP_DIRS
+typeset -a _LOOP_LIST
+typeset -a _RAWLIST
+typeset -aU _LOCAL_LIST
+
+#Constants
+_LIB_DIR=/usr/local/lib
+CFGDIRS=(
+/home/kmiller \
+/home/kmiller/.local/share \
+/home/kmiller/.local/share/flatpak/exports/share/applications \
+/home/kmiller/.config \
+/etc \
+/etc/xdg \
+/etc/systemd \
+/opt \
+/usr/share/applications \
+/var/lib/snapd/desktop/applications\
+)
+
+EXCLUDE=" \
+! -name '*arb' \
+! -name '*bak' \
+! -name '*dll*' \
+! -name '*dtd' \
+! -name '*fx' \
+! -name '*gir' \
+! -name '*glsl' \
+! -name '*gz' \
+! -name '*hlsl' \
+! -name '*html' \
+! -name '*ico' \
+! -name '*jpg' \
+! -name '*js' \
+! -name '*json' \
+! -name '*local*' \
+! -name '*log' \
+! -name '*map' \
+! -name '*mount' \
+! -name '*png' \
+! -name '*sql' \
+! -name '*svg' \
+! -name '*swp' \
+! -name '*sys' \
+! -name '*torrent*' \
+! -name '*txt' \
+! -name '*ui' \
+! -name '*undo*' \
+! -name '*virtio' \
+! -name '*xsd' \
+! -name '*zwc' \
+! -name '*~'"
+
+#Imports
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local -a MARKED=(${@})
+	local M
+	local APP
+	local ARGS
+
+	APP=/usr/bin/vim
+	ARGS=$(echo "${APP} $(list_quote_marked_elements ${MARKED})")
+	eval "${ARGS}"
+	[[ ${?} -ne 0 ]] && msg_box -p -PK "<B><I>${0}: ${APP} returned an error<N>"
+
+	for M in ${MARKED};do
+		[[ ${M} -eq 0 ]] && continue
+		MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local MARKED=(${@})
+	local CNT=$(list_get_selected_count ${MARKED})
+	local M
+	local INFO_MSG
+	
+	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
+	msg_box -p -PP "<I>Please respond<N>|$(str_unicode_line 14)| |$(str_pluralize item $CNT true) queued for editing${INFO_MSG}"
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${MARKED};do
+			list_clear_selected ${M}
+		done
+	fi
+}
+
+item_decorate () {
+	local NDX=$1
+
+	case ${_LIST_SELECTED[${NDX}]} in
+		2) echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}viewed${E_RESET}";;
+		*)	tput el;echo -n ${_LIST[${NDX}]};;
+	esac
+}
+
+#--Begin GetOpts--
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET} ${OPTS} ${WHITE_FG}]${RESET} <SEARCHTERM>\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-d${RESET} deeper search (additional dirs:/usr/share /usr/lib)"
+	echo -e "\n${WHITE_FG}DESC${RESET}:Search for system config files based on search phrase (case sensitive)\n"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDd"
+OPTIND=0
+DEEP=false
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     d) DEEP=true;;
+     :) exit_leave "${_SCRIPT}: option: -${OPTARG} requires an argument";;
+    \?) exit_leave "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
+	esac
+done
+shift $((${OPTIND} - 1))
+#--End GetOpts--
+
+#---Execution---
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+SEARCHTERM=${@}
+[[ -z ${SEARCHTERM} ]] && usage "Missing arg ${WHITE_FG}<APP>${RESET}"
+
+DEPTH=2
+[[ ${DEEP} == "true" ]] && CFGDIRS+=(/usr/share /usr/lib) && ((DEPTH++))
+ 
+#Search
+echo "Finding candidates..."
+_RAWLIST=$(eval "sudo zsh -c \"find ~ -maxdepth 1 -name '.*${SEARCHTERM}*'"\") #home
+if arr_is_populated "${_RAWLIST}";then
+	_APP_DIRS=(${_RAWLIST})
+fi
+
+_RAWLIST=$(eval "sudo zsh -c \"find ~/.config -maxdepth 2 -name '*${SEARCHTERM}*'"\") #home .config
+if arr_is_populated "${_RAWLIST}";then
+	_APP_DIRS+=(${_RAWLIST})
+fi
+
+_RAWLIST=$(eval "sudo zsh -c \"find ~/.local/share -maxdepth 2 -name '*${SEARCHTERM}*'"\") #home .local/share
+if arr_is_populated "${_RAWLIST}";then
+	_APP_DIRS+=(${_RAWLIST})
+fi
+
+_RAWLIST=$(eval "sudo zsh -c \"find /usr/share -maxdepth 2 -name '*${SEARCHTERM}*'"\") #usr/share
+if arr_is_populated "${_RAWLIST}";then
+	_APP_DIRS+=(${_RAWLIST})
+fi
+
+_RAWLIST=("${(f)$(echo ${_RAWLIST})}") #break array on newline
+_APP_DIRS=("${(f)$(echo ${_APP_DIRS})}") #break array on newline
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} CFGDIRS:${CFGDIRS}"
+
+ONCE=true
+for D in ${CFGDIRS};do
+	[[ -n $(in_array ${D} ${_APP_DIRS}) ]] && INAME='' || INAME="-name '*${SEARCHTERM}*'"
+
+	CMD="sudo find ${D} -maxdepth ${DEPTH} \( -type f -o -type l \) ${INAME} ${EXCLUDE}"
+	[[ ${_DEBUG} -gt 0 && ${ONCE} == 'true' ]] && dbg "${0}:${LINENO} CMD:${CMD}" && ONCE=false
+
+	_LOOP_LIST=("${(f)$(eval "${CMD}" 2>/dev/null)}")
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Searching ${D}..found ${#_LOOP_LIST}"
+
+	[[ -n ${_LOOP_LIST} ]] && _RAWLIST+=(${_LOOP_LIST}) #build LIST
+	unset _LOOP_LIST #clear list
+done
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _RAWLIST:${#_RAWLIST} ${=_RAWLIST[1,20]} ...truncated"
+
+if ! arr_is_populated "${_RAWLIST}";then
+	exit_leave $(msg_warn "No cfg file(s) found for:${SEARCHTERM}")
+fi
+
+#Only include files that can be edited or viewed
+_LOCAL_LIST=()
+for F in ${_RAWLIST};do
+	TYPE=$(file -b $(sudo realpath ${F})) #eliminate known unwanted
+	[[ ${F:l} =~ "license$" ]] && continue
+	[[ ${F:l} =~ "log$" ]] && continue
+	[[ ${F:l} =~ ".py$" ]] && continue
+	[[ ${F:l} =~ ".rst$" ]] && continue
+	[[ ${F:l} =~ "readme$" ]] && continue
+	[[ ${F:l} =~ "git$" ]] && continue
+	case ${TYPE:l} in
+	  *text*) [[ ${F:e} =~ "md" ]] && _APP[${F}]="mdless" || _APP[${F}]="vi";;
+	  *sql*) _APP[${F}]="sqlite3";;
+	  *pdf*) _APP[${F}]="evince";;
+	  *) continue;;
+	esac
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} F:${F}"
+	_LOCAL_LIST+=${F}
+done
+
+#Sort by tail
+_LOCAL_LIST=($(for L in ${_LOCAL_LIST};do
+	echo ${L:h}:${L:t}
+done | sort -t: -k2 | sed 's!:!/!g'))
+
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	exit_leave $(msg_warn "No editable cfg file(s) found for:${SEARCHTERM}")
+fi
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${#_LOCAL_LIST} ${=_LOCAL_LIST[1,20]} ...truncated"
+
+#Set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} configuration file(s) for:${WHITE_FG}%s${RESET}  ${_PG}" ${#_LIST} ${SEARCHTERM}'
+list_add_header_break
+
+#Set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"
+'
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to edit (${ITALIC}or exit if none selected${RESET})."
+list_set_action_msgs edit config
+list_set_clear_ghosts true
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+
+	if [[ $(list_get_selected_count) -gt 1 ]];then
+		action_warn ${MARKED} #warn if more than 1 selected
+	fi
+
+	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then
+		action_do ${MARKED}
+	fi
+done
+
+exit_leave

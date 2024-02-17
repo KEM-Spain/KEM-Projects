@@ -1,0 +1,983 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _UTILS
+typeset -A _UTILS_DESC
+
+#Constants
+_WRAPPER=${0:t}
+_UTILS=(
+conn 1
+info 1
+ip_ext 1
+ip_int 1
+lan 1
+port 1
+scan 1
+toggle 1
+tuco 1
+geo 1
+)
+
+_UTILS_DESC=(
+conn "CONN:Display current network connections"
+info "INFO:Display network connection info"
+ip_ext "ADDR:Display external IP"
+ip_int "ADDR:Display interal IP"
+lan "LAN:Display LAN devices"
+port "PORT:Display network port info"
+scan "SCAN:Scan host"
+toggle "NET:Toggle networking"
+tuco "CONN:Display tcp/udp connections"
+geo "GEO:Display geo-location info"
+)
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+conn () {
+	local -a LIST
+	local DESC
+	local L
+
+	read -r -d '' DESC<<___EOF
+Display network connections
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	LIST=("${(f)$(ifconfig | grep -i running | grep -vi lo: | cut -d: -f1)}")
+	[[ -z ${LIST} ]] && echo "${RED_FG}No network connection${RESET}" && set_exit_value 1
+
+	for L in ${LIST};do
+		case ${L} in
+			en*) echo -n "Wired$:${WHITE_FG}${L}${RESET} ${GREEN_FG}${ITALIC}connected${RESET}";;
+			wl*) echo -n "Wireless:${WHITE_FG}${L}${RESET} ${GREEN_FG}${ITALIC}connected${RESET}";;
+			tun*) echo -n "VPN:${WHITE_FG}${L}${RESET} ${GREEN_FG}${ITALIC}active${RESET}";;
+			*) echo "Unknown device:${DEV}"
+		esac
+	done
+	set_exit_value 0
+}
+
+info () {
+	local -A DNS
+	local -a ACTIVE_IFACES
+	local -a LIST
+	local ACTIVE_IFACES
+	local D I
+	local EXTIP
+	local FULL=false
+	local LANIP
+	local NDX=0
+	local SITE=www.google.com
+	local TEST=false
+	local VPN_DNS
+	local WLESS=wlo1
+
+	prompt () {
+		local RESPONSE
+
+		printf "\n${WHITE_FG}Continue?${RESET}:"
+		read -q RESPONSE
+		[[ ${RESPONSE} == "n" ]] && exit
+	}
+
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTION
+
+	read -r -d '' DESC<<___EOF
+Display networking info
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		(
+		echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+		echo -e "${WHITE_FG}-f${RESET} full mode"
+		echo -e "${WHITE_FG}-t${RESET} test mode"
+		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+		) >&2
+
+		exit_leave $(msg_err "${PENDING_MSGS}")
+	}
+
+	OPTSTR=":HDft"
+	OPTIND=0
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) dbg_set_level;;
+		  f) FULL=true;;
+		  t) TEST=true;;
+		  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+		esac
+		[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+	#Execution
+	 
+	#get interface
+	ACTIVE_IFACES=($(ifconfig -v | grep 'RUNNING.*MULTICAST' | cut -d: -f1))
+	[[ -z ${ACTIVE_IFACES} ]] && exit_leave "${RED_FG}Unable to detect an active interface${RESET}.\nVerify wifi or cable connection" 
+
+	#get DNS
+	VPN_DNS=false
+	for I in ${ACTIVE_IFACES};do 
+		if [[ ${I} =~ "tun" ]];then
+			LIST=()
+			LIST=($(cat /etc/resolv.conf | grep "^nameserver" | cut -d' ' -f2))
+			VPN_DNS=true
+			break
+		else
+			LIST+=($(nmcli device show ${I} | grep IP4.DNS | tr -s '[:space:]' | cut -d: -f2))
+		fi
+	done
+
+	NDX=0
+	for D in ${LIST};do
+		((NDX++))
+		DNS[DNS${NDX}]=${D}
+	done
+
+	clear
+
+	echo "Working..."
+
+	(
+	printf "${WHITE_FG}Hostname ($(which hostname))${RESET}: %-s\n" $(hostname)
+	printf "${WHITE_FG}Active Interface (ifconfig)${RESET}: %-s\n" $(for I in ${ACTIVE_IFACES};do echo ${I};done)
+	printf "${WHITE_FG}Site used for testing:${RESET}: %-s\n" ${SITE}
+
+	LANIP=$(ip_int)
+	EXTIP=$(ip_ext)
+
+	[[ -z ${LANIP} ]] && exit_leave "Unable to obtain Local Area Network IP Address. Check basic connectivity"
+	[[ -z ${EXTIP} ]] && exit_leave "Unable to obtain External Network IP Address. Check basic connectivity"
+
+	printf "\n${WHITE_FG}IP Information ($(which host))${RESET}\n"
+	printf "Machine Internal IP: %s\n" ${LANIP}
+	printf "Machine External IP: %s\n" ${EXTIP}
+
+	host ${SITE}
+
+	printf "\n${WHITE_FG}/etc/hosts configuration (/etc/hosts)${RESET}\n"
+	cat /etc/hosts
+
+	printf "\n${WHITE_FG}Interface Configuration ($(which ifconfig))${RESET}\n"
+	ifconfig 2>&1
+
+	if [[ ${ACTIVE_IFACES[(i)${WLESS}]} -le ${#ACTIVE_IFACES} ]];then #${WLESS} is present in array of active interfaces
+		printf "\n${WHITE_FG}Wireless Interface Configuration ($(which iwconfig))${RESET}\n"
+		iwconfig  2>&1
+		printf "\n${WHITE_FG}Wireless Channel Info ($(which iwlist))${RESET}\n"
+		sudo iwlist ${WLESS} scan | grep -i 'freq\|ssid' | sed 's/[\t ]*//g' 
+	fi
+
+	printf "\n${WHITE_FG}Contents of /etc/resolv.conf${RESET}\n"
+	cat /etc/resolv.conf
+
+	if [[ ${VPN_DNS} == "true" ]];then
+		echo "${GREEN_FG}VPN is active${RESET}" 2>&1
+		printf "${WHITE_FG}GEO Location ($(which geo))${RESET}\n"
+		geo 2>&1
+		echo "${WHITE_FG}\nGathered VPN DNS IP's (/etc/resolv.conf)${RESET}:${#DNS}" 2>&1
+	else
+		echo "${WHITE_FG}\nGathered DNS IP's ($(which nmcli))${RESET}:${#DNS}" 2>&1
+	fi
+
+	for D in ${(k)DNS};do
+		printf "\n${WHITE_FG}${D} (${DNS[${D}]}) Ping Time ($(which ping))${RESET}\n"
+		ping -c3 ${DNS[${D}]}
+	done
+
+	printf "\n${WHITE_FG}Internet Ping Time ($(which ping))${RESET}\n"
+	ping -c3 ${SITE}
+
+	printf "\n${WHITE_FG}NSLOOKUP ($(which nslookup))${RESET}\n"
+	nslookup ${SITE}
+
+	printf "\n${WHITE_FG}ARP Information ($(which arp))${RESET}\n"
+	arp -e | head -1
+	arp -e | tail +2 | sort
+
+	printf "\n${WHITE_FG}Enhanced ARP Information${RESET}\n"
+	lan -i
+
+	printf "\n${WHITE_FG}Route ($(which route))${RESET}\n"
+	route
+
+	printf "\n${WHITE_FG}Current Open Ports ($(which ss))${RESET}\n"
+	sudo ss -r -ltup | sort -k1.91 -k1.52n
+
+	printf "\n${WHITE_FG}Network Manager Settings ($(which nmcli))${RESET}\n"
+	nmcli -t dev show
+
+	if [[ -e /proc/net/bonding/bond0 ]];then
+		printf "\n${WHITE_FG}Network Bonding Info (/proc/net/bonding/bond0)${RESET}\n"
+		cat /proc/net/bonding/bond0
+	fi
+
+	if [[ ${TEST} == "true" ]];then
+		printf "\n${WHITE_FG}Speedtest Requested ($(which speedtest-cli))${RESET}\n"
+		speedtest-cli
+	fi
+	) | mypager
+} 
+
+ip_int () {
+	local DESC
+	local IP
+
+	read -r -d '' DESC<<___EOF
+Display internal IP
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	IP=$(ifconfig | grep 192 | grep -w inet | grep -v 127 | sed 's/\(^ *\)\(.*\)/\2/g' | cut -d\  -f2 | head -1)
+	[[ -z ${IP} ]] && exit_leave "${0}: failed" || echo ${IP}
+}
+
+ip_ext () {
+	local DESC
+	local IP
+
+	read -r -d '' DESC<<___EOF
+Display external IP
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	IP=$(wget --timeout=1 -qO- http://ipecho.net/plain)
+	[[ ${?} -eq 4 || -z ${IP} ]] && exit_leave "${0}: failed" || echo ${IP}
+}
+
+lan () {
+	#Declarations
+	local SN=${1:=18}
+	local -a STATIC_IPS
+	local -a ARP
+	local -a FIRST_10_NON_STATIC
+	local DEV_CNT=0
+	local FLGMSK
+	local HW
+	local I K A
+	local IFACE
+	local INLINE=false
+	local IP
+	local MAC
+
+	#Constants
+	local MY_IP=$(nut ip_int)
+	local MY_MAC=$(sut host_mac)
+	local	HW=" 123456789012345678"
+
+	#Imports
+	source /usr/local/etc/mac_table.zsh
+
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTION
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Display detected LAN devices
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			s) echo "<SUB_NET>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		echo -e "\n${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type s)\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}-i${RESET} run as inline util - no prompting"
+		echo -e "${WHITE_FG}\nDesc${RESET}:Display system information"
+
+		exit_leave ${PENDING_MSGS}
+	}
+
+	OPTSTR=":HDi"
+
+	OPTIND=0
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+			H) usage;;
+			D) dbg_set_level;;
+			i) INLINE=true;;
+			:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+		esac
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#Execution
+	[[ ${_DEBUG} -eq 0 && ${INLINE} == 'false' ]] && do_smcup
+
+	for I in {2..11};do
+		FIRST_10_NON_STATIC+=192.168.${SN}.${I}
+	done
+
+	local STATIC_IPS=(192.168.${SN}.100 192.168.${SN}.101 192.168.${SN}.102 192.168.${SN}.103 192.168.${SN}.200 ${FIRST_10_NON_STATIC})
+
+	echo "Pinging LAN IP's...SUB NET:${SN}"
+
+	if [[ ${SHLVL} -lt 3 ]];then # called from another script
+		local NDX=0
+		for K in ${STATIC_IPS};do
+			((NDX++))
+			tput cup 1 0; printf "\nPinging IP %s ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} addresses ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${K} ${NDX} ${#STATIC_IPS} $(( NDX * 100. / ${#STATIC_IPS} ))
+			sudo arp -d ${K} >/dev/null 2>&1
+			ping -4 -c1 -W.3 ${K} >/dev/null 2>&1
+		done
+	fi
+
+	echo "\nGathering arp list..."
+	ARP=("${(f)$(arp -en | tail -n +2)}")
+
+	if ! ((${ARP[(I)${MY_IP}*]}));then
+		ARP+="${MY_IP}${HW}${MY_MAC}"
+	fi
+
+	printf "${MAGENTA_FG}%-18s %-18s %-20s${RESET}\n" "IP Address" "MAC Address" "Description"
+	printf "${WHITE_FG}%-18s %-18s %-20s${RESET}\n" $(str_unicode_line 18) $(str_unicode_line 18) $(str_unicode_line 20)
+
+	for A in ${(on)ARP};do
+		local IP=$(cut -c1-15 <<<${A})
+		local HW=$(cut -c16-33 <<<${A})
+		local MAC=$(cut -c34-53 <<<${A} | str_trim)
+		local FLGMSK=$(cut -c54-75 <<<${A})
+		local IFACE=$(cut -c76-85 <<<${A})
+		#printf "IP:%-20s HW:%-20s MAC:%-20s FLGMSK:%-20s IFACE:%-20s\n" ${IP} ${HW} ${MAC} ${FLGMSK} ${IFACE}
+		local DESC=${MAC_IDS[${MAC}]}
+		[[ -z ${DESC}  ]] && continue
+		((DEV_CNT++))
+		printf "%-18s %-18s %-20s\n" ${IP} ${MAC:u} ${DESC}
+	done
+
+	printf "${WHITE_FG}${DEV_CNT} known devices found\n${RESET}"
+	[[ ${INLINE} == 'false' ]] && echo -n "\nPress any key..." && read -sk1
+
+	exit_leave
+}
+
+port () {
+	local EXT_IP
+	local INT_IP
+	local LSOF=false
+	local LSOF_CMD
+	local NMAP=false
+	local NMAP_CMD
+	local PORT=none
+	local SS=false
+	local SS_CMD
+	local TOOL=none
+
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTION
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Display port info
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			p) echo "<PORT>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		(
+		echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type p)]\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+		echo -e "${WHITE_FG}-p${RESET} specify port to scan"
+		echo -e "${WHITE_FG}-t${RESET} specify tool to use (lsof, ss, nmap)"
+		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+		) >&2
+
+		exit_leave $(msg_err "${PENDING_MSGS}")
+	}
+
+	OPTSTR=":HDp:t:"
+	OPTIND=0
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) dbg_set_level;;
+		  p) PORT=${OPTARG};;
+		  t) TOOL=${OPTARG};;
+		  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+		esac
+		[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+	
+	#Execution
+	INT_IP=$(ip_int)
+	EXT_IP=$(ip_ext)
+
+	if [[ ${TOOL} == 'none' ]];then
+		LSOF=true
+		SS=true
+		NMAP=false
+	else
+		case ${TOOL} in
+			lsof) LSOF=true;;
+			ss) SS=true;;
+			nmap) NMAP=true;;
+		esac
+	fi
+
+	if [[ ${PORT} == 'none' ]];then
+		LSOF_CMD="sudo lsof -i -P -n"
+		NMAP_CMD="sudo nmap -O ${INT_IP}/24"
+		SS_CMD="sudo ss -tulwn"
+	else
+		LSOF_CMD="sudo lsof -i :${PORT} -P -n"
+		SS_CMD="sudo ss -at '( dport = :${PORT} or sport = :${PORT} )'"
+	fi
+
+	if [[ ${LSOF} == 'true' ]];then
+		echo "${WHITE_FG}lsof\n----------${RESET}"
+		eval ${LSOF_CMD}
+		[[ ${?} -ne 0 ]] && echo "No info from lsof"
+	fi
+
+	if [[ ${SS} == 'true' ]];then
+		echo "\n${WHITE_FG}ss\n----------${RESET}"
+		eval ${SS_CMD}
+	fi
+
+	if [[ ${NMAP} == 'true' ]];then #doesn't like eval
+		echo "\n${WHITE_FG}nmap\n----------${RESET}"
+		if [[ ${PORT} == 'none' ]];then
+			sudo nmap -sTU -O ${INT_IP}/24 | grep -vi 'host down'
+		else
+			sudo nmap -sTU -O -p${PORT} ${INT_IP}/24 | grep -vi 'host down'
+		fi
+	fi
+}
+
+tuco () {
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Display tcp/udp connections
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	echo "${WHITE_FG}Listening TCP/UDP${RESET}"
+	ss -l -utp
+	echo "${WHITE_FG}Connections TCP/UDP${RESET}"
+	ss -utp
+}
+
+scan () {
+	local SUBNET=192.168.18.0
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Scan host
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	echo "Scanning localhost"
+	sudo nmap -T4 -Pn --osscan-guess -min-rate 5000 -v 127.0.0.1 -p 1-65000
+	echo "Scanning LAN subnet ${SUBNET}/24 (skipping down hosts)"
+	sudo nmap -T4 -Pn --osscan-guess -min-rate 5000 -v ${SUBNET}/24 | grep -v "host down" 
+}
+
+
+toggle () {
+	local ALERT="Warning"
+	local DESCRIPTION="This will toggle networking on/off"
+	local RESPONSE
+
+	#Functions
+	show_net_state () {
+		local STATE=$(nmcli -t -f NETWORKING networking)
+		[[ ${STATE} == 'enabled' ]] && echo "${GREEN_FG}${STATE}${RESET}" || echo "${RED_FG}${STATE}${RESET}"
+	}
+
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Toggle networking
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	echo -n "\n${RED_FG}${ALERT}!${RESET} ${DESCRIPTION}${WHITE_FG} (y/n)?${RESET}:"
+	read -q RESPONSE
+	echo
+
+	if [[ ${RESPONSE} != "n" ]];then
+		echo "${WHITE_FG}Toggling Network Services${RESET}"
+	else
+		exit_leave $(msg_warn "Operation cancelled")
+	fi
+
+	echo "Switching networking off..."
+	sudo nmcli networking off
+	sleep 2
+	echo "${WHITE_FG}Network${RESET}:$(show_net_state)"
+	echo "Switching networking on..."
+	sudo nmcli networking on
+	echo "${WHITE_FG}Network${RESET}:$(show_net_state)"
+}
+
+geo () {
+	#Constants
+	local GEO_PROVIDER="https://extreme-ip-lookup.com"
+	local OUTPUT_FN=/tmp/geo.out
+	local KEY="key=uMibiyDeEGlYxeK3jx6J"
+	local LINEAR=false
+	local K
+
+	#Declarations
+	local -A GEO
+
+	#Functions
+	load_geo_data () {
+		local -a LIST
+		local F1 F2
+		local GEO_DATA_REQUEST
+		local GEO_URL
+		local IP=$(ip_ext)
+		local L
+
+		[[ -z ${IP} ]] && echo "${_SCRIPT} cannot continue - unable to determine external IP address" >&2 && return 1
+
+		GEO_URL="${GEO_PROVIDER}/json/${IP}?${KEY}"
+
+		[[ ${_DEBUG} -gt 0 ]] && echo "Executing: wget -O${OUTPUT_FN} ${GEO_URL}"
+		GEO_DATA_REQUEST=$(wget -O${OUTPUT_FN} "${GEO_URL}" >/dev/null 2>&1)
+
+		if [[ -e ${OUTPUT_FN} ]];then
+			LIST=("${(f)$(cat ${OUTPUT_FN} | grep -v '""' | tr -d '[{}",]' | tr -s '[:space:]')}")
+			for L in ${LIST};do
+				F1=$(echo ${L} | cut -d: -f1 | sed -e 's/^[ \t]*//g' -e 's/[ \t]*$//g')
+				F2=$(echo ${L} | cut -d: -f2 | sed -e 's/^[ \t]*//g')
+				F1=${F1:u}
+				[[ ${F1} == "CITY" && -z ${F2} ]] && F2=unknown
+				[[ ${F1} == "COUNTRYCODE" ]] && F1=CODE
+				[[ ${F1} == "COUNTRY" ]] && F1=COUNTRY_NAME
+				[[ ${F1} == "LAT" ]] && F1=LATITUDE
+				[[ ${F1} == "LON" ]] && F1=LONGITUDE
+				[[ ${F1} == "QUERY" ]] && F1=IP
+				GEO[${F1}]=${F2}
+			done
+			if [[ ${_DEBUG} -gt 0 ]];then
+				for K in ${(k)GEO};do
+					echo ${K} ${GEO[${K}]}
+				done
+			fi
+		else
+			return 1
+		fi
+		return 0
+	}
+
+	#--Begin GetOpts--
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Provide geographic info for external IP
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local OPTS=$(parse_opts ${OPTSTR})
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}-l${RESET} linear output"
+		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave ${PENDING_MSGS}
+	}
+
+	OPTSTR=":HDl"
+
+	OPTIND=0
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) dbg_set_level;;
+		  l) LINEAR=true;;
+		  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+		esac
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+	
+	#--Execution
+	[[ -e ${OUTPUT_FN} ]] && /bin/rm -f ${OUTPUT_FN}
+
+	clear
+
+	load_geo_data
+	[[ ${?} -ne 0 ]] && exit_leave "GEO_DATA_REQUEST failed for IP:${IP}" 
+
+	tput cup 0 0
+	for K in ${(ko)GEO};do
+		[[ ${K} == "CITY" && ${GEO[${K}]} == "unknown" ]] && continue
+		[[ ${LINEAR} == "true" ]] && echo -n "\"$K\":\"${GEO[$K]}\" " || echo $K:${GEO[$K]:q}
+	done
+
+	[[ -e ${OUTPUT_FN} ]] && /bin/rm -f ${OUTPUT_FN} #clean any leftover garbage
+}
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+
+read -r -d '' DESC<<EOF
+Execute system utilities
+\t------------------------
+$(for K in ${(ok)_UTILS_DESC};do
+printf "${WHITE_FG}%-14s${RESET} %s\n" ${K} ${_UTILS_DESC[${K}]}
+done)
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		u) echo "<UTIL>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}\nUsage${RESET}:${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type u)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+OPTSTR=":HD"
+OPTIND=0
+
+UTIL=none
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+		H) usage;;
+		D) dbg_set_level;;
+		:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+
+[[ ${#} -ne 0 ]] && UTIL=${1}
+
+[[ ${UTIL} != 'none' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
+
+if [[ ${UTIL} != 'none' ]];then
+	UTIL=${1}
+	_SCRIPT=${UTIL}
+	[[ ${_UTILS[${UTIL}]} -eq 1 ]] && shift && ${UTIL} ${@}
+else
+	[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+	selection_list_set ${(v)_UTILS_DESC}
+	selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Network Utilities usage or <h>(q)uit<N>"
+
+	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
+	echo #clear read
+	${_SCRIPT} -H # call function help
+fi
+
+exit_leave

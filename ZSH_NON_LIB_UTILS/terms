@@ -1,0 +1,13 @@
+#!/usr/bin/zsh
+[[ ${1} == '-v' ]] && VERBOSE=true || VERBOSE=false
+THIS_TTY=$(tty)
+LIST=("${(@f)$(ps aux | grep pts | tr -s '[:space:]' | cut -d\  -f1,7 | sort -u)}")
+
+[[ ${#LIST} -eq 1 ]] && echo "1 instance" || echo "${#LIST} instances"
+
+if [[ ${VERBOSE} == 'true' ]];then
+	for T in ${(no)LIST};do
+		[[ "${THIS_TTY:t}" == "${T:t}" ]] && FLAG='*' || FLAG=''
+		echo ${T} ${FLAG}
+	done
+fi

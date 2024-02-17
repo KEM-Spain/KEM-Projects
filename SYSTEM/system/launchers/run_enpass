@@ -1,0 +1,111 @@
+#!/usr/bin/zsh
+
+#Imports
+_LIB=/usr/local/lib
+source ${_LIB}/LIB_INIT.zsh
+source ${_LIB}/UTILS.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB}/${D} ]];then
+		source ${_LIB}/${D}
+	else
+		echo "Cannot source:${_LIB}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Vars
+_ENP_PW=''
+_ENP_CONFIG="/home/kmiller/.enp"
+_ENPASS_INFO=''
+_ENPASS_WDW_ID=''
+_ENPASS_WDW_TITLE=''
+
+#Get PW
+read _ENP_PW < ${_ENP_CONFIG}
+_DELAY=1
+_LOG=/tmp/${0:t}.log
+_ENPASS=/opt/enpass/Enpass 
+
+start_enpass () {
+	local _ENPASS_PID
+
+	send-notification ${_DELAY} "Looking for running Enpass instance..."
+	_ENPASS_PID=($(pgrep -xf ${_ENPASS})) #get PID for Enpass
+
+	if [[ -n ${_ENPASS_PID} ]];then
+		logit "Enpass already running...killing instance"
+		sudo killall -I enpass
+	fi
+
+	#Start Enpass...
+	logit "Starting Enpass..."
+	exec ${_ENPASS} 2>/dev/null & 
+
+	logit "Waiting for Enpass to start..."
+	send-notification ${_DELAY} "Waiting for Enpass instance..."
+
+	_ENPASS_PID=?
+	while [[ ! -e /proc/${PID} ]];do
+		_ENPASS_PID=($(pgrep -xf ${_ENPASS})) #get PID for Enpass
+		break
+		sleep .2
+	done
+
+	logit "Enpass has started..."
+}
+
+pass_login_to_enpass () {
+	_ENPASS_INFO=$(win_id -t enpass)
+	[[ -z ${_ENPASS_INFO} ]] && logit "ERROR: _ENPASS_INFO not populated" && exit
+
+	_ENPASS_WDW_ID=$(cut -d'|' -f1 <<<${_ENPASS_INFO})
+	_ENPASS_WDW_TITLE=$(cut -d'|' -f2 <<<${_ENPASS_INFO})
+
+	logit "Received ID:${_ENPASS_WDW_ID}"
+	logit "Received Title:${_ENPASS_WDW_TITLE}"
+
+	if [[ ${_ENPASS_WDW_TITLE:l} =~ 'crash' ]];then
+		logit "Detected Enpass Crash Window"
+		logit "Sending Escape Key"
+		xdotool key --window ${_ENPASS_WDW_ID} Escape
+		sleep 2
+		logit "Getting new window ID"
+		_ENPASS_WDW_ID=$(win_id enpass)
+		logit "New window ID:${_ENPASS_WDW_ID}"
+	fi
+
+	logit "Passing credentials to Enpass..."
+	send-notification ${_DELAY} "Sending credentials to Enpass..."
+
+	/usr/local/bin/system/kbd-toggle off
+	/usr/local/bin/system/kbd-flush
+
+	sleep .2
+
+
+	xdotool windowfocus ${_ENPASS_WDW_ID}
+	xdotool type --window ${_ENPASS_WDW_ID} ${_ENP_PW}
+	sleep .5
+	xdotool key --window ${_ENPASS_WDW_ID} Return
+
+	/usr/local/bin/system/kbd-toggle on
+	/usr/local/bin/system/kbd-flush
+}
+
+close_enpass_window () {
+	logit "Closing Enpass window..."
+
+	[[ -z ${_ENPASS_WDW_ID} ]] && logit "ERROR: _ENPASS_WDW_ID not populated" && exit
+
+	xdotool windowclose ${_ENPASS_WDW_ID}
+}
+
+#Execution
+start_enpass
+if [[ ${1} != "noauto" ]];then
+	pass_login_to_enpass
+	close_enpass_window
+fi
+
+exit_leave

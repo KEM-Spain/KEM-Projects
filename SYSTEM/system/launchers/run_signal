@@ -1,0 +1,7 @@
+#!/usr/bin/zsh
+#
+PID=$(pgrep -f /opt/Signal/signal-desktop)
+[[ -n ${PID} ]] && return # singleton
+
+/opt/Signal/signal-desktop &
+win_max signal &

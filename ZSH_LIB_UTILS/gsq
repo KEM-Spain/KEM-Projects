@@ -1,0 +1,281 @@
+#!/usr/bin/zsh
+#Declarations
+typeset -A _TYPE_LABELS
+typeset -a _KEYS
+typeset -a _LOCAL_LIST
+typeset -a _MARKED
+typeset -a _URLS
+typeset -a _VALUES
+
+#Constants
+_LIB_DIR=/usr/local/lib
+_MAX_DISPLAY_LEN=40
+_TYPE_LABELS=(u "URL" k "Key" v "Value")
+_MAX_FIELD=40 #max field width
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local M
+	local VALUE
+	local PROMPT
+	local CUR_VALUE
+	local NEW_VALUE
+	local UPDATE
+	local URL KEY
+	local ROW
+	local LONG_VAL
+	local HDR
+
+	for M in ${_MARKED};do
+		CUR_VALUE=$(get_val ${M})
+		URL=$(get_url ${M})
+		KEY=$(get_key ${M})
+
+		msg_box -p -P"Change value (y/n)" "Current value for:<y>${KEY}<N>|is:<g>${CUR_VALUE}<N>"
+		if [[ ${_MSG_KEY} == 'y' ]];then
+			LONG_VAL=false
+			if [[ ${#CUR_VALUE} -gt 80 ]];then
+				LONG_VAL=true
+				echo ${CUR_VALUE} >/tmp/gsq | tee >/tmp/gsq.orig
+				vim /tmp/gsq #value is too long - go to vim
+				NEW_VALUE=$(</tmp/gsq)
+			else
+				HDR="<m>$(str_unicode_line 12)<N> New Value for:<w> ${KEY} <m>$(str_unicode_line 12) (vi editor) $(str_unicode_line 12)<N>"
+				for ((ROW=-1;ROW<=7;ROW++));do
+					tput cup $((_MSG_BOX_COORDS[X]+ROW)) $(coord_center $((_MAX_COLS-5)) ${#HDR})
+					tput ech ${#HDR}
+				done
+
+				msg_box "${HDR}"
+
+				#tput smso
+				tput cup $((_MSG_BOX_COORDS[X]+4)) $((_MSG_BOX_COORDS[Y]+2))
+				PROMPT="${E_RESET}${E_BOLD}Enter value${E_RESET}:"
+				cursor_on
+				NEW_VALUE=$(inline_edit ${PROMPT} ${CUR_VALUE}) #launch line editor
+				cursor_off
+				_MSG_BOX_COORDS[H]=$((_MSG_BOX_COORDS[H]+2))
+
+				tput rmso
+				msg_box_clear
+			fi
+
+			if [[ ${LONG_VAL} == 'true' ]];then
+				diff -q /tmp/gsq /tmp/gsq.orig 2>/dev/null #verify value has changed in vim
+				[[ ${?} -ne 0 ]] && UPDATE=true || UPDATE=false
+			else
+				[[ ${CUR_VALUE} != ${NEW_VALUE} ]] && UPDATE=true || UPDATE=false #verify value changed in line editor
+			fi
+
+			if [[ ${UPDATE} == 'true' ]];then
+				msg_box -p -PP "New Value is:<g>${NEW_VALUE}<N>"
+				if [[ ${_MSG_KEY} == 'y' ]];then
+					gsettings set ${URL} ${KEY} ${NEW_VALUE}
+					_LOCAL_LIST=("${(@f)$(gsettings list-recursively | sort -u | egrep "${SEARCHTERM}" | sed -e 's/: /:/g')}")
+				fi
+			fi
+		fi
+	done
+
+	for M in ${_MARKED};do
+		_MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+
+}
+
+action_warn () {
+	local M
+	local INFO_MSG
+	
+	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
+	msg_box -p -PK "<I>Please respond<N>|$(str_unicode_line 14)| |${#_MARKED} items queued for action${INFO_MSG}"
+
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${_MARKED};do
+			list_clear_selected ${M}
+		done
+	fi
+}
+
+item_decorate () {
+  local NDX=$1
+
+  case ${_LIST_SELECTED[${NDX}]} in
+			 2) echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}viewed${E_RESET}";;
+			 *)      tput el;echo -n ${_LIST[${NDX}]};;
+  esac
+}
+
+get_url () {
+	local NDX=${1}
+
+	cut -d' '  -f1 <<<${_LIST[${NDX}]}
+}
+
+get_key () {
+	local NDX=${1}
+
+	cut -d' '  -f2 <<<${_LIST[${NDX}]}
+}
+
+get_val () {
+	local NDX=${1}
+
+	cut -d' '  -f3- <<<${_LIST[${NDX}]}
+}
+
+inline_edit () {
+	local PROMPT=${1}
+	local CUR_VALUE=${2}
+	local PERL_SCRIPT
+
+	read -r -d '' PERL_SCRIPT <<'___EOF'
+	use warnings;
+	use strict;
+	use Term::ReadLine;
+
+	my $term = new Term::ReadLine 'gsq';
+	$term->parse_and_bind("set editing-mode vi");
+
+	system('sleep .1;xdotool key Home &');
+	while ( defined ($_ = $term->readline($ARGV[0],$ARGV[1])) ) {
+		print $_;
+		exit;
+	}
+___EOF
+
+perl -e "$PERL_SCRIPT" ${PROMPT} ${CUR_VALUE}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} output list to <STDOUT>"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Lookup/Set values in the gsettings database"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDl"
+OPTIND=0
+
+DUMPLIST=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+	  l) DUMPLIST=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ -z ${1} ]] && usage "Missing arg:enter a search string for a gsettings url"
+SEARCHTERM=${@}
+
+_LOCAL_LIST=("${(@f)$(gsettings list-recursively | sort -u | egrep "${SEARCHTERM}" | sed -e 's/: /:/g')}")
+
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	exit_leave "No matching entries for:${WHITE_FG}${SEARCHTERM}${RESET}"
+fi
+
+if [[ ${DUMPLIST} == 'true' ]];then
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	for L in ${_LOCAL_LIST};do
+		printf "%s\n" ${L}
+	done
+
+	exit_leave
+fi
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET}  ${WHITE_FG}matching values in gsettings database${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
+list_set_header 'printf " "'
+list_set_header 'printf "%5s %-${_MAX_FIELD}s %-${_MAX_FIELD}s %-${_MAX_FIELD}s" " " ${_TYPE_LABELS[u]} ${_TYPE_LABELS[k]} ${_TYPE_LABELS[v]}'
+list_set_header 'printf "%5s %-${_MAX_FIELD}s %-${_MAX_FIELD}s %-${_MAX_FIELD}s" " " "$(str_unicode_line ${_MAX_FIELD})" "$(str_unicode_line ${_MAX_FIELD})" "$(str_unicode_line ${_MAX_FIELD})"'
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4d${RESET}) ${SHADE}${BAR}${MAGENTA_FG}%-${_MAX_FIELD}s${RESET} ${SHADE}${BAR}${YELLOW_FG}%-${_MAX_FIELD}s${RESET} ${SHADE}${BAR}${GREEN_FG}%-${_MAX_FIELD}s${RESET}\n" ${_LIST_NDX} "${$(get_url ${_LIST_NDX})[1,40]}" "${$(get_key ${_LIST_NDX})[1,40]}" "${$(get_val ${_LIST_NDX})[1,40]}"
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select line item then <${GREEN_FG}ENTER${RESET}> to edit value (${ITALIC}or exit if none selected${RESET})"
+list_set_barlines true
+list_set_clear_ghosts true
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	_MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		#action_warn
+		#if [[ ${_MSG_KEY} == "y" ]];then
+			action_do
+		#fi
+	fi
+done
+
+exit_leave

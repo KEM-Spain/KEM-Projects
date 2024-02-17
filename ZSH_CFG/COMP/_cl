@@ -1,0 +1,4 @@
+#compdef cl
+local CODE_DIR=/home/kmiller/Code/LOCAL
+
+_files -W ${CODE_DIR} cl

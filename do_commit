@@ -1,0 +1,43 @@
+#!/usr/bin/zsh
+
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+DATE=$(date +"%m-%d-%Y-%T")
+[[ -z ${@} ]] && MSG="${DATE} commit" || MSG=${@}
+
+sudo chown -R kmiller:kmiller *
+
+[[ ! -e .git ]] && git init
+cp ../git_config .git/config
+cp ../gitignore .gitignore
+git add *
+git commit -m ${DATE}
+git branch -M main
+[[ ! -e .git ]] && git remote add origin git@github.com:KEM-Spain/KEM-Projects.git
+REMOTE_SHA=$(git rev-parse --short origin/main)
+git pull origin main
+# Overwrite repo 
+# git push -u origin main --force
+git push --set-upstream origin main
+LOCAL_SHA=$(git rev-parse --short HEAD)
+
+echo "${WHITE_ON_GREY}Changed files...${RESET}"
+git diff --name-only ${REMOTE_SHA}..${LOCAL_SHA}

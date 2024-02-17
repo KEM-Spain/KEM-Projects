@@ -1,0 +1,5 @@
+#!/usr/bin/zsh
+vol 100
+sc restart minidlna
+/usr/bin/kodi ${@} 2>> /tmp/${0:t}.log &
+

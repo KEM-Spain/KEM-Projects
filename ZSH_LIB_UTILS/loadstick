@@ -1,0 +1,805 @@
+#!/usr/bin/zsh
+
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+BLACK_FG="\033[30m"
+
+#Declarations
+typeset -a _LOCAL_LIST
+typeset -a _DEPTH_OPTS=("[d] More Depth" "[l] Less Depth" "[r] Reset Depth" "[Esc] (or <ENTER>) to Ignore")
+typeset -A _BASELINE=()
+typeset -A _TARGET_STATS=()
+typeset -A _SELECTION=()
+typeset -A _STICK_INFO=()
+typeset -A _USB_INFO=()
+typeset -A _DISPLAY=()
+typeset -A _ARGS=()
+
+#Constants
+_LOG=/tmp/${0:t}.log
+_MIN_DEPTH=1
+
+#Globals
+g_OBJECT=item
+g_PATHLBL=?
+g_PREFIX=''
+g_CONTEXT=''
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local -a PROG
+	local M
+	local CL="<<<<<<"
+	local CR=">>>>>>"
+	local MODE_CMD
+	local MODE_MSG
+	local MSG
+	local MSG_CNT
+	local NDX
+	local OBJ_TYPE
+	local PCT=0
+	local LAST_PCT=0
+	local LAST_LEN=0
+	local LEN_WIDE=false
+	local DISPLAY_PCT=0
+	local PID
+	local PNDX
+	local RC1
+	local RC2
+	local RS_PID
+	local RS_RC
+	local TS
+	local LC
+	local RC
+	local RS_ELOG=/tmp/rsync.elog
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
+
+	[[ ${_DISPLAY[MODE]} == 'source' ]] && MODE_CMD='rsync' || MODE_CMD='/bin/rm'
+	[[ ${_DISPLAY[MODE]} == 'source' ]] && MODE_MSG='copied' || MODE_MSG='deleted'
+
+	NDX=0
+	for M in ${_MARKED};do
+		((NDX++))
+		[[ -d ${_LIST[${M}]} ]] && OBJ_TYPE='directory' || OBJ_TYPE='file'
+
+		if [[ ${_DISPLAY[MODE]} == 'source' ]];then # copy files to stick
+			[[ -d ${_LIST[${M}]} ]] && TS='/' || TS='' # rsync needs trailing slash
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0} ${LINENO} rsync -r -z -h -I -v --info=progress2 --no-R --no-i-r ${_LIST[${M}]}${TS} --mkpath ${_USB_INFO[PATH]}/${g_PREFIX}${_LIST[${M}]:t}${TS} >>${_LOG} 2>${RS_ELOG} &"
+			[[ -e ${RS_ELOG} ]] && rm -f ${RS_ELOG}
+			rsync -r -z -h -I -v --info=progress2 --no-R --no-i-r ${_LIST[${M}]}${TS} --mkpath ${_USB_INFO[PATH]}/${g_PREFIX}${_LIST[${M}]:t}${TS} >>${_LOG} 2>${RS_ELOG} &
+			RS_PID=${!}
+			msg_box -c -x15 "Copying ${g_CONTEXT}${_LIST[${M}]:t} to ${_USB_INFO[PATH]}"
+			PNDX=0
+			while true;do
+				kill -0 ${RS_PID} >/dev/null 2>&1
+				if [[ ${?} -ne 0 ]];then
+					[[ -e ${RS_ELOG} && $(wc -l ${RS_ELOG} | cut -d' ' -f1) -ne 0 ]] && msg_box -p -PK "<r>RSYNC had errors<N>|<L>$(msg_list ${(f)"$(<${RS_ELOG})"})" && break 2
+					msg_box -c -x12 "Processing <w>${CL}<g> 100% <w>${CR}<N>"
+					break
+				else
+					PCT=$(str_trim $(get_progress)) # read the rsync log
+					[[ ${#PCT} -lt ${LAST_LEN} || ${LEN_WIDE} == 'true' ]] && CL="<<<<<<<" && CR=">>>>>>>" && LEN_WIDE=true # maintain msg_box width
+					[[ ${#PCT} -eq 0 ]] && DISPLAY_PCT=${LAST_PCT} || DISPLAY_PCT=${PCT}
+					[[ ${PCT} =~ "100" ]] && MSG="Waiting for rsync to finish processing" || MSG="Processing"
+					LAST_PCT=${DISPLAY_PCT}
+					LAST_LEN=${#DISPLAY_PCT}
+					((PNDX++))
+					if [[ $(( ${PNDX} % 2 )) -eq 0 ]];then # alternate chevrons
+						LC='<g>' && RC='<m>'
+					else
+						LC='<m>' && RC='<g>'
+					fi
+					msg_box -x12 "${MSG} ${LC}${CL}<w> ${DISPLAY_PCT} ${RC}${CR}<N>"
+				fi
+				sleep .5
+			done
+			sleep 1
+		else # delete files from stick
+			msg_box -c -x15 "Deleting..."
+			[[ -d ${_LIST[${M}]} ]] && /bin/rm -r ${_LIST[${M}]} || /bin/rm ${_LIST[${M}]}
+			RC1=${?}
+		fi
+
+		if [[ ${RC1} -eq 0 ]];then
+			MSG="${NDX} of ${#_MARKED} $(str_pluralize ${OBJ_TYPE} ${#_MARKED}) ${MODE_MSG}"
+		else
+			MSG="${(U)OBJ_TYPE}:${_LIST[${M}]} ${MODE_CMD} failed with code:${RC}"
+		fi
+
+		if [[ ${NDX} -eq ${#_MARKED} ]];then
+			msg_box -c -x19 -p  -PK "${MSG}"
+		fi
+	done
+
+	for M in ${_MARKED};do
+		list_set_selected ${M} 0
+	done
+
+	load_list
+}
+
+action_warn () {
+	local M
+	local -aU M_LIST
+	local DM=''
+	local DIR_SEG
+	local NDX
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
+
+	[[ ${_DISPLAY[${_DISPLAY[MODE]}_ALL]} == 'true' ]] && DM="| |All Folder Content" || DM=''
+
+	if [[ ${_DISPLAY[MODE]} == 'source' ]];then
+		while true;do
+			for M in ${_MARKED};do
+				DIR_SEG="${${_LIST[${M}]}##${_DISPLAY[PATH]}/}"
+				g_CONTEXT="$(echo "$DIR_SEG" | rev | cut -d/ -f2- | rev)"
+				[[ ${g_CONTEXT} == ${DIR_SEG} ]] && g_CONTEXT='' || g_CONTEXT="${g_CONTEXT}/"
+				M_LIST+="${g_CONTEXT}${_LIST[${M}]:t}"
+			done
+
+			msg_box -x15 -c -p -P"<N><w>Ready to Transfer<N>| |<I><w>Transfer<N> (y/n)" "<I>Please respond|$(str_unicode_line 14)|${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected| |$(msg_list ${M_LIST})${DM}"
+
+			if [[ ${_MSG_KEY} == 'y' ]];then
+				break
+			elif [[ ${_MSG_KEY} == 'n' ]];then
+				for M in ${_MARKED};do
+					list_set_selected ${M} 0
+				done
+				_DISPLAY[${_DISPLAY[MODE]}_ALL]=false
+				break
+			fi
+		done
+		msg_box_clear
+	elif [[ ${_DISPLAY[MODE]} == 'target' ]];then
+		msg_box -x15 -p -PD "<I>Please respond|$(str_unicode_line 14)|${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected| |$(msg_list ${M_LIST})${DM}"
+	fi
+}
+
+get_progress () {
+	local LINE
+
+	while read -r LINE;do
+		LINE=$(sed 's//|/g' <<<${LINE} | tr -s '[:space:]' | perl -p -e 's/.*(?=\|)//g;s/^\| *//')
+		echo "\n$(grep --color=never -o -P '[0-9]{1,3}%' <<<${LINE})"
+	done<<<$(tail -1 ${_LOG})
+}
+
+header_callback () {
+	local NDX=${1}
+	local STATE_DATA=${2} # returning FUNCTION|BOOLEAN
+	local SELECTED_BYTES=0
+	local STATE
+	local STATE_NDX
+
+	local -A TA_STATES=(0 alloff 1 allon) # all
+	local -A TR_STATES=(0 off 1 on) # row
+
+	local STATE_NDX=$(cut -d'|' -f2 <<<${STATE_DATA})
+
+	if [[ ${STATE_DATA} =~ 'toggle_all' ]];then
+		STATE=${TA_STATES[${STATE_NDX}]}
+	elif [[ ${STATE_DATA} =~ 'toggle_selected' ]];then
+		STATE=${TR_STATES[${STATE_NDX}]}
+	fi
+
+	set_du_bytes ${_DISPLAY[MODE]} ${STATE} ${_LIST[${NDX}]} 
+}
+
+human () {
+	local BYTES=${1}
+	local GB=1073741824
+	local MB=1048576
+	local KB=1024
+	(
+	if [[ ${BYTES} -gt ${GB} ]];then printf "%10.2f${BOLD}${RED_FG}GB${RESET}" $((${BYTES}.0/${GB}.0))
+	elif [[ ${BYTES} -gt ${MB} ]];then printf "%10.2f${BOLD}${MAGENTA_FG}MB${RESET}" $((${BYTES}.0/${MB}.0))
+	elif [[ ${BYTES} -gt ${KB} ]];then printf "%10.2f${BOLD}${CYAN_FG}KB${RESET}" $((${BYTES}.0/${KB}.0))
+	else printf "%10d${WHITE_FG}B${RESET}" ${BYTES} 
+	fi
+	) | sed 's/^[ \t]*//g' 
+}
+
+item_decorate () {
+	local NDX=${1}
+	local DIR
+	local DIR_COLOR
+	local DIR_SEG
+	local FN_COLOR
+	local OBJ
+	local TAG
+	local ACTION
+
+	 
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: NDX:${NDX} _LIST:${_LIST[${NDX}]}"
+
+	if [[ ${_DISPLAY[MODE]} == 'source' ]];then # source vs target
+		ACTION="copied"
+		[[ -d ${_LIST[${NDX}]} ]] && DIR_COLOR="> ${CYAN_FG}" || DIR_COLOR="_ ${WHITE_FG}"
+	elif [[ ${_DISPLAY[MODE]} == 'target' ]];then
+		ACTION="deleted"
+		[[ -d ${_LIST[${NDX}]} ]] && DIR_COLOR="> ${RED_FG}" || DIR_COLOR="${RED_FG}"
+	fi
+
+	if [[ -d ${_LIST[${NDX}]} ]];then # dir vs file
+		DIR="(${CYAN_FG}d${RESET})"
+		OBJ=directory
+	else
+		DIR=''
+		OBJ=file
+	fi
+
+	[[ ${_LIST_SELECTED[${NDX}]} == ${_GHOST_ROW} ]] && TAG="${OBJ} ${ITALIC}${ACTION}${RESET}" || TAG='' # set TAG
+
+	DIR_SEG=$(path_seg ${_LIST[${NDX}]:h} last)
+
+	echo "${DIR_COLOR}${DIR_SEG}${RESET}/${FN_COLOR}${_LIST[${NDX}]:t}${RESET} ${DIR} ${TAG}" # display line item
+}
+
+key_callback () {
+
+	msg_box -p -P"Enter [d, l, r, or Esc]" "<w>Modify Depth of Listing<N>||Current depth is:<w>${_DISPLAY[${_DISPLAY[MODE]}_DEPTH]}<N>||$(msg_list ${_DEPTH_OPTS})"
+	msg_box_clear
+
+	case ${_MSG_KEY} in
+		esc) return;;
+		d) ((_DISPLAY[${_DISPLAY[MODE]}_DEPTH]++));;
+		l) ((_DISPLAY[${_DISPLAY[MODE]}_DEPTH]--));;
+		r) _DISPLAY[${_DISPLAY[MODE]}_DEPTH]=${_MIN_DEPTH};;
+	esac
+
+	[[ ${_DISPLAY[${_DISPLAY[MODE]}_DEPTH]} -lt ${_MIN_DEPTH} ]] && _DISPLAY[${_DISPLAY[MODE]}_DEPTH]=${_MIN_DEPTH}
+
+	kbd_suspend
+	load_list
+	kbd_activate
+}
+
+load_list () {
+	local -aU SUBLIST
+	local DEPTH=${_DISPLAY[${_DISPLAY[MODE]}_DEPTH]} # reduce chatter below
+	local F_GLOB
+	local F_PATH
+	local L M
+	local MARKED
+	local MSG=''
+	local RAWPATH
+	local S_PATH=${_USB_INFO[PATH]:q} # reduce chatter below
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
+
+	if [[ ${_DISPLAY[MODE]} == 'source' ]];then
+		RAWPATH=$(path_get_raw)
+		F_PATH=$(cut -d'|' -f1 <<<${RAWPATH})
+		F_PATH=${F_PATH:q}
+		F_GLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+		g_PATHLBL=$(path_get_label 40)
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Searching F_PATH:${F_PATH}"
+
+		if [[ -n ${_ARGS[SEARCHTERM]} ]];then
+			MSG="matching:${_ARGS[SEARCHTERM]}"
+			if [[ ${DEPTH} -eq 1 ]];then
+				F_GLOB="-iname '*${_ARGS[SEARCHTERM]}*'"
+
+				[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sudo find ${F_PATH} -maxdepth ${DEPTH} ${F_GLOB}"
+				_LOCAL_LIST=("${(f)$(eval "sudo find ${F_PATH} -maxdepth ${DEPTH} ${F_GLOB}" | sort)}")
+			else # only expand what was previously displayed based on SEARCHTERM
+				for L in ${_LOCAL_LIST};do
+					[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sudo find ${F_PATH}/${L:t:q} -maxdepth ${DEPTH} 2>/dev/null"
+					SUBLIST+=("${(f)$(eval "sudo find ${F_PATH}/${L:t:q} -maxdepth ${DEPTH} 2>/dev/null" | sort)}")
+				done
+				_LOCAL_LIST=(${SUBLIST})
+			fi
+		else
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sudo find ${F_PATH} -maxdepth ${DEPTH} ${F_GLOB}"
+			_LOCAL_LIST=("${(f)$(eval "sudo find ${F_PATH} -maxdepth ${DEPTH} ${F_GLOB}" | sort)}")
+		fi
+	elif [[ ${_DISPLAY[MODE]} == 'target' ]];then
+		g_PATHLBL=${_USB_INFO[PATH]}
+
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sudo find ${_USB_INFO[PATH]:q} -maxdepth ${DEPTH} ${F_GLOB}"
+		_LOCAL_LIST=("${(f)$(eval "sudo find ${S_PATH} -maxdepth ${DEPTH} ${F_GLOB}" | sort)}")
+	fi
+
+	if ! arr_is_populated "${_LOCAL_LIST}";then
+		exit_leave $(msg_warn "No file(s) found ${MSG}")
+	fi
+
+	for L in ${_LOCAL_LIST};do
+		if [[ -d ${L} && ${L} =~ " $" ]];then
+			exit_leave $(msg_warn "Dir:\"${L:t:Q}\" contains trailing space - will cause rsync failure")
+		else
+			_LIST+=$(str_trim ${L})
+		fi
+	done
+
+	#_LIST=(${_LOCAL_LIST})
+	_LIST_SELECTED=()
+
+	MARKED=($(tr '\x0a' ' ' <<<${_DISPLAY[${_DISPLAY[MODE]}_MARKED]}))
+
+	for M in ${MARKED};do
+		_LIST_SELECTED[${M}]=1
+	done
+
+	set_tally
+}
+
+load_usb_info () {
+	local -a PARTS
+	local -a SLIST
+	local -a STICKS
+	local STICK_DATA
+	local STICK_MODEL
+	local STICK_PART
+	local STICK_PATH
+	local STICK_SIZE
+	local NDX
+	local S
+	local PERMS
+	local LINE_COLOR
+	local RC=0
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
+
+	STICKS=("${(f)$(usb_stick_path -d)}")
+	RC=${?}
+
+	[[ ${RC} -eq 1 ]] && exit_leave $(msg_warn "No stick detected")
+	[[ ${RC} -eq 2 ]] && exit_leave $(msg_warn "Unmounted stick detected")
+	
+	if [[ ${#STICKS} -gt 1 ]];then
+		NDX=0
+		for S in ${STICKS};do
+			((NDX++))
+			STICK_MODEL=$(cut -d'|' -f2 <<<${S})
+			STICK_SIZE=$(cut -d'|' -f3 <<<${S})
+			STICK_PART=$(cut -d'|' -f4 <<<${S})
+			STICK_PATH=$(cut -d'|' -f5 <<<${S})
+			PERMS=$(stat -c"%A" ${STICK_PATH})
+			[[ ${PERMS} =~ 'rw' ]] && LINE_COLOR=${GREEN_FG} || LINE_COLOR=${RED_FG}${STRIKE}
+			SLIST+="${NDX}) ${LINE_COLOR}${TAG}${STICK_MODEL} ${STICK_SIZE} ${STICK_PART} ${STICK_PATH}${RESET} ${WHITE_FG}${PERMS}${RESET}" 
+		done
+		selection_list_set ${SLIST}
+		selection_list -x11 -y32 "<w>Select Stick or <h>(q)uit<N>"
+		[[ ${?} -ne 0 ]] && exit_leave $(msg_warn "Operation Cancelled")
+		NDX=$(cut -d')' -f1 <<<${_SELECTION_VALUE})
+		STICK_DATA=${STICKS[${NDX}]}
+	else
+		STICK_DATA=${STICKS[1]}
+	fi
+
+	# EXAMPLE DATA: sdb|SanDisk Ultra|14.77 GiB|/dev/sdb1|/media/kmiller/CAR_STICK
+	STICK_MODEL=$(cut -d'|' -f2 <<<${STICK_DATA})
+	STICK_SIZE=$(cut -d'|' -f3 <<<${STICK_DATA})
+	STICK_PART=$(cut -d'|' -f4 <<<${STICK_DATA})
+	STICK_PATH=$(cut -d'|' -f5 <<<${STICK_DATA})
+
+	_USB_INFO=(MODEL ${STICK_MODEL} SIZE ${STICK_SIZE} PART ${STICK_PART} PATH ${STICK_PATH})
+}
+
+path_seg () {
+	local DIR_SLICE=${1}
+	local TARGET=${2}
+	local SEGS=(${(s:/:)${DIR_SLICE}})
+	local B E
+
+	case ${TARGET} in
+		first) B=1 && E=${B};;
+		last) B=${#SEGS} && E=${B};;
+		n2l) B=$(( ${#SEGS}-1 )) && E=${B};;
+		n2l2) B=$(( ${#SEGS}-2 )) && E=$(( ${#SEGS}-1 ));;
+		*) B=${TARGET} && E=${B};;
+	esac
+	
+	echo ${SEGS[${B},${E}]}
+}
+
+repaint () {
+	local L
+	local SHADE
+	local BAR
+	local LIMIT
+	local LINE_ITEM='printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${L} "$(item_decorate ${L})"'
+
+	tput cup $(( ${#_LIST_HEADER}+1 )) 0
+
+	[[ ${MAX_DISPLAY_ROWS} -gt ${#_LIST} ]] && LIMIT=${#_LIST} || LIMIT=MAX_DISPLAY_ROWS
+
+	for ((L=1;L<=${LIMIT};L++));do
+		[[ ${_LIST_SELECTED[${L}]} -eq 1 ]] && _LIST_SELECTED[${L}]=0
+		BARLINE=$((L % 2))
+		[[ ${BARLINE} -ne 0 ]] && BAR=${BLACK_BG} || BAR=""
+		eval ${LINE_ITEM}
+	done
+}
+
+
+select_callback () {
+	local ROW=${1}
+	local DIR_TAG
+	local FILE_TAG
+	local F
+
+	if [[ ${ROW} -eq 1 ]];then
+		if [[ ${_LIST_SELECTED[1]} -eq 1 ]];then
+			_DISPLAY[${_DISPLAY[MODE]}_ALL]=false
+			_LIST_SELECTED[1]=1
+		else
+			_DISPLAY[${_DISPLAY[MODE]}_ALL]=true
+			_LIST_SELECTED[1]=0
+			[[ ${_DISPLAY[REPAINT]} == 'true' ]] && repaint
+			set_tally
+		fi
+	else #row != 1
+		[[ -z ${_LIST_SELECTED[1]} || ${_LIST_SELECTED[1]} -eq 0 ]] && _DISPLAY[REPAINT]=true || _DISPLAY[REPAINT]=false
+		if [[ ${_DISPLAY[${_DISPLAY[MODE]}_ALL]} == 'true' ]];then
+			msg_box -p -PK "Top level directory selected|No further selection required"
+			msg_box_clear
+			return 1
+		else
+			if [[ -f ${_LIST[${ROW}]} ]];then
+				for ((F=${ROW};F>=1;F--));do
+					if [[ -d ${_LIST[${F}]} ]];then
+						DIR_TAG=$(path_seg ${_LIST[${F}]} last)
+						if [[ ${_LIST_SELECTED[${F}]} -eq 1 ]];then
+							FILE_TAG=$(path_seg ${${_LIST[${ROW}]}:h} last)
+							if [[ ${DIR_TAG} == ${FILE_TAG} ]];then
+								msg_box -p -PK "Top level directory selected|No further selection required"
+								msg_box_clear
+								return 1
+							fi
+						fi
+					fi
+				done
+			fi
+		fi
+	fi
+	return 0
+}
+
+set_du_bytes () {
+	local MODE=${1}
+	local STATE=${2}
+	local OBJ=${3}
+	local -F TA
+	local -F TU
+	local -i TP
+
+	local BYTES=$(sudo du -Lsb ${OBJ} 2>/dev/null | sed 's/\t/ /' | cut -d' ' -f1)
+	
+	if [[ ${STATE} =~ "all" ]];then
+		_SELECTION[TL_BYTES]=0
+		_TARGET_STATS[CUR_AVAIL]=${_BASELINE[CUR_AVAIL]}
+		_TARGET_STATS[TL_USED]=${_BASELINE[TL_USED]}
+		_TARGET_STATS[PCT_AVAIL]=$(( 100 - ${_BASELINE[PCT_USED]} ))
+		if [[ ${STATE} =~ "on" ]];then
+			if [[ ${MODE} == 'source' ]];then
+				(( _SELECTION[TL_BYTES]+=BYTES ))
+				(( _TARGET_STATS[TL_USED]+=BYTES ))
+				(( _TARGET_STATS[CUR_AVAIL]-=BYTES ))
+				TA=${_TARGET_STATS[TL_AVAIL]}
+				TP=$(( (BYTES/TA) * 100 ))
+				_TARGET_STATS[PCT_AVAIL]=$(( ${_TARGET_STATS[PCT_AVAIL]} - TP ))
+			elif [[ ${MODE} == 'target' ]];then
+				_TARGET_STATS[CUR_AVAIL]=$(( ${_BASELINE[TL_AVAIL]} - ${_BASELINE[TL_USED]} ))
+				_SELECTION[TL_BYTES]=${_BASELINE[TL_USED]}
+				_TARGET_STATS[TL_USED]=0
+				_TARGET_STATS[PCT_AVAIL]=100
+			fi
+		fi
+	else # row selection
+		TA=${_TARGET_STATS[TL_AVAIL]}
+		TP=$(( (BYTES/TA) * 100 ))
+
+		if [[ ${MODE} == 'source' ]];then
+			if [[ ${STATE} =~ "on" ]];then
+				(( _SELECTION[TL_BYTES]+=BYTES ))
+				(( _TARGET_STATS[TL_USED]+=BYTES ))
+				(( _TARGET_STATS[CUR_AVAIL]-=BYTES ))
+				_TARGET_STATS[PCT_AVAIL]=$(( ${_TARGET_STATS[PCT_AVAIL]} - TP ))
+			fi
+			if [[ ${STATE} =~ "off" ]];then 
+				(( _SELECTION[TL_BYTES]-=BYTES ))
+				(( _TARGET_STATS[TL_USED]-=BYTES ))
+				(( _TARGET_STATS[CUR_AVAIL]+=BYTES ))
+				_TARGET_STATS[PCT_AVAIL]=$(( ${_TARGET_STATS[PCT_AVAIL]} + TP ))
+			fi
+		elif [[ ${MODE} == 'target' ]];then
+			if [[ ${STATE} =~ "on" ]];then
+				(( _SELECTION[TL_BYTES]+=BYTES ))
+				(( _TARGET_STATS[TL_USED]-=BYTES ))
+				(( _TARGET_STATS[CUR_AVAIL]+=BYTES )) # not updating in display?
+				_TARGET_STATS[PCT_AVAIL]=$(( ${_TARGET_STATS[PCT_AVAIL]} + TP ))
+			fi
+			if [[ ${STATE} =~ "off" ]];then 
+				(( _SELECTION[TL_BYTES]-=BYTES ))
+				(( _TARGET_STATS[TL_USED]+=BYTES ))
+				(( _TARGET_STATS[CUR_AVAIL]-=BYTES )) # not updating in display?
+				_TARGET_STATS[PCT_AVAIL]=$(( ${_TARGET_STATS[PCT_AVAIL]} - TP ))
+			fi
+		fi
+	fi
+
+	[[ ${_TARGET_STATS[CUR_AVAIL]} -le 0 ]] && _TARGET_STATS[CUR_AVAIL]=0
+	[[ ${_TARGET_STATS[PCT_AVAIL]} -lt 0 ]] && msg_box -p -PK "PCT_AVAIL went negative"
+
+}
+
+set_stick_info () {
+	local TARG_PATH=${1}
+	local -a OUT
+	local FIELDS="size,used,avail,pcent"
+	local DATA
+
+	OUT=("${(f)$(df --output=${FIELDS} ${TARG_PATH})}")
+	[[ ${?} -ne 0 ]] && return 1
+	DATA=$(tr -s '[:space:]' <<<${OUT[2]} | sed 's/^ *//' | sed 's/ /|/g')
+
+	_STICK_INFO[SIZE]=$(cut -d'|' -f1 <<<${DATA})
+	_STICK_INFO[USED]=$(cut -d'|' -f2 <<<${DATA})
+	_STICK_INFO[AVAIL]=$(cut -d'|' -f3 <<<${DATA})
+	_STICK_INFO[PCENT]=$(cut -d'|' -f4 <<<${DATA})
+
+	return 0
+}
+
+set_tally () {
+	local TL_AVAIL
+	local CUR_AVAIL
+	local TL_USED
+	local PCT_USED
+	local PCT_AVAIL
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
+
+	_SELECTION[TL_BYTES]=0
+
+	set_stick_info ${_USB_INFO[PATH]}
+	[[ ${?} -ne 0 ]] && exit_leave $(msg_err "Unable to access stick information:${_USB_INFO[PATH]}")
+
+	# 1024 blocks
+	TL_AVAIL=${_STICK_INFO[SIZE]}
+	CUR_AVAIL=${_STICK_INFO[AVAIL]}
+	TL_USED=${_STICK_INFO[USED]}
+	PCT_USED=${${_STICK_INFO[PCENT]}:s/%//} # Remove % sign/store as int
+
+	# Blocks to bytes 
+	TL_AVAIL=$(( TL_AVAIL * 1024 )) # Stick capacity
+	CUR_AVAIL=$(( CUR_AVAIL * 1024 )) # Stick free
+	TL_USED=$(( TL_USED * 1024 )) # Stick used
+	PCT_AVAIL=$(( 100 - PCT_USED )) # Percent available
+
+	_BASELINE=(TL_AVAIL ${TL_AVAIL} CUR_AVAIL ${CUR_AVAIL} TL_USED ${TL_USED} PCT_USED ${PCT_USED} PCT_AVAIL ${PCT_AVAIL}) 
+	_TARGET_STATS=(TL_AVAIL ${TL_AVAIL} CUR_AVAIL ${CUR_AVAIL} TL_USED ${TL_USED} PCT_USED ${PCT_USED} PCT_AVAIL ${PCT_AVAIL})
+	
+	_DISPLAY[REPAINT]=false
+}
+
+toggle_mode () {
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
+
+	_DISPLAY[${_DISPLAY[MODE]}_MARKED]=$(list_get_selected)
+
+	if [[ ${_DISPLAY[MODE]} == 'source' ]];then
+		_DISPLAY[MODE]=target
+		g_PATHLBL=$(path_get_label 40)
+	else
+		_DISPLAY[MODE]=source
+		g_PATHLBL=${_USB_INFO[PATH]}
+	fi
+
+	load_list
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		p) echo "<PATH>";;
+		s) echo "<SEARCHTERM>";;
+	esac
+}
+
+read -r -d '' DESC<<EOF
+Add or delete usb stick files
+\tDisplay toggles between SOURCE (local files) and TARGET (stick files)
+\tLimit scope of SOURCE candidates with $(opt_type s)
+EOF
+
+usage () {
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type p)] [$(opt_type s)]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "${WHITE_FG}-T${RESET} test mode"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDT"
+OPTIND=0
+
+TESTING=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     T) TESTING=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ -e ${_LOG} ]] && /bin/rm -f ${_LOG}
+
+# Argument strategy: 
+# ARG 1: path OR searchterm 
+# ARG 2: path AND searchterm
+[[ ${#} -ge 1 ]] && ARG_1=${1} || ARG_1=''
+[[ ${#} -ge 2 ]] && ARG_2=${2} || ARG_2=''
+
+if [[ ${#} -ge 1 ]];then # either a path, or searchterm
+	_ARGS[PATH_ARG]=''
+	_ARGS[SEARCHTERM]=''
+	[[ -d ${ARG_1} ]] && _ARGS[PATH]=${1}
+	[[ -z ${_ARGS[PATH]} ]] && _ARGS[SEARCHTERM]=${1}
+fi
+
+if [[ -n ${ARG_2} ]];then
+	[[ -z ${_ARGS[PATH]} ]] && usage "Invalid file or path:${ARG_1}" # abort
+	_ARGS[SEARCHTERM]=${ARG_2} # searchterm following a valid path or file
+fi
+
+#Initialize
+_DISPLAY[source_DEPTH]=1
+_DISPLAY[target_DEPTH]=1
+_DISPLAY[source_ALL]=false
+_DISPLAY[target_ALL]=false
+_DISPLAY[source_MARKED]=''
+_DISPLAY[target_MARKED]=''
+_DISPLAY[MODE]=source
+[[ -z ${_ARGS[PATH]} ]] && _DISPLAY[PATH]=${PWD} || _DISPLAY[PATH]=${_ARGS[PATH]}
+ 
+if [[ ${TESTING} == 'false' ]];then
+	load_usb_info
+	set_tally
+else
+	STICK_PATH=/tmp/STICK
+	STICK_PART=/dev/sda1
+	STICK_MODEL="Test Stick"
+
+	[[ ! -d ${STICK_PATH} ]] && mkdir ${STICK_PATH}
+	pushd ${STICK_PATH}
+	fut generate 20 >/dev/null 2>&1
+	popd
+	
+	_USB_INFO=(PATH ${STICK_PATH} PART ${STICK_PART} MODEL ${STICK_MODEL})
+
+	TL_AVAIL=14500000000
+	CUR_AVAIL=14500000000
+	TL_USED=0
+	PCT_USED=0
+	TL_AVAIL=$(( TL_AVAIL * 1024 )) #blocks to bytes
+	CUR_AVAIL=$(( CUR_AVAIL * 1024 )) #blocks to bytes
+	TL_USED=$(( TL_USED * 1024 )) #blocks to bytes
+
+	_BASELINE=(TL_AVAIL ${TL_AVAIL} CUR_AVAIL ${CUR_AVAIL} TL_USED ${TL_USED} PCT_USED ${PCT_USED})
+	_TARGET_STATS=(TL_AVAIL ${TL_AVAIL} CUR_AVAIL ${CUR_AVAIL} TL_USED ${TL_USED} PCT_USED ${PCT_USED})
+fi
+
+[[ ${PWD} =~ ${_USB_INFO[PATH]:t} ]] && exit_leave $(msg_err "Source dir cannot be the stick dir - navigate to another directory")
+
+load_list
+
+#set headings
+list_set_header '
+if [[ ${_DISPLAY[MODE]} == 'source' ]];then
+	MODE_LABEL="Copy to Stick"
+	MODE_COLOR=${GREEN_FG}
+else
+	MODE_LABEL="Delete from Stick"
+	MODE_COLOR=${WHITE_FG}${RED_BG}
+fi;
+printf "USB:${CYAN_FG}%s${RESET} Mode:${MODE_COLOR}%s${RESET} Used:${U_COLOR}%-7s${RESET} Availiable:${WHITE_FG}%-7s${RESET} Remaining %%:${WHITE_FG}%-4s${RESET}" ${_USB_INFO[MODEL]} ${(C)MODE_LABEL} $(human ${_TARGET_STATS[TL_USED]}) $(human ${_TARGET_STATS[CUR_AVAIL]}) ${_TARGET_STATS[PCT_AVAIL]}%'
+ 
+list_set_header 'printf " "'
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} %s Path:${WHITE_FG}%-*s${RESET} Selected:${WHITE_FG}%-4d${RESET}  Size:${WHITE_FG}%-7s${RESET}  ${_PG}" ${#_LIST} $(str_pluralize file ${#_LIST}) ${#g_PATHLBL} "${g_PATHLBL}" ${SELECTED_COUNT} $(human ${_SELECTION[TL_BYTES]})'
+list_add_header_break
+list_set_header_callback header_callback
+
+#set line item
+list_set_line_item 'printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"'
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${_DISPLAY[MODE]} (${ITALIC}or exit if none selected${RESET}) ${WHITE_FG}Special Keys${RESET}:(${WHITE_FG}d${RESET}) Adjust Depth, (${WHITE_FG}z${RESET}) Switch Context"
+list_set_barlines true
+list_set_key_callback 100 key_callback # 'd' key adjusts depth
+list_set_select_callback select_callback
+
+FIRST_TIME=true
+while true;do
+	if [[ ${FIRST_TIME} == 'true' ]];then
+		[[ ${_DISPLAY[MODE]} == 'source' ]] && list_set_header_break_color ${GREEN_FG} || list_set_header_break_color ${RED_FG}
+		FIRST_TIME=false
+	fi
+
+	list_select ${_LOCAL_LIST}
+	RC=${?}
+	[[ ${RC} -eq 0 ]] && break
+
+	if [[ ${RC} -eq -1 ]];then # 'z' key 
+		toggle_mode
+	else
+		_MARKED=($(list_get_selected)) #get selections
+		if [[ $(list_get_selected_count) -ne 0 ]];then
+			action_warn
+			if [[ ${_MSG_KEY} == "y" ]];then
+				action_do ${_MARKED}
+			fi
+		fi
+	fi
+done
+
+exit_leave

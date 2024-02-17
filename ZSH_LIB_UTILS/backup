@@ -1,0 +1,283 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a MARKED
+typeset -a RS_OPTS
+typeset -a RS_EXCL
+typeset -a RS_INCL
+typeset -a BACKUP_DIRS
+
+#--Option settings for rsync--
+#RS_OPTS+=('-n') #dry run
+#RS_OPTS+=('-i') #itemize changes
+#RS_OPTS+=('-x') #don't cross file system boundaries
+#RS_OPTS+=('-h') #human readable output
+#RS_OPTS+=('-A') #preserve ACLS
+#RS_OPTS+=('-X') #preserve extended attributes
+
+RS_OPTS+=('-v') #verbose
+RS_OPTS+=('-a') #archive
+RS_OPTS+=('-z') #compress
+RS_OPTS+=('--delete') #delete if original no longer exists
+RS_OPTS+=('--inplace') #update files directly (faster - no building temp copies)
+RS_OPTS+=('--numeric-ids') #no translation of UID,GID - needed for flexible restores
+RS_OPTS+=('--delete-excluded') #exluded here; deleted there
+RS_OPTS+=('--ignore-errors') #continue through errors
+
+#--Exclude settings for rsync--
+RS_EXCL+=(--exclude='lost+found')
+RS_EXCL+=(--exclude='Downloads')
+RS_EXCL+=(--exclude='Videos')
+RS_EXCL+=(--exclude='Virtual*')
+RS_EXCL+=(--exclude='.cache')
+RS_EXCL+=(--exclude='Cache')
+RS_EXCL+=(--exclude='cache')
+RS_EXCL+=(--exclude='/usr/local/src/yt-dlp/yt_dlp/__pycache__')
+RS_EXCL+=(--exclude='snap')
+RS_EXCL+=(--exclude='.local/share/flatpak')
+RS_EXCL+=(--exclude='.config/google-chrome')
+RS_EXCL+=(--exclude='.git')
+
+RS_INCL+=(--include='Downloads/Torrents/Completed')
+BACKUP_DIRS=(/root /home/kmiller /usr/local /etc /opt)
+
+#Constants
+_MOUNT=media
+_USER=kmiller
+_MOUNTPOINT="/${_MOUNT}/${_USER}"
+_DEST_ID=KEM_Backup
+_TAG=$(hostname)_RSYNC2
+_DESTINATION=${_MOUNTPOINT}/${_DEST_ID}/${_TAG}
+_MARKER=~/.${_TAG}.lastrun
+_LIB_DIR=/usr/local/lib
+_LOGFILE=/home/kmiller/.${_TAG}.log
+_TODAY=$(date +'%Y-%m-%d') 
+
+#Globals
+g_LAST_RUN=?
+g_FOUND_EXT=false
+
+#Imports
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/TPUT.zsh
+source ${_LIB_DIR}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+datediff () {
+	local D1=$(date -d "$1" +%s)
+	local D2=$(date -d "$2" +%s)
+	local DIFF=$(( (D1 - D2) / 86400 ))
+
+	[[ ${DIFF} -eq 0 ]] && echo "today"
+	[[ ${DIFF} -eq 1 ]] && echo "1 day ago"
+	[[ ${DIFF} -gt 1 && ${DIFF} -le 7 ]] && echo "${DIFF} days ago"
+	[[ ${DIFF} -gt 7 ]] && echo "over a week ago"
+}
+
+last_backup () {
+	local MARKER_ARG=${1}
+	local LB_LAST_RUN
+	local LB_LAST_TIME
+
+	[[ -z ${MARKER_ARG} ]] && exit_leave "${0:t} Missing arument: MARKER"
+
+	if [[ -e ${MARKER_ARG} ]];then
+		LB_LAST_RUN=$(stat -c "%y" ${MARKER_ARG} | cut -d' ' -f1)
+	else
+		touch ${_MARKER}
+		exit_leave $(msg_warn "${_SCRIPT}: Last backup date is unknown")
+	fi
+
+	[[ -e ${MARKER_ARG} ]] && LB_LAST_TIME=$(stat -c"%x" ${MARKER_ARG} | cut -d. -f1 | cut -d' ' -f2 | cut -d: -f1,2) 
+
+	echo "$(datediff ${_TODAY} ${LB_LAST_RUN}) at ${LB_LAST_TIME}"
+}
+
+is_mounted () {
+	local TRYS=0
+	local -a MOUNT_LIST
+	local M
+
+	while true;do
+		((TRYS++))
+		MOUNT_LIST=("${(f)$(mount -t ext4,vfat)}")
+		sleep 1
+		for M in ${MOUNT_LIST};do
+			[[ ${TRYS} -gt 2 ]] && return 1
+			[[ ${M:l} =~ ${_DEST_ID:l} ]] && return 0
+		done
+	done
+}
+
+cleanup () {
+	local PID
+
+	clear
+	msg_box "Waiting for rsync process to finish..."
+
+	while true;do
+		PID=$(pgrep -n rsync)
+		[[ -z ${PID} ]] && break
+		sleep 1
+	done
+
+	[[ ${g_FOUND_EXT} == 'true' ]] && dut external -u
+	msg_box -t.8 "External drive ${_DEST_ID:l} was unmounted"
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-f${RESET} force"
+	echo -e "${WHITE_FG}-s${RESET} status"
+	echo -e "${WHITE_FG}-i${RESET} date of last backup"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Backup selected directories"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDfis"
+
+FORCE=false
+INFO=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     f) FORCE=true;;
+     s) last_backup ${_MARKER};exit;;
+     i) INFO=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+g_LAST_RUN=$(last_backup ${_MARKER})
+
+GHOST_NDX=0
+while true;do
+	((GHOST_NDX++))
+	[[ ${GHOST_NDX} -gt 1 ]] && exit_leave $(msg_err "Unable to clear ghost mounts")
+	if [[ -e ${_MOUNTPOINT}/${_DEST_ID}1 ]];then
+		msg_box "Detected ghost mounts - attempting removal"
+		dut external -u
+	else
+		msg_box -c "Ghost mounts removed"
+		break
+	fi
+done
+
+#Info option
+[[ ${INFO} == 'true' ]] && msg_box -p -PK "Last backup was ${WHITE_FG}${g_LAST_RUN}${RESET}" && exit_leave
+
+if [[ (-f ${_MARKER}) && (${FORCE} == "false") && (${g_LAST_RUN:l} =~ 'today') ]];then
+	msg_box -p -P"Press F to Force"  "Last backup was ${g_LAST_RUN}"
+	if [[ ${_MSG_KEY:l} != 'f' ]];then
+		exit_leave $(msg_warn "Operation Cancelled")
+	fi
+fi
+
+clear
+msg_box -t.8 "Checking mounted drives..."
+while true;do
+	if is_mounted;then
+		msg_box -t.8 "External drive ${_DEST_ID:l} is mounted"
+		g_FOUND_EXT=true
+		break
+	else
+		g_FOUND_EXT=false
+		msg_box -t.8 "Attempting to mount ${_DEST_ID:l}..."
+		dut external -m
+		[[ ${?} -ne 0 ]] && exit_leave "\nNo external drives available"
+	fi
+done
+[[ g_FOUND_EXT == 'false' ]] && exit_leave $(msg_warn "Failed to mount ${_DEST_ID:l}")
+
+#Backup
+echo
+echo "Backup started: $(date)" | tee ${_LOGFILE}
+echo "Excluded files: ${RS_EXCL}" | tee -a ${_LOGFILE}
+
+for D in ${BACKUP_DIRS};do
+	echo "sudo rsync ${RS_OPTS} ${RS_EXCL} ${D} ${_DESTINATION}" | tee -a ${_LOGFILE}
+	sudo rsync ${RS_OPTS} ${RS_EXCL} ${D} ${_DESTINATION} 2>/dev/null | tee -a ${_LOGFILE}
+	RC=${?}
+	[[ ${RC} -ne 0 ]] && msg_box -p -PK "rsync had an error:${RC}"
+done
+
+echo "Finished backup..." | tee -a ${_LOGFILE}
+echo "Backup ended: $(date)" | tee -a ${_LOGFILE}
+
+touch ${_MARKER}
+cleanup
+
+exit_leave

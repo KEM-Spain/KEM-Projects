@@ -1,0 +1,258 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_LIB_DIR=/usr/local/lib
+_COL_MAX=150
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/MSG.zsh
+source ${_LIB_DIR}/DURABLE.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+#Declarations
+typeset -a LIST
+typeset -a RAWLIST
+typeset LINE_LIMIT=100
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		s) echo "<SEARCHTERM>";;
+		m) echo "<MATCHES>";;
+		p) echo "<PATH>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type s)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-I${RESET} case sensitive"
+	echo -e "${WHITE_FG}-c${RESET} no ansi color"
+	echo -e "${WHITE_FG}-e${RESET} exclude search"
+	echo -e "${WHITE_FG}-f${RESET} specify file to scan"
+	echo -e "${WHITE_FG}-l${RESET} list files"
+	echo -e "${WHITE_FG}-L${RESET} list files on one line"
+	echo -e "${WHITE_FG}-m $(opt_type m)${RESET} max matches to process (default: all)"
+	echo -e "${WHITE_FG}-n${RESET} line numbers"
+	echo -e "${WHITE_FG}-o${RESET} only matched"
+	echo -e "${WHITE_FG}-p $(opt_type p)${RESET} alternate path"
+	echo -e "${WHITE_FG}-r${RESET} recurse"
+	echo -e "${WHITE_FG}-w${RESET} whole word match"
+	echo -e "\n${WHITE_FG}Desc${RESET}:find files containing <SEARCHTERM> in or below the current directory\n"
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDIcef:lLm:nop:rw"
+
+CASE_OPT='-i'
+CASE_SENSE=false
+EXCLUDE_OPT=''
+FILELIST=false
+LINENUM_OPT=''
+LISTFILES_OPT=''
+MY_PATH=${PWD}
+MY_FILE=''
+COLORS=always
+ONE_LINE=false
+ONLY_OPT=''
+RECURSE=false
+RECURSE_OPT=''
+WORD_OPT=''
+MAX_MATCHES=''
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+	  D) dbg_set_level;;
+     I) CASE_OPT='';CASE_SENSE=true;;
+     c) COLORS=never;;
+     e) EXCLUDE_OPT=-v;;
+     f) MY_FILE=${OPTARG};;
+     l) LISTFILES_OPT=-l;FILELIST=true;;
+     L) LISTFILES_OPT=-l;FILELIST=true;ONE_LINE=true;;
+     m) MAX_MATCHES="-m${OPTARG}";;
+     n) LINENUM_OPT=-n;;
+     o) ONLY_OPT=-o;;
+     p) MY_PATH=${OPTARG};;
+     r) RECURSE_OPT=-r;RECURSE=true;;
+     w) WORD_OPT=-w;;
+     :) print -u2 "${_SCRIPT}: Option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}${BOLD}${RED_FG}Unknown option${RESET}${RESET} - ${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+SEARCHTERM=${@} 
+
+#Execution
+[[ ${_DEBUG} -eq 0 && FILELIST == 'false' ]] && do_smcup
+#[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ -z ${SEARCHTERM} ]] && usage "Missing argument:<SEARCHTERM>"
+[[ ! -t 0 ]] && exit_leave $(msg_warn "Unable to accept piped input")
+
+if [[ -n ${MY_FILE} ]];then # if file was passed
+	if [[ ! -e ${MY_PATH}/${MY_FILE} ]];then # and not found
+		exit_leave $(msg_warn "file not found:${MY_PATH}/${MY_FILE}") # exit not found
+	else
+		MY_GREP_ARG="${MY_PATH}/${MY_FILE}" # limit to file name
+	fi
+else
+	MY_GREP_ARG="${MY_PATH}/*" # no file name was passed - all files in path
+fi
+
+CMD=$(echo "grep -H -r -P -I -d skip -D skip ${MAX_MATCHES} --color=never ${RECURSE_OPT} ${LINENUM_OPT} ${EXCLUDE_OPT} ${ONLY_OPT} ${WORD_OPT} ${CASE_OPT} '"${SEARCHTERM}"' ${MY_GREP_ARG} 2>/dev/null")
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} CMD:${CMD}"
+
+RAWLIST=("${(f)$(eval ${CMD})}")
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} RAWLIST:${#RAWLIST}"
+[[ ${_DEBUG} -gt 1 ]] && dbg "${0}:${LINENO} RAWLIST:${RAWLIST}"
+
+LONGEST_FN=0
+LONGEST_LN=0
+NDX=0
+for L in ${RAWLIST};do
+	((NDX++))
+	if [[ ${FILELIST} == 'false' ]];then
+		clear
+		tput cup 0 0; tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#RAWLIST} $(( NDX * 100. / ${#RAWLIST} ))
+	fi
+	FN=$(cut -d: -f1 <<<${L})
+	FTYPE=$(file -L ${FN})
+	[[ ${_DEBUG} -gt 0 && (! ${FTYPE} =~ 'text') ]] && dbg "${0}:${LINENO} File:${FN} rejected - not text:${FTYPE}" 
+	[[ ! ${FTYPE} =~ 'text' ]] && continue
+	LN=$(cut -d: -f2- <<<${L})
+	[[ ${COLORS} == 'always' ]] && LN=$(echo ${LN} | grep --color=${COLORS} ${CASE_OPT} ${SEARCHTERM}) # colorize
+	LN=${LN[1,${_COL_MAX}]} #limit usable line length; some files have no line breaks
+	LN=$(tr -d '\012\015' <<<${LN})
+	LN=$(tr -s '[:space:]' <<<${LN})
+	LN=$(sed 's/[\t\n]/ /' <<<${LN})
+	LN=$(sed 's/\x2a//g' <<<${LN})
+	LN=$(str_trim <<<${LN})
+	if [[ ${FN:h} != ${PWD} ]];then
+		FNP=$(pathabv -l15 <<<${FN})
+	else
+		FNP=${FN:t}
+	fi
+	[[ ${#FNP} -gt ${LONGEST_FN} ]] && LONGEST_FN=${#FNP}
+	[[ ${#LN} -gt ${LONGEST_LN} ]] && LONGEST_LN=${#LN}
+	LIST+="${FNP}|${LN}"
+done
+echo "\n" >&2
+
+if ! arr_is_populated "${LIST}";then
+	exit_leave $(msg_warn "No file(s) found containing:${SEARCHTERM}\\\n${MAGENTA_FG}Grep command was${RESET}:${CMD}")
+fi
+
+if [[ ${FILELIST} == 'true' ]];then
+	UNIQ=("${(f)$(
+	for L in ${LIST};do
+		FN=$(cut -d'|' -f1 <<<${L})
+		echo ${FN}
+	done | sort -u
+	)}")
+	for L in ${UNIQ};do
+		[[ -h ${L} ]] && continue
+		[[ ${ONE_LINE} == 'true' ]] && echo -n "${L} " || echo ${L}
+	done
+else
+	{
+	if [[ ${FILELIST} == 'false' ]];then
+		tput cup 1 0; echo ${CMD} | tr -s '[:space:]'
+		[[ ${RECURSE} == 'true' ]] && RECURSE_MSG=" (recursive)" || RECURSE_MSG=''
+		[[ ${CASE_SENSE} == 'true' ]] && CASE_MSG=" (case sensitive)" || CASE_MSG=''
+		echo "Path:${WHITE_FG}${MY_PATH}${RECURSE_MSG}${RESET}, Search:${WHITE_FG}${SEARCHTERM}${CASE_MSG}${RESET}, Result: ${WHITE_FG}${#RAWLIST}${RESET} lines\n\n"
+		if [[ -n ${LINENUM_OPT} ]];then
+			[[ ${LONGEST_LN} -gt $(( _COL_MAX - LONGEST_FN )) ]] && LONGEST_LN=$(( (_COL_MAX - LONGEST_FN) - 7 ))
+			REM=$(( (_COL_MAX - LONGEST_FN) - 8))
+			printf "${WHITE_FG}%-*s %5s %-*s${RESET}\n" ${LONGEST_FN} "File" "Line" ${LONGEST_LN} "Text"
+			echo -n "${MAGENTA_FG}$(str_unicode_line $((LONGEST_FN--)))  ${MAGENTA_FG}$(str_unicode_line 4)${RESET} ${MAGENTA_FG}$(str_unicode_line $((LONGEST_LN - 4)))${RESET}"
+			echo
+		else
+			[[ ${LONGEST_LN} -gt $(( _COL_MAX - LONGEST_FN )) ]] && LONGEST_LN=$(( (_COL_MAX - LONGEST_FN) - 4 ))
+			REM=$(( (_COL_MAX - LONGEST_FN) - 4))
+			printf "${WHITE_FG}%-*s %-*s${RESET}\n" ${LONGEST_FN} "File" ${LONGEST_LN} "Text"
+			echo -n "${MAGENTA_FG}$(str_unicode_line $((LONGEST_FN--))) ${MAGENTA_FG}$(str_unicode_line $((LONGEST_LN--)))${RESET}"
+			echo
+		fi
+	fi
+
+	NDX=0
+	for L in ${LIST};do
+		((NDX++))
+		[[ $(( NDX % 2 )) -ne 0 ]] && BAR=${BLACK_BG} || BAR=''
+		FN=$(cut -d'|' -f1 <<<${L})
+		LN=$(cut -d'|' -f2- <<<${L})
+		if [[ -n ${LINENUM_OPT} ]];then
+			LNUM=$(cut -d: -f1 <<<${LN})
+			LN=$(cut -d: -f2- <<<${LN})
+			LN=$(tr -d '\012\015' <<<${LN})
+			LN=$(tr -s '[:space:]' <<<${LN})
+			LN=$(sed 's/[\t\n]/ /' <<<${LN})
+			LN=$(sed 's/\x2a//g' <<<${LN})
+			LN=$(str_trim <<<${LN})
+			printf "${BAR}${WHITE_FG}%-*s ${CYAN_FG}%5s ${RESET}%-*.${REM}s\n" ${LONGEST_FN} ${FN} ${LNUM} ${LONGEST_LN} ${LN}
+		else
+			printf "${BAR}${WHITE_FG}%-*s ${RESET}%-*.${REM}s\n" ${LONGEST_FN} ${FN} ${LONGEST_LN} ${LN}
+		fi
+	done
+	} | mypager wait
+fi
+
+exit_leave
+

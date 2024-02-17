@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk, Gdk, GLib
+
+class Test:
+    def __init__(self):
+        # Create a new window
+        self.window = Gtk.Window()
+        self.window.set_title("Test")
+
+        # It's a good idea to do this for all windows.
+        self.window.connect("destroy", lambda wid: Gtk.main_quit())
+        self.window.connect("delete_event", lambda a1,a2:Gtk.main_quit())
+
+        # Sets the border width of the window.
+        self.window.set_border_width(20)
+
+        # Create a new button
+        button = Gtk.Button(label = "Click")
+
+        # Two lists for append the click events
+        self.single_click_events = []
+        self.double_click_events = []
+
+        # Connect the "clicked" signal of the button to our callback
+        button.connect("button-press-event", self.on_button_press_event)
+        button.show()
+
+        self.window.add(button)
+        self.window.show()
+
+    def on_button_press_event(self, widget, event):
+        if event.button == 1:
+            if event.type == Gdk.EventType._2BUTTON_PRESS:
+                # Remove all single click events
+                while self.single_click_events:
+                    GLib.source_remove(self.single_click_events.pop())
+                GLib.idle_add(self.handle_double_click,widget,event)
+            elif event.type == Gdk.EventType.BUTTON_PRESS:
+                # Schedule the callback 'self.handle_single_click' after double click can occur (after 300ms)
+                self.single_click_events.append(GLib.timeout_add(300,self.handle_single_click,widget,event))
+
+
+    def handle_single_click(self,widget,event):
+        # TODO: Handle single click
+        print("TODO: Handle single click")
+        # Remove all single click events
+        while self.single_click_events:
+            GLib.source_remove(self.single_click_events.pop())
+
+
+    def handle_double_click(self,widget,event):
+        # TODO: Handle double click
+        print("TODO: Handle double click")
+        # Remove all double click events
+        while self.double_click_events:
+            GLib.source_remove(self.double_click_events.pop())
+
+def main():
+    Test()
+    Gtk.main()
+    return 0
+
+if __name__ == "__main__":
+    main()

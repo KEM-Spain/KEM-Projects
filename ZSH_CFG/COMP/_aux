@@ -1,0 +1,6 @@
+#compdef aux
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-a[All user processes]'

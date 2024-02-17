@@ -1,0 +1,122 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Declarations
+typeset -a LIST
+
+#Constants
+_LIB_DIR=/usr/local/lib
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Display current values in the environment
+\tEnter a <SEARCHTERM> to limit scope
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		s) echo "<SEARCHTERM>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type s)]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HD"
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+LIST=("${(f)$(env | grep -i "^${1}" | sort)}") 
+
+[[ -z ${LIST} ]] && exit_leave $(msg_warn "No environment variables match:${1}")
+
+tput cup 0 0
+{
+echo "Environment Variables\n"
+printf "${WHITE_FG}%35s    %-50s${RESET}\n" "Variable" "Value"
+printf "${CYAN_FG}%35s    %-50s${RESET}\n" $(str_unicode_line 8) $(str_unicode_line 5)
+for L in ${LIST};do
+	VAR=$(echo ${L} | cut -d= -f1)
+	VAL=$(echo ${L} | cut -d= -f2-)
+	printf "${GREEN_FG}%35s${RESET} -> ${WHITE_FG}%-.100s${RESET}\n" ${VAR} ${VAL}
+done | sort
+} | mypager
+[[ ${?} -ne 0 ]] && echo -n "Press any key..." && read -sk1
+
+exit_leave

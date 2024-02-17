@@ -1,0 +1,63 @@
+#comdef tut
+
+_tut() {
+    local line state
+
+    _arguments -C \
+               "1: :->cmds" \
+					"-H[help]" \
+					"-D[debug]" \
+               "*::arg:->args"
+    case "$state" in
+        cmds)
+				_values	"Commands:" \
+							"add_braces[Add braces to zsh variables]" \
+							"ascii_only[Strip non ascii]" \
+							"blank_lines[Strip blank lines]" \
+							"strip_ansi[Strip ansi escapes]" \
+							"to_lower[Convert to lowercase]" 
+							;;
+        args)
+            case $line[1] in
+                add_braces) _do_add_braces ;;
+                ascii_only) _do_ascii_only ;;
+                blank_lines) _do_blank_lines ;;
+                strip_ansi) _do_strip_ansi ;;
+                to_lower) _do_to_lower ;;
+            esac
+            ;;
+    esac
+}
+
+_do_add_braces() {
+    _arguments -s \
+			'-H[help]' 
+
+	_files -W ${PWD} ${0}
+}
+
+_do_ascii_only() {
+    _arguments -s \
+			'-H[help]' 
+
+	_files -W ${PWD} ${0}
+}
+
+_do_blank_lines() {
+    _arguments -s \
+
+	_files -W ${PWD} ${0}
+}
+
+_do_strip_ansi() {
+    _arguments -s \
+
+	_files -W ${PWD} ${0}
+}
+
+_do_to_lower() {
+    _arguments -s \
+
+	_files -W ${PWD} ${0}
+}
+

@@ -1,0 +1,7 @@
+#compdef tvi
+_files -W ~ tvi
+_files -W /usr/local/bin tvi
+_files -W /usr/local/bin/system tvi
+_files -W /usr/local/bin/system/launchers tvi
+_files -W /usr/local/lib tvi
+_files -W /usr/local/etc tvi

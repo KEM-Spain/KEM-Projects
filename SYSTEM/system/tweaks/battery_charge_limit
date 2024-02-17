@@ -1,0 +1,28 @@
+#!/usr/bin/zsh
+
+RESET="\033[m"
+BOLD="\033[1m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+show_limit () {
+	echo -n "Current battery charge limit:"
+	echo -n ${WHITE_FG}
+	sudo cat /sys/class/power_supply/BAT0/charge_control_end_threshold
+	echo ${RESET}
+}
+
+[[ -z $1 ]] && echo "Need a percentage to limit battery charging i.e. 50,60,70 percent etc." && show_limit && exit
+echo $1 | sudo tee  /sys/class/power_supply/BAT0/charge_control_end_threshold
+show_limit

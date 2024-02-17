@@ -1,0 +1,539 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Declarations
+typeset -A _FIELD_ORDER
+typeset -A _LINE_DELIM
+typeset -A _SEEN
+typeset -a _HDR
+typeset -a _LOCAL_LIST
+typeset -a _RAWLIST
+
+#Constants
+TODAY=$(date +'%m/%d/%y')
+HISTFILE=~/.zsh_history
+GREP_LIST=/tmp/grep.list
+HDR_BAR=$'\u2501' #header character
+_LIB_DIR=/usr/local/lib
+LOG=./${0:t}.log
+LONGEST_CMD=0
+LONGEST_ARG=0
+MAX_CMD_LEN=40
+MAX_ARG_LEN=80
+DEFAULT_LINES=150
+ACTION_PATTERN=''
+SORT_LBL=''
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+#Functions
+action_do () {
+	local -a MARKED=(${@})
+	local SELECT_COUNT=$(list_get_selected_count)
+	local -A STAMPS
+	local -a DELETED
+	local M D
+	local RC
+	local STAMP
+	local NDX
+	local CALLING
+	local REPLY
+	local MSG_OUT
+
+	if [[ ${SELECT_COUNT} -gt 1 ]];then
+		for M in ${MARKED};do
+			STAMP=$(get_stamp ${_LOCAL_LIST[${M}]})
+			sed -i -E "/${STAMP}/d" ${HISTFILE}
+			RC=$?
+			list_set_selected ${M} ${_GHOST_ROW}
+		done
+	else
+		if [[ ${ACTION_PATTERN} =~ 'XCLIP' ]];then
+			echo $(cut -d'|' -f2- <<<${ACTION_PATTERN}) | xclip -selection clip
+			msg_box -p -PK "Copied to Cliboard"
+			clear_list
+		elif [[ ${ACTION_PATTERN} =~ 'exec' ]];then
+			local C=$(cut -d'|' -f2 <<<${ACTION_PATTERN} | cut -d' ' -f1)
+			local A=$(cut -d'|' -f2- <<<${ACTION_PATTERN} | cut -d' ' -f2-)
+			MSG_OUT="<w>Executing<N>: CMD:${C} ARGS:${A}"
+			CALLING=$(fut findexe "${C:t}" | grep bin | head -1 | tr -d '[:space:]' | sed "s/${USER}//g")
+			[[ -n ${CALLING} ]] && MSG_OUT+="|<w>  Calling<N>: ${CALLING} ${A}"
+			msg_box -jl -p -PP ${MSG_OUT}
+			if [[ ${_MSG_KEY} == 'y' ]];then
+				eval ${C:Q} ${A:Q}  | less -R
+			fi
+			clear_list
+		else
+			msg_box 'Please wait...'
+			[[ -e ${HISTFILE}.out ]] && rm -f ${HISTFILE}.out
+			sort < ${HISTFILE} > ${HISTFILE}.srt
+			mv ${HISTFILE}.srt ${HISTFILE}
+
+			export ACTION_PATTERN="${ACTION_PATTERN}"
+			perl -W -n -i.bak -e '$RGX=$ENV{ACTION_PATTERN}; print unless /$RGX/;' ${HISTFILE} #original to .bak; deletions in place to original
+
+			comm -3 ${HISTFILE} ${HISTFILE}.bak | sed -e 's/^[[:blank:]]*//' >${HISTFILE}.deleted #output no common lines between orig and backup yielding deletions
+
+			DELETED=("${(f)$(cat ${HISTFILE}.deleted)}")
+
+			for D in ${DELETED};do #mark the stamps as deleted
+				STAMP=$(cut -d';' -f1 <<<${D} | cut -d':' -f2 | tr -d '[:space:]')
+				STAMPS[${STAMP}]=1
+			done
+
+			NDX=0
+			for M in ${_LOCAL_LIST};do #set the deleted rows to display as strike-through
+				((NDX++))
+				STAMP=$(get_stamp ${M})
+				[[ ${STAMPS[${STAMP}]} -eq 1 ]] && list_set_selected ${NDX} ${_GHOST_ROW}
+			done
+			msg_box_clear
+		fi
+	fi
+
+	[[ -e ${HISTFILE}.deleted ]] && rm -f ${HISTFILE}.deleted #cleanup
+}
+
+action_warn () {
+	local -a MARKED=(${@})
+	local -a OPTIONS
+	local SELECT_COUNT=$(list_get_selected_count)
+	local CMD
+	local ARGS
+	local STAMP
+	local ROWS
+	local OPT_MSG 
+	local MSG_DELIM=?
+	local HEX_LETTER
+	local OPT_NDX
+	local -A OPT_REF
+	local -A OPT_DESC
+	local -A OPT_INFO
+	local -A OPT_LETTER
+	local O
+
+	#if more than 1 cmd selected	
+	if [[ ${SELECT_COUNT} -gt 1 ]];then
+		msg_box -p -PP "${SELECTED} commands will be deleted"
+		if [[ ${_MSG_KEY} == 'y' ]];then
+			return 0
+		else
+			clear_list
+			return 1
+		fi
+	fi
+
+	#only if 1 cmd selected	
+	CMD=$(str_trim $(get_cmd ${_LOCAL_LIST[${MARKED}]}))
+	ARGS=$(str_trim $(get_args ${_LOCAL_LIST[${MARKED}]}))
+	STAMP=$(str_trim $(get_stamp ${_LOCAL_LIST[${MARKED}]}))
+
+	OPT_DESC[1]="Delete all [${CMD}] commands"				&& OPT_INFO[1]=";${CMD}\s.*"          && OPT_REF[1]="true" && OPT_LETTER[1]='d'
+	OPT_DESC[2]="Delete all lines with args:[${ARGS}]"		&& OPT_INFO[2]=";\S.*${ARGS}"         && [[ -n ${ARGS} ]] && OPT_REF[2]="true" && OPT_LETTER[2]='a'
+	OPT_DESC[3]="Place row [${MARKED}] on the clipboard"	&& OPT_INFO[3]="XCLIP|${CMD} ${ARGS}" && OPT_REF[3]="true"  && OPT_LETTER[3]='c'
+	OPT_DESC[4]="Delete row [${MARKED}]"						&& OPT_INFO[4]="${STAMP}"             && OPT_REF[4]="true"  && OPT_LETTER[4]='r'
+	OPT_DESC[5]="<I><U>Execute<N>: [ ${CMD} ${ARGS} ]"		&& OPT_INFO[5]="exec|${CMD} ${ARGS}"  && OPT_REF[5]="true"  && OPT_LETTER[5]='e'
+
+	MSG_DELIM=$(parse_find_valid_delim "${CMD}${ARGS}")
+
+	for O in ${(ok)OPT_REF};do
+		if [[ ${OPT_REF[${O}]} == 'true' ]];then
+			if [[ ${OPT_DESC[${O}]:l} =~ 'execute' ]];then
+				OPT_MSG+="<I>${OPT_LETTER[${O}]}<N>) *${OPT_DESC[${O}]}${MSG_DELIM}" #special decoration for execute
+			else
+				OPT_MSG+="${OPT_LETTER[${O}]}) ${OPT_DESC[${O}]}${MSG_DELIM}"
+			fi
+		fi
+	done
+ 
+	OPT_MSG+=" ${MSG_DELIM}Select: ("
+	OPT_NDX=0
+	for O in ${(ok)OPT_REF};do
+		((OPT_NDX++))
+		[[ ${OPT_REF[${O}]} == 'true' ]] && OPT_MSG+=${OPT_LETTER[${O}]}
+		[[ ${OPT_NDX} -le ${O} && ${OPT_NDX} -lt ${#OPT_REF} ]] && OPT_MSG+='/'
+	done
+	OPT_MSG+=")"
+ 
+	#display menu
+	msg_box -jl -s${MSG_DELIM} -p "<m>Options<N>${MSG_DELIM}$(str_unicode_line 7)${MSG_DELIM}${OPT_MSG} or <ENTER> to cancel"
+
+	ACTION_PATTERN="${OPT_INFO[${(k)OPT_LETTER[(r)${_MSG_KEY}]}]}" #reverse lookup
+	[[ -z ${ACTION_PATTERN} ]] && clear_list && return 1 #no selection
+
+	[[ ${ACTION_PATTERN} =~ "XCLIP" ]] && return 0 #nothing else to do here; proceed to action
+	[[ ${ACTION_PATTERN} =~ "exec" ]] && return 0 #nothing else to do here; proceed to action
+
+	#determine rows affected by regex
+	export ACTION_PATTERN="${ACTION_PATTERN}"
+	ROWS=$(perl -n -e '$RGX=$ENV{ACTION_PATTERN}; $count++ if /$RGX/; END { print $count }' ~/.zsh_history)
+
+	if [[ -z ${ROWS} ]];then
+		msg_box -p -PK "ACTION_PATTERN:${ACTION_PATTERN} regex failed to detect any rows"
+		clear_list
+		return 1
+	fi
+
+	msg_box -p -PP "$(str_pluralize command ${ROWS} true) will be deleted"
+	if [[ ${_MSG_KEY} == 'y' ]];then
+		return 0
+	else
+		clear_list
+		return 1
+	fi
+}
+
+clear_list () {
+	local M
+
+	for M in ${MARKED};do
+		list_clear_selected ${M}
+	done
+}
+
+get_stamp () {
+	local LINE=${1}
+	local TSTAMP
+	local DELIM=${LINE[1]}
+
+	TSTAMP=$( cut -d"${DELIM}" -${_FIELD_ORDER[STAMP]} <<<${LINE} )
+	echo $(str_trim ${TSTAMP})
+}
+
+get_cmd () {
+	local LINE=${1}
+	local CMD
+	local DELIM=${LINE[1]}
+
+	CMD=$(cut -d"${DELIM}" -${_FIELD_ORDER[CMD]} <<<${LINE} )
+	echo $(str_trim ${CMD})
+}
+
+get_args () {
+	local LINE=${1}
+	local ARGS
+	local DELIM=${LINE[1]}
+
+	ARGS=$( cut -d"${DELIM}" -${_FIELD_ORDER[ARGS]} <<<${LINE} )
+	echo $(str_trim ${ARGS})
+}
+
+get_hist () {
+	local SEARCHTERM=${1}
+	local -A CMDS
+	local -a WORKLIST
+	local ARG
+	local CMD
+	local CMD_TSTAMP 
+	local FOUND_MATCHING=0
+	local H_L H_R
+	local NDX H V
+	local L
+	local SEP
+	local BLOCK_VAL
+	local EXACT_ARG
+
+
+	#Pull rows; remove any embedded newlines following single or double quotes
+	if [[ -n ${SEARCHTERM} ]];then
+		WORKLIST+=("${(f)$(grep -a -P '^:' ${HISTFILE} | grep -ai ${SEARCHTERM} | sort -rn )}") #only MATCHING SEARCHTERM
+	else
+		WORKLIST+=("${(f)$(grep -a -P '^:' <<<$(tail -${DEPTH_LIMIT} ${HISTFILE}) | sort -rn )}") #ALL ROWS
+	fi
+
+	NDX=0
+	for H in ${WORKLIST};do
+		((NDX++))
+		tput cup 0 0; tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET} Limit:${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET}" ${NDX} ${#WORKLIST} $(( NDX * 100. / ${#WORKLIST} )) $((FOUND_MATCHING+1)) ${DEPTH_LIMIT}
+
+		H_L="$(cut -d';' -f1 <<<${H});"
+		H_R=$(cut -d';' -f2 <<<${H})
+		CMD_TSTAMP=$(cut -d: -f2 <<<${H_L})
+
+		#split cmds from args
+		if [[ -z $(cut -s -d' ' -f1 <<<${H_R}) ]];then #[cut -s] do not print args if no delim exists; no delim = cmd w/o args
+			CMD=${H_R} 
+			ARG=' '
+		else
+			CMD=$(cut -d' ' -f1 <<<${H_R})
+			ARG=$(cut -d' ' -f2- <<<${H_R} | sed 's/\t//g')
+		fi
+
+		_LINE_DELIM[${CMD_TSTAMP}]=$(parse_find_valid_delim ${H})
+
+		if [[ -n ${SEARCHTERM} ]];then
+			#MATCH EITHER CMD OR ARG
+			if [[ ${MATCH_ARGS} == 'true' && ${MATCH_CMDS} == 'true' ]];then 
+				[[ (!"${CMD}" =~ ${SEARCHTERM}) && (!"${ARG}" =~ ${SEARCHTERM}) ]] && continue
+				if [[ ${EXACT_MATCH} == 'true' ]];then #exact?
+					[[ ${SEARCHTERM} == "${CMD}" ]] && EXACT_CMD=true || EXACT_CMD=false
+					grep -qw ${SEARCHTERM} <<<${ARG}
+					[[ ${?} -eq 0 ]] && EXACT_ARG=true || EXACT_ARG=false
+				fi
+				[[ ${EXACT_CMD} == 'false' && ${EXACT_ARG} == 'false' ]] && continue
+			fi
+
+			#MATCH ONLY CMDS
+			if [[ ${MATCH_CMDS} == 'true' && ${MATCH_ARGS} == 'false' ]];then
+				[[ ! ${CMD} =~ ${SEARCHTERM} ]] && continue
+				#EXACT
+				[[ ${EXACT_MATCH} == 'true' && ${SEARCHTERM} != ${CMD} ]] && continue #exact?
+			fi
+
+			#MATCH ONLY ARGS
+			if [[ ${MATCH_ARGS} == 'true' && ${MATCH_CMDS} == 'false' ]];then
+				[[ ! ${ARG} =~ ${SEARCHTERM} ]] && continue
+				if [[ ${EXACT_MATCH} == 'true' ]];then #exact?
+					#EXACT
+					grep -qw ${SEARCHTERM} <<<${ARG}
+					[[ ${?} -ne 0 ]] && continue
+				fi
+			fi
+		fi
+		 
+		#Get/Set longest strings
+		CMD=${CMD[1,${MAX_CMD_LEN}]}
+		ARG=$(echo ${ARG} | sed 's/\t//g' | tr -cd '[:print:]') #scrub args for non printable
+		ARG=${ARG[1,${MAX_ARG_LEN}]} #set max length
+		[[ ${#CMD} -gt ${LONGEST_CMD} ]] && LONGEST_CMD=${#CMD}
+		[[ ${#ARG} -gt ${LONGEST_ARG} ]] && LONGEST_ARG=${#ARG}
+		[[ ${LONGEST_CMD} -gt ${MAX_CMD_LEN} ]] && LONGEST_CMD=${MAX_CMD_LEN}
+		[[ ${LONGEST_ARG} -gt ${MAX_ARG_LEN} ]] && LONGEST_ARG=${MAX_ARG_LEN}
+
+		SEP=${_LINE_DELIM[${CMD_TSTAMP}]}
+
+		#Place sort field col 1;delimit with valid delim
+		if [[ ${ORDER} == 'true' ]];then
+			_RAWLIST+="${SEP}${CMD}${SEP}${ARG}${SEP}${CMD_TSTAMP}"
+		else
+			_RAWLIST+="${SEP}${CMD_TSTAMP}${SEP}${CMD}${SEP}${ARG}"
+		fi
+
+		FOUND_MATCHING=${#_RAWLIST}
+		[[ ${FOUND_MATCHING} -eq ${DEPTH_LIMIT} ]] && break
+	done
+
+	#Set sort dependent vars
+	[[ ${ORDER} == 'false' ]] && _LOCAL_LIST=(${(On)_RAWLIST}) || _LOCAL_LIST=(${(on)_RAWLIST})
+
+	if [[ ${ORDER} == 'true' ]];then
+		_FIELD_ORDER[CMD]=f2
+		_FIELD_ORDER[ARGS]=f3
+		_FIELD_ORDER[STAMP]=f4
+		SORT_LBL='command ascending'
+	else
+		_FIELD_ORDER[STAMP]=f2
+		_FIELD_ORDER[CMD]=f3
+		_FIELD_ORDER[ARGS]=f4
+		SORT_LBL='time ascending'
+	fi
+}
+
+hide_unwanted_chars () {
+	local LINE=${@}
+	sed -e 's/\\n/<newline>/g' -e 's//<return>/g' <<<${LINE}
+}
+
+stamp_decorate () {
+	local TSTAMP=${1}
+	local CMD_DATE
+	local CMD_TIME
+	local CMD_DATE_TIME
+
+	CMD_DATE=$(date -d@${TSTAMP} +"%D" 2>/dev/null)
+	CMD_TIME=$(date -d@${TSTAMP} +"%H:%M" 2>/dev/null)
+
+	[[ ${CMD_DATE} == ${TODAY} ]] && CMD_DATE='Today'
+	[[ ${CMD_DATE} == $(date --date="${TODAY} -1 day" +'%m/%d/%y') ]] && CMD_DATE='Yesterday'
+
+	CMD_DATE_TIME="${CMD_DATE}${E_GREEN_FG}@${E_RESET}${CMD_TIME}"
+
+	echo ${CMD_DATE_TIME}
+}
+
+#--BeginGetOpts--
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O 
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		a) echo "<ARGUMENT>";;
+		c) echo "<COMMAND>";;
+		l) echo "<INT>";;
+		o) echo "<OUT_FILE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a $(opt_type a)${RESET} match arguments only"
+	echo -e "${WHITE_FG}-c $(opt_type c)${RESET} match commands only"
+	echo -e "${WHITE_FG}-l $(opt_type l)${RESET} override history depth limit - default is ${DEPTH_LIMIT}"
+	echo -e "${WHITE_FG}-o $(opt_type o)${RESET} write to file"
+	echo -e "${WHITE_FG}-s${RESET} display sorted results"
+	echo -e "${WHITE_FG}-x${RESET} exact match"
+	echo -e "${WHITE_FG}-z${RESET} no history row limit"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Search command history\n\tDefault is to match either commands or args\n\tDefault is ${DEFAULT_LINES} lines of history"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDa:c:l:o:sxz"
+
+HISTFILE=~/.zsh_history
+HISTROWS=$(wc -l <${HISTFILE})
+DEPTH_LIMIT=${DEFAULT_LINES}
+
+EXACT_MATCH=false
+LIMIT=3
+MATCH_ARGS=true
+MATCH_CMDS=true
+NATURAL=true
+ORDER=false
+ROWS_PER_PAGE=$(( $(tput lines) - 9 ))
+SHOWALL=false
+TOFILE=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     a) MATCH_CMDS=false;MATCH_ARGS=true;SEARCHTERM=${OPTARG};;
+     c) MATCH_CMDS=true;MATCH_ARGS=false;SEARCHTERM=${OPTARG};;
+     l) LIMIT=${OPTARG};;
+     o) TOFILE_FN=${OPTARG};TOFILE=true;;
+     s) ORDER=true;;
+     x) EXACT_MATCH=true;;
+     z) DEPTH_LIMIT=${HISTROWS};;
+     :) exit_leave "${_SCRIPT}: option: -${OPTARG} requires an argument";;
+    \?) exit_leave "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
+	esac
+done
+shift $((OPTIND -1))
+#--EndGetOpts--
+
+#Arg housekeeping
+[[ -z ${SEARCHTERM} ]] && SEARCHTERM=${1} #SEARCHTERM may have been populated above via OPTARG w/o MATCH_CMDS
+
+#--Execution--
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+#DEPTH_LIMIT=$((ROWS_PER_PAGE*LIMIT))
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+tput cup 0 0
+#echo "Cleaning history..."
+#hist_no_dups
+
+get_hist ${SEARCHTERM}
+
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	exit_leave $(msg_warn "No matching items")
+fi
+
+if [[ ${TOFILE} == 'true' ]];then
+	[[ -e ${TOFILE_FN} ]] && /bin/rm -f ${TOFILE_FN}
+	NDX=0
+	for L in ${_LOCAL_LIST};do
+		((NDX++))
+		C=$(get_cmd ${_LOCAL_LIST[${NDX}]})
+		A=$(get_args ${_LOCAL_LIST[${NDX}]})
+		S=$(get_stamp ${_LOCAL_LIST[${NDX}]})
+		echo "${C}|${A}|${S}" >> ${TOFILE_FN}
+	done
+	exit_leave $(msg_warn "Wrote ${#_LOCAL_LIST} lines to ${TOFILE_FN}")
+fi
+
+#Pre-process
+#HDR line 1
+[[ ${MATCH_CMDS} == "false" ]] && _HDR[1]="Matching ${E_WHITE_FG}Arguments${E_RESET} ${E_RED_FG}only${E_RESET}"
+[[ ${MATCH_ARGS} == "false" ]] && _HDR[1]="Matching ${E_WHITE_FG}Commands${E_RESET} ${E_RED_FG}only${E_RESET}"
+[[ -z ${_HDR[1]} ]] && _HDR[1]="Matching ${E_WHITE_FG}Commands${E_RESET} or ${E_WHITE_FG}Arguments${E_RESET}" 
+
+_HDR[1]="${_HDR[1]}  Searchterm:${E_WHITE_FG}${SEARCHTERM:-None}${E_RESET}  Exact match:${E_WHITE_FG}$(boolean_color_word ${EXACT_MATCH})${E_RESET}"
+
+#HDR line 2
+_HDR[2]="Limit:${E_WHITE_FG}${DEPTH_LIMIT}${E_RESET} of ${E_WHITE_FG}${HISTROWS}${E_RESET} total history lines"
+_HDR[2]="${_HDR[2]}  Found ${E_WHITE_FG}${#_LOCAL_LIST}${E_RESET} matching $(str_pluralize entry ${#_LOCAL_LIST})"
+
+#HDR line 2 end tag
+_HDR[2]="${_HDR[2]}  Order:${E_GREEN_FG}${SORT_LBL}${E_RESET}"
+
+[[ ${LONGEST_CMD} -lt 7 ]] && CMD_HDR=7 || CMD_HDR=${LONGEST_CMD}
+[[ ${LONGEST_ARG} -lt 9 ]] && ARG_HDR=9 || ARG_HDR=${LONGEST_ARG}
+
+#set headings
+list_set_header 'printf "%s  ${_PG}" ${_HDR[1]}'
+list_set_header 'printf "%s" ${_HDR[2]}'
+list_set_header 'printf "%s" ""'
+list_set_header 'printf "%*s${WHITE_FG}  %*s ${RESET}%-*s" ${#MAX_ITEM} " " ${CMD_HDR} "Command" ${ARG_HDR} "Arguments"'
+list_set_header 'printf "%*s${CYAN_FG}  %*s %-*s${RESET}" ${#MAX_ITEM} " " ${CMD_HDR} "$(str_rep_char ${HDR_BAR} ${CMD_HDR})" ${ARG_HDR} "$(str_rep_char ${HDR_BAR} ${ARG_HDR})"'
+
+#set line item
+local STRUCK
+list_set_line_item ' 
+[[ ${_LIST_SELECTED[${_LIST_NDX}]} -eq 2 ]] && STRUCK="${STRIKE}${RED_FG}" || STRUCK='';
+printf "${BOLD}${WHITE_FG}%*s${RESET}) ${SHADE}${BAR}${STRUCK}%*s${RESET} ${SHADE}${BAR}${STRUCK}%-*s${RESET} ${SHADE}${BAR}${STRUCK}%30s${RESET}\n" ${#MAX_ITEM} ${_LIST_NDX} ${CMD_HDR} "$(get_cmd ${_LIST[${_LIST_NDX}]})" ${ARG_HDR} "${$(get_args ${_LIST[${_LIST_NDX}]})[1,${MAX_ARG_LEN}]}" "$(stamp_decorate $(get_stamp ${_LIST[${_LIST_NDX}]}))"
+'
+list_set_no_top_offset #place the first detail line immediately after heading
+list_set_searchable false
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	SELECTED=$(list_get_selected_count)
+
+	[[ ${SELECTED} -eq 0 ]] && continue
+
+	MARKED=($(list_get_selected))
+
+	action_warn ${MARKED}
+	if [[ $? -eq 0 ]];then
+		list_set_page_hold
+		action_do ${MARKED}
+	fi
+done
+
+exit_leave

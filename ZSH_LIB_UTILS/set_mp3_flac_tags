@@ -1,0 +1,161 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a LIST
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Display music file tags for both mp3 and flac files
+\tOptionally set the Artist and Title tags
+\tIf setting tags, simply populate Artist name
+\tTitle will be derived from the file name
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		a) echo "<ARTIST>";;
+		d) echo "<DIR>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type d)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a${RESET} $(opt_type a) (will set tags if populated)"
+	echo -e "${WHITE_FG}-i${RESET} display tag info (default)"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDa:i"
+OPTIND=0
+
+SET=false
+ARTIST=''
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     a) ARTIST=${OPTARG};SET=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+MDIR=${@}
+[[ -z ${MDIR} ]] && usage "Missing required argument:$(opt_type d)"
+[[ ! -e ${MDIR} ]] && usage "Directory not found:${MDIR}"
+
+LIST=("${(f)$(find ${MDIR} -type f -name '*mp3' -o -name '*flac')}")
+if ! arr_is_populated "${LIST}";then
+	exit_leave $(msg_warn "No files found: ${MDIR}")
+fi
+
+HIT=false
+for L in ${LIST};do
+	[[ ! ${L:e} == 'mp3' ]] && continue
+	HIT=true
+	echo "Processing tags for: ${L}"
+	TRACK=$(sed -E 's/^[0-9]+[- ]?+//' <<<${L:t:r})
+	if [[ ${SET} == 'true' ]];then
+		mp3info -a "${ARTIST}" "${L}"
+		mp3info -t "${TRACK}" "${L}"
+		mp3info "${L}"
+	else
+		mp3info "${L}"
+	fi
+	echo "------------------------------------"
+done
+
+for L in ${LIST};do
+	[[ ! ${L:e} == 'flac' ]] && continue
+	HIT=true
+	echo "Processing tags for: ${L}"
+	TRACK=$(sed -E 's/^[0-9]+[- ]?+//' <<<${L:t:r})
+	if [[ ${SET} == 'true' ]];then
+		metaflac --remove-tag="ARTIST" "${L}"
+		metaflac --set-tag="ARTIST=${ARTIST}" "${L}"
+		metaflac --remove-tag="TITLE" "${L}"
+		metaflac --set-tag="TITLE=${TRACK}" "${L}"
+		metaflac --export-tags-to="/dev/stdout" "${L}"
+	else
+		metaflac --export-tags-to="/dev/stdout" "${L}"
+	fi
+	echo "------------------------------------"
+done
+
+[[ ${HIT} == 'false' ]] && echo "${RED_FG}No mp3 or flac files found${RESET}"
+
+exit_leave

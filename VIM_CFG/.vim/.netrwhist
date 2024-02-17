@@ -1,0 +1,12 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhistcnt =1
+let g:netrw_dirhist_1='/usr/local/bin/go/blog/content/context/google'
+let g:netrw_dirhist_0='/home/kmiller/Code/LOCAL/run_enpass'
+let g:netrw_dirhist_9='/home/kmiller/Code/LOCAL/tut'
+let g:netrw_dirhist_8='/home/kmiller/Code/LOCAL/o'
+let g:netrw_dirhist_7='/usr/local/bin/conv'
+let g:netrw_dirhist_6='/home/kmiller/.local/share/gnome-shell/extensions/bluetooth-quick-connect@bjarosze.gmail.com/schemas'
+let g:netrw_dirhist_5='/home/kmiller/.local/share/gnome-shell/extensions/bluetooth-quick-connect@bjarosze.gmail.com/locale'
+let g:netrw_dirhist_4='/home/kmiller/.local/share/gnome-shell/extensions/bluetooth-quick-connect@bjarosze.gmail.com/schemas'
+let g:netrw_dirhist_3='/home/kmiller/.local/share/gnome-shell/extensions/bluetooth-quick-connect@bjarosze.gmail.com/locale'
+let g:netrw_dirhist_2='/usr/local/lib'

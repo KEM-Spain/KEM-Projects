@@ -1,0 +1,51 @@
+#compdef xut
+
+_xut() {
+    local line state
+
+    _arguments -C \
+               "1: :->cmds" \
+					"-H[help]" \
+					"-D[debug]" \
+               "*::arg:->args"
+    case "$state" in
+        cmds)
+				_values "Commands:" \
+				"list[List current windows]" \
+				"mc[Show mouse coordinates]" \
+				"wid[Current win ID]" \
+				"wm2xdo[Convert wm ID to xdo ID]" \
+				;;
+        args)
+            case $line[1] in
+                list) _do_list ;;
+                mc) _do_mc ;;
+                wid) _do_wid ;;
+                wm2xdo) _do_wm2xdo ;;
+            esac
+            ;;
+    esac
+}
+
+_do_list() {
+    _arguments -s \
+			'-H[help]' 
+}
+
+_do_mc() {
+    _arguments -s \
+			'-H[help]' 
+}
+
+_do_wid() {
+    _arguments -s \
+			'-H[help]' 
+}
+
+_do_wm2xdo() {
+    _arguments -s \
+			'-H[help]' \
+			'-l[list]' 
+}
+
+

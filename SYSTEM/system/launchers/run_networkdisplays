@@ -1,0 +1,2 @@
+#!/usr/bin/zsh
+exec /usr/local/bin/ntwk_display &

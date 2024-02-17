@@ -1,0 +1,133 @@
+# sourced scripts
+alias tc='. ~/.tc'
+alias gd='. ~/.gd'
+
+# apps
+alias cat='/usr/bin/batcat'
+alias anthem='/opt/AnthemScore/AnthemScore >/dev/null 2>&1 &'
+alias battery='/usr/local/bin/system/tweaks/battery_charge_limit'
+alias calc='/usr/bin/gnome-calculator'
+alias enpass='/opt/enpass/Enpass >/dev/null 2>&1 &'
+alias foxit='/opt/foxitreader/FoxitReader >/dev/null 2>&1 &'
+alias lossless='/opt/losslesscut/losslesscut'
+alias ls='ls --color=always -XNv --group-directories-first'
+alias pdf2txt='/usr/bin/pdftotext -layout -nopgbrk >/dev/null 2>&1 &'
+alias sc='sudo systemctl'
+alias spot='/usr/local/bin/system/launchers/run_spotify >/dev/null 2>&1 &'
+alias templates='ls /usr/local/etc/*template'
+alias viber='/opt/viber/Viber >/dev/null 2>&1 &'
+#alias vlc='/usr/bin/vlc 2>/dev/null'
+alias wim='mono /usr/local/src/RemoteMouse/RemoteMouse.exe >/dev/null 2>&1 &'
+
+# misc
+alias fdsk="sudo fdisk -l | sed -e '/Disk \/dev\/loop/,+5d'"
+alias feh='feh -F'
+alias google='ddgr --url-handler=/usr/local/bin/system/launchers/run_google-chrome --num 8 2>/dev/null'
+alias help='run-help'
+alias keyrate='xset r rate 500 33'
+alias locate='/usr/local/bin/system/launchers/run_locate'
+alias mnt='mount -t ext3,ext4,vfat,ntfs,fuseblk'
+alias n='/usr/local/bin/system/launchers/run_nemo 2>/dev/null'
+alias ns='netstat -avpunt'
+alias prt='libreoffice -p'
+alias rgxd="perl -MRegexp::Debugger -E 'Regexp::Debugger::rxrx(@ARGV)'"
+alias top='/usr/local/bin/system/launchers/run_top'
+alias vi='/usr/local/bin/system/launchers/run_vi'
+
+# conversion
+alias c2f='/usr/local/bin/conversion/c2f'
+alias f2c='/usr/local/bin/conversion/f2c'
+alias k2p='/usr/local/bin/conversion/k2p'
+alias p2k='/usr/local/bin/conversion/p2k'
+alias m2f='/usr/local/bin/conversion/m2f'
+alias f2m='/usr/local/bin/conversion/f2m'
+alias c2i='/usr/local/bin/conversion/c2i'
+alias i2c='/usr/local/bin/conversion/i2c'
+alias m2k='/usr/local/bin/conversion/m2k'
+alias k2m='/usr/local/bin/conversion/k2m'
+
+#session
+alias logout='gnome-session-quit --logout --no-prompt'
+alias pow='sudo shutdown -P now'
+
+#apt
+alias dpkg='sudo dpkg'
+alias aptfix='sudo apt --fix-broken install '
+alias doupgrade='sudo apt-get -y dist-upgrade '
+alias install='sudo apt-get -y install '
+alias uninstall='sudo apt-get -y remove'
+alias pkgfiles='sudo dpkg-query -L '
+alias purge='sudo apt-get -y purge '
+alias reconfigure='sudo dpkg-reconfigure '
+alias reinstall='sudo apt-get -y --reinstall install '
+alias syminstall='sudo apt-get -sy install '
+alias upgrades='sudo apt-get -s dist-upgrade '
+
+# linux
+alias hist='fc -nl 1 10000|sort -u'
+alias md='mkdir'
+alias mv='mv -i'
+alias rm='/usr/local/bin/system/launchers/run_rm'
+
+# bunzip2
+alias bu='bunzip2'
+
+# ps
+alias xps='ps --rows 42 --forest -ww -e| sort -n -k2| less'
+
+# cpan
+alias mcpan='perl -MCPAN -e shell'
+
+# permissions
+alias me='chmod 755'
+alias meg='chmod 775'
+alias mro="chmod 644"
+
+# enable default color support of grep
+alias grep='grep --color=always'
+alias fgrep='fgrep --color=always'
+alias egrep='egrep --color=always'
+
+#cd shortcuts
+alias ,='cd -'
+alias ....='cd ../../..'
+alias ...='cd ../..'
+alias ..='cd ..'
+
+alias .z='cd /home/kmiller/.zsh'
+alias .zc='cd /home/kmiller/.zsh/completions'
+
+alias B1="cd /media/kmiller/KEM_Backup/$(hostname)_RSYNC"
+alias B="cd /media/kmiller/KEM_Backup/$(hostname)_RSYNC2"
+alias C='cd ~/Downloads/Torrents/Completed'
+alias D='cd ~/Documents'
+alias E='cd /etc'
+alias I='cd ~/Downloads/Torrents/Incomplete'
+alias L='cd ~/Downloads/Torrents/Library'
+alias Lm='cd ~/Downloads/Torrents/Library/movies'
+alias Ls='cd ~/Downloads/Torrents/Library/series'
+alias M="cd /media/kmiller/KEM_Misc/Music/KEM-B9"
+alias O='cd /opt'
+alias P='cd ~/Pictures'
+alias T='cd ~/Downloads/Torrents'
+alias V='cd ~/Videos'
+
+alias b='cd /usr/local/bin'
+alias c='cd ~/Code'
+alias d='cd ~/Downloads'
+alias h='cd ~'
+alias m='cd ~/Documents/Music'
+alias s='cd /usr/local/bin/system'
+alias v='cd /var'
+alias z='cd /etc/zsh'
+
+alias mk='cd /media/kmiller'
+alias ms='cd ~/Documents/MuseScore3/Scores'
+alias pd='cd -'
+alias us='cd /usr/share/'
+
+alias ule='cd /usr/local/etc'
+alias ull='cd /usr/local/lib'
+alias uls='cd /usr/local/src'
+alias usa='cd /usr/share/applications'
+alias usd='cd /usr/share/doc'

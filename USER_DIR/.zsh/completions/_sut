@@ -1,0 +1,189 @@
+#compdef sut
+
+_sut() {
+    local line state
+
+    _arguments -C \
+               "1: :->cmds" \
+					"-H[help]" \
+					"-D[debug]" \
+               "*::arg:->args"
+    case "$state" in
+        cmds)
+				_values "Commands:" \
+				"autostart[Show apps that autostart at boot]" \
+				"cam[Enable/Disable system cam]" \
+				"clearcups[Clear CUPS cache and restart]" \
+				"ddimage[Make a byte level copy]" \
+				"info[Display detailed system information]" \
+				"journal[Show boot/shutdown logs]" \
+				"kernel_cleaner[Clear unused kernels]" \
+				"last_install[Show dpkg install history]" \
+				"log[Query or tail system log]" \
+				"lscolors[Show colors by file type in the current dir]" \
+				"lsdaemons[Show running deamons]" \
+				"lssc[Display systemd detail]" \
+				"mkinitscript[Create an init script]" \
+				"pkg_update[Put package updates on hold]" \
+				"ppamgr[Manage PPAs]" \
+				"pw_info[User/Group details]" \
+				"tstumask[Test a umask setting]" \
+				"updates[Show recent updates]" \
+				"mime_defaults[Display apps assoc with mime type]" \
+				"host_mac[Display host mac address]" \
+				;;
+        args)
+            case $line[1] in
+					autostart) _do_autostart;;
+					cam) _do_cam;;
+					clearcups) _do_clearcups;;
+					ddimage) _do_ddimage;;
+					info) _do_info;;
+					journal) _do_journal;;
+					kernel_cleaner) _do_kernel_cleaner;;
+					last_install) _do_last_install;;
+					log) _do_log;;
+					lscolors) _do_lscolors;;
+					lsdaemons) _do_lsdaemons;;
+					lssc) _do_lssc;;
+					mkinitscript) _do_mkinitscript;;
+					pkg_update) _do_pkg_update;;
+					ppamgr) _do_ppamgr;;
+					pw_info) _do_pw_info;;
+					tstumask) _do_tstumask;;
+					updates) _do_updates;;
+					mime_defaults) _do_mime_defaults;;
+					host_mac) _do_host_mac;;
+            esac
+            ;;
+    esac
+}
+
+
+#	_files -W ${PWD} ${0}
+
+_do_autostart () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_cam () {
+	_arguments -s \
+		'-H[help]' \
+
+	_values "State:" \
+	"on[Enable cam]" \
+	"off[Disable cam]" \
+}
+
+_do_clearcups () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_ddimage () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_info () {
+    _arguments -s \
+			'-H[help]' \
+			'-v[verbosity level - repeats increase detail]' \
+}
+
+_do_journal () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_kernel_cleaner () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_last_install () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_log () {
+    _arguments -s \
+			'-H[help]' \
+			'-t[tail]' \
+			'-l[lines to display (default=25)]' \
+}
+
+_do_lscolors () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_lsdaemons () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_lssc () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_mkinitscript () {
+    _arguments -s \
+			'-H[help]' \
+			'-f[fully qualified script name ]' \
+			'-n[script name ]' \
+			'-i[init directory -3 rc3.d directory -0 rc0.d directory]' \
+			'-s[start options for your program]' \
+			'-k[additional programs to kill on stop - space separated]' \
+			'-b[common binary directory - defaults to /usr/bin]' \
+			'-d[script_name - delete existing script_name]' \
+}
+
+_do_pkg_update () {
+    _arguments -s \
+			'-H[help]' \
+			'-x[hold current release]' \
+			'-u[update current release]' \
+			'-s[current update status]' \
+}
+
+_do_ppamgr () {
+    _arguments -s \
+			'-H[help]' \
+			'-a[Add PPA (default action)]' \
+			'-r[Remove PPA]' \
+			'-k[Add key]' \
+			'-f[Find source]' \
+			'-l[List PPA]' \
+			'-p[Find installed/uninstalled source]' \
+			'-u[Update sources]' \
+}
+
+_do_pw_info () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_tstumask () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_updates () {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_mime_defaults () {
+    _arguments -s \
+			'-H[help]' \
+			'-a[show only mimetypes with default apps assigned]' \
+}
+
+_do_host_mac () {
+    _arguments -s \
+			'-H[help]' \
+}
+

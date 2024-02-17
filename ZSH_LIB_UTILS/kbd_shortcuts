@@ -1,0 +1,591 @@
+#!/usr/bin/zsh
+#vim: syntax off
+RESET="\033[m"
+BOLD="\033[1m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Declarations
+typeset -A TILING_ASSIST_KEYS
+typeset -A UBUNTU
+typeset -A CHROME_TABWIN
+typeset -A CHROME_FEATURE
+typeset -A CHROME_ADDRESS
+typeset -A CHROME_WEBPAGE
+typeset -A CHROME_MOUSE
+typeset -A KODI_KEYS
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Declarations
+TILING_ASSIST_KEYS=(
+activate-layout3 "<Shift><Control>4"
+center-window "<Shift><Control>c"
+restore-window "<Shift><Control>Down"
+tile-bottom-half "<Shift><Control>2"
+tile-bottomleft-quarter "<Shift><Control>1"
+tile-bottomright-quarter "<Shift><Control>3"
+tile-edit-mode "<Shift><Control>slash"
+tile-left-half "<Shift><Control>Left"
+tile-maximize-horizontally "<Shift><Control>h"
+tile-maximize "<Shift><Control>Up"
+tile-maximize-vertically "<Shift><Control>v"
+tile-right-half "<Shift><Control>Right"
+tile-top-half "<Shift><Control>8"
+tile-topleft-quarter "<Shift><Control>7"
+tile-topright-quarter "<Shift><Control>9"
+toggle-always-on-top "<Shift><Control>t"
+)
+
+UBUNTU=(
+activate-window-menu '<Alt>space'
+area-screenshot-clip '<Control><Shift>Print'
+area-screenshot '<Shift>Print'
+begin-move-win '<Alt>F7'
+begin-resize-win '<Alt>F8'
+close-win '<Alt>F4'
+close-win '<Alt>z'
+cycle-group-win '<Alt>F6'
+cycle-group-backward-win '<Shift><Alt>F6'
+cycle-panels-backward-win '<Shift><Control><Alt>Escape'
+cycle-panels '<Control><Alt>Escape'
+cycle-windows '<Alt>Escape'
+cycle-windows-backward '<Shift><Alt>Escape'
+focus-active-notification '<Super>n'
+home '<Super>e'
+logout '<Control><Alt>Delete'
+magnifier-zoom-in '<Alt><Super>equal'
+magnifier-zoom-out '<Alt><Super>minus'
+maximize '<Super>Up'
+minimize '<Super>Down'
+move-to-monitor-down '<Super><Shift>Down'
+move-to-monitor-left '<Super><Shift>Left'
+move-to-monitor-right '<Super><Shift>Right'
+move-to-monitor-up '<Super><Shift>Up'
+move-to-workspace-1 '<Super><Shift>Home'
+move-to-workspace-down '<Control><Shift><Alt>Down'
+move-to-workspace-down '<Super><Shift>Page_Down'
+move-to-workspace-down '<Control><Shift><Alt>Down'
+move-to-workspace-last '<Super>w'
+move-to-workspace-left '<Control><Shift><Alt>Left'
+move-to-workspace-right '<Control><Shift><Alt>Right'
+move-to-workspace-up '<Control><Shift><Alt>Up'
+move-to-workspace-up '<Super><Shift>Page_Up'
+move-to-workspace-up '<Control><Shift><Alt>Up'
+open-application-menu '<Super>F10'
+panel-main-menu '<Alt>F1'
+panel-run-dialog '<Alt>F2'
+push-snap-down '<Control><Super>Down'
+push-snap-left '<Control><Super>Left'
+push-snap-right '<Control><Super>Right'
+push-snap-up '<Control><Super>Up'
+push-tile-down '<Super>Down'
+push-tile-left '<Super>Left'
+push-tile-right '<Super>Right'
+push-tile-up '<Super>Up'
+screensaver '<Control><Alt>l'
+screenshot-clip '<Control>Print'
+screenshot 'Print'
+show-desklets '<Super>s'
+show-desktop '<Super>d'
+shutdown '<Control><Alt>End'
+switch-applications-backward '<Shift><Super>Tab'
+switch-applications '<Super>Tab'
+switch-group '<Super>Above_Tab or <Alt>Above_Tab'
+switch-group-backward '<Shift><Super>Above_Tab or <Shift><Alt>Above_Tab'
+switch-input-source-backward '<Shift><Super>space'
+switch-input-source '<Super>space'
+switch-monitor '<Super>p'
+switch-panels-backward '<Shift><Control><Alt>Tab'
+switch-panels '<Control><Alt>Tab'
+switch-to-application-1 '<Super>1'
+switch-to-application-2 '<Super>2'
+switch-to-application-3 '<Super>3'
+switch-to-application-4 '<Super>4'
+switch-to-application-5 '<Super>5'
+switch-to-application-6 '<Super>6'
+switch-to-application-7 '<Super>7'
+switch-to-application-8 '<Super>8'
+switch-to-application-9 '<Super>9'
+switch-to-session-10 '<Alt>F10'
+switch-to-session-11 '<Alt>F11'
+switch-to-session-12 '<Alt>F12'
+switch-to-session-1 '<Alt>F1'
+switch-to-session-2 '<Alt>F2'
+switch-to-session-3 '<Alt>F3'
+switch-to-session-4 '<Alt>F4'
+switch-to-session-5 '<Alt>F5'
+switch-to-session-6 '<Alt>F6'
+switch-to-session-7 '<Alt>F7'
+switch-to-session-8 '<Alt>F8'
+switch-to-session-9 '<Alt>F9'
+switch-to-workspace-1 '<Super>Home'
+switch-to-workspace-down '<Control><Alt>Down or <Super>Page_Down'
+switch-to-workspace-last '<Super>End'
+switch-to-workspace-left '<Control><Alt>Left'
+switch-to-workspace-right '<Control><Alt>Right'
+switch-to-workspace-up '<Control><Alt>Up or <Alt>F1 or <Super>Page_Up'
+switch-windows '<Alt>Tab'
+switch-windows-backward '<Shift><Alt>Tab'
+terminal '<Alt>t'
+toggle-application-view '<Super>a'
+toggle-maximized '<Alt>F10'
+toggle-message-tray '<Super>v or <Super>m'
+toggle-recording '<Control><Shift><Alt>r'
+toggle-tiled-left '<Super>Left'
+toggle-tiled-right '<Super>Right'
+unmaximize '<Super>Down or <Alt>F5'
+video-outputs '<Super>p'
+video-rotation-lock '<Super>o'
+window-screenshot '<Alt>Print'
+window-screenshot-clip '<Control><Alt>Print'
+)
+
+#Tab and window shortcuts
+CHROME_TABWIN=(
+'Open a new window' 'Ctrl + n'
+'Open a new window in Incognito mode' 'Ctrl + Shift + n'
+'Open a new tab, and jump to it' 'Ctrl + t'
+'Reopen previously closed tabs in the order they were closed' 'Ctrl + Shift + t'
+'Jump to the next open tab' 'Ctrl + Tab or Ctrl + PgDn'
+'Jump to the previous open tab' 'Ctrl + Shift + Tab or Ctrl + PgUp'
+'Jump to a specific tab' 'Ctrl + 1 through Ctrl + 8'
+'Jump to the rightmost tab' 'Ctrl + 9'
+'Open your home page in the current tab' 'Alt + Home'
+'Open the previous page from your browsing history in the current tab' 'Alt + Left arrow'
+'Open the next page from your browsing history in the current tab' 'Alt + Right arrow'
+'Close the current tab' 'Ctrl + w or Ctrl + F4'
+'Close the current window' 'Ctrl + Shift + w or Alt + F4'
+'Minimize the current window' 'Alt + Space then n'
+'Maximize the current window' 'Alt + Space then x'
+'Quit Google Chrome' 'Alt + f then x'
+)
+#Google Chrome feature shortcuts
+CHROME_FEATURE=(
+'Open the Chrome menu' 'Alt + f or Alt + e'
+'Show or hide the Bookmarks bar' 'Ctrl + Shift + b'
+'Open the Bookmarks Manager' 'Ctrl + Shift + o'
+'Open the History page in a new tab' 'Ctrl + h'
+'Open the Downloads page in a new tab' 'Ctrl + j'
+'Open the Chrome Task Manager' 'Shift + Esc'
+'Set focus on the first item in the Chrome toolbar' 'Shift + Alt + t'
+'Set focus on the first item in the Bookmarks bar' 'Shift + Alt + b'
+'Set focus on the rightmost item in the Chrome toolbar' 'F10'
+'Switch focus to unfocused dialog (if showing) and all toolbars' 'F6'
+'Open the Find Bar to search the current page' 'Ctrl + f'
+'Open the Find Bar to search the current page' 'F3'
+'Jump to the next match to your Find Bar search' 'Ctrl + g'
+'Jump to the previous match to your Find Bar search' 'Ctrl + Shift + g'
+'Open Developer Tools' 'Ctrl + Shift + j or F12'
+'Open the Clear Browsing Data options' 'Ctrl + Shift + Delete'
+'Open the Chrome Help Center in a new tab' 'F1'
+'Log in a different user or browse as a Guest' 'Ctrl + Shift + m'
+'Open a feedback form' 'Alt + Shift + i'
+)
+#Address bar shortcuts
+CHROME_ADDRESS=(
+'Search with your default search engine' 'Type a search term + Enter'
+'Search using a different search engine' 'Type a search engine name and press Tab'
+'Add www. and .com to a site name, and open it in the current tab' 'Type a site name + Ctrl + Enter'
+'Open a new tab and perform a Google search' 'Type a search term + Alt + Enter'
+'Jump to the address bar' 'Ctrl + l or Alt + d or F6'
+'Search from anywhere on the page' 'Ctrl + k or Ctrl + e'
+'Remove predictions from your address bar' 'Down arrow to highlight + Shift + Delete'
+'Move cursor to the address bar' 'Ctrl + F5'
+)
+#Webpage shortcuts
+CHROME_WEBPAGE=(
+'Open options to print the current page' 'Ctrl + p'
+'Open options to save the current page' 'Ctrl + s'
+'Reload the current page' 'F5 or Ctrl + r'
+'Reload the current page ignoring cached content' 'Shift + F5 or Ctrl + Shift + r'
+'Stop the page loading' 'Esc'
+'Browse clickable items moving forward' 'Tab'
+'Browse clickable items moving backward' 'Shift + Tab'
+'Open a file from your computer in Chrome' 'Ctrl + o + Select a file'
+'Display non-editable HTML source code for the current page' 'Ctrl + u'
+'Save your current webpage as a bookmark' 'Ctrl + d'
+'Save all open tabs as bookmarks in a new folder' 'Ctrl + Shift + d'
+'Turn full-screen mode on or off' 'F11'
+'Make everything on the page bigger' 'Ctrl and +'
+'Make everything on the page smaller' 'Ctrl and -'
+'Return everything on the page to default size' 'Ctrl + 0'
+'Scroll down a webpage, a screen at a time' 'Space or PgDn'
+'Scroll up a webpage, a screen at a time' 'Shift + Space or PgUp'
+'Go to the top of the page' 'Home'
+'Go to the bottom of the page' 'End'
+'Scroll horizontally on the page' 'Shift + Scroll your mousewheel'
+'Move your cursor to the beginning of the previous word in a text field' 'Ctrl + Left arrow'
+'Move your cursor to the next word' 'Ctrl + Right arrow'
+'Delete the previous word in a text field' 'Ctrl + Backspace'
+'Open the Home page in the current tab' 'Alt + Home'
+'Reset page zoom level' 'Ctrl + 0'
+)
+#Mouse shortcuts
+CHROME_MOUSE=(
+'Open a link in a current tab (mouse only)' 'Drag a link to a tab'
+'Open a link in new background tab' 'Ctrl + Click a link'
+'Open a link, and jump to it' 'Ctrl + Shift + Click a link'
+'Open a link, and jump to it (mouse only)' 'Drag a link to a blank area of the tab strip'
+'Open a link in a new window' 'Shift + Click a link'
+'Open a tab in a new window (mouse only)' 'Drag the tab out of the tab strip'
+'Move a tab to a current window (mouse only)' 'Drag the tab into an existing window'
+'Return a tab to its original position' 'Press Esc while dragging'
+'Save the current webpage as a bookmark' 'Drag the web address to the Bookmarks Bar'
+'Scroll horizontally on the page' 'Shift + Scroll your mousewheel'
+'Download the target of a link' 'Alt + Click a link'
+'Display browsing history back' 'Right-click Back or click & hold Back'
+'Display browsing history next' 'Right-click Next or click & hold Next'
+'Switch between maximized and windowed modes' 'Double-click a blank area of the tab strip'
+'Make everything on the page bigger' 'Ctrl + Scroll your mousewheel up'
+'Make everything on the page smaller' 'Ctrl + Scroll your mousewheel down'
+)
+
+#Kodi shortcuts
+KODI_KEYS=(
+'Navigate up' 'Up arrow'
+'Navigate down' 'Down arrow'
+'Scroll left' 'Left arrow'
+'Scroll right' 'Right arrow'
+'Select the highlighted item' 'Enter'
+'Open side menu in default skin' 'M'
+'Return to previous menu or home' 'Esc'
+'Volume up' 'Plus (+)'
+'Volume down' 'Minus (-)'
+'Toggle between fullscreen and windowed mode' '\'
+'Switch between and choose your player' 'Y'
+'Stop' 'X'
+'Play' 'P'
+'Toggle between play and pause' 'Space bar'
+'Fast forward' 'F'
+'Rewind' 'R'
+'Skip forward 30 seconds' 'Right arrow'
+'Skip back 30 seconds' 'Left arrow'
+'Change the aspect ratio on your video' 'Z'
+'Capture a screenshot' 'Ctrl+S'
+'Mark as watched or unwatched' 'W'
+'Toggle subtitles on/off' 'T'
+'Change the position of the subtitles' 'Ctrl+T'
+'arrow Decrease playback speed' 'Alt+Left'
+'arrow Increase playback speed' 'Alt+Right'
+'Schedule recordings on live TV' 'B'
+'Open Contextual Menu' 'C'
+'Open the Electronic Program Guide' 'E'
+'View Live TV channels window' 'H'
+'View Radio Channels Window' 'J'
+'View Live TV Recordings Window' 'K'
+'Toggle between the last two TV channels' 'Zero (0)'
+'View information about the selected TV show' 'I'
+'Move up the channel list' 'Up arrow'
+'arrow Move down the channel list' 'Down'
+'Switch channel groups left' 'Left arrow'
+'Switch channel groups right' 'Right arrow'
+'Increase volume' 'Plus (+)'
+'Decrease volume' 'Minus (-)'
+'Mute playback' 'F8'
+'Sync video and Audio' 'A'
+'Zoom in on photo' 'Plus (+)'
+'Zoom out on photo' 'Minus (-)'
+'Incremental zoom' 'Numbers (1-9)'
+'Browse backwards through the image library' 'Period (.)'
+'Browse forward through the image library' 'Comma (,)'
+'Return to the previous menu, or to the home screen' 'Esc'
+'Shutdown menu' 'S'
+)
+
+boolean_color () {
+	local STATE=$1
+	[[ ${STATE} == "true" ]] && echo "${GREEN_FG}${STATE}${RESET}" || echo "${RED_FG}${STATE}${RESET}"
+}
+
+format_key () {
+	local KEYS=${@}
+	 
+	KEYS=$(echo ${KEYS} | sed "s/Alt/ALT/g")
+	KEYS=$(echo ${KEYS} | sed "s/Control/CTRL/g")
+	KEYS=$(echo ${KEYS} | sed "s/Shift/SHIFT/g")
+	KEYS=$(echo ${KEYS} | sed "s/Super/SUPER/g")
+	KEYS=$(echo ${KEYS} | sed "s/Space/SPACE/g")
+	KEYS=$(echo ${KEYS} | sed "s/Escape/<ESC>/g")
+	KEYS=$(echo ${KEYS} | sed "s/Tab/<TAB>/g")
+	KEYS=$(echo ${KEYS} | sed "s/Above_//g")
+	KEYS=$(echo ${KEYS} | sed 's/>/> /g')
+	KEYS=$(echo ${KEYS} | sed 's/[ \t]*$//g')
+	
+	echo ${KEYS}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+function parse_opts {
+	local OPTS=${@}
+	local -a OPTSTR
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+function usage {
+	do_rmcup
+	local OPTS=$(parse_opts ${OPTSTR})
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET} ${OPTS} ${WHITE_FG}]${RESET} [<SEARCH>]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-t${RESET} Tiling Assistant"
+	echo -e "${WHITE_FG}-u${RESET} Ubuntu shortcuts by Action ${GREEN_FG}(default)${RESET}"
+	echo -e "${WHITE_FG}-U${RESET} Ubuntu shortcuts by Key"
+	echo -e "${WHITE_FG}-w${RESET} Chrome Window shortcuts"
+	echo -e "${WHITE_FG}-f${RESET} Chrome Feature shortcuts"
+	echo -e "${WHITE_FG}-a${RESET} Chrome Address Bar shortcuts"
+	echo -e "${WHITE_FG}-p${RESET} Chrome Web Page shortcuts"
+	echo -e "${WHITE_FG}-m${RESET} Chrome Mouse shortcuts"
+	echo -e "${WHITE_FG}-l${RESET} Libre Office shortcuts"
+	echo -e "${WHITE_FG}-k${RESET} Kodi shortcuts"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Display shortcut keys for Ubuntu and Chrome\n"
+	) >&2
+	exit_leave
+}
+
+OPTSTR=":HDtuUwfapmlk"
+
+TILING_ASSIST=false
+UBUNTU_BY_ACTION=false
+UBUNTU_BY_KEY=false
+CHROME_BY_WIN=false
+CHROME_BY_FEATURE=false
+CHROME_BY_ADDRESS=false
+CHROME_BY_WEBPAGE=false
+CHROME_BY_MOUSE=false
+LIBRE_OFFICE=false
+KODI=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     t) TILING_ASSIST=true;;
+     u) UBUNTU_BY_ACTION=true;;
+     U) UBUNTU_BY_KEY=true;;
+     w) CHROME_BY_WIN=true;;
+     f) CHROME_BY_FEATURE=true;;
+     a) CHROME_BY_ADDRESS=true;;
+     p) CHROME_BY_WEBPAGE=true;;
+     m) CHROME_BY_MOUSE=true;;
+     l) LIBRE_OFFICE=true;;
+     k) KODI=true;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+[[ (${_DEBUG} -eq 0 && ${OPTIND} -eq 1) || (${_DEBUG} -gt 0 && ${OPTIND} -eq 2) ]] && SET_DEFAULT=true || SET_DEFAULT=false #no options passed - make default
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ -n ${1} ]] && SEARCHTERM=${1} || SEARCHTERM=?
+
+if [[ ${_DEBUG} -gt 0 ]];then
+	echo "UBUNTU_BY_ACTION=$(boolean_color ${UBUNTU_BY_ACTION})"
+	echo "UBUNTU_BY_KEY=$(boolean_color ${UBUNTU_BY_KEY})"
+	echo "CHROME_BY_WIN=$(boolean_color ${CHROME_BY_WIN})"
+	echo "CHROME_BY_FEATURE=$(boolean_color ${CHROME_BY_FEATURE})"
+	echo "CHROME_BY_ADDRESS=$(boolean_color ${CHROME_BY_ADDRESS})"
+	echo "CHROME_BY_WEBPAGE=$(boolean_color ${CHROME_BY_WEBPAGE})"
+	echo "CHROME_BY_MOUSE=$(boolean_color ${CHROME_BY_MOUSE})"
+	echo "LIBRE_OFFICE=$(boolean_color ${LIBRE_OFFICE})"
+	echo "KODI=$(boolean_color ${KODI})"
+   echo "SEARCHTERM=[${WHITE_FG}${SEARCHTERM}${RESET}]"
+fi
+
+[[ ${SET_DEFAULT} == 'true' ]] && UBUNTU_BY_ACTION=true && echo "Generating Ubuntu Shortcuts by Action"
+[[ ${SEARCHTERM} != '?' ]] && echo "Searching for:[${WHITE_FG}${SEARCHTERM}${RESET}]"
+
+(
+HIT=false
+tput cup 0 0
+
+if [[ ${TILING_ASSIST} == "true" ]];then
+	HDR=true
+	LAST_VAL=?
+	for V in ${(nov)TILING_ASSIST_KEYS};do
+		[[ ${SEARCHTERM} != "?" && ! ${V:l} =~ ${SEARCHTERM:l} ]] && continue #search key
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Tiling Assistant Shortcuts by Key"
+			printf "${RED_FG}%56s${RESET}${GREEN_FG}%11s${RESET}\n" "KEY" "ACTION"
+			printf "${RED_FG}%56s${RESET}${GREEN_FG}%11s${RESET}\n" "---" "------"
+		fi
+		HDR=false
+		[[ ${V} == ${LAST_VAL} ]] && continue
+		LAST_VAL=${V}
+		printf "Press:${WHITE_FG}%50s${RESET} to ${WHITE_FG}%-60s${RESET}\n" "$(format_key ${(C)V})" "$(echo ${(C)${(k)TILING_ASSIST_KEYS[(r)${V}]}} | sed 's/\-/ /g')"
+	done
+fi
+
+if [[ ${UBUNTU_BY_KEY} == "true" ]];then
+	HDR=true
+	LAST_VAL=?
+	for V in ${(nov)UBUNTU};do
+		[[ ${SEARCHTERM} != "?" && ! ${V:l} =~ ${SEARCHTERM:l} ]] && continue #search key
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Ubuntu Shortcuts by Key"
+			printf "${RED_FG}%56s${RESET}${GREEN_FG}%11s${RESET}\n" "KEY" "ACTION"
+			printf "${RED_FG}%56s${RESET}${GREEN_FG}%11s${RESET}\n" "---" "------"
+		fi
+		HDR=false
+		[[ ${V} == ${LAST_VAL} ]] && continue
+		LAST_VAL=${V}
+		printf "Press:${WHITE_FG}%50s${RESET} to ${WHITE_FG}%-60s${RESET}\n" "$(format_key ${(C)V})" "$(echo ${(C)${(k)UBUNTU[(r)${V}]}} | sed 's/\-/ /g')"
+	done
+fi
+
+if [[ ${UBUNTU_BY_ACTION} == "true" ]];then
+	HDR=true
+	for K in ${(kon)UBUNTU};do
+		[[ ${SEARCHTERM} != "?" && ! ${K:l} =~ ${SEARCHTERM:l} ]] && continue
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Ubuntu Shortcuts by Action"
+			printf "${GREEN_FG}%33s${RESET}${RED_FG}%10s${RESET}\n" "ACTION" "KEY"
+			printf "${GREEN_FG}%33s${RESET}${RED_FG}%10s${RESET}\n" "------" "---"
+		fi
+		HDR=false
+		printf "To ${WHITE_FG}%30s${RESET} press ${WHITE_FG}%-30s${RESET}\n" "$(echo ${(C)K} | sed 's/\-/ /g')" "$(format_key ${(C)UBUNTU[${K}]})"
+	done
+fi
+
+if [[ ${CHROME_BY_WIN} == "true" ]];then
+	HDR=true
+	for K in ${(kon)CHROME_TABWIN};do
+		[[ ${SEARCHTERM} != "?" && ! ${K:l} =~ ${SEARCHTERM:l} ]] && continue
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Chrome Tab and Window Shortcuts"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "ACTION" "KEY"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "------" "---"
+		fi
+		HDR=false
+		printf "To ${WHITE_FG}%70s${RESET} press ${WHITE_FG}${BOLD}%-30s${RESET}\n" "${(C)K}" "${CHROME_TABWIN[${K}]}"
+	done
+fi
+
+if [[ ${CHROME_BY_FEATURE} == "true" ]];then
+	HDR=true
+	for K in ${(kon)CHROME_FEATURE};do
+		[[ ${SEARCHTERM} != "?" && ! ${K:l} =~ ${SEARCHTERM:l} ]] && continue
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Chrome Feature Shortcuts"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "ACTION" "KEY"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "------" "---"
+		fi
+		HDR=false
+		printf "To ${WHITE_FG}%70s${RESET} press ${WHITE_FG}${BOLD}%-30s${RESET}\n" "${(C)K}" "${CHROME_FEATURE[${K}]}"
+	done
+fi
+
+if [[ ${CHROME_BY_ADDRESS} == "true" ]];then
+	HDR=true
+	for K in ${(kon)CHROME_ADDRESS};do
+		[[ ${SEARCHTERM} != "?" && ! ${K:l} =~ ${SEARCHTERM:l} ]] && continue
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Chrome Address Bar Shortcuts"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "ACTION" "KEY"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "------" "---"
+		fi
+		HDR=false
+		printf "To ${WHITE_FG}%70s${RESET} press ${WHITE_FG}${BOLD}%-30s${RESET}\n" "${(C)K}" "${CHROME_ADDRESS[${K}]}"
+	done
+fi
+
+if [[ ${CHROME_BY_WEBPAGE} == "true" ]];then
+	HDR=true
+	for K in ${(kon)CHROME_WEBPAGE};do
+		[[ ${SEARCHTERM} != "?" && ! ${K:l} =~ ${SEARCHTERM:l} ]] && continue
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Chrome Web Page Shortcuts"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "ACTION" "KEY"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "------" "---"
+		fi
+		HDR=false
+		printf "To ${WHITE_FG}%70s${RESET} press ${WHITE_FG}${BOLD}%-30s${RESET}\n" "${(C)K}" "${CHROME_WEBPAGE[${K}]}"
+	done
+fi
+
+
+if [[ ${CHROME_BY_MOUSE} == "true" ]];then
+	HDR=true
+	for K in ${(kon)CHROME_MOUSE};do
+		[[ ${SEARCHTERM} != "?" && ! ${K:l} =~ ${SEARCHTERM:l} ]] && continue
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Chrome Mouse Shortcuts"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "ACTION" "KEY"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "------" "---"
+		fi
+		HDR=false
+		printf "To ${WHITE_FG}%70s${RESET} press ${WHITE_FG}${BOLD}%-30s${RESET}\n" "${(C)K}" "${CHROME_MOUSE[${K}]}"
+	done
+fi
+[[ -n ${SEARCHTERM} && ${SEARCHTERM} != '?' && ${HIT} == 'false' ]] && echo "No items matching:[${WHITE_FG}${SEARCHTERM}${RESET}] found"
+
+if [[ ${KODI} == "true" ]];then
+	HDR=true
+	for K in ${(kon)KODI_KEYS};do
+		[[ ${SEARCHTERM} != "?" && ! ${K:l} =~ ${SEARCHTERM:l} ]] && continue
+		HIT=true
+		if [[ ${HDR} == "true" ]];then
+			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Kodi Shortcuts"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "ACTION" "KEY"
+			printf "${GREEN_FG}%73s${RESET}${RED_FG}%10s${RESET}\n" "------" "---"
+		fi
+		HDR=false
+		printf "To ${WHITE_FG}%70s${RESET} press ${WHITE_FG}${BOLD}%-30s${RESET}\n" "${(C)K}" "${KODI_KEYS[${K}]}"
+	done
+fi
+
+[[ -n ${SEARCHTERM} && ${SEARCHTERM} != '?' && ${HIT} == 'false' ]] && echo "No items matching:[${WHITE_FG}${SEARCHTERM}${RESET}] found"
+if [[ ${LIBRE_OFFICE} == "true" ]];then
+	okular /usr/local/etc/LibreOfficeKeyboard.pdf
+fi
+) | mypager wait
+
+exit_leave 

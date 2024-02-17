@@ -1,0 +1,16 @@
+#!/usr/bin/zsh
+if [[ ${1} == "-H" ]];then
+	echo "\nUsage: ${0:t} [<INT>]"
+	echo " Desc: Toggle keyboard backlight"
+	echo "       Optionally pass value to brightness <INT>\n"
+	exit
+fi
+
+if [[ ${#} -eq 0 ]];then
+	CURRENT=$(sudo zsh -c 'cat /sys/class/leds/asus::kbd_backlight/brightness')
+	[[ ${CURRENT} -ge 1 ]] && CURRENT=0 || CURRENT=1
+else
+	CURRENT=${1}
+fi
+
+sudo zsh -c "echo ${CURRENT} > /sys/class/leds/asus::kbd_backlight/brightness"

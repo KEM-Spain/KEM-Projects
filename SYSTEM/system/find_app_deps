@@ -1,0 +1,192 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+typeset -A LIB_FUNC_LIST
+typeset -A LIB_DEP_LIST
+typeset -a _LIBS=(ARRAY.zsh DATE.zsh DBG.zsh DURABLE.zsh LIST.zsh MSG.zsh PATH.zsh SEL_LIST.zsh STR.zsh TPUT.zsh UTILS.zsh VALIDATE.zsh WIN.zsh EXIT.zsh)
+
+_LIB=/usr/local/lib
+
+#Imports
+source ${_LIB}/LIB_INIT.zsh
+source ${_LIB}/STR.zsh
+source ${_LIB}/UTILS.zsh
+
+for D in ${=_DEPS_};do
+	[[ -e ${_LIB}/${D} ]] && source ${_LIB}/${D} || (echo "Cannot source:${_LIB}/${D} - not found" && exit 1)
+done
+
+get_lib_deps () {
+	local -a FUNCS
+	local D F L
+	local LIB
+	local FUNC
+	local DEP
+
+	# All library functions
+	for L in ${_LIBS};do
+		FUNCS=("${(f)$(grep -H --color=never '() {' ${_LIB}/${L} | sed -E 's/\s+[(][)] \{//' | sort)}")
+		for F in ${FUNCS};do
+			LIB=$(cut -d':' -f1 <<<${F})
+			FUNC=$(cut -d':' -f2 <<<${F})
+			LIB_FUNC_LIST[${FUNC}]=${LIB}
+		done
+	done
+
+	# All library dependencies
+	for L in ${_LIBS};do
+		D=("${(f)$(grep -m1 -H --color=never '_DEPS_+=' ${_LIB}/${L})}")
+		[[ ${?} -ne 0 ]] && continue
+		LIB=$(cut -d':' -f1 <<<${D})
+		DEP=$(cut -d':' -f2 <<<${D})
+		DEP=$(sed -e 's/_DEPS_+=//' <<<${DEP:gs/\"//})
+		LIB_DEP_LIST[${DEP}]=${LIB}
+	done
+}
+
+app_scan () {
+	local FN=${1}
+	local -A APP_FUNC_LIST=()
+	local -A APP_LIB_FUNC_LIST=()
+	local -A LIB_SCORE=()
+	local -a APP_FUNCS=()
+	local -a APP_LIBS=()
+	local -a NEEDED_LIBS=()
+	local APP
+	local CNT
+	local FUNC
+	local HDR
+	local K N S V F
+	local LIB
+	local LIB_CNT
+	local LINE_COL
+	local LINE_LEN=24
+	local ONE_LIB
+	local ONE_LIB_ID
+	local PRIMARY_LIB_ID
+	local SCORE
+	local NDX
+
+	# All functions defined in application
+	APP_FUNCS=("${(f)$(grep -H --color=never '() {$' ${FN} | sed -E 's/\s+[(][)] \{//' | sort)}")
+	for F in ${APP_FUNCS};do
+		APP=$(cut -d':' -f1 <<<${F})
+		FUNC=$(cut -d':' -f2 <<<${F})
+		APP_FUNC_LIST[${FUNC}]=${APP}
+	done
+
+	# Scan application for lib functions
+	for K in ${(ok)LIB_FUNC_LIST};do
+		F=$(grep -w -m1 -o --color=never ${K} ${FN}) # find lib function
+		[[ ${?} -ne 0 ]] && continue
+		APP_LIB_FUNC_LIST[${F}]=${LIB_FUNC_LIST[${K}]}
+		printf "${WHITE_FG}%s${RESET} %s call is provided by:%s\n" ${FN:t} ${F} ${${APP_LIB_FUNC_LIST[${F}]}:t}
+	done
+
+	printf "%-20s:Internal:${WHITE_FG}%d${RESET} Library:${WHITE_FG}%d${RESET}\n" "App Refs Summary" ${#APP_FUNCS} ${#APP_LIB_FUNC_LIST}
+
+	[[ -z ${APP_LIB_FUNC_LIST} ]] && return 1
+
+	LIB_CNT=0
+	for V in ${(uov)APP_LIB_FUNC_LIST};do
+		((LIB_CNT++)) # count libs
+		APP_LIBS+=${V:t} # all lib references in app
+	done
+
+	HDR="${WHITE_FG}${FN} ${CYAN_FG}library dependencies${RESET}"
+	echo "\n${HDR}"
+	echo $(str_unicode_line $(echo ${HDR} | str_strip_ansi -l))
+
+	NDX=0
+	for V in ${(uov)APP_LIB_FUNC_LIST};do
+		for K in ${(ok)LIB_DEP_LIST};do
+			if [[ ${V:t} == ${LIB_DEP_LIST[${K}]:t} ]];then
+				((NDX++)) 
+				printf "${WHITE_FG}%d${RESET}) %-18s ${ITALIC}includes${RESET}: ${WHITE_FG}%s${RESET}\n" ${NDX} ${LIB_DEP_LIST[${K}]:t} ${K}
+				SCORE=0
+				for S in ${(uov)APP_LIB_FUNC_LIST};do
+					[[ ${S:t} == ${V:t} ]] && continue
+					grep -iq ${S:t} <<<${K}
+					[[ ${?} -eq 0 ]] && ((SCORE++))
+				done
+				LIB_SCORE[${SCORE}:${V:t}]=${K}
+			fi
+		done
+	done
+	echo
+
+	ONE_LIB_ID=''
+	PRIMARY_LIB_ID=''
+	ONE_LIB=false
+	NEEDED_LIBS=(${APP_LIBS})
+
+	for K in ${(Onk)LIB_SCORE};do
+		CNT=$(cut -d':' -f1 <<<${K})
+		LIB=$(cut -d':' -f2 <<<${K})
+
+		((CNT++))
+		[[ ${CNT} -eq ${LIB_CNT} ]] && ONE_LIB=true && ONE_LIB_ID=${LIB} && LINE_LEN=41
+
+		for N in ${APP_LIBS};do
+			grep -iq ${N} <<<${LIB_SCORE[${K}]}
+			[[ ${?} -eq 0 ]] && NEEDED_LIBS=("${(@)NEEDED_LIBS:#${N}}") # found lib - delete from needed
+		done
+
+		NEEDED_LIBS=(${(@)NEEDED_LIBS})
+	done
+
+	if [[ ${ONE_LIB} == 'true' ]];then
+		printf "${WHITE_ON_GREY}All${RESET} dependency requirements satisfied by: ${WHITE_FG}%s${RESET}\n" ${ONE_LIB_ID}
+	else
+		for K in ${(Onk)LIB_SCORE};do
+			CNT=$(cut -d':' -f1 <<<${K})
+			LIB=$(cut -d':' -f2 <<<${K})
+			((CNT++)) # increment CNT to reflect the lib being shown
+			PRIMARY_LIB_ID=${LIB}
+			printf "${WHITE_FG}%s of %s ${CYAN_FG}libs provided by${RESET}: ${WHITE_FG}%s${RESET} (%s)\n" ${CNT} ${LIB_CNT} ${LIB} ${LIB_SCORE[${K}]}
+			break
+		done
+	fi
+
+	echo
+	for N in ${NEEDED_LIBS};do
+		[[ ${N} == ${ONE_LIB_ID} || ${N} == ${PRIMARY_LIB_ID} ]] && continue
+		printf "${CYAN_FG}Additional lib required${RESET}: ${WHITE_FG}%s${RESET}\n" ${N}
+	done
+	echo
+	 
+	return 0
+}
+
+#Execution
+FILES=(${@})
+[[ -z ${FILES} ]] && echo "Missing argument:<FILE>" && exit 1
+
+echo "\n${WHITE_FG}Scanning${RESET}:${FILES}"
+get_lib_deps
+
+printf "%-20s:${WHITE_FG}%d${RESET}\n" "Lib Refs Identified" ${#LIB_DEP_LIST}
+
+for F in ${FILES};do
+	[[ ! -e ${F} ]] && echo "File:${WHITE_FG}${F} ${RED_FG}not found${RESET}" && exit 1
+	app_scan ${F}
+	[[ ${?} -ne 0 ]] && echo "No dependencies for:${WHITE_FG}${F}${RESET}"
+done

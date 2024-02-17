@@ -1,0 +1,26 @@
+#!/usr/bin/zsh
+[[ ${#} -eq 0 ]] && echo "${0:t}: filename required" && exit
+FN=${1}
+
+typeset -A MAP
+
+DLIST=("${(f)$(grep --color=never -n "def " ${FN})}")
+LAST=?
+for D in ${DLIST};do
+	LINE=$(cut -d: -f1 <<<${D})
+	NAME=$(cut -d: -f2 <<<${D})
+	[[ ${LAST} != "?" ]] && MAP[${N}]="sed -n "${LAST},$((LINE - 1))p" ${FN}"
+	[[ ${LINE} -ne ${LAST} ]] && LAST=${LINE} && N=$(sed -e "s/^ *def//" -e "s/^ *//" <<<${NAME} | cut -d'(' -f1)
+	echo "Processing def: ${N}" >&2
+done
+LINE=$(wc -l < ${FN})
+MAP[${N}]="sed -n "${LAST},$((LINE - 1))p" ${FN}" # last line
+
+for K in ${(ok)MAP};do
+	[[ ${K} =~ "__init__" ]] && eval ${MAP[${K}]} >> ${FN}.out
+done
+
+for K in ${(ok)MAP};do
+	[[ ${K} =~ "__init__" ]] && continue
+	eval ${MAP[${K}]} >> ${FN}.out
+done

@@ -1,0 +1,3 @@
+#!/usr/bin/zsh
+/usr/local/src/OpenSubtitlesDownload/OpenSubtitlesDownload.py -u miller_kurt_e -p OnePlusOne=2 ${@} 
+ 

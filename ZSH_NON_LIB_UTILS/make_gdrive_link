@@ -1,0 +1,40 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+THIS_FILE=${0}
+
+read -r -d '' DESC<<EOF
+Convert a Google Drive shared URL to a direct download link
+EOF
+
+usage () {
+	local MSG=${@}
+
+	(
+	echo "Usage:${THIS_FILE} <SHARED_URL>"
+	echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	[[ -n ${MSG} ]] && echo "\n${MSG}"
+
+	exit
+}
+
+[[ -z ${1} ]] && usage "Missing arg:<SHARED_URL>" || URL=${1}
+
+FILE_ID=$(echo ${URL} | perl -pe 's/(^.*\/d\/)(.*)(\/view.*$)/$2/g')
+
+echo "https://drive.google.com/uc?id=${FILE_ID}&export=download"

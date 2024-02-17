@@ -1,0 +1,14 @@
+#compdef lsfuncs
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-n[no prompting]' \
+'-a[no ansi (when printing)]' \
+'-l[print list (<SEARCHTERM> may apply)]' \
+'-f[print functions (<SEARCHTERM> may apply)]' \
+
+_files -W ${PWD} lsfuncs
+_files -W /usr/local/bin lsfuncs
+_files -W /usr/local/lib lsfuncs
+

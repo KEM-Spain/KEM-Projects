@@ -1,0 +1,25 @@
+#!/usr/bin/zsh
+
+LIST=("${(f)$(xinput list)}")
+MASTER=?
+INTKDB=?
+
+for L in ${LIST};do
+	[[ ${L} =~ "Virtual core keyboard" ]] && MASTER=$(echo $L | cut -d= -f2 | cut -f1)
+	[[ ${L} =~ "AT Translated" ]] && INTKDB=$(echo $L | cut -d= -f2 | cut -f1)
+done
+
+[[ ${MASTER} == "?" ]] && echo "Unable to obtain xinput id for master keyboard" >&2 && exit
+[[ ${INTKDB} == "?" ]] && echo "Unable to obtain xinput id for internal keyboard" >&2 && exit
+
+kbd_deactivate () {
+	xinput float ${INTKDB}
+}
+
+kbd_activate () {
+	xinput reattach ${INTKDB} ${MASTER} 	
+}
+
+[[ $1 == "on" ]] && kbd_activate
+[[ $1 == "off" ]] && kbd_deactivate
+

@@ -1,0 +1,97 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+MAGENTA_BG="\033[45m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+
+#Echoed ansi
+E_BOLD=$(echo -n "\033[1m")
+E_ITALIC=$(echo -n "\033[3m")
+E_RESET=$(echo -n "\033[m")
+E_REVERSE=$(echo -n "\033[7m")
+E_STRIKE=$(echo -n "\033[9m")
+E_UNDER=$(echo -n "\033[4m")
+
+E_BLUE_FG=$(echo -n "\033[34m")
+E_CYAN_FG=$(echo -n "\033[36m")
+E_GREEN_FG=$(echo -n "\033[32m")
+E_MAGENTA_FG=$(echo -n "\033[35m")
+E_RED_FG=$(echo -n "\033[31m")
+E_WHITE_FG=$(echo -n "\033[37m")
+E_YELLOW_FG=$(echo -n "\033[33m")
+
+E_BLACK_BG=$(echo -n "\033[40m")
+E_BLUE_BG=$(echo -n "\033[44m")
+E_CYAN_BG=$(echo -n "\033[46m")
+E_GREEN_BG=$(echo -n "\033[42m")
+E_MAGENTA_BG=$(echo -n "\033[45m")
+E_RED_BG=$(echo -n "\033[41m")
+E_WHITE_BG=$(echo -n "\033[47m")
+E_YELLOW_BG=$(echo -n "\033[43m")
+
+typeset -A SYMTAB=( \
+1 2460 \
+2 2461 \
+3 2462 \
+4 2463 \
+5 2464 \
+6 2465 \
+7 2466 \
+8 2467 \
+9 2468 \
+10 2469 \
+11 246A \
+12 246B \
+13 246C \
+14 246D \
+15 246E \
+16 246F \
+17 2470 \
+18 2471 \
+19 2472 \
+20 2473 \
+21 3251 \
+22 3252 \
+23 3253 \
+24 3254 \
+25 3255 \
+26 3256 \
+27 3257 \
+28 3258 \
+29 3259 \
+30 325A \
+31 325B \
+)
+
+#	 printf "\\u${SYMTAB[${N}]}%.0s\n"
+
+LIST=("${(f)$(ccal)}")
+NDX=0
+for L in ${LIST};do
+	((NDX++))
+	case ${NDX} in
+		1) printf "${BOLD}${WHITE_FG}%s${RESET}\n" ${L};;
+		2) printf "${GREEN_FG}%s${RESET}\n" ${L};;
+		*) LINE="${WHITE_FG}${L}${RESET}"
+			if [[ ${LINE} =~ "[<>]" ]];then
+				LINE=$(perl -p -e "s/(.*)(<)(.*)(>)(.*)/${WHITE_FG}\1${BOLD}${MAGENTA_FG}\2${ITALIC}${UNDER}${CYAN_FG}\3${RESET}${BOLD}${MAGENTA_FG}\4${RESET}${WHITE_FG}\5/" <<<${LINE})
+			fi
+			printf "${LINE}\n"
+			;;
+	esac
+done

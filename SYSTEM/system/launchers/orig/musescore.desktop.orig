@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Musescore
+Comment=Music Notation
+TryExec=/opt/musescore/MuseScore-4.0.2.230651545-x86_64.AppImage
+Exec=/opt/musescore/MuseScore-4.0.2.230651545-x86_64.AppImage %U
+Icon=/opt/musescore/musescore3_mscore3.png
+Type=Application
+Categories=notation

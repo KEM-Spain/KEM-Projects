@@ -1,0 +1,454 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A DEV_STATE_COLOR
+typeset -A _DEV_MAC_NAME
+typeset -A _DEV_MAC_TYPE
+typeset -A _SINK_NDX_NAME
+typeset -a _BT_OUTPUT
+typeset -a _SELECTED_DEVICE
+typeset -a _ACTIONS
+
+#Constants
+_LIB_DIR=/usr/local/lib
+DEV_STATE_COLOR[connected]=${GREEN_FG}
+DEV_STATE_COLOR[disconnected]=${RED_FG}
+_ACTIONS=(toggle connect disconnect)
+
+#Imports
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+source ${_LIB_DIR}/MSG.zsh
+source ${_LIB_DIR}/VALIDATE.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+bt_command () {
+	local LINE
+
+	coproc bluetoothctl
+	while read LINE;do
+		echo -e ${LINE} >&p
+	done
+
+	_BT_OUTPUT=("${(f)$(cat <&p | clean_line)}")
+}
+
+bt_up () {
+	rfkill unblock all
+	sudo hciconfig hciX up
+}
+
+clean_line () {
+   local LINE
+
+   while read LINE;do
+      echo ${LINE} | perl -pe 's/\x1b\[[0-9;]*[mG]//g; s/\[.*\]#?//g; s/\x0d\x1b\x20\x0d\x1b\x5b\x4b//g; s/^ //g'
+   done
+}
+
+connection_msgs () {
+	local MODE=${1}
+	local DEV_STATE
+	local RC
+
+	if [[ ${MODE} == "connect" ]];then
+		DEV_STATE=disconnected
+	else
+		DEV_STATE=connected
+	fi
+
+	msg_box_clear 19 10 4 60
+	msg_box -c -x20 -y10 "${_DEV_MAC_NAME[${_SELECTED_DEVICE}]} - ${(C)MODE}ing..."
+
+	wait_status_change ${DEV_STATE}
+	RC=${?}
+
+	return ${RC}
+}
+
+set_device_info () {
+	local -a DEVICES
+	local L
+	local MAC
+	local NAME
+
+	unset _DEV_MAC_NAME
+	typeset -gA _DEV_MAC_NAME
+
+	send_command "scan on\nexit"
+
+	for L in ${_BT_OUTPUT};do
+		DEVICES+=$(echo ${L} | grep -i '^device .*[[:xdigit:]]')
+	done
+
+	send_command "devices\nexit"
+
+	for L in ${_BT_OUTPUT};do
+		DEVICES+=$(echo ${L} | grep -i '^device .*[[:xdigit:]]')
+	done
+
+	for L in ${DEVICES};do
+		MAC=$(echo ${L} | cut -d' ' -f2)
+		NAME=$(echo ${L} | cut -d' ' -f3- | str_trim)
+		_DEV_MAC_NAME[${MAC}]=${NAME}
+	done
+}
+
+set_sink_info () {
+	local DESC 
+	local DEVSTRING
+	local INDEX 
+	local LINE
+	local STATE 
+
+	unset _SINK_NDX_NAME
+	typeset -gA _SINK_NDX_NAME
+
+	while read LINE;do
+		case ${LINE} in
+			\**) STATE=active;INDEX=$(echo ${LINE} | tr -d '[:space:]' | cut -d: -f2);;
+			index*)  STATE=inactive;INDEX=$(echo ${LINE} | tr -d '[:space:]' | cut -d: -f2);;
+			*device.description*) DESC=$(echo ${LINE} | sed 's/= /=/g' | cut -d= -f2 | tr -d '[\"]');;
+			*device.string*) DEVSTRING=$(echo ${LINE} | sed 's/= /=/g' | cut -d= -f2 | tr -d '[\"]');;
+		esac
+		if [[ -n ${INDEX} && -n ${DESC} && -n ${DEVSTRING} ]];then
+			INDEX=${INDEX}
+			_SINK_NDX_NAME[${INDEX}:${STATE:u}]="${DESC}|${DEVSTRING}"
+			unset INDEX
+			unset DESC
+			unset DEVSTRING
+		fi
+	done < <(pacmd list-sinks)
+}
+
+get_connection_status () {
+	local MAC=${1}
+	local L
+	local STATUS=''
+
+	send_command "info ${MAC}" exit
+
+	grep -qi 'connected' <<<${_BT_OUTPUT}
+	if [[ ${?} -eq 0 ]];then
+		for L in ${_BT_OUTPUT};do
+			STATUS=$(echo ${L} | grep -i 'connected:' | cut -d: -f2 | tr -d '[:space:]')
+			[[ -n ${STATUS} ]] && break
+		done
+
+		if [[ ${STATUS} == "yes" ]];then
+			echo "connected"
+			return 0
+		else
+			echo "disconnected"
+			return 1
+		fi
+	else
+		echo "disconnected"
+		return 1
+	fi
+}
+
+get_connection_type () {
+	local MAC=${1}
+	local L
+	local TYPE=''
+
+	send_command "info ${MAC}" exit
+
+	for L in ${_BT_OUTPUT};do
+		TYPE=$(echo ${L} | grep 'Icon:' | cut -d: -f2 | tr -d '[:space:]')
+		[[ -n ${TYPE} ]] && break
+	done
+	echo ${TYPE}
+}
+
+select_device () {
+	local -a DEVICES
+	local -a DETAIL
+	local DEV
+	local KEY
+	local L
+	local MAC
+	local MSG
+	local NDX
+	local RC
+	local RESPONSE
+	local STATE
+	local STATUS
+	local TAG
+	local TOGGLE_STATE
+	local TYPE
+	local ACTION
+
+	set_device_info
+	DEVICES=(${(v)_DEV_MAC_NAME})
+
+	while true;do
+		_SELECTED_DEVICE=''
+
+		tput cup 0 0
+		tput ed
+
+		selection_list_set ${DEVICES}
+		_SELECTION_VALUE='?'
+
+		selection_list -x10 -y11 "<c>Select BT Device or (<w>q<c>)uit<N>"
+		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+		DEV=${_SELECTION_VALUE}
+
+		MAC=${(k)_DEV_MAC_NAME[(r)${DEV}]} #reverse lookup
+		_SELECTED_DEVICE=${MAC}
+
+		selection_list_set ${_ACTIONS}
+
+		selection_list -x15 -y60 "<c>Select Action for ${DEV} or (<w>q<c>)uit<N>"
+		[[ ${_SELECTION_VALUE} == '?' ]] && continue
+		ACTION=${_SELECTION_VALUE}
+
+		if [[ ${ACTION} == 'toggle' ]];then
+			STATUS=$(get_connection_status ${MAC})
+			[[ ${STATUS} != 'connected' ]] && exit_leave "${RED_FG}Not toggling a disconnected device${RESET}:${DEV}"
+			if [[ -n ${ACTION} ]];then
+				STATE=$(get_connection_status ${MAC})
+				[[ ${STATE} == 'connected' ]] && TOGGLE_STATE=disconnect || TOGGLE_STATE=connect
+				set_device_connection ${TOGGLE_STATE} ${MAC}
+
+				sleep 1
+
+				STATE=$(get_connection_status ${MAC})
+				[[ ${STATE} == 'connected' ]] && TOGGLE_STATE=disconnect || TOGGLE_STATE=connect
+				set_device_connection ${TOGGLE_STATE} ${MAC}
+			fi
+		elif [[ ${ACTION} == 'connect' ]];then
+			STATE=connect
+			set_device_connection ${STATE} ${MAC}
+			RC=${?}
+		elif [[ ${ACTION} == 'disconnect' ]];then
+			STATE=disconnect
+			set_device_connection ${STATE} ${MAC}
+			RC=${?}
+		fi
+		if [[ ${RC} -eq 2 ]];then
+			MSG="<U>Attempted ${(C)STATE}ion to ${DEV}<N>||<I>Command timed out<N>. <c>Is bluetooth active on the device<N>?|"
+			msg_box -c -x24 -y10 -p -PK ${MSG}
+		else
+			break
+		fi
+	done
+	[[ ${TOGGLE_STATE} == 'connect' && ${RC} -eq 0 ]] && return 0 || return 1
+}
+
+select_sink () {
+	local -A SINK_NDX
+	local -A SINK_STATE_COLOR
+	local CURRENT_STATUS
+	local KEY VAL REV
+	local L
+	local NDX
+	local RESPONSE
+	local MSG
+	local BREAK_MSG
+
+	set_sink_info
+
+	SINK_STATE_COLOR[active]=${GREEN_FG}
+	SINK_STATE_COLOR[inactive]=${RED_FG}
+
+	BREAK_MSG="$(arr_long_elem ${(v)_SINK_NDX_NAME}).."
+
+	while true;do
+		tput cup 0 0
+		tput ed
+
+		MSG="Select From Available Sinks ..."
+		echo ${MSG}
+		echo "${MAGENTA_FG}$(str_unicode_line ${#BREAK_MSG})${RESET}"
+
+		NDX=0
+		for L in ${(k)_SINK_NDX_NAME};do
+			((NDX++))
+			SINK_NDX[${NDX}]=$(echo ${L} | cut -d':' -f1)
+			[[ ${L:l} =~ ':active' ]] && CURRENT_STATUS=active || CURRENT_STATUS=inactive
+			printf "%d) %-50s ${SINK_STATE_COLOR[${CURRENT_STATUS}]}%s${RESET}\n" ${NDX} ${_SINK_NDX_NAME[${L}]} ${CURRENT_STATUS}
+		done
+
+		MSG="Select sink or <ENTER> to exit:"
+		echo "${MAGENTA_FG}$(str_unicode_line ${#BREAK_MSG})${RESET}"
+		echo -n ${MSG}
+		read RESPONSE
+		[[ -z ${RESPONSE} ]] && return 1
+		if validate_is_integer && $(validate_is_list_item ${RESPONSE} ${#_SINK_NDX_NAME});then
+			set_sink ${SINK_NDX[${RESPONSE}]}
+			set_sink_info
+			continue
+		else
+			echo "Invalid entry...press any key"
+			read
+		fi
+	done
+}
+
+send_command () {
+	local -a CMDS=(${@})
+	local C
+	local STR
+
+	for C in ${CMDS};do
+		STR="${STR}${C}\\n"
+	done
+
+	echo ${STR} | bt_command
+}
+
+set_device_connection () {
+	local MODE=${1}
+	local MAC=${2}
+
+	send_command "${MODE} ${MAC}" exit
+	connection_msgs ${MODE}
+	return ${?}
+}
+
+set_sink () {
+	local SINK=${1}
+
+	pacmd set-default-sink ${SINK}
+	return ${?}
+}
+
+wait_status_change () {
+	local INITIAL_STATUS=${1}
+	local CURRENT_STATUS
+	local RC
+	local TIMEOUT=5
+	local TIMER=0
+
+	msg_box -x24 -y10 "${_DEV_MAC_NAME[${_SELECTED_DEVICE}]} - Current status:${_DEV_STATE_COLOR[${INITIAL_STATUS}]}${(C)INITIAL_STATUS}${RESET}"
+	while true;do
+		((TIMER++))
+		CURRENT_STATUS=$(get_connection_status ${_SELECTED_DEVICE})
+		RC=${?}
+		if [[ ${INITIAL_STATUS} != ${CURRENT_STATUS} ]];then
+			msg_box -c -x24 -y10 "${_DEV_MAC_NAME[${_SELECTED_DEVICE}]} - Changed status:${_DEV_STATE_COLOR[${CURRENT_STATUS}]}${(C)CURRENT_STATUS}${RESET}"
+			break
+		fi
+		sleep 1 
+		[[ ${TIMER} -gt ${TIMEOUT} ]] && RC=2 && break #wait TIMEOUT attempts
+	done
+	return ${RC}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Connect/Disconnect bluetooth devices
+\tGenerates a list of known bluetooth devices
+\tSelecting a device will toggle connection (if device is active)
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+
+	case ${OPT} in
+		d) echo "<DEVICE>";;
+		m) echo "<MAC>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-T${RESET} sound test"
+	echo -e "${WHITE_FG}-c${RESET} connect device"
+	echo -e "${WHITE_FG}-d${RESET} disconnect device"
+	echo -e "${WHITE_FG}-t${RESET} toggle device"
+	echo -e "${WHITE_FG}-s${RESET} select device sink"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDTs"
+
+OPTIND=0
+SET_SINK=false
+SOUND_TEST=false
+
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     T) SOUND_TEST=true;;
+     s) SET_SINK=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+
+if [[ ${SET_SINK} == 'true' ]];then
+	select_sink
+elif [[ ${SOUND_TEST} == 'true' ]];then
+	pa_sound_tst
+else
+	bt_up
+	select_device
+	vol 60
+fi
+
+exit_leave

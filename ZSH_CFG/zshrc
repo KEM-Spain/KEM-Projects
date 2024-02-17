@@ -1,0 +1,147 @@
+FUNCTIONS=/etc/zsh/system_wide/functions
+fpath=(${FUNCTIONS} $fpath)
+
+eval "$(dircolors /etc/zsh/DIR_COLORS)"
+
+zle -N edit-command-line #register widget
+
+autoload -Uz ${FUNCTIONS}/*(:t)
+autoload -Uz colors && colors
+autoload -Uz compinit 
+autoload -Uz add-zsh-hook
+autoload -Uz run-help
+autoload -Uz edit-command-line #load widget
+
+compinit -C
+
+#Options
+setopt hist_find_no_dups	#don't recall dups
+setopt SHARE_HISTORY #share history between login shells
+setopt EXTENDED_HISTORY #each command's beginning timestamp to the history file
+setopt HIST_IGNORE_SPACE
+setopt COMPLETE_IN_WORD
+setopt CORRECT
+setopt HASH_CMDS
+setopt HASH_DIRS
+setopt LOCAL_OPTIONS # allow functions to have local options
+setopt LOCAL_TRAPS # allow functions to have local traps
+setopt NO_BG_NICE # don't nice background tasks
+setopt NO_HUP
+setopt PROMPT_SUBST
+setopt REMATCH_PCRE
+setopt SH_NULLCMD
+
+#Bindkey
+bindkey -M vicmd v edit-command-line #associate v key
+if [[ "$TERM" != emacs ]]; then
+	[[ -z "$terminfo[kdch1]" ]] || bindkey -M emacs "$terminfo[kdch1]" delete-char
+	[[ -z "$terminfo[khome]" ]] || bindkey -M emacs "$terminfo[khome]" beginning-of-line
+	[[ -z "$terminfo[kend]" ]] || bindkey -M emacs "$terminfo[kend]" end-of-line
+	[[ -z "$terminfo[kich1]" ]] || bindkey -M emacs "$terminfo[kich1]" overwrite-mode
+	[[ -z "$terminfo[kdch1]" ]] || bindkey -M vicmd "$terminfo[kdch1]" vi-delete-char
+	[[ -z "$terminfo[khome]" ]] || bindkey -M vicmd "$terminfo[khome]" vi-beginning-of-line
+	[[ -z "$terminfo[kend]" ]] || bindkey -M vicmd "$terminfo[kend]" vi-end-of-line
+	[[ -z "$terminfo[kich1]" ]] || bindkey -M vicmd "$terminfo[kich1]" overwrite-mode
+	
+	[[ -z "$terminfo[cuu1]" ]] || bindkey -M viins "$terminfo[cuu1]" vi-up-line-or-history
+	[[ -z "$terminfo[cuf1]" ]] || bindkey -M viins "$terminfo[cuf1]" vi-forward-char
+	[[ -z "$terminfo[kcuu1]" ]] || bindkey -M viins "$terminfo[kcuu1]" vi-up-line-or-history
+	[[ -z "$terminfo[kcud1]" ]] || bindkey -M viins "$terminfo[kcud1]" vi-down-line-or-history
+	[[ -z "$terminfo[kcuf1]" ]] || bindkey -M viins "$terminfo[kcuf1]" vi-forward-char
+	[[ -z "$terminfo[kcub1]" ]] || bindkey -M viins "$terminfo[kcub1]" vi-backward-char
+	
+	# ncurses fogyatekos
+	[[ "$terminfo[kcuu1]" == "O"* ]] && bindkey -M viins "${terminfo[kcuu1]/O/[}" vi-up-line-or-history
+	[[ "$terminfo[kcud1]" == "O"* ]] && bindkey -M viins "${terminfo[kcud1]/O/[}" vi-down-line-or-history
+	[[ "$terminfo[kcuf1]" == "O"* ]] && bindkey -M viins "${terminfo[kcuf1]/O/[}" vi-forward-char
+	[[ "$terminfo[kcub1]" == "O"* ]] && bindkey -M viins "${terminfo[kcub1]/O/[}" vi-backward-char
+	[[ "$terminfo[khome]" == "O"* ]] && bindkey -M viins "${terminfo[khome]/O/[}" beginning-of-line
+	[[ "$terminfo[kend]" == "O"* ]] && bindkey -M viins "${terminfo[kend]/O/[}" end-of-line
+	[[ "$terminfo[khome]" == "O"* ]] && bindkey -M emacs "${terminfo[khome]/O/[}" beginning-of-line
+	[[ "$terminfo[kend]" == "O"* ]] && bindkey -M emacs "${terminfo[kend]/O/[}" end-of-line
+fi
+
+# Completion Styles
+
+# list of completers to use
+zstyle ':completion:*' sort false
+zstyle ':completion:*::::' completer _expand _complete _ignored _approximate
+
+# allow one error for every three characters typed in approximate completer
+zstyle -e ':completion:*:approximate:*' max-errors \
+    'reply=( $(( ($#PREFIX+$#SUFFIX)/3 )) numeric )'
+    
+# insert all expansions for expand completer
+zstyle ':completion:*:expand:*' tag-order all-expansions
+
+# formatting and messages
+zstyle ':completion:*' verbose yes
+zstyle ':completion:*:descriptions' format '%B%d%b'
+zstyle ':completion:*:messages' format '%d'
+zstyle ':completion:*:warnings' format 'No matches for: %d'
+zstyle ':completion:*:corrections' format '%B%d (errors: %e)%b'
+zstyle ':completion:*' group-name ''
+
+# match uppercase from lowercase
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+
+# offer indexes before parameters in subscripts
+zstyle ':completion:*:*:-subscript-:*' tag-order indexes parameters
+
+# command for process lists, the local web server details and host completion
+#zstyle ':completion:*:processes' command 'ps -o pid,s,nice,stime,args'
+#zstyle ':completion:*:urls' local 'www' '/var/www/htdocs' 'public_html'
+zstyle '*' hosts $hosts
+
+# Filename suffixes to ignore during completion (except after rm command)
+zstyle ':completion:*:*:(^rm):*:*files' ignored-patterns '*?.o' '*?.c~' \
+    '*?.old' '*?.pro'
+# the same for old style completion
+#fignore=(.o .c~ .old .pro)
+
+# ignore completion functions (until the _ignored completer)
+zstyle ':completion:*:functions' ignored-patterns '_*'
+
+#Completion behavior
+#zstyle ':completion:*' accept-exact '*(N)'
+#zstyle ':completion:*' auto-description 'specify: %d'
+#zstyle ':completion:*' cache-path ~/.zsh/cache
+#zstyle ':completion:*' completer _expand _complete _correct _approximate
+#zstyle ':completion:*' format 'Completing %d'
+#zstyle ':completion:*' group-name ''
+#zstyle ':completion:*' list-colors ''
+#zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s
+#zstyle ':completion:*' matcher-list '' 'm:{a-z}={A-Z}' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=* l:|=*'
+#zstyle ':completion:*' menu select
+#zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p%s
+#zstyle ':completion:*' use-cache on
+#zstyle ':completion:*' use-compctl no
+#zstyle ':completion:*' verbose yes
+#zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
+#zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
+#zstyle ':completion:*:default' list-prompt '%S%M matches%s'
+#zstyle ':completion:*:corrections' format "- %d - (errors %e})"
+#zstyle ':completion:*:descriptions' format "- %d -"
+#zstyle ':completion:*:manuals' separate-sections true
+#zstyle ':completion:*:manuals.(^1*)' insert-sections true
+#zstyle ':completion:*:messages' format '%d'
+#zstyle ':completion:*:warnings' format 'No matches for: %d'
+#zstyle ':completion:::::' completer _complete _approximate
+#zstyle ':completion::approximate*:*' prefix-needed false
+#zstyle -e ':completion:*:approximate:*' max-errors 'reply=( $(( ($#PREFIX + $#SUFFIX) / 3 )) )'
+#
+##Command completion
+#zstyle ':completion:*:sudo:*' command-path /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin /usr/X11R6/bin
+#zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
+#zstyle ':completion:*:*:ext:*' file-patterns '*.(#i)(bz2|tar.gz|tar.xz|tar.lzma|bz2|rar|gz|tar|tbz2|tgz|zip|Z|7z|dmg)'
+
+#zstyle ':completion:*' file-patterns \
+#  "^($BORING_FILES|.*)(-/):directories:normal\ directories %p~($BORING_FILES|.*)(^-/):globbed-files:normal\ files" \
+#  "^($BORING_FILES|.*)(^-/):noglob-files:noglob\ files" \
+##  ".*~($BORING_FILES)(^-/):hidden-files:hidden\ files .*~($BORING_FILES)(-/):hidden-directories:hidden\ directories" \
+#  "($BORING_FILES)(^-/):boring-files:boring\ files ($BORING_FILES)(-/):boring-directories:boring\ directories" \
+#
+#zstyle ':completion:*' group-order \
+#  builtins expansions aliases functions commands globbed-files \
+#  directories hidden-files hidden-directories \
+#  boring-files boring-directories keywords viewable

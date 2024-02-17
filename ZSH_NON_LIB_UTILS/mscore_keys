@@ -1,0 +1,205 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Constants
+KEYS_FILE=/usr/local/etc/MuseScore-ShortcutKeys.txt
+
+#Declarations
+typeset -A KEY_DEF
+typeset -A KEY_SEEN
+
+#Functions
+load_keys () {
+	local KEY
+	local DEF
+
+	while read LINE;do
+		DEF=$(echo ${LINE} | cut -d'|' -f1)
+		KEY=$(echo ${LINE} | cut -d'|' -f2)
+		KEY_DEF[${KEY}]=${DEF}
+	done < ${KEYS_FILE}
+}
+
+#Execution
+SEARCHTERM=?
+
+load_keys
+
+if [[ -n ${1} ]];then
+	SEARCHTERM=${@}
+	printf "\nKeys matching: ${SEARCHTERM}\n"
+	for K in ${(ok)KEY_DEF};do
+		[[ ${K:l} =~ "${SEARCHTERM:l}" ]] && printf "${WHITE_FG}%20s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]}
+	done
+	exit
+fi
+
+(
+printf "\nArrow Keys\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^(Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && printf "${WHITE_FG}%6s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nMisc Keys\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^(Backspace|Del|Esc|Ins|Return|Space|Tab)' ]] && printf "${WHITE_FG}%10s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^[+./:;<>{}]' ]] && printf "${WHITE_FG}%10s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nFunction Keys\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^F[0-9][0-9]?$' ]] && printf "${WHITE_FG}%3s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nSingle Letter Keys\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^[A-Z]$' ]] && printf "${WHITE_FG}%2s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nSingle Number Keys\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^[0-9]$' ]] && printf "${WHITE_FG}%2s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nShift Keys Letter\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Shift[+][A-Z]$' ]] && printf "${WHITE_FG}%15s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Shift[+][A-Z],' ]] && printf "${WHITE_FG}%15s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nShift Keys Number\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Shift[+][0-9]' ]] && printf "${WHITE_FG}%8s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nShift Keys FK\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Shift[+]F[0-9]' ]] && printf "${WHITE_FG}%8s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nShift Keys Arrow\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Shift[+](Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && printf "${WHITE_FG}%12s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nShift Keys Other\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Shift[+][A-Z]$' ]] && continue
+	[[ ${K} =~ '^Shift[+][A-Z],' ]] && continue
+	[[ ${K} =~ '^Shift[+][0-9]' ]] && continue
+	[[ ${K} =~ '^Shift[+]F[0-9]' ]] && continue
+	[[ ${K} =~ '^Shift[+](Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && continue
+	[[ ${K} =~ '^Shift[+]' ]] && printf "${WHITE_FG}%12s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl Keys Letter\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+][A-Z]$' ]] && printf "${WHITE_FG}%20s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+][A-Z],' ]] && printf "${WHITE_FG}%20s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl Keys Number\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+][0-9]' ]] && printf "${WHITE_FG}%6s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl Keys FK\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]F[0-9]' ]] && printf "${WHITE_FG}%8s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl Keys Arrow\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+](Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && printf "${WHITE_FG}%12s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl Keys Other\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]Alt' ]] && continue
+	[[ ${K} =~ '^Ctrl[+]Shift' ]] && continue
+	[[ ${K} =~ '^Ctrl[+][A-Z]$' ]] && continue
+	[[ ${K} =~ '^Ctrl[+][A-Z],' ]] && continue
+	[[ ${K} =~ '^Ctrl[+][0-9]' ]] && continue
+	[[ ${K} =~ '^Ctrl[+]F[0-9]' ]] && continue
+	[[ ${K} =~ '^Ctrl[+](Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && continue
+	[[ ${K} =~ '^Ctrl[+]' ]] && printf "${WHITE_FG}%12s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl+Shift Keys Letter\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]Shift[+][A-Z]$' ]] && printf "${WHITE_FG}%14s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl+Shift Keys Arrow\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]Shift[+](Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && printf "${WHITE_FG}%16s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl+Shift Keys Other\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]Shift[+][A-Z]$' ]] && continue
+	[[ ${K} =~ '^Ctrl[+]Shift[+](Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && continue
+	[[ ${K} =~ '^Ctrl[+]Shift' ]] && printf "${WHITE_FG}%12s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl+Alt Keys Letter\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]Alt[+][A-Z]$' ]] && printf "${WHITE_FG}%8s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl+Alt Keys Number\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]Alt[+][0-9]$' ]] && printf "${WHITE_FG}%10s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl+Alt Keys Arrow\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]Alt[+](Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && printf "${WHITE_FG}%18s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nCtrl+Alt+Shift Keys\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Ctrl[+]Alt[+]Shift' ]] && printf "${WHITE_FG}%20s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nAlt Keys Letter\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Alt[+][A-Z]$' ]] && printf "${WHITE_FG}%6s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nAlt Keys Number\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Alt[+][0-9]' ]] && printf "${WHITE_FG}%6s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nAlt Keys Arrow\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Alt[+](Up|Down|Left|Right|Home|End|PgUp|PgDown)' ]] && printf "${WHITE_FG}%8s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nAlt+Shift Keys\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${K} =~ '^Alt[+]Shift' ]] && printf "${WHITE_FG}%14s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]} && KEY_SEEN[${K}]=1
+done
+
+printf "\nOther Keys\n"
+for K in ${(ok)KEY_DEF};do
+	[[ ${KEY_SEEN[${K}]} -eq 1 ]] && continue
+	printf "${WHITE_FG}%5s${MAGENTA_FG} |%-30s${RESET}\n" ${K} ${KEY_DEF[${K}]}
+done
+) | mypager

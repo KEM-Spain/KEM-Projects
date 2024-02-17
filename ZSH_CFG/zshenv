@@ -1,0 +1,67 @@
+eval $(dircolors /etc/zsh/DIR_COLORS)
+
+FUNCTIONS=/etc/zsh/system_wide/functions
+NPM_PACKAGES="${HOME}/.npm-packages"
+ZSH=/etc/zsh
+ZSH_USER=~/.zsh
+
+
+PATHS=(
+. \
+~/ \
+${ZSH_USER} \
+${ZSH} \
+~/.local/bin \
+${NPM_PACKAGES}/bin \
+/usr/local/bin \
+/usr/local/src \
+/usr/local/bin/system \
+/usr/local/bin/system/launchers \
+/usr/local/bin/system/vid_watch \
+${FUNCTIONS} \
+/usr/sbin \
+/usr/bin \
+/sbin \
+/bin \
+/opt \
+)
+
+local MYPATH
+for P in ${PATHS};do
+	MYPATH+=${P}:
+done
+
+export CAM_DEFAULT=off
+export EDITOR=vim
+export GOPATH=~/Code/go
+export GOROOT=/usr/local/bin/go
+export HISTFILE=~/.zsh_history
+export HISTSIZE=10000000
+export JAVA_HOME="/usr/lib/jvm/java-1.17.0-openjdk-amd64"
+export LC_ALL="en_US.UTF-8"
+export MANPATH="${MANPATH-$(manpath)}:$NPM_PACKAGES/share/man"
+export MOZILLA_FIVE_HOME=/usr/lib/xulrunner-1.9.2.17
+export NPM_PACKAGES=${HOME}/.npm-packages
+export PATH=$MYPATH
+export PATH=${PATH}:${GOROOT}/bin
+export PROMPT_EOL_MARK='%<<'
+export PS1="[%(!.%F{red}%n.%F{green}%n)%F{white}@%F{magenta}%m%f]%3~:" #(!.X.Y) is ternery test for root vs regular user
+export PS_FORMAT="user,pid,args,%cpu,%mem,etime"
+export PS_PERSONALITY="linux"
+export RC_OUT=/tmp/rc.out
+export READNULLCMD=${PAGER:-/usr/bin/pager}
+export REPORTTIME=-1 # print elapsed time when more than 10 seconds
+export SAVEHIST=10000000
+export TIME_STYLE='+%m-%d-%y %R'
+export TZDIR=/usr/share/zoneinfo
+export WEB="/var/www"
+export WWW_HOME="http://www.google.com/ncr" #for lynx
+
+bindkey '^[^[[D' backward-word
+bindkey '^[^[[C' forward-word
+bindkey '^[[5D' beginning-of-line
+bindkey '^[[5C' end-of-line
+bindkey '^[[3~' delete-char
+#bindkey '^[^N' newtab
+bindkey '^?' backward-delete-char 
+

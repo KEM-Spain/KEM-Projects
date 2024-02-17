@@ -1,0 +1,78 @@
+#!/usr/bin/zsh
+_gd_MOUNTPOINT='/home/kmiller/GoogleDrive'
+_gd_VOLUME=~/PRS1;
+
+_gd_dismount () {
+	echo -e "\nUnmounting Google Drive volume...\n"
+	sudo umount google-drive-ocamlfuse
+	kill -SIGINT $$;
+}
+
+SCRIPT=$(basename ${0})
+_gd_usage () {
+	(
+	tabs 5
+	echo -e "\nUsage: ${SCRIPT:s/.//} -hpd password \n"
+	echo "-h help"
+	echo "-d unmount volume"
+	echo "-s mount _gd_status"
+	echo -e "\nDesc:mount Google Drive volumes"
+	echo -e "\tIf no args are passed, toggles mount"
+	) >&2
+	kill -SIGINT $$;
+}
+
+_gd_is_mounted () {
+	mount | grep -q ${_gd_MOUNTPOINT}
+	return ${?}
+}
+
+_gd_status () {
+	if _gd_is_mounted ${_gd_MOUNTPOINT};then
+		echo "GoogleDrive is ${GREEN_FG}${ITALIC}mounted${RESET}"
+	else
+		echo "GoogleDrive is ${RED_FG}NOT${RESET} mounted${RESET}"
+	fi
+}
+
+STATUS_CALL=false
+OPTIND=0
+
+while getopts ":Hds" opts;do
+	case ${opts} in
+      d) _gd_dismount;;
+      s) STATUS_CALL=true;_gd_status;;
+      H) _gd_usage;;
+      :) print -u2 "${0:} option: -${OPTARG} requires an argument"; _gd_usage ;;
+     \?) print -u2 "${0:} ${BOLD}${RED_FG}Unknown option${RESET} ${OPTARG}"; _gd_usage ;;
+	esac
+done
+shift $((${OPTIND} - 1))
+
+#unmount or cd if no args passed
+if [[ ${STATUS_CALL} == 'false' ]];then
+	if _gd_is_mounted && [[ ${#} -eq 0 && ${PWD} == ${_gd_MOUNTPOINT} ]];then
+		cd ~/
+		_gd_dismount
+		kill -SIGINT $$
+	else
+		cd ${_gd_MOUNTPOINT}
+	fi
+
+	if [[ ! -d ${_gd_MOUNTPOINT} ]];then
+		 echo "creating ${_gd_MOUNTPOINT}..."
+		 sudo mkdir ${_gd_MOUNTPOINT}
+		 if [[ ${?} != 0 ]];then
+			  echo "${0} failed - Problem creating mount point: ${_gd_MOUNTPOINT}"
+		 fi
+	fi
+
+	#mount if not already mounted
+	if ! _gd_is_mounted;then
+		echo -e "\nMounting Google Drive volume at ${_gd_MOUNTPOINT}\n"
+		google-drive-ocamlfuse ${_gd_MOUNTPOINT}
+	fi
+
+	#convenient if you source the execution
+	cd ${_gd_MOUNTPOINT}
+fi

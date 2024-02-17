@@ -1,0 +1,21 @@
+        entry_text = self.entry.get_entry_text()
+
+        model, t_iter = self.selection.get_selected()
+        if t_iter is not None:
+            t_view_highlight_text = model.get_value(t_iter,0)
+
+        self.model_add_search(entry_text)
+        if len(entry_text):
+            self.selection.unselect_all()
+            self.treeview.set_model(self.hist_model)
+            self.treeview.show()
+            self.submit_label.hide()
+            self.submit_entry(entry_text)
+            self.entry.set_entry_text("")
+
+        elif len(t_iter_highlight_text):
+            self.submit_entry(t_iter_highlight_text)
+
+        else:
+            self.hist_save()
+            app_exit()

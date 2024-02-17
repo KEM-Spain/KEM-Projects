@@ -1,0 +1,89 @@
+#!/usr/bin/zsh
+
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+  
+typeset -a LOCAL_FILES
+
+CODEBASE=~/Code
+LOCAL=${CODEBASE}/LOCAL
+LANG=${CODEBASE}/LANG
+PYPROJ=${LANG}/Python/PROJECTS
+
+if [[ ${1} == '-H' ]];then
+	tabs 5
+	echo "\n${WHITE_FG}Usage${RESET}:${0:t} [-H] [<dir>]"
+	echo "${WHITE_FG} Desc${RESET}:Change to development directory\n"
+	echo "Directories searched:\n"
+	echo "${CODEBASE}"
+	echo "${LOCAL}"
+	echo "${LANG}"
+	echo "${PYPROJ}"
+	echo
+	return
+fi
+
+[[ -z ${1} ]] && cd ${CODEBASE}
+
+if [[ -d ${LOCAL}/${1} ]];then
+	cd ${LOCAL}/${1} 
+elif [[ -d ${LOCAL}/${(U)1} ]];then
+	cd ${LOCAL}/${(U)1} 
+elif [[ -d ${LANG}/${1} ]];then
+	cd ${LANG}/${1} 
+elif [[ -d ${LANG}/${(U)1} ]];then
+	cd ${LANG}/${(U)1} 
+elif [[ -d ${CODEBASE}/${1} ]];then
+	cd ${CODEBASE}/${1} 
+elif [[ -d ${CODEBASE}/${(U)1} ]];then
+	cd ${CODEBASE}/${(U)1} 
+elif [[ -d ${PYPROJ}/${1} ]];then
+	cd ${PYPROJ}/${1} 
+	[[ -d venv ]] && cd venv
+elif [[ -d ${PYPROJ}/${(U)1} ]];then
+	cd ${PYPROJ}/${(U)1} 
+	[[ -d venv ]] && cd venv
+else
+	echo "No directory found:${WHITE_FG}${1}${RESET}"
+	return
+fi
+
+LONGEST=0
+for F in ${PWD}/*;do
+	[[ ${F:e} == 'bak' ]] && continue
+	if [[ $(file ${F}) =~ 'zsh script' || ${F:e} == 'zsh' ]];then
+		LOCAL_FILES+=${F}
+		[[ ${#F:t} -gt ${LONGEST} ]] && LONGEST=${#F:t}
+	fi
+done
+
+for F in ${LOCAL_FILES};do
+	if [[ -e ${F} ]];then
+		PROD=$(fut findexe ${F})
+		if [[ ! ${PROD} =~ 'LOCAL' ]];then
+			diff -b ${F} ${PROD} >/dev/null 2>&1
+			if [[ ${?} -ne 0 ]];then
+				printf "Development:${WHITE_FG}%-*s${RESET} ${BOLD}${RED_FG}%14s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F:t} "does not match" ${PROD:t}
+			else
+				printf "Development:${WHITE_FG}%-*s${RESET} ${BOLD}${GREEN_FG}%14s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F:t} "matches" ${PROD:t}
+			fi
+		fi
+	fi
+done

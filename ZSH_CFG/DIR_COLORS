@@ -1,0 +1,230 @@
+export PS1="[%(!.%F{red}%n.%F{green}%n)%F{white}@%F{magenta}%m%f]%3~:"#Configuration file for dircolors, a utility to help you set the
+#LS_COLORS environment variable used by GNU ls with the --color option.
+#Copyright (C) 1996, 1999-2008
+#Free Software Foundation, Inc.
+#Copying and distribution of this file, with or without modification,
+#are permitted provided the copyright notice and this notice are preserved.
+#The keywords COLOR, OPTIONS, and EIGHTBIT (honored by the
+#slackware version of dircolors) are recognized but ignored.
+#---------------------------------------------------------------------------
+
+#Below, there should be one TERM entry for each termtype that is colorizable
+TERM ansi
+TERM color-xterm
+TERM gnome
+TERM gnome-256color
+TERM linux
+TERM xterm
+TERM xterm-256color
+
+#Below are the color init strings for the basic file types. A color init
+#string consists of one or more of the following numeric codes:
+#-----------------------------------------------------------------------
+#ATTRIBUTE CODES: #00=none 01=bold 04=underscore 05=blink 07=reverse 08=concealed
+#TEXT COLOR CODES: #30=black 31=red 32=green 33=yellow 34=blue 35=magenta 36=cyan 37=white
+#BACKGROUND COLOR CODES: #40=black 41=red 42=green 43=yellow 44=blue 45=magenta 46=cyan 47=white
+#-----------------------------------------------------------------------
+
+#NORMAL 00 #NO color code at all
+#FILE 00   #REGULAR FILE: USE NO COLOR at all
+ 
+RESET 0 #RESET to "normal" color
+
+#DIRECTORIES
+DIR 01;36 			#DIRECTORY
+OTHER_WRITABLE 37;40		#DIRECTORY that is OTHER-WRITABLE (o+w) and NOT STICKY
+STICKY 37;44			#DIRECTORY with the STICKY bit set (+t) and NOT OTHER-WRITABLE
+STICKY_OTHER_WRITABLE 33;40	#DIRECTORY that is STICKY and OTHER-WRITABLE (+t,o+w)
+
+#FILES
+SETUID 37;41		#FILE that is SETUID (u+s)
+SETGID 30;43		#FILE that is SETGID (g+s)
+CAPABILITY 30;41	#FILE with CAPABILITY
+EXEC 01;32			#FILE with EXECUTE permissions
+
+#SYMLINKS
+#LINK target			#30;42 #SYMBOLIC LINK. (If you set this to 'target' instead of a numerical value, the color is as for the file pointed to.)
+LINK 30;46				#SYMBOLIC LINK. (If you set this to 'target' instead of a numerical value, the color is as for the file pointed to.)
+ORPHAN 40;31			#SYMLINK to nonexistent file, or non-stat'able file
+MULTIHARDLINK 44;37	#REGULAR FILE with MORE than ONE LINK
+
+#DEVICE/OTHER
+FIFO 40;33 			#PIPE
+SOCK 01;35 			#SOCKET
+DOOR 01;35 			#DOOR
+BLK 40;33;01		#BLOCK DEVICE driver
+CHR 40;33;01		#CHARACTER DEVICE driver
+
+#List any FILE EXTENSIONS like '.gz' or '.tar' that you would like ls
+#to colorize below. Put the extension, a space, and the color init string.
+#(and any comments you want to add after a '#')
+#If you use DOS-style suffixes, you may want to uncomment the following:
+#.cmd 01;32 #executables (bright green)
+#.exe 01;32
+#.com 01;32
+#.btm 01;32
+#.bat 01;32
+#Or if you want to colorize scripts even if they do not have the
+#executable bit actually set.
+#.csh 01;32
+
+#LOG FILES
+.log 00;32
+
+#ARCHIVES OR COMPRESSED
+.7z 01;31
+.Z 01;31
+.ace 01;31
+.arj 01;31
+.bz 01;31
+.bz2 01;31
+.cpio 01;31
+.deb 01;31
+.dmg 01;31
+.dz 01;31
+.gz 01;31
+.gz 01;31
+.jar 01;31
+.lzh 01;31
+.lzma 01;31
+.rar 01;31
+.rpm 01;31
+.rz 01;31
+.tar 01;31
+.taz 01;31
+.tbz2 01;31
+.tgz 01;31
+.tz 01;31
+.z 01;31
+.zip 01;31
+.zoo 01;31
+
+#SOURCE TEXT FILES
+.awk 01;33
+.c 01;33
+.clj 01;33
+.cpp 01;33
+.h 01;33
+.hs 01;33
+.java 01;33
+.js 01;33
+.py 01;33
+.rb 01;33
+.rby 01;33
+.sh 01;33
+.st 01;33
+.xml 01;33
+.zsh 01;33
+
+#VIDEO FORMATS
+.mov 37;44
+.mpg 37;44
+.mpeg 37;44
+.mkv 37;44
+.wmv 37;44
+.avi 37;44
+.mp4 37;44
+.qt 37;44
+.webm 37;44
+.vob 37;44
+.flv 37;44
+.axv 37;44
+.anx 37;44
+.ogv 37;44
+.ogx 37;44
+
+#SUBTITLE FORMATS
+.srt 37;40
+
+#IMAGE FORMATS
+.jpg 01;35
+.jpeg 01;35
+.gif 01;35
+.bmp 01;35
+.pbm 01;35
+.pgm 01;35
+.ppm 01;35
+.tga 01;35
+.xbm 01;35
+.xpm 01;35
+.tif 01;35
+.tiff 01;35
+.png 01;35
+.svg 01;35
+.svgz 01;35
+.mng 01;35
+.pcx 01;35
+.m2v 01;35
+.ogm 01;35
+.m4v 01;35
+.mp4v 01;35
+.nuv 01;35
+.asf 01;35
+.rm 01;35
+.rmvb 01;35
+.flc 01;35
+.fli 01;35
+.gl 01;35
+.dl 01;35
+.xcf 01;35
+.xwd 01;35
+.yuv 01;35
+
+#AUDIO FORMATs
+.aac 37;44
+.au 37;44
+.flac 37;44
+.mid 37;44
+.midi 37;44
+.mka 37;44
+.m4a 37;44
+.mp3 37;44
+.mpc 37;44
+.ogg 37;44
+.ra 37;44
+.wav 37;44
+.axa 37;44
+.oga 37;44
+.spx 37;44
+.xspf 37;44
+
+#OFFICE FILEs
+.doc 01;37
+.odf 01;37
+.xls 01;37
+.odt 01;37
+
+#TEXT+PDF FILES
+.pdf 01;35
+.txt 00;37
+
+#MUSESCORE FILES
+.mscz 35;40
+
+#AUDACITY FILES
+.aup 07;32
+.aup3 07;32
+
+#CONFIGURATION 
+.conf 00;37
+.plymouth 00;37
+.grub 00;37
+.cnf 00;37
+.ini 00;37
+
+#LIBRARY 
+.3 00;37
+.so 00;37
+
+#FONT
+.ttf 00;37
+
+#DATABASE
+.db 00;37
+
+#LOCKFILE
+.lock 01;31
+
+#BACKUP
+.bak 00;31
+.old 00;31

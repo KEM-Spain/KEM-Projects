@@ -1,0 +1,158 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+#Declarations
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+dismount () {
+	sudo umount /dev/sda1 2>/dev/null
+	sudo umount /dev/sda4 2>/dev/null
+	sleep 1
+	sudo udisksctl power-off -b /dev/sda 2>/dev/null
+}
+
+pre_exit () {
+	[[ ${_DEBUG} -eq 0 ]] && do_smcup
+	msg_box "Waiting for dismount..."
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Would be doing dismount${RESET}" || dismount
+
+	msg_box "Killing nordvpnd..."
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Would be killing nordvpnd${RESET}" || sudo killall nordvpnd
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+typeset -a OPTIONS
+
+read -r -d '' DESC<<EOF
+Logout, Reboot, or Power off machine
+\tPrior to either, the external drive is powered off and 
+\tproblematic daemons are killed to reduce any delays
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} logout (default)"
+	echo -e "${WHITE_FG}-p${RESET} power off"
+	echo -e "${WHITE_FG}-r${RESET} reboot"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDlrp"
+
+POWER=false
+LOGOUT=false
+REBOOT=false
+NOPROMPT=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     l) LOGOUT=true;;
+     p) POWER=true;;
+     r) REBOOT=true;;
+     y) NOPROMPT=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' && ${OPTION} != 'y' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+if [[ ${#OPTIONS} -eq 0 ]];then
+	MSG_OUT="|Logout, Reboot, or Power Off?"
+	msg_box -p -P "(R)eboot, (L)ogout, (P)ower off, (Q)uit|"  "${MSG_OUT}|$(str_unicode_line ${#MSG_OUT})"
+	[[ ${_MSG_KEY:l} == [qn] || ${_MSG_KEY:l} == 'esc' ]] && exit_leave $(msg_warn "Operation cancelled")
+	[[ ${_MSG_KEY:l} == 'l' ]] && LOGOUT=true
+	[[ ${_MSG_KEY:l} == 'r' ]] && REBOOT=true
+	[[ ${_MSG_KEY:l} == 'p' ]] && POWER=true
+fi
+
+[[ ${LOGOUT} == 'true' ]] && LOGOUT=true && MSG_OUT="<g>Logging out.."
+[[ ${REBOOT} == 'true' ]] && REBOOT=true && MSG_OUT="<r>Rebooting..."
+[[ ${POWER} == 'true' ]] && POWER=true && MSG_OUT="<r>Powering off..."
+
+msg_box -x3 -y3    "${MSG_OUT}<N>"
+msg_box -x35 -y150 "${MSG_OUT}<N>"
+msg_box -x35 -y3   "${MSG_OUT}<N>"
+msg_box -x3 -y150  "${MSG_OUT}<N>"
+
+tput cup  0 0
+sleep 1
+clear
+
+if [[ ${REBOOT} == 'true' ]];then
+	sudo reboot
+elif [[ ${POWER} == 'true' ]];then
+	sudo shutdown now
+elif [[ ${LOGOUT} == 'true' ]];then
+	gnome-session-quit --logout --no-prompt
+fi
+
+exit_leave

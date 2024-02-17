@@ -1,0 +1,117 @@
+#compdef fut
+
+_fut() {
+    local line state
+
+    _arguments -C \
+               '1: :->cmds' \
+					'-H[help]' \
+					'-D[debug]' \
+               '*::arg:->args'
+    case "$state" in
+        cmds)
+				_values 'Commands:' \
+				'comments[Hide/show file comments]' \
+				'findexe[Find executable file]' \
+				'extensions[Mass change file extension]' \
+				'generate[Generate multiple file types]' \
+				'inode_del[Delete file by inode]' \
+				'inode_get[Get inode for file]' \
+				'links[Dereference links]' \
+				'modified[Show files created/modified today]' \
+				'surface[Extract file from subdirectory]' \
+				;;
+        args)
+            case $line[1] in
+                comments) _do_fcom;;
+                findexe) _do_findexe;;
+                extensions) _do_extensions;;
+                generate) _do_generate;;
+                inode_del) _do_inode_del;;
+                inode_get) _do_inode_get;;
+                links) _do_links;;
+                modified) _do_modified;;
+                surface) _do_surface;;
+            esac
+            ;;
+    esac
+}
+
+_do_comments() {
+    _arguments -s \
+			'-H[help]' \
+			'-h[hide file comments (default)]' \
+			'-s[show file comments]' \
+
+	_files -W ${PWD} ${0}
+}
+
+_do_extensions() {
+    _arguments -s \
+			'-H[help]' \
+			'-c[copy instead of move]' 
+}
+
+_do_generate() {
+    _arguments -s \
+			'-H[help]'  \
+			'-f[create files (default)]' \
+			'-d[create dirs]' \
+			'-h[create hidden files]' \
+			'-l[create symbolic links]' \
+}
+
+_do_links() {
+    _arguments -s \
+			'-H[help]' \
+			'-d[increase depth of scan (repeats increase level)]'\
+			'-f[pipe delimited output]'\
+			'-i[ignore broken links]'\
+}
+
+_do_modified() {
+    _arguments -s \
+			'-H[help]' \
+			'-d[increase depth of scan (repeats increase level)]' \
+			'-c[increase CTIME (repeatable)]' \
+
+}
+
+_do_inode_del() {
+    _arguments -s \
+			'-H[help]' \
+
+	_files -W ${PWD} ${0}
+}
+
+_do_inode_get() {
+    _arguments -s \
+			'-H[help]' \
+
+	_files -W ${PWD} ${0}
+}
+
+_do_findexe() {
+    _arguments -s \
+			'-H[help]' \
+			'-d[increase depth of scan (repeats increase level)]' \
+			'-l[local files have priority]' \
+
+	_files -W ${PWD} ${0}
+}
+
+
+_do_surface() {
+    _arguments -s \
+			'-H[help]' \
+			'-d[increase depth of scan (repeats increase level)]' \
+			'-i[interactive prompts]' \
+			'-t[dir to hold surfaced files]' \
+			'-d[do not remove empty dirs]' \
+			'-j[do not remove junk files from torrent directories]' \
+			'-s[simulate actions only]' \
+
+	_files -W ${PWD} ${0}
+}
+
+

@@ -1,0 +1,1300 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+#Declarations
+typeset -A _UTILS=(
+comments 1
+extensions 1
+generate 1
+links 1
+modified 1
+inode_del 1
+inode_get 1
+findexe 1
+surface 1
+)
+
+typeset -A _UTILS_DESC=(
+comments "COMMENTS:Hide/show file comments"
+extensions "EXTENSIONS:Mass change file extension"
+generate "GENERATE:Generate multiple file types"
+links "LINKS:Dereference links"
+modified "MODIFIED:Show files created/modified today"
+inode_del "INODES:Delete file by inode"
+inode_get "INODES:Get inode of file"
+findexe "EXE:Find executable file"
+surface "EXTRACT:Extract files from sub directory"
+)
+
+#Constants
+_LIB_DIR=/usr/local/lib
+_WRAPPER=${0:t}
+
+#Globals
+g_USAGE=false
+g_UTIL=''
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+source ${_LIB_DIR}/VALIDATE.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+findexe () {
+	local -a LIST
+	local -a RAWLINE
+	local L R
+	local FN
+	local LOCAL
+
+	read -r -d '' DESC<<______EOF
+Find files based on priority
+______EOF
+
+	#--Begin GetOpts--
+	RESET="\033[m"
+	RED_FG="\033[31m"
+	WHITE_FG="\033[37m"
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		local OPTS=$(parse_opts ${OPTSTR})
+		local -a PENDING_MSGS=(${@})
+
+		(
+		echo -e "\n${WHITE_FG}Usage${RESET}: ${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}-l${RESET} local files have priority"
+		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err "${PENDING_MSGS}")
+	}
+
+	OPTSTR=":HDl"
+	OPTIND=0
+
+	LOCAL=false
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) dbg_set_level;;
+		  l) LOCAL=true;;
+		  :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+		esac
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+	#Execution
+	[[ ${#} -eq 0 ]] && usage "missing argument:<FILE>" || FN=${1}
+
+	RAWLINE=("${(f)$(whereis -bf ${FN} | cut -d: -f2-)}")
+
+	for R in ${=RAWLINE};do
+		LIST+=${R}
+	done
+
+	if [[ ${#LIST} -gt 1 ]];then
+		for L in ${LIST};do
+			if [[ ${LOCAL} == 'true' ]];then
+				[[ ${L:h} == ${PWD} ]] && echo ${L}
+				return
+			elif [[ ${L:h} != ${PWD} ]];then
+				echo ${L}
+				return
+			else
+				continue
+			fi
+		done
+	else
+		echo ${LIST}
+		return
+	fi
+
+	exit_leave
+}
+
+surface () {
+		local -a DIRS
+		local D F
+		local RM_EMPTY_DIRS=true
+		local FILE_COUNT
+		local DO_PROMPTS=true
+		local RM_JUNK=true
+		local DO_SIM=false
+		local NDX=0
+		local SOURCE_DIR
+		local SOURCES
+		local RC
+
+		#Globals
+		local g_TARGET_DIR=${PWD}
+		 
+		get_response () {
+			local RESPONSE
+
+			if [[ ${DO_PROMPTS} = 'true' ]];then
+				read -q RESPONSE
+			fi
+			echo
+
+			[[ ${RESPONSE:l} == "y" ]] && return 0 || return 1
+		} 
+
+		is_image () {
+			local RVAL
+
+			case ${1:l} in
+				jpg) RVAL=0;;
+				png) RVAL=0;;
+				svf) RVAL=0;;
+				*) RVAL=1;;
+			esac
+
+			return ${RVAL}
+		}
+
+		is_junk () {
+			local RVAL
+
+			case ${1:l} in
+				*exe) RVAL=0;;
+				etrg*) RVAL=0;;
+				*txt) RVAL=0;;
+				*mov) RVAL=0;;
+				*nfo) RVAL=0;;
+				*svf) RVAL=0;;
+				*readme*) RVAL=0;;
+				*sample*) RVAL=0;;
+				*swe*srt) RVAL=0;;
+				*url) RVAL=0;;
+				*vtx) RVAL=0;;
+				*torrent) RVAL=0;;
+				*) RVAL=1;;
+			esac
+
+			return ${RVAL}
+		}
+
+		process_dir () {
+			local DIR=${1}
+			local ACTION_COLOR=none
+			local MODE=none
+			local MOVE=false
+			local MSG=none
+			local RC I
+			local SOURCE_DIR
+			local TARGET_DIR_MSG=none
+
+			printf "Directory:${WHITE_FG}%s${RESET}\n" ${DIR}
+			[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} processing DIR:${WHITE_FG}${DIR}${RESET}"
+
+			[[ -n ${g_TARGET_DIR} ]] && TARGET_DIR_MSG=${g_TARGET_DIR} || TARGET_DIR_MSG="current directory"
+
+			is_empty_dir ${DIR}
+			RC=$?
+			
+			if [[ ${RC} -eq 0 ]];then
+				echo "${YELLOW_FG}Skipped empty directory:${GREEN_FG}${1}${RESET}"
+				return #skip empty dirs in the current dir
+			else
+				if [[ ${DO_PROMPTS} = 'true' ]];then
+					echo -n "Should files from ${GREEN_FG}${1}${RESET} be moved to ${TARGET_DIR_MSG}? (y/n):"
+					if ! get_response;then
+						exit_leave $(msg_warn "Operation cancelled")
+					fi
+				fi
+			fi
+
+			for I in ${DIR}/*;do
+				[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} ${WHITE_FG}DIR item${RESET}:${I}"
+				if [[ -d ${I} ]];then
+					process_dir ${I}
+				else
+					MSG=''
+					if [[ ${RM_JUNK} == 'true' ]];then
+						MSG="junk"
+						MODE="discard"
+						MOVE=true
+						if [[ ${DO_SIM} == 'true' ]];then
+							echo "${MAGENTA_FG}$(str_unicode_line ${#I:t})${RESET}"
+							if is_junk ${I:t:l};then
+								echo "${WHITE_FG}${I:t}${RESET} - is junk - ${ITALIC}${RED_FG}would be discarded${RESET}"
+								MOVE=false
+								SIM_RM+=${I}
+							elif is_junk ${I:e};then
+								echo "${WHITE_FG}${I:t}${RESET} - is junk - ${ITALIC}${RED_FG}would be discarded${RESET}"
+								MOVE=false
+								SIM_RM+=${I}
+							elif is_image ${I:e};then
+								echo "${WHITE_FG}${I:t}${RESET} - is image - ${ITALIC}${RED_FG}would be discarded${RESET}"
+								MOVE=false
+								SIM_RM+=${I}
+							else
+								if [[ ${I:e} == 'srt' ]];then
+									local SZ
+									SZ=$(stat -c%s ${I})
+									if [[ ${SZ} -lt 20000 ]];then
+										echo "Suspect file:${WHITE_FG}${I:t}${RESET} - ${RED_FG}too small${RESET} Size:(${SZ}) - probably junk"
+									fi
+								fi
+								echo "${WHITE_FG}${I:t}${RESET} - Usable file - ${ITALIC}${GREEN_FG}would be kept${RESET}"
+							fi
+							echo "${MAGENTA_FG}$(str_unicode_line ${#I:t})${RESET}"
+						else
+							if is_junk ${I:t:l};then
+								/bin/rm -f ${I} 
+								MOVE=false
+							fi
+							if is_junk ${I:e};then
+								/bin/rm -f ${I}
+								MOVE=false
+							fi
+							if is_image ${I:e};then
+								/bin/rm -f ${I}
+								MOVE=false
+							fi
+							if [[ ${I:e} == 'srt' ]];then
+								local SZ
+								SZ=$(stat -c%s ${I})
+								if [[ ${SZ} -lt 20000 ]];then
+									echo "Suspect file:${WHITE_FG}${I:t}${RESET} - ${RED_FG}too small${RESET} Size:(${SZ}) - probably junk"
+								fi
+							fi
+						fi
+					fi
+
+					if [[ ${MOVE} == 'true' ]];then
+						if [[ -e ${g_TARGET_DIR}/${I:t} ]];then
+							MOVE=false
+							MODE="NOT moved"
+							MSG="Error:would overwrite existing file: ${g_TARGET_DIR}/${I:t}"
+						else
+							MSG="surfaced"
+							MODE="move"
+						fi
+					fi
+
+					case ${MODE:l} in
+						discard) ACTION_COLOR=${RED_FG};;
+						move) ACTION_COLOR=${GREEN_FG};;
+						"not moved") ACTION_COLOR=${RED_FG};;
+						*) ACTION_COLOR='';;
+					esac
+
+					[[ ${MODE} == 'discard' ]] && ACTION_COLOR=${RED_FG} || ACTION_COLOR=''
+
+					[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} NDX:${NDX} MODE:${WHITE_FG}${(C)MODE}${RESET} ${CYAN_FG}From${RESET}:${I:h} ${CYAN_FG}to${RESET}:${I:t} ${CYAN_FG}MSG${RESET}:${MSG}"
+
+					((NDX++))
+					printf "File: ("%02d") ${BOLD}${ACTION_COLOR}"'%10s'"${RESET}:${GREEN_FG}%s${RESET}/${WHITE_FG}%s${RESET} -> "'%s'"${RESET}\n" ${NDX} ${(C)MODE} ${I:h} ${I:t} ${MSG}
+
+					[[ ${MOVE} == 'false' ]] && continue
+
+					if [[ ${DO_PROMPTS} = 'true' ]] || [[ ${MOVE} == 'true' ]];then
+						if [[ ${DO_SIM} == 'true' ]];then
+							echo "${I} ${ITALIC}${GREEN_FG}would be moved${RESET} to: ${WHITE_FG}${g_TARGET_DIR}${RESET}"
+							SIM_MV+=${I}
+							RC=0
+						else
+							mv ${I} ${g_TARGET_DIR}
+							RC=${?}
+							[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} ${WHITE_FG}moving${RESET} ${I} to ${g_TARGET_DIR}"
+						fi
+						if [[ ${RC} -ne 0 ]];then
+							echo "${RED_FG}Error${RESET}:moving ${I} to ${g_TARGET_DIR} was unsuccessful" >&2
+							[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} ${WHITE_FG}move${RESET} ${I} to ${g_TARGET_DIR} ${RED_FG}FAILED${RESET}"
+						fi
+					fi
+				fi
+			done
+		}
+
+		#--Begin GetOpts--
+		RESET="\033[m"
+		RED_FG="\033[31m"
+		WHITE_FG="\033[37m"
+		local  -a OPTIONS
+
+		read -r -d '' DESC<<_____EOF
+Move files from a sub directory up to a target directory (default is PWD)
+\tThe original sub directory will then be deleted upon the successful
+\trelocation of its files. This behaviour can be altered through the use 
+\tof options. Torrent junk files are discarded by default.
+_____EOF
+
+		parse_opts () {
+			local OPTS=${@}
+			local -a OPTSTR
+			local LETTER_OPT
+			local O
+
+			for O in {1..${#OPTS}};do
+				[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+				[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+				[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+				OPTSTR+="-${OPTS[${O}]}"
+			done
+			echo ${OPTSTR}
+		}
+
+		opt_exists () {
+			local OPT=${1}
+			[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+		}
+
+		opt_type () {
+			local OPT=${1}
+			case ${OPT} in
+				d) echo "<DIR>";;
+				t) echo "<TARGET DIR>";;
+			esac
+		}
+
+		usage () {
+			tabs 5
+			[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+			local OPTS=$(parse_opts ${OPTSTR})
+			local -a PENDING_MSGS=(${@})
+
+			(
+			echo -e "\n${WHITE_FG}Usage${RESET}: ${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET} $(opt_type d)\n"
+			echo -e "${WHITE_FG}-H${RESET} help"
+			echo -e "${WHITE_FG}-D${RESET} debug"
+			echo -e "${WHITE_FG}-i${RESET} interactive prompts"
+			echo -e "${WHITE_FG}-t $(opt_type t)${RESET} dir to hold surfaced files"
+			echo -e "${WHITE_FG}-d${RESET} do not remove empty dirs"
+			echo -e "${WHITE_FG}-j${RESET} do not remove junk files from torrent directories"
+			echo -e "${WHITE_FG}-s${RESET} simulate actions only"
+			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+			) >&2
+
+			exit_leave $(msg_err "${PENDING_MSGS}")
+		}
+
+		OPTSTR=":DHit:djs"
+		OPTIND=0
+
+		while getopts ${OPTSTR} OPTION;do
+			case $OPTION in
+			  H) usage;;
+			  D) dbg_set_level;;
+			  i) DO_PROMPTS=false;;
+			  t) g_TARGET_DIR=${OPTARG};;
+			  d) RM_EMPTY_DIRS=false;;
+			  j) RM_JUNK=false;;
+			  s) DO_SIM=true;;
+			  :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+			 \?) print -u2 "${SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+			esac
+
+			[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+		done
+		shift $((OPTIND -1))
+		#--End GetOpts--
+
+		#Execution
+		[[ ${DO_SIM} == 'true' ]] && echo "${WHITE_ON_GREY}SIMULATION MODE${RESET}"
+
+		[[ ${#} -eq 0 ]] && exit_leave $(msg_err "Missing argument:$(opt_type d)") || SOURCE_DIR=${@:=${PWD}}
+		[[ ! -d ${SOURCE_DIR} ]] && exit_leave $(msg_err "Argument not a directory:${SOURCE_DIR}")
+
+		if [[ ${DO_SIM} == 'false' ]];then
+			if [[ ! -d ${g_TARGET_DIR} ]];then
+				mkdir ${g_TARGET_DIR} # create destination directory if needed
+				RC=${?}
+			fi
+			[[ ${RC} -ne 0 ]] && exit_leave $(msg_err "Unable to create directory:${g_TARGET_DIR}")
+			[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} created target directory:${g_TARGET_DIR}"
+		else
+			[[ ! -d ${g_TARGET_DIR} ]] && echo "Target:${g_TARGET_DIR} ${RED_FG}not found${RESET} - would create target dir:${WHITE_FG}${g_TARGET_DIR}${RESET}"
+		fi
+
+		if [[ ${SOURCE_DIR} == ${PWD} ]];then
+			echo -n "${RED_FG}Warning${RESET}: this will effect ALL sub-directories under:${WHITE_FG}${PWD}${RESET}. Proceed (y/n)?:"
+			read -sq RESPONSE
+			[[ ${RESPONSE} != 'y' ]] && exit
+			SOURCES=("${(@f)$(find ${PWD}/* -type d ! -path ${PWD})}")
+		else
+			SOURCES=(${SOURCE_DIR})
+		fi
+
+		[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} SOURCES count:${#SOURCES}"
+
+		echo "Source Directory:${WHITE_FG}${SOURCE_DIR}${RESET}"
+		echo "Target Directory:${WHITE_FG}${g_TARGET_DIR}${RESET}"
+		[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} ${WHITE_FG}Source Directory${RESET}:${SOURCE_DIR}"
+		[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} ${WHITE_FG}Target Directory${RESET}:${g_TARGET_DIR}"
+
+		local -a SIM_RM
+		local -a SIM_MV
+
+		for D in ${SOURCES};do
+			[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} processing ${D} in SOURCES"
+			[[ ! -d ${D} ]] && echo "Warning: Skipping \"${D}\". Not a directory!" && continue
+			echo "Processing:${WHITE_FG}$(realpath ${D})${RESET}"
+			process_dir ${D}
+			if [[ ${DO_PROMPTS} = 'false' ]];then
+				if [[ ${RM_EMPTY_DIRS} = 'true' ]];then
+					FILE_COUNT=$(find ${D} -type f ! -path ${D} | wc -l)
+					if [[ ${DO_SIM} == 'true' ]];then
+						for F in ${SIM_MV};do
+							echo "${ITALIC}Simulated${RESET} ${GREEN_FG}Move${RESET}: ${WHITE_FG}${F}${RESET}"
+						done
+						for F in ${SIM_RM};do
+							echo "${ITALIC}Simulated${RESET} ${RED_FG}Discard${RESET}: ${WHITE_FG}${F}${RESET}"
+						done
+						FILE_COUNT=$(( FILE_COUNT - ( ${#SIM_MV} + ${#SIM_RM} ) ))
+					fi
+					if [[ ${FILE_COUNT} -eq 0 ]];then
+						if [[ ${DO_SIM} == 'true' ]];then
+							echo "\nWould be ${RED_FG}removing${RESET} source directory:${WHITE_FG}${D}${RESET}"
+						else
+							/bin/rm -rf ${D} >/dev/null 2>&1
+							echo "Source directory:${WHITE_FG}$(realpath ${D} | pathabv)${RESET} was removed."
+							[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} ${WHITE_FG}Source directory was removed${RESET}:${D}"
+						fi
+					else
+						echo "\nSource directory:${WHITE_FG}${D}${RESET} contains ${WHITE_FG}${FILE_COUNT}${RESET} files and ${RED_FG}could not be${RESET} removed."
+						[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} ${WHITE_FG}Source directory not empty - was ${RED_FG}NOT${RESET} removed${RESET}:${D}"
+					fi
+				fi
+			else
+				echo -n "Remove source directory ${WHITE_FG}${D}${RESET}?..(y/n)?:"
+				if get_response;then
+					echo "Removing ${WHITE_FG}${D}${RESET}"
+					[[ ${DO_SIM} == 'false' ]] && /bin/rm -rf ${D} >/dev/null 2>&1
+				else
+					exit_leave $(msg_warn "Operation cancelled")
+				fi
+			fi  
+		done
+
+		exit_leave
+}
+
+comments () {
+		local A F
+		local FN=none
+		local HIDE=false
+		local SHOW=false
+
+		#Functions
+		hide_comments () {
+			local LINE
+
+			IFS=''
+			while read -r LINE;do
+				if [[ -n ${LINE} && ! ${LINE} =~ '^#' ]];then
+					if [[ ${_DEBUG} -gt 0 ]];then
+						echo ">>>"
+						echo "${LINE}" | xxd -c 1
+						echo "<<<"
+					fi
+					printf '%s\n' "${LINE}"
+				fi
+			done
+		}
+
+		show_comments () {
+			local LINE
+
+			IFS=''
+			while read LINE;do
+				[[ ${LINE} =~ '^#' ]] && printf '%s\n' "${LINE}"
+			done
+		}
+
+		#--Begin GetOpts--
+		local -a OPTIONS
+		local OPTION
+
+		read -r -d '' DESC<<______EOF
+Hide or show file comments
+______EOF
+
+		parse_opts () {
+			local OPTS=${@}
+			local -a OPTSTR
+			local LETTER_OPT
+			local O
+
+			for O in {1..${#OPTS}};do
+				[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+				[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+				[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+				OPTSTR+="-${OPTS[${O}]}"
+			done
+			echo ${OPTSTR}
+		}
+
+		opt_exists () {
+			local OPT=${1}
+			[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+		}
+
+		opt_type () {
+			local OPT=${1}
+			case ${OPT} in
+				d) echo "<DIR>";;
+				f) echo "<FILE>";;
+				t) echo "<FILE_TYPE>";;
+			esac
+		}
+
+		usage () {
+			local -a PENDING_MSGS=(${@})
+			local OPTS=$(parse_opts ${OPTSTR})
+
+			[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+			tabs 5
+			(
+			echo -e "\n${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
+			echo -e "${WHITE_FG}-H${RESET} help"
+			echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+			echo -e "${WHITE_FG}-h${RESET} hide file comments (default)"
+			echo -e "${WHITE_FG}-s${RESET} show file comments"
+			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+			) >&2
+
+			exit_leave $(msg_err "${PENDING_MSGS}")
+		}
+
+		OPTSTR=":HDhs"
+		OPTIND=0
+
+		while getopts ${OPTSTR} OPTION;do
+			case $OPTION in
+			  H) usage;;
+			  D) dbg_set_level;;
+			  h) HIDE=true;;
+			  s) SHOW=true;;
+			  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+			esac
+			[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+		done
+		shift $((OPTIND -1))
+		#--End GetOpts--
+		
+		local -a ARGS=(${@})
+
+		[[ -z ${ARGS} ]] && usage "missing required argument"
+		[[ $(is_file ${ARGS}) -eq 0 ]] && FN=${ARGS} || usage "file not found:${ARGS}"
+
+		[[ ${HIDE} == 'true' ]] && hide_comments <${FN}
+		[[ ${SHOW} == 'true' ]] && show_comments <${FN}
+
+		[[ ${HIDE} == 'false' && ${SHOW} == 'false' ]] && hide_comments <${FN} #default
+}
+
+extensions () {
+		local A F
+		local COPY=false
+		local FROM_EXT
+		local TO_EXT
+
+		#--Begin GetOpts--
+		local -a OPTIONS
+		local OPTION
+
+		read -r -d '' DESC<<______EOF
+Modify file extensions in the current directory
+______EOF
+
+		parse_opts () {
+			local OPTS=${@}
+			local -a OPTSTR
+			local LETTER_OPT
+			local O
+
+			for O in {1..${#OPTS}};do
+				[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+				[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+				[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+				OPTSTR+="-${OPTS[${O}]}"
+			done
+			echo ${OPTSTR}
+		}
+
+		opt_exists () {
+			local OPT=${1}
+			[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+		}
+
+		opt_type () {
+			local OPT=${1}
+			case ${OPT} in
+				e) echo "<FILE_EXT>";;
+			esac
+		}
+
+		usage () {
+			local -a PENDING_MSGS=(${@})
+			local OPTS=$(parse_opts ${OPTSTR})
+
+			[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+			tabs 5
+			(
+			echo -e "\n${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type e) $(opt_type e)\n"
+			echo -e "${WHITE_FG}-H${RESET} help"
+			echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+			echo -e "${WHITE_FG}-c${RESET} copy instead (move is default)"
+			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+			) >&2
+
+			exit_leave $(msg_err "${PENDING_MSGS}")
+		}
+
+		OPTSTR=":HDc"
+		OPTIND=0
+
+		while getopts ${OPTSTR} OPTION;do
+			case $OPTION in
+			  H) usage;;
+			  D) dbg_set_level;;
+			  c) COPY=true;;
+			  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+			esac
+			[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+		done
+		shift $((OPTIND -1))
+		#--End GetOpts--
+		 
+		local -a ARGS=(${@})
+
+		[[ ${#ARGS} -lt 2 ]] &&  usage "missing required (2) arguments"
+
+		FROM_EXT=${ARGS[1]}
+		TO_EXT=${ARGS[2]}
+
+		for F in *.${FROM_EXT};do
+			 if [[ ${COPY} == true ]];then
+				echo "Copying: ${F} to ${F:r}.${TO_EXT}"
+				cp -i ${F} ${F:r}.${TO_EXT}
+			else
+				echo "Moving: ${F} to ${F:r}.${TO_EXT}"
+				mv -i ${F} ${F:r}.${TO_EXT}
+			fi
+		done
+}
+
+generate () {
+		local A
+		local CNT
+		local DIR=false
+		local FILE=false
+		local HIDDEN=false
+		local LINK=false
+		local EXT=''
+		local NDX=0
+		local OPTSET=false
+
+		#--Begin GetOpts--
+		local -a OPTIONS
+		local OPTION
+
+		read -r -d '' DESC<<______EOF
+Generate file/dir/link names
+______EOF
+
+		parse_opts () {
+			local OPTS=${@}
+			local -a OPTSTR
+			local LETTER_OPT
+			local O
+
+			for O in {1..${#OPTS}};do
+				[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+				[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+				[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+				OPTSTR+="-${OPTS[${O}]}"
+			done
+			echo ${OPTSTR}
+		}
+
+		opt_exists () {
+			local OPT=${1}
+			[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+		}
+
+		opt_type () {
+			local OPT=${1}
+			case ${OPT} in
+				d) echo "<DIR>";;
+				e) echo "<EXT>";;
+				f) echo "<FILE>";;
+				c) echo "<COUNT>";;
+			esac
+		}
+
+		usage () {
+			local -a PENDING_MSGS=(${@})
+			local OPTS=$(parse_opts ${OPTSTR})
+
+			[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+			tabs 5
+			(
+			echo -e "\n${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type c)\n"
+			echo -e "${WHITE_FG}-H${RESET} help"
+			echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+			echo -e "${WHITE_FG}-e $(opt_type e)${RESET} add extension"
+			echo -e "${WHITE_FG}-f${RESET} create files (default)"
+			echo -e "${WHITE_FG}-d${RESET} create dirs"
+			echo -e "${WHITE_FG}-h${RESET} create hidden files"
+			echo -e "${WHITE_FG}-l${RESET} create symbolic links"
+			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+			) >&2
+
+			exit_leave $(msg_err "${PENDING_MSGS}")
+		}
+
+		OPTSTR=":HDe:fdhl"
+		OPTIND=0
+
+		while getopts ${OPTSTR} OPTION;do
+			case $OPTION in
+			  H) usage;;
+			  D) dbg_set_level;;
+			  e) EXT='.'${OPTARG};;
+			  f) FILE=true;;
+			  d) DIR=true;;
+			  h) HIDDEN=true;;
+			  l) LINK=true;;
+			  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+			esac
+			[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+		done
+		shift $((OPTIND -1))
+		#--End GetOpts--
+		
+		local -a ARGS=(${@})
+
+		[[ -z ${ARGS} ]] && usage "missing required argument"
+		[[ $(validate_is_number ${ARGS}) -eq 0 ]] && CNT=${ARGS} || usage "count must be a positive integer"
+
+		[[ ${#OPTIONS} -eq 0 ]] && FILE=true # default
+
+		[[ ${FILE} == "false" && ${DIR} == "false" && ${HIDDEN} == "false" && ${LINK} == "false" ]] && FILE=true #default
+
+		[[ ${FILE} == "true" ]] && echo "Creating ${CNT} regular file(s) in ${PWD}"
+		[[ ${DIR} == "true" ]] && echo "Creating ${CNT} dir(s) in ${PWD}"
+		[[ ${HIDDEN} == "true" ]] && echo "Creating ${CNT} hidden file(s) in ${PWD}"
+		[[ ${LINK} == "true" ]] && echo "Creating ${CNT} regular file(s) in ${PWD}"
+		[[ ${LINK} == "true" ]] && echo "Creating ${CNT} link(s) in ${PWD}"
+		[[ -n ${EXT} ]] && echo "Adding extension ${EXT} to files"
+
+		for NDX in {1..${CNT}};do
+			[[ ${FILE} == "true" && ! -e "${PWD}/file_${NDX}${EXT}" ]] && touch "${PWD}/file_${NDX}${EXT}" && populate "${PWD}/file_${NDX}${EXT}"
+			[[ ${DIR} == "true" && ! -e ${PWD}/dir_${NDX} ]] && mkdir ${PWD}/dir_${NDX}
+			[[ ${HIDDEN} == "true" && ! -e "${PWD}/.file_${NDX}${EXT}" ]] && touch "${PWD}/.file_${NDX}${EXT}"
+			[[ ${LINK} == "true" && ! -e "${PWD}/file_${NDX}${EXT}" ]] && touch "${PWD}/file_${NDX}${EXT}"
+			[[ ${LINK} == "true" && ! -e "${PWD}/link_${NDX}${EXT}" ]] && ln -s "${PWD}/file_${NDX}${EXT}" "${PWD}/link_${NDX}${EXT}"
+		done
+}
+
+populate () {
+	local FN=${1}
+	local X
+	
+	for X in {1..100};do
+		echo ${X} >> ${FN}
+	done
+}
+
+links () {
+		local A
+		local CNT
+		local FIND_DEPTH=1
+		local FORMAT=false
+		local IGNORE=false
+		local CMD_PATH=false
+		local NDX=0
+		local OPTSET=false
+
+		#Functions
+		get_level () {
+			local HEAD=${@}
+
+			if [[ ${HEAD} == ${PWD} ]];then
+				echo 1 
+			else
+				echo "${HEAD##${PWD}}/" | grep -o '/' | wc -l
+			fi
+		}
+
+		#--Begin GetOpts--
+		local -a OPTIONS
+		local OPTION
+
+		read -r -d '' DESC<<______EOF
+Dereference symbolic links
+______EOF
+
+		parse_opts () {
+			local OPTS=${@}
+			local -a OPTSTR
+			local LETTER_OPT
+			local O
+
+			for O in {1..${#OPTS}};do
+				[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+				[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+				[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+				OPTSTR+="-${OPTS[${O}]}"
+			done
+			echo ${OPTSTR}
+		}
+
+		opt_exists () {
+			local OPT=${1}
+			[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+		}
+
+		opt_type () {
+			local OPT=${1}
+			case ${OPT} in
+				d) echo "<DIR>";;
+				f) echo "<FILE>";;
+				t) echo "<FILE_TYPE>";;
+			esac
+		}
+
+		usage () {
+			local -a PENDING_MSGS=(${@})
+			local OPTS=$(parse_opts ${OPTSTR})
+
+			[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+			tabs 5
+			(
+			echo -e "\n${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type d)]\n"
+			echo -e "${WHITE_FG}-H${RESET} help"
+			echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+			echo -e "${WHITE_FG}-d${RESET} increase depth of scan (repeats increase level)"
+			echo -e "${WHITE_FG}-f${RESET} pipe delimited output"
+			echo -e "${WHITE_FG}-i${RESET} ignore broken links"
+			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+			) >&2
+
+			exit_leave $(msg_err "${PENDING_MSGS}")
+		}
+
+		OPTSTR=":HDdfl"
+		OPTIND=0
+
+		while getopts ${OPTSTR} OPTION;do
+			case $OPTION in
+			  H) usage;;
+			  D) dbg_set_level;;
+			  d) ((FIND_DEPTH++));;
+			  f) FORMAT=true;;
+			  i) IGNORE=true;;
+			  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+			esac
+			[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+		done
+		shift $((OPTIND -1))
+		#--End GetOpts--
+		
+		local -a ARGS=(${@})
+
+		[[ -z ${ARGS} ]] && ARGS=${PWD} # default to pwd
+		[[ $(is_dir ${ARGS}) -eq 0 ]] && CMD_PATH=${ARGS} || usage "path is invalid:${ARGS}"
+
+		local -a BY_LEVEL
+		local -a LINKED
+		local F_INFO
+		local L
+		local LAST_LINK_LEVEL
+		local LAST_LINK_PATH
+		local LINK_LEVEL
+		local LINK_PATH
+		local LONGEST
+		local TARGET_TYPE
+
+		echo "\n${0} - Scanning:depth level ${WHITE_FG}${FIND_DEPTH}${RESET} of ${WHITE_FG}$(realpath ${CMD_PATH})${RESET}..."
+
+		pushd ${CMD_PATH} #run in path
+
+		LINKED+=("${(f)$(sudo find $(pwd) -maxdepth ${FIND_DEPTH} ! -path . -type l)}") #build list of links
+
+		[[ -z ${LINKED[1]} ]] && exit_leave "No linked files or directories found"
+
+		if [[ ${FORMAT} == 'true' ]];then
+			for L in ${LINKED};do
+				echo "$L|$(realpath $(readlink ${L}))"
+			done
+			exit_leave
+		fi
+
+		#Sort LINKED by level and record longest path
+		LONGEST=0
+		for L in ${LINKED};do
+			BY_LEVEL+="$(get_level ${L:h})|${L}" #build array with level,path
+			[[ ${#L:t} -gt ${LONGEST} ]] && LONGEST=${#L:t}
+		done
+
+		NDX=0
+		LAST_LINK_LEVEL=?
+		LAST_LINK_PATH=?
+		for L in ${(on)BY_LEVEL};do #sort by level,path
+			LINK_LEVEL=$(echo ${L} | cut -d '|' -f1)
+			LINK_PATH=$(echo ${L} | cut -d '|' -f2)
+
+			TARGET_TYPE="${E_RED_FG}[UNKN]${E_RESET}" #default type
+			[[ -d ${LINK_PATH} ]] && TARGET_TYPE=" <DIR>"
+			[[ -f ${LINK_PATH} ]] && TARGET_TYPE="<FILE>"
+
+			F_INFO=$(file -L ${LINK_PATH}) #using dereference option
+
+			if [[ ${F_INFO} =~ 'broken' ]];then
+				if [[ ${IGNORE} == 'true' ]];then
+					continue
+				else
+					TARGET_TYPE="${E_RED_FG}[BRKN]${E_RESET}"
+				fi
+			elif [[ ${F_INFO} =~ 'cannot open' ]];then
+				if [[ ${IGNORE} == 'true' ]];then
+					continue
+				else
+					TARGET_TYPE="${E_RED_FG}[BRKN]${E_RESET}"
+				fi
+			elif [[ ${F_INFO} =~ 'character' ]];then
+				TARGET_TYPE='<CHAR>'
+			fi
+
+			if [[ "${LINK_LEVEL}" != "${LAST_LINK_LEVEL}" ]];then
+				LAST_LINK_LEVEL=${LINK_LEVEL}
+				echo "\n${CYAN_FG}Level${RESET}: ${LINK_LEVEL}"
+			fi
+
+			if [[ "${LINK_PATH:h}" != "${LAST_LINK_PATH}" ]];then
+				echo "\n${CYAN_FG}Path${RESET}: ${LINK_PATH:h}"
+				LAST_LINK_PATH=${LINK_PATH:h}
+			fi
+
+			printf "%s ${WHITE_FG}%*s ${RESET}is linked to ${CYAN_FG}%.65s${RESET}\n" ${TARGET_TYPE} ${LONGEST} "${LINK_PATH:t}" $(readlink ${LINK_PATH})
+		done
+		popd
+}
+
+modified () {
+		local A
+		local CNT
+		local DEPTH=false
+		local FIND_DEPTH=1
+		local CMD_PATH=false
+		local OPTSET=false
+
+		#--Begin GetOpts--
+		local -a OPTIONS
+		local OPTION
+
+		read -r -d '' DESC<<______EOF
+Show file(s) updated or created today
+\tIncrease CTIME (-c) to view previous days
+______EOF
+
+		parse_opts () {
+			local OPTS=${@}
+			local -a OPTSTR
+			local LETTER_OPT
+			local D O
+
+			for O in {1..${#OPTS}};do
+				[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+				[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+				[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+				OPTSTR+="-${OPTS[${O}]}"
+			done
+			echo ${OPTSTR}
+		}
+
+		opt_exists () {
+			local OPT=${1}
+			[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+		}
+
+		opt_type () {
+			local OPT=${1}
+			case ${OPT} in
+				d) echo "<DIR>";;
+				f) echo "<FILE>";;
+				t) echo "<FILE_TYPE>";;
+			esac
+		}
+
+		usage () {
+			local -a PENDING_MSGS=(${@})
+			local OPTS=$(parse_opts ${OPTSTR})
+
+			[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+			tabs 5
+			(
+			echo -e "\n${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type d)\n"
+			echo -e "${WHITE_FG}-H${RESET} help"
+			echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+			echo -e "${WHITE_FG}-c${RESET} increase CTIME (repeatable)"
+			echo -e "${WHITE_FG}-d${RESET} increase depth of scan (repeatable)"
+			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+			) >&2
+
+			exit_leave $(msg_err "${PENDING_MSGS}")
+		}
+
+		OPTSTR=":HDcd"
+		OPTIND=0
+
+		local CTIME=0
+
+		while getopts ${OPTSTR} OPTION;do
+			case $OPTION in
+			  H) usage;;
+			  D) dbg_set_level;;
+			  c) ((CTIME++));;
+			  d) ((FIND_DEPTH++));;
+			  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+			esac
+			[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+		done
+		shift $((OPTIND -1))
+		#--End GetOpts--
+
+		#Execution
+		local -a ARGS=(${@})
+
+		[[ -z ${ARGS} ]] && ARGS=${PWD} # default to pwd
+		[[ $(is_dir ${ARGS}) -eq 0 ]] && CMD_PATH=${ARGS} || usage "path is invalid:${ARGS}"
+
+		echo "\n${0} - Scanning:depth level ${WHITE_FG}${FIND_DEPTH}${RESET} of ${WHITE_FG}$(realpath ${CMD_PATH})${RESET}\n"
+
+		local HDR
+		local -a LIST
+		local L
+		local TAG="modified today"
+
+		for ((D=0; D <= ${CTIME}; D++));do
+			[[ ${D} -gt 0 ]] && TAG="modified ${D} $(str_pluralize day ${D}) ago"
+
+			pushd ${CMD_PATH}
+
+			LIST=("${(f)$(sudo find $(pwd) -maxdepth ${FIND_DEPTH} -type f -daystart -ctime ${D})}")
+			HDR="${#LIST} $(str_pluralize file ${#LIST}) created/${TAG}"
+
+			if [[ -n ${LIST[1]} ]];then
+				echo "\n${WHITE_FG}${HDR}${RESET}"
+				echo "$(str_unicode_line ${#HDR})"
+				for L in ${LIST};do
+					echo ${L}
+				done
+			else
+				echo "\n${RED_FG}No files modified${RESET} in:${WHITE_FG}${CMD_PATH}${RESET} ${D} $(str_pluralize day ${D}) ago"
+			fi
+			popd
+		done
+}
+
+inode_del () {
+	local FN
+	local INODE
+
+	read -r -d '' DESC<<___EOF
+Delete file by inode
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	[[ -z ${1} ]] && usage "Missing arg:<FN>"
+	[[ $(is_file ${1}) -eq 0 ]] && FN=${1} || usage "file is invalid:${1}"
+
+	INODE=$(cut -d':' -f1 <<<$(inode_get ${FN}))
+	find . -inum ${INODE} -exec rm -i {} \;
+}
+
+inode_get () {
+	local FN
+
+	read -r -d '' DESC<<___EOF
+Get inode for file
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	[[ -z ${1} ]] && usage "Missing arg:<FN>"
+	[[ $(is_file ${1}) -eq 0 ]] && FN=${1} || usage "file is invalid:${1}"
+	stat -c "%i:%n" ${FN}
+}
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+local K
+
+read -r -d '' DESC<<EOF
+Execute file utilities
+\t----------------------
+$(for K in ${(k)_UTILS_DESC};do
+	printf "${WHITE_FG}%s${RESET} %s\n" ${K} ${_UTILS_DESC[${K}]}
+done)
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		u) echo "<UTIL>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type u)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+OPTSTR=":HD"
+OPTIND=0
+
+UTIL=none
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+		H) usage;;
+		D) dbg_set_level;;
+		:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ ${#} -ne 0 ]] && UTIL=${1}
+
+[[ ${UTIL} != 'none' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
+
+if [[ ${UTIL} != 'none' ]];then
+	UTIL=${1}
+	_SCRIPT=${UTIL}
+	[[ ${_UTILS[${UTIL}]} -eq 1 ]] && shift && ${UTIL} ${@}
+else
+	[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+	selection_list_set ${(v)_UTILS_DESC}
+	selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"
+
+	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
+	echo #clear read
+	${_SCRIPT} -H # call function help
+fi
+
+exit_leave

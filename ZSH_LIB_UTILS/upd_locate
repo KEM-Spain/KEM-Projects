@@ -1,0 +1,183 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a LOCATE_OPTS
+
+#--Option settings for locate--
+LOCATE_OPTS+=('--prunepaths=/media/kmiller/KEM_Backup') # no external drives
+
+#Constants
+_TAG=$(hostname)_LOCATE
+_MARKER=~/.${_TAG}.lastrun
+_LOGFILE=/home/kmiller/.${_TAG}.log
+_TODAY=$(date +'%Y-%m-%d') 
+
+#Globals
+g_LAST_RUN=?
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/TPUT.zsh
+source ${_LIB_DIR}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+datediff () {
+	local D1=$(date -d "$1" +%s)
+	local D2=$(date -d "$2" +%s)
+	local DIFF=$(( (D1 - D2) / 86400 ))
+
+	[[ ${DIFF} -eq 0 ]] && echo "today"
+	[[ ${DIFF} -eq 1 ]] && echo "1 day ago"
+	[[ ${DIFF} -gt 1 && ${DIFF} -le 7 ]] && echo "${DIFF} days ago"
+	[[ ${DIFF} -gt 7 ]] && echo "over a week ago"
+}
+
+last_locate () {
+	local MARKER_ARG=${1}
+	local LB_LAST_RUN
+	local LB_LAST_TIME
+
+	[[ -z ${MARKER_ARG} ]] && exit_leave "${0:t} Missing arument: MARKER"
+
+	if [[ -e ${MARKER_ARG} ]];then
+		LB_LAST_RUN=$(stat -c "%y" ${MARKER_ARG} | cut -d' ' -f1)
+	else
+		touch ${_MARKER}
+		exit_leave $(msg_warn "${_SCRIPT}: Last locate update is unknown")
+	fi
+
+	[[ -e ${MARKER_ARG} ]] && LB_LAST_TIME=$(stat -c"%x" ${MARKER_ARG} | cut -d. -f1 | cut -d' ' -f2 | cut -d: -f1,2) 
+
+	echo "$(datediff ${_TODAY} ${LB_LAST_RUN}) at ${LB_LAST_TIME}"
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-I${RESET} not interactive - no prompts"
+	echo -e "${WHITE_FG}-f${RESET} force"
+	echo -e "${WHITE_FG}-s${RESET} status"
+	echo -e "${WHITE_FG}-i${RESET} date of last locate update"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Backup selected directories"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDIfis"
+
+FORCE=false
+INFO=false
+INTERACTIVE=true
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     I) INTERACTIVE=false;;
+     f) FORCE=true;;
+     s) last_locate ${_MARKER};exit;;
+     i) INFO=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+g_LAST_RUN=$(last_locate ${_MARKER})
+
+#Info option
+[[ ${INFO} == 'true' ]] && msg_box -p -PK "Last locate update was ${WHITE_FG}${g_LAST_RUN}${RESET}" && exit_leave
+
+if [[ (${INTERACTIVE} == 'true' && -f ${_MARKER}) && (${FORCE} == "false") && (${g_LAST_RUN:l} =~ 'today') ]];then
+	msg_box -p -P"Press F to Force"  "Last locate update was ${g_LAST_RUN}"
+	if [[ ${_MSG_KEY:l} != 'f' ]];then
+		exit_leave $(msg_warn "Operation Cancelled")
+	fi
+fi
+
+clear
+
+# Update locate
+if [[ (! ${g_LAST_RUN:l} =~ 'today') ]];then
+	echo "locate database update started: $(date)" >>${_LOGFILE}
+	echo "Options: ${LOCATE_OPTS}" >>${_LOGFILE}
+
+	echo "sudo updatedb ${LOCATE_OPTS}" >>${_LOGFILE}
+	sudo updatedb ${LOCATE_OPTS} 2>/dev/null >>${_LOGFILE}
+	RC=${?}
+	[[ ${RC} -ne 0 ]] && echo "updatedb had an error:${RC}" | tee -a ${_LOGFILE}
+
+	echo "Locate database update ended..." >>${_LOGFILE}
+
+	touch ${_MARKER}
+fi
+
+exit_leave

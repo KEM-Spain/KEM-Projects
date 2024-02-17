@@ -1,0 +1,118 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+read PW < ~/.tcp
+_MOUNTPOINT=/media/truecrypt1
+_VOLUME=~/PRS1;
+_SCRIPT=${0:t}
+
+#Functions
+create_mp () {
+	local RC=0
+
+	if [[ ! -d $_MOUNTPOINT ]];then
+		 echo "Creating $_MOUNTPOINT..."
+		 sudo mkdir $_MOUNTPOINT
+		 RC=${?}
+		 if [[ ${RC} != 0 ]];then
+			  echo "$0 failed - Problem creating mount point: $_MOUNTPOINT"
+		 fi
+	fi
+	return ${RC}
+}
+
+is_mounted () {
+	mount | grep -q ${_MOUNTPOINT}
+	return $?
+}
+
+dismount () {
+	echo -e "\nUnmounting truecrypt volume...\n"
+	sudo truecrypt -f -d
+	kill -SIGINT $$;
+}
+
+#getopts
+read -r -d '' DESC<<EOF
+This script mounts truecrypt volumes
+\tIf no args are passed, behaves like a toggle
+\ti.e. if not mounted, mounts, and vice versa
+EOF
+
+usage () {
+	tabs 5
+
+	(
+	echo -e "\nUsage: ${_SCRIPT} -hpd password \n"
+	echo "-h help"
+	echo "-p personal"
+	echo "-d unmount volume"
+	echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	kill -SIGINT $$
+}
+
+OPTIND=0
+#leading ":" in opts generates "?" for unknown opt
+while getopts ":hpd" opts;do
+	case $opts in
+      p) _MOUNTPOINT='/media/personal'
+         _VOLUME=~/PRS1;
+         ;;
+      d) dismount;;
+      h) usage;;
+      :) print -u2 "$0: option: -$OPTARG requires an argument"; usage ;;
+     \?) print -u2 "$0: ${BOLD}${RED_FG}Unknown option${RESET} $OPTARG"; usage ;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+#Execution
+if ! create_mp;then
+	echo "Unable to create mountpoint:${_MOUNTPOINT}"
+	exit 1
+fi
+
+#Unmount or cd if no args passed
+if is_mounted && [[ $# -eq 0 && ${PWD} == ${_MOUNTPOINT} ]];then
+	cd ~/
+	dismount
+	export TCHOME=false
+	kill -SIGINT $$
+else
+	cd ${_MOUNTPOINT}
+fi
+
+if [[ -z $1 ]];then
+    PASS=$PW
+else
+    PASS=$1
+fi
+
+#Mount if not already mounted
+if ! is_mounted;then
+    echo -e "\nMounting truecrypt volume at ${_MOUNTPOINT}\n"
+    truecrypt -k "" --protect-hidden=no -p$PASS $_VOLUME $_MOUNTPOINT
+fi
+
+#Remove password from history
+eval sed -i '/$PASS/d' ~/.zsh_history
+
+#Convenient if you source the execution
+cd $_MOUNTPOINT

@@ -1,0 +1,2483 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _UTILS
+typeset -A _UTILS_DESC
+
+#Constants
+_WRAPPER=${0:t}
+_UTILS=(
+autostart 1
+cam 1
+clearcups 1
+ddimage 1
+fan 1
+info 1
+journal 1
+kb-light 1
+kernel_cleaner 1
+last_install 1
+log 1
+lscolors 1
+lsdaemons 1
+lssc 1
+mkinitscript 1
+pkg_update 1
+ppamgr 1
+pw_info 1
+tstumask 1
+updates 1
+mime_defaults 1
+host_mac 1
+)
+
+_UTILS_DESC=(
+autostart "AUTOSTART:Show apps that autostart at boot"
+cam "CAM:Enable/Disable system cam"
+clearcups "CUPS:Clear CUPS cache and restart"
+ddimage "DDIMAGE:Make a byte level copy"
+fan "FAN:Adjust fan settings"
+info "SYSTEM:Display system/machine information"
+journal "LOG:Show boot/shutdown logs"
+kb:light "KEYBOARD:Adjust keyboard lighting"
+kernel_cleaner "PACKAGE:Clear unused kernels"
+last_install "PACKAGE:Show dpkg install history"
+log "LOG:Query or tail system log"
+lscolors "COLOR:Show colors by file type in the current dir"
+lsdaemons "DAEMON:Show running deamons"
+lssc "SYSTEM:Display systemd unit files"
+mkinitscript "INIT:Create an init script"
+pkg_update "PACKAGE:Put package updates on hold"
+ppamgr "PPA:Manage PPAs"
+pw_info "PW:User/Group details"
+tstumask "UMASK:Test a umask setting"
+updates "PACKAGE:Show recent updates"
+mime_defaults "MIME:Display apps assoc with mime type"
+host_mac "SYSTEM:Get MAC address of host"
+)
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+autostart () {
+	#Declarations
+	local -a AUTODIRS
+	local -a _MARKED=()
+	local -a _LOCAL_LIST=()
+	local SEARCHTERM
+	local DESC
+
+	#Constants
+	AUTODIRS+=/etc/xdg/autostart
+	AUTODIRS+=~/.config/autostart
+	local USER=kmiller
+
+	#Functions
+	action_do () {
+		local -a MARKED=(${@})
+		local M
+		local APP
+		local ARGS
+
+		APP=/usr/bin/vim
+		ARGS=$(echo "${APP} $(list_quote_marked_elements ${MARKED})")
+		eval "${ARGS}"
+		[[ ${?} -ne 0 ]] && msg_box -p -PK "<B><I>${0}: ${APP} returned an error<N>"
+
+		for M in ${MARKED};do
+			[[ ${M} -eq 0 ]] && continue
+			MARKED[${M}]=0
+			list_set_selected ${M} ${_GHOST_ROW}
+		done
+	}
+
+	action_warn () {
+		local MARKED=(${@})
+		local CNT=$(list_get_selected_count ${MARKED})
+		local M
+		local INFO_MSG
+
+		[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
+		msg_box -p -PV "<I>Please respond<N>|$(str_unicode_line 14)| |$(str_pluralize file $CNT true) queued for viewing${INFO_MSG}"
+		if [[ ${_MSG_KEY} == 'n' ]];then
+			for M in ${MARKED};do
+				list_remove_selected ${M}
+			done
+		fi
+	}
+
+	item_decorate () {
+		local NDX=$1
+
+		case ${_LIST_SELECTED[${NDX}]} in
+			2) echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}viewed${E_RESET}";;
+			*)	tput el;echo -n ${_LIST[${NDX}]};;
+		esac
+	}
+
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTION
+
+	read -r -d '' DESC<<___EOF
+List autostart apps in:
+$(for D in ${AUTODIRS};do echo "\t${D}";done)
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		(
+		echo -e "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	OPTSTR=":HD"
+	OPTIND=0
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+			H) usage;;
+			D) dbg_set_level;;
+			:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+		esac
+		[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#Execution
+	[[ ${#} -gt 0 ]] && SEARCHTERM=${1} || SEARCHTERM=''
+
+	_LOCAL_LIST=("${(f)$(sudo find ${AUTODIRS} -iname "*${SEARCHTERM}*desktop")}") 
+	if ! arr_is_populated "${_LOCAL_LIST}";then
+		[[ -n ${SEARCHTERM} ]] && exit_leave $(msg_warn "No autostart applications found matching:${WHITE_FG}${SEARCHTERM}${RESET}")
+	fi
+
+	#set headings
+	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} files  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
+	list_add_header_break
+	list_set_header_break_offset 1
+
+	#set line item
+	list_set_line_item ' 
+	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
+	'
+
+	list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to view (${ITALIC}or exit if none selected${RESET})."
+	list_set_action_msgs view file
+	list_set_clear_ghosts true
+
+	while true;do
+		#get selection
+		list_select ${_LOCAL_LIST}
+		[[ ${?} -eq 0 ]] && break
+
+		#get selections
+		_MARKED=($(list_get_selected))
+
+		if [[ $(list_get_selected_count) -gt 1 ]];then
+			action_warn ${_MARKED} #warn if more than 1 selected
+		fi
+
+		if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then
+			action_do ${_MARKED}
+		fi
+	done
+}
+
+cam () {
+	#Functions
+	local DESC
+
+	status () {
+		local OUTPUT=$(lsmod | grep uvcvideo)
+		echo -n "Cam status:"
+		if [[ -z ${OUTPUT} ]];then
+			echo "${RED_FG}disabled${RESET}"
+			set_exit_value 1
+			return 1
+		else
+			echo "${GREEN_FG}enabled${RESET}"
+			set_exit_value 0
+			return 0
+		fi
+	}
+
+	select_cam () {
+		local -A DEVICES
+		local -A KEYS
+		local -A KEYS
+		local -a _LOCAL_LIST
+		local HIT=false
+		local NDX
+		local DEV
+		local KEY
+		local K L
+
+		echo "Cam Selection"
+		_LOCAL_LIST=("${(f)$(v4l2-ctl --list-devices)}")
+		for L in ${_LOCAL_LIST};do
+			[[ -z ${L} ]] && continue
+			[[ ${L[1,1]:u} == 'U' ]] && DEV=$(sed 's/\t//g' <<<${L} | cut -d' ' -f1-2) && HIT=true && continue
+			[[ ${HIT} == 'true' ]] && DEVICES[${DEV}]=$(sed 's/\t//g' <<<${L}) && HIT=false && continue
+		done
+		echo "-------------------"
+		echo "${WHITE_FG}${#DEVICES}${GREEN_FG} $(str_pluralize device ${#DEVICES}) available${RESET}"
+		echo "-------------------"
+		while true;do
+			NDX=0
+			DEV=''
+			for K in ${(k)DEVICES};do
+				(( NDX++ ))
+				echo "${WHITE_FG}${NDX}${RESET}) ${CYAN_FG}Name${RESET}:${K} ${CYAN_FG}Device${RESET}:${DEVICES[${K}]}"
+				KEYS[${NDX}]=${K}
+			done
+			[[ ${#DEVICES} -gt 1 ]] && echo -n "\nChoose 1-${#DEVICES} ...or q to quit:" || echo -n "\nChoose 1 ...or q to quit:"
+			read KEY
+			[[ -z ${KEY} || ${KEY:l} == 'q' ]] && break
+			if [[ -n ${KEYS[${KEY}]} ]];then
+				DEV=${KEYS[${KEY}]} 
+				break
+			else
+				echo "\n${RED_FG}Invalid key${RESET}: ${WHITE_FG}Only choose 1-${#DEVICES} or q to quit..."
+			fi
+		done
+		echo
+		[[ -n ${DEV} ]] && echo "Selected:${DEVICES[${DEV}]}" && guvcview -d ${DEVICES[${DEV}]} 2>/dev/null
+	}
+
+	#Execution
+	read -r -d '' DESC<<___EOF
+Enable/Disable onboard cam
+\tWithout arguments (and cam is enabled), a cam selector is displayed
+\tExit status: Disabled:1, Enabled:0
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] on|off\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	#Argument options
+	if [[ -n ${1} ]];then
+		case $1 in
+			off) sudo modprobe -r uvcvideo;;
+			on) sudo modprobe -a uvcvideo;;
+			*) echo "${RED_FG}Unknown argument${RESET}:${ITALIC}${1}${RESET}";;
+		esac
+	fi
+
+	status
+	[[ ${?} -eq 0 && ${#} -eq 0 ]] && select_cam
+}
+
+clearcups () {
+	local DESC
+	local RESPONSE
+
+	read -r -d '' DESC<<___EOF
+Stop cupsd daemon, clear spool, restart daemon
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	echo -n "Restart cups daemon and clear spool? (y/n):"; read -q RESPONSE
+	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_warn "Operation cancelled")
+
+	sudo service cups stop
+	sudo rm -r /var/spool/cups
+	sudo service cups start
+}
+
+ddimage () {
+	local DESC
+	local RESPONSE
+
+	read -r -d '' DESC<<___EOF
+Perform a low level (dd) copy of /dev/sda to /dev/sdb
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	echo -n "Perform a low level (dd) copy of /dev/sda to /dev/sdb?"; read -q RESPONSE
+	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_warn "Operation cancelled")
+
+	dd if=/dev/sda of=/dev/sdb status=progress conv=noerror,sync bs=4k
+}
+
+fan () {
+	local -A FAN_CONTROL=(0 "Performance mode" 2 "Silent mode")
+	local -A FAN_MAP=(1 0 2 2)
+	local FAN_FILE
+	local CONTROL_DIR=/sys/devices/platform/asus-nb-wmi/hwmon
+	local K
+	local NDX
+	local PROMPT="Select Fan setting:"
+	local RESPONSE
+	local TITLE="Fan Settings"
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Adjust fan settings
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	FAN_FILE=$(find ${CONTROL_DIR} -name 'pwm1_enable')
+	[[ -z ${FAN_FILE} ]] && exit_leave $(msg_err "Unable to locate fan control file:pwm1_enable")
+
+	echo ${TITLE}
+	echo $(str_unicode_line ${#PROMPT})
+
+	NDX=0
+	for K in ${(k)FAN_CONTROL};do
+		((NDX++))
+		printf "%d %s\n" ${NDX} ${FAN_CONTROL[${K}]}
+	done
+
+	echo $(str_unicode_line ${#PROMPT})
+	echo -n "Select Fan setting:"
+	read -k1 RESPONSE
+	echo
+
+	case ${RESPONSE} in
+		1|2) echo "Setting fan to:${WHITE_FG}${FAN_CONTROL[${FAN_MAP[${RESPONSE}]}]}${RESET}";;
+		$'\x0A') exit 0;;
+		*) echo "Invalid selection"; exit 1;;
+	esac
+
+	sudo zsh -c "echo ${FAN_MAP[${RESPONSE}]} > ${FAN_FILE}"
+}
+
+info () {
+	#Constants
+	local	DESC=$(lsb_release -d | cut -d:  -f2-)
+	local	NAME=$(lsb_release -c | cut -d:  -f2-)
+	local	OS=$(uname)
+	local	ARCH=$(uname -m)
+	local	CPU=$(cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d: -f2 | sed 's/^ *//g')
+	local	KERNEL=$(uname -r) 
+	local	GNOME_SHELL=$(gnome-shell --version)
+	local	GTK2=$(dpkg -l | grep "libgtk2.*bin\b" | tr -s '[:space:]' | cut -d' ' -f2,3)
+	local	GTK3=$(dpkg -l | grep "libgtk-3.*bin\b" | tr -s '[:space:]' | cut -d' ' -f2,3)
+	local	GTK4=$(dpkg -l | grep "libgtk-4.*bin\b" | tr -s '[:space:]' | cut -d' ' -f2,3)
+	local	QT=($(qmake --version))
+
+	#Declarations
+	local _VERBOSITY=0
+	local HDW_DTLS=(
+	bios-vendor
+	system-manufacturer
+	system-product-name
+	system-version
+	system-uuid
+	baseboard-manufacturer
+	baseboard-product-name
+	baseboard-version
+	baseboard-serial-number
+	chassis-manufacturer
+	chassis-type
+	chassis-serial-number
+	processor-family
+	processor-manufacturer
+	processor-version
+	processor-frequency
+	)
+
+	#Functions
+	format () {
+		local -a _LOCAL_LIST
+		local -a LABELS
+		local -a TEXTS
+		local -i LONGEST=0
+		local -i PADDING=0
+		local -i NDX=0
+		local PAD
+		local LABEL
+		local TEXT
+		local L
+
+		if [[ ! -t 0 ]];then
+			while read PIPE;do
+				_LOCAL_LIST+=${PIPE}
+			done
+		fi
+
+		for L in ${_LOCAL_LIST};do
+			LABEL=$(echo ${L} | sed 's/\(^.*\)\(:.*\)/\1/g')
+			TEXT=$(echo ${L} | sed 's/\(^.*\)\(:.*\)/\2/g')
+			[[ ${#LABEL} -gt ${LONGEST} ]] && LONGEST=${#LABEL}
+			LABELS+=${LABEL}
+			[[ ${TEXT} != ${LABEL} ]] && TEXTS+=${TEXT} || TEXTS+=''
+		done
+
+		for L in ${LABELS};do
+			((NDX++))
+			(( PADDING = LONGEST - ${#L} ))
+			[[ ${PADDING} -eq 0 ]] && PAD=$(printf ' %.0s' {1..$((LONGEST - 10))}) #not working as intended - not sure what was intended...
+			[[ ! ${LABELS[${NDX}]} =~ '-' &&  -z ${TEXTS[${NDX}]} ]] && echo 
+			echo "${PAD}${L}${TEXTS[${NDX}]}"
+		done
+	}
+
+	get_video () {
+		local VENDOR
+		local PRODUCT
+		local DRIVER
+
+		VENDOR=$(sudo lshw -c video 2>/dev/null | egrep 'vendor' | awk '{print $2}')
+		PRODUCT=$(sudo lshw -c video 2>/dev/null | egrep 'product' | awk '{$1="-"; print $0}')
+		DRIVER=$(sudo lshw -c video 2>/dev/null | egrep 'driver' | awk '{print $2}')
+		echo "${VENDOR} ${PRODUCT} (${DRIVER})"
+	}
+
+	verbosity_set () {
+		((_VERBOSITY++))
+	}
+
+	str_trim () {
+		local TEXT=${@}
+
+		if [[ -z ${TEXT} && ! -t 0 ]];then
+			read TEXT
+			sed -e 's/^[[:space:]]*//' <<<${TEXT}
+		else
+			echo ${TEXT} | sed -e 's/^[[:blank:]]*//' 
+		fi
+	}
+
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTION
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		(
+		echo -e "\n${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}-v${RESET} verbosity level - repeats increase detail"
+		echo -e "${WHITE_FG}\nDesc${RESET}:Display system information"
+		) >&2
+
+		exit_leave ${PENDING_MSGS}
+	}
+
+	OPTSTR=":HDv"
+
+	OPTIND=0
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+			H) usage;;
+			D) dbg_set_level;;
+			v) verbosity_set;;
+			:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+		esac
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#Execution
+	local PROD_NAME=$(sudo dmidecode -s system-product-name | sed 's/_.*//g')
+	local BIOS_VERSION=$(sudo dmidecode -t bios | grep -i version | cut -d: -f2 | sed 's/^ //')
+	local BIOS_RELEASE=$(sudo dmidecode -s bios-release-date)
+	local SERIAL_NO=$(sudo dmidecode -s system-serial-number)
+	local D I S T
+	local DINFO
+	local DISKS
+	local HDDESC
+	local HDINFO
+	local _LOCAL_LIST
+	local MEMORY
+	local OUT
+	local VIDEO
+
+	echo "${BOLD}${BLACK_FG}$(str_unicode_line 31)${RESET}"
+	printf "${WHITE_FG}Machine${RESET}:%s ${WHITE_FG}\n   BIOS${RESET}:%s\n${WHITE_FG} Serial${RESET}:%s\n" "${(U)PROD_NAME}" "${BIOS_VERSION} ${BIOS_RELEASE}" ${SERIAL_NO}
+	echo "${BOLD}${BLACK_FG}$(str_unicode_line 31)${RESET}"
+
+	printf "${CYAN_FG}Operating System Info${RESET}\n"
+	printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
+
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "OS" "$(str_trim ${OS})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "KERNEL" "$(str_trim ${KERNEL})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "DESC" "$(str_trim ${DESC})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "NAME" "$(str_trim ${(C)NAME})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "CPU" "$(str_trim ${CPU})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "ARCHITECTURE" "$(str_trim ${ARCH})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "GNOME SHELL" "$(str_trim ${GNOME_SHELL})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "GTK2" "$(str_trim ${GTK2})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "GTK3" "$(str_trim ${GTK3})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "GTK4" "$(str_trim ${GTK4})"
+	printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "QT" "$(str_trim ${QT})"
+	echo
+
+	if [[ ${_VERBOSITY} -ge 1 ]];then
+		printf "${BOLD}${BLACK_FG}$(str_unicode_line 30)${RESET}\n"
+		printf "${CYAN_FG}Fetching memory and video...${RESET}\n"
+		printf "${BOLD}${BLACK_FG}$(str_unicode_line 30)${RESET}\n"
+
+		MEMORY=$(grep -i MemTotal /proc/meminfo | cut -d: -f2 | tr -d '[:space:]' | sed 's/kb//i')
+		MEMORY=$((9.5367431640625E-7 * MEMORY))
+		VIDEO=$(get_video)
+
+		printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%.1f${RESET}\n" "Total Memory GB" "${MEMORY}"
+		printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "Video" "${VIDEO}"
+		echo
+	fi
+
+	if [[ ${_VERBOSITY} -ge 2 ]];then
+		printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
+		printf "${CYAN_FG}Disk Details${RESET}\n"
+		printf "${BOLD}${BLACK_FG}$(str_unicode_line 24)${RESET}\n"
+
+		DISKS=($(sudo fdisk -l | grep sd | grep bytes | cut -d' ' -f2 | cut -d: -f1))
+		printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%d${RESET}\n" "Disk Count" ${#DISKS}
+
+		for D in ${DISKS};do
+			printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "DISK" "${D}"
+
+			DINFO=("${(@f)$(sudo smartctl -i ${D} | grep ':')}")
+
+			for I in ${DINFO};do
+				HDDESC=$(cut -d: -f1 <<<${I})
+				HDINFO=$(cut -d: -f2 <<<${I})
+				HDINFO=$(sed 's/^[\t ]*//g' <<<${HDINFO})
+				printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "${HDDESC}" "${HDINFO}"
+			done
+		done
+		echo
+	fi
+
+	if [[ ${_VERBOSITY} -ge 3 ]];then
+		printf "${BOLD}${BLACK_FG}$(str_unicode_line 30)${RESET}\n"
+		printf "${CYAN_FG}Fetching hardware details...${RESET}\n"
+		printf "${BOLD}${BLACK_FG}$(str_unicode_line 30)${RESET}\n"
+		for S in ${HDW_DTLS};do
+			OUT=$(sudo dmidecode -s ${S})
+			printf "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "${(C)S:gs/-/ /}" "${OUT:gs/ //}"
+		done
+
+		_LOCAL_LIST=("${(@f)$(xinput --list --name-only | grep -i touch)}")
+		for I in ${_LOCAL_LIST};do
+			printf  "${WHITE_FG}%25s${RESET}:${GREEN_FG}%s${RESET}\n" "Touch Device" "${I}"
+		done
+		echo
+	fi
+
+	if [[ ${_VERBOSITY} -ge 4 ]];then
+		printf "${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+		printf "${CYAN_FG}Extended Information - Detailed Hardware Info\n"
+		printf "${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+		_LOCAL_LIST=(bios system baseboard chassis processor memory cache connector slot)
+		for T in ${_LOCAL_LIST};do
+			printf "${WHITE_FG}%13s${RESET}:${GREEN_FG}%s${RESET}\n" "HARDWARE TYPE" "${T}"
+			sudo dmidecode -t ${T}
+		done
+
+		printf "\n${CYAN_FG}PCI Info\n${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+		lspci
+		printf "\n${CYAN_FG}USB Info\n${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+		lsusb
+		printf "\n${CYAN_FG}Bluetooth Info\n${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+		hwinfo --bluetooth
+		printf "\n${CYAN_FG}WebCam Info\n${BOLD}${BLACK_FG}$(str_unicode_line 45)${RESET}\n"
+		sut cam
+		[[ ${?} -eq 0 ]] && v4l2-ctl --list-device
+		echo
+	fi
+}
+
+last_install () {
+	local DESC
+	local HISTORY_LOG=/var/log/apt/history.log
+	local LAST_UPD_LINE
+	local RECENT=false
+	local HEADER
+
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTION
+
+	read -r -d '' DESC<<___EOF
+Display details of last dpkg install 
+\tUse option (-r) to show recent activity instead
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local OPTS=$(parse_opts ${OPTSTR})
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo -e "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}-r${RESET} show recent install activity"
+		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	OPTSTR=":HDr"
+	OPTIND=0
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+			H) usage;;
+			D) dbg_set_level;;
+			r) RECENT=true;;
+			:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+		esac
+		[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#Execution
+	#if log rotation is recent and log is empty then use last log
+	[[ ! -s ${HISTORY_LOG} ]] && zcat ${HISTORY_LOG}.1.gz > /tmp/history.log && HISTORY_LOG=/tmp/history.log 
+
+	[[ ${RECENT} == 'true' ]] && LAST_UPD_LINE=1 || LAST_UPD_LINE=$(grep --color=never -n 'Start-Date' ${HISTORY_LOG} | grep $(date +"%Y-%m-%d") | head -1 | cut -d: -f1)
+	[[ ${RECENT} == 'true' ]] && HEADER="Recent update activity" || HEADER="Last update activity"
+
+	(
+	echo "${WHITE_FG}${HEADER}${RESET}\n"
+	tail +${LAST_UPD_LINE} ${HISTORY_LOG} |\
+	grep -B1 -C2 'Install:\|Reinstall:\|Upgrade:\|Remove:\|Purge:' | grep -iv 'commandline\|requested' | \
+	sed \
+	-e '/^$/d' \
+	-e 's/),/),\n/g' \
+	-e "s/Install/${E_GREEN_FG}Install${E_RESET}/g" \
+	-e "s/Reinstall/${E_GREEN_FG}Reinstall${E_RESET}/g" \
+	-e "s/Upgrade/${E_GREEN_FG}Upgrade${E_RESET}/g" \
+	-e "s/Remove/${E_RED_FG}Remove${E_RESET}/g" \
+	-e "s/Purge/${E_MAGENTA_FG}Purge${E_RESET}/g" \
+	-e "s/^--/${E_WHITE_FG}--${E_RESET}/g" \
+	-e "s/\([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\)/${E_WHITE_FG}\1${E_RESET}/g"
+	) | mypager
+}
+
+journal () {
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTION
+
+	read -r -d '' DESC<<___EOF
+Show journal of last boot or shutdown
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local OPTS=$(parse_opts ${OPTSTR})
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		(
+		echo -e "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}-b${RESET} last boot (default)"
+		echo -e "${WHITE_FG}-s${RESET} last shutdown"
+		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	OPTSTR=":HDbs"
+	OPTIND=0
+
+	local JARGS="-xrb -0"
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+			H) usage;;
+			D) dbg_set_level;;
+			b) JARGS="-xrb -0";;
+			s) JARGS="-xrb -1";;
+			:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+			\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+		esac
+		[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#Execution
+	journalctl ${JARGS}
+}
+
+kb-light () {
+	local -A INFO=(0 "Off" 1 "On" 2 "Med brightness" 3 "Max brightness")
+	local CONTROL_DIR=/sys/devices/platform/asus-nb-wmi/leds/asus::kbd_backlight
+	local CONTROL_FILE=brightness
+	local MAX=$(<${CONTROL_DIR}/max_brightness)
+	local TITLE="KB Backlight Settings"
+	local PROMPT="Select KB Backlight setting:"
+	local RESPONSE
+	local N
+
+	read -r -d '' DESC<<___EOF
+Adjust keyboard backlighting
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	str_unicode_line () {
+		local LENGTH=${1}
+		local HORIZ_BAR="\\u2500%.0s"
+
+		printf "\\u2500%.0s" {1..$((${LENGTH}))}
+	}
+
+	echo ${TITLE}
+	echo $(str_unicode_line ${#PROMPT})
+
+	for N in {0..${MAX}};do
+		echo "${N} -> ${INFO[${N}]}"
+	done
+
+	echo $(str_unicode_line ${#PROMPT})
+	echo -n "Select KB Backlight setting:"
+	read -sk1 RESPONSE
+	echo
+
+	[[ ${RESPONSE} == $'\x0A' ]] && exit
+
+	case ${RESPONSE} in
+		0|1|2|3) echo "Setting backlight to:${WHITE_FG}${INFO[${RESPONSE}]}${RESET}";;
+		*) echo "Invalid Selection" && exit 1;;
+	esac
+
+	sudo zsh -c "echo -n ${RESPONSE} >| ${CONTROL_DIR}/${CONTROL_FILE}"
+}
+
+kernel_cleaner () {
+	local CURRENT
+	local DESC
+	local K
+
+	read -r -d '' DESC<<___EOF
+Clear any unused kernels
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	CURRENT=$(uname -a | awk '{print $3}')
+	echo "Current kernel: $CURRENT"
+
+	local ilist=($(dpkg -l linux-image-\* | awk '/^ii/{print $2}' | sort -r  | grep -v $CURRENT | grep -v linux-image-generic | grep generic))
+	local hlist=($(dpkg -l linux-headers\* | awk '/^ii/{print $2}' | sort -r  | grep -v $CURRENT | grep -v linux-headers-generic | grep generic))
+	local klist=(${ilist} ${hlist})
+
+	if [[ -n ${klist} ]];then
+		[[ $1 != '-go' ]] && echo "Dry run only. Enter option -go to remove."
+		for K in ${klist};do
+			[[ $1 != '-go' ]] && echo "Could remove surplus image/header: ${K}."
+			[[ $1 == '-go' ]] && echo "Removing surplus image/header: ${K}."
+			[[ $1 == '-go' ]] && sudo apt-get -y purge ${K:s/-generic//} | tee -a /tmp/kernel_cleaner.log 2>&1
+		done
+	else
+		echo "No surplus kernels found"
+	fi
+}
+
+log () {
+	local DESC
+	local EDIT
+	local LOG=/var/log/syslog
+	local PAGER=/usr/local/bin/mypager
+	local SEARCHTERM
+	local TAIL
+	local TAIL_LINES
+
+	read -r -d '' DESC<<___EOF
+Monitor or search ${LOG} entries
+___EOF
+
+	function usage {
+		(
+		echo -e "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${SCRIPT} ${OPTSTR} [<SEARCHTERM>]\n"
+		echo -e "-H help"
+		echo -e "-t tail"
+		echo -e "-l lines to display (default=25)"
+		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+		exit
+	}
+
+	local OPTSTR=":Htl:"
+	local OPT
+
+	OPTIND=0
+
+	TAIL=false
+	TAIL_LINES=25
+	EDIT=false
+
+	while getopts ${OPTSTR} OPT;do
+		case ${OPT} in
+			H) usage;;
+			t) TAIL=true;;
+			l) TAIL_LINES=${OPTARG};;
+			\?) print -u2 "${0}: unknown option ${OPTARG}"; usage;;
+			:) print -u2 "${0}: option -${OPTARG} requires an argument"; usage;;
+		esac
+	done
+	shift $((${OPTIND} - 1))
+
+	SEARCHTERM=${1:=null}
+
+	if [[ ${TAIL} == 'true' ]];then
+		tail -v -f --lines=${TAIL_LINES} ${LOG}
+	elif [[ ${SEARCHTERM} != 'null' ]];then
+		grep -qi ${SEARCHTERM} ${LOG}
+		if [[ ${?} -eq 0 ]];then
+			grep --color=always -i -a ${SEARCHTERM} ${LOG} | ${PAGER}
+		else
+			echo "No matching syslog entries for:${WHITE_FG}${SEARCHTERM}${RESET}"
+		fi
+	else
+		tail -v --lines=${TAIL_LINES} ${LOG}
+	fi
+}
+
+lscolors () {
+	#Declarations
+	local -A OBJ_COLOR
+	local -A ATTRIBUTE_CODES=(00 none 01 bold 04 underscore 05 blink 07 reverse 08 concealed)
+	local -A FOREGROUND_COLOR_CODES=(30 black 31 red 32 green 33 yellow 34 blue 35 magenta 36 cyan 37 white)
+	local -A BACKGROUND_COLOR_CODES=(40 black 41 red 42 green 43 yellow 44 blue 45 magenta 46 cyan 47 white)
+	local -A CC
+	local -a FOUND_TYPES
+	local -a FOUND_EXT
+	local -A FIELD_LEN
+	local -a COLORS
+	local -a ANSI
+	local DESC
+	local NDX
+	local WIDTH
+	local C F K T
+
+	#Constants
+	local _DIR_COLORS=/etc/zsh/DIR_COLORS
+	local _CANDIDATES=("${(@f)$(sudo find . -maxdepth 1 ! -path . 2>/dev/null)}")
+
+	#Functions
+	set_color_code () {
+		local CODE=${1}
+		local K
+
+		if [[ ${CODE} -ge 0 && ${CODE} -le 8 ]];then
+			echo ${ATTRIBUTE_CODES[${CODE}]}
+		elif [[ ${CODE} -ge 30 && ${CODE} -le 37 ]];then
+			echo ${FOREGROUND_COLOR_CODES[${CODE}]}
+		elif [[ ${CODE} -ge 40 && ${CODE} -le 47 ]];then
+			echo ${BACKGROUND_COLOR_CODES[${CODE}]}
+		else
+			echo "normal"
+		fi
+	}
+
+	get_ansi () {
+		local CODE=${1}
+
+		if [[ ${CODE} -eq 99 ]];then
+			echo ''
+		else
+			echo "\033[${CODE}m"
+		fi
+	}
+
+	parse_code_string () {
+		local CODE_STRING=${1}
+		local CODE
+		local -a CODES
+		local X
+		local LIMIT=$((${#CODE_STRING}+1))
+
+		if [[ -n ${CODE_STRING} ]];then
+			for ((X=1;X<=${LIMIT};X++));do
+				if [[ ${CODE_STRING[${X}]} == ';' || ${X} == ${LIMIT} ]];then
+					CODES+=${CODE}
+					CODE=''
+				else
+					CODE+=${CODE_STRING[${X}]}
+				fi
+			done
+		else
+			CODES+=99
+		fi
+
+		echo ${CODES}
+	}
+
+	parse_dir_colors () {
+		local LINE
+		local EXT
+		local CODE_STRING
+		local F1
+		local F2
+
+		while read LINE;do
+			[[ ${LINE} =~ "^#" ]] && continue
+			if [[ ${LINE} =~ "^\.[A-Za-z0-9]" ]];then
+				EXT=$(cut -d ' ' -f1 <<<${LINE})
+				CODE_STRING=$(cut -d ' ' -f2- <<<${LINE} | sed -e 's/#.*$//g' -e 's/\t//g')
+				OBJ_COLOR[${EXT}]=${CODE_STRING}
+			else
+				EXT=$(cut -d ' ' -f1 <<<${LINE})
+				CODE_STRING=$(cut -d ' ' -f2- <<<${LINE} | sed -e 's/#.*$//g' -e 's/\t//g')
+				OBJ_COLOR[${EXT}]=${CODE_STRING}
+			fi
+		done < ${_DIR_COLORS}
+	}
+
+	#Execution
+	read -r -d '' DESC<<___EOF
+View color assignments for listings
+\tof files in the current directory
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	parse_dir_colors
+
+	#Parse local file types...
+	for F in ${_CANDIDATES};do
+		if [[ -d ${F} && -k ${F} && ! -O ${F} && -w ${F} ]];then
+			FOUND_TYPES+="STICKY_OTHER_WRITABLE"
+		elif [[ -d ${F} && ! -k ${F} && ! -O ${F} && -w ${F} ]];then
+			FOUND_TYPES+="OTHER_WRITABLE"
+		elif [[ -d ${F} && -k ${F} && ! -O ${F} && ! -w ${F} ]];then
+			FOUND_TYPES+="STICKY_DIR"
+		elif [[ -h ${F} ]];then
+			FOUND_TYPES+="LINK"
+		elif [[ -S ${F} ]];then
+			FOUND_TYPES+="SOCK"
+		elif [[ -b ${F} ]];then
+			FOUND_TYPES+="BLK"
+		elif [[ -c ${F} ]];then
+			FOUND_TYPES+="CHR"
+		elif [[ -u ${F} ]];then
+			FOUND_TYPES+="SETUID"
+		elif [[ -g ${F} ]];then
+			FOUND_TYPES+="SETGID"
+		elif [[ -k ${F} ]];then
+			FOUND_TYPES+="STICKY_FILE"
+		elif [[ -p ${F} ]];then
+			FOUND_TYPES+="NAMED-PIPE"
+		elif [[ -d ${F} ]];then
+			FOUND_TYPES+="DIR"
+		elif [[ -x ${F} ]];then
+			FOUND_TYPES+="EXEC"
+		elif [[ -f ${F} ]];then
+			FOUND_TYPES+="FILE"
+		fi
+		[[ ${#FOUND_TYPES[-1]} -gt ${FIELD_LEN[TYPE]} ]] && FIELD_LEN[TYPE]=${#FOUND_TYPES[-1]}
+	done 
+
+	#Parse local file extensions...
+	for F in ${_CANDIDATES};do
+		[[ -d ${F} ]] && continue
+		T=${F:t}
+		[[ -n ${T:r} && -n ${T:e} ]] && FOUND_EXT+=".${T:e}"
+		[[ ${#FOUND_EXT[-1]} -gt ${FIELD_LEN[EXT]} ]] && FIELD_LEN[EXT]=${#FOUND_EXT[-1]}
+	done
+
+	[[ ${FIELD_LEN[TYPE]} -gt ${FIELD_LEN[EXT]} ]] && WIDTH=${FIELD_LEN[TYPE]} || WIDTH=${FIELD_LEN[EXT]}
+	[[ ${WIDTH} -lt 6 ]] && WIDTH=6
+
+	printf "\n${WHITE_FG}%-*s %26s${RESET}\n" ${WIDTH} "Object" "Colors and Attributes"
+	printf "${MAGENTA_FG}%-*s %26s${RESET}\n" ${WIDTH} $(str_unicode_line 6) $(str_unicode_line 21)
+
+	NDX=0
+	for K in ${(ku)FOUND_TYPES};do
+		COLORS=()
+		ANSI=()
+		for C in ${$(parse_code_string ${OBJ_COLOR[${K}]})};do
+			COLORS+=$(set_color_code ${C})
+			ANSI+=$(get_ansi ${C})
+		done
+		[[ -z ${ANSI} ]] && ANSI=" "
+		printf "${ANSI}%-*s${RESET} %-s %-s %-s\n" $((WIDTH+4)) ${K} ${COLORS[1]} ${COLORS[2]} ${COLORS[3]}
+	done
+
+	for K in ${(ku)FOUND_EXT};do
+		COLORS=()
+		ANSI=()
+		for C in ${$(parse_code_string ${OBJ_COLOR[${K}]})};do
+			COLORS+=$(set_color_code ${C})
+			ANSI+=$(get_ansi ${C})
+		done
+		[[ -z ${ANSI} ]] && ANSI=" "
+		printf "${ANSI}%-*s${RESET} %-s %-s %-s\n" $((WIDTH+4)) ${K} ${COLORS[1]} ${COLORS[2]} ${COLORS[3]}
+	done
+	echo
+}
+
+lsdaemons () {
+	local DEAMONS=("${(f)$(ps -eo 'tty,comm,%mem,time,args' | grep '^?' | tr -s '[ \t]' | cut -d' ' -f2- | sort -u)}")
+	local LAST_LEADING
+	local OUT
+	local F1 F2 F3 F4
+	local DESC
+	local D
+
+	read -r -d '' DESC<<___EOF
+View current deamon processes
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	echo "${GREEN_FG}Current Daemon Processes${RESET}"
+	printf "${CYAN_FG}%-30s %4s %8s %-.100s${RESET}\n" "Name" "Mem" "Time" "Args (truncated)"
+	echo "${MAGENTA_FG}$(str_unicode_line 31) $(str_unicode_line 3) $(str_unicode_line 8) $(str_unicode_line 100)${RESET}"
+
+	LAST_LEADING=?
+	OUT=false
+
+	for D in ${(n)DEAMONS};do
+		F1=$(echo ${D} | cut -d' ' -f1 | tr -cd '[:alnum:]')
+		F2=$(echo ${D} | cut -d' ' -f2)
+		F3=$(echo ${D} | cut -d' ' -f3)
+		F4=$(echo ${D} | cut -d' ' -f4-)
+		[[ ${LAST_LEADING} != ${F1[1,1]:l} ]] && LAST_LEADING=${F1[1,1]} && OUT=true
+		[[ ${LAST_LEADING} == '?' ]] && continue 
+		[[ ${OUT} == "true" ]] && echo "${WHITE_FG}${LAST_LEADING}${RESET}" && OUT=false
+		printf '%-30s %4s %8s %-.100s\n' ${F1} ${F2} ${F3} ${F4}
+	done
+}
+
+lssc () {
+	local SEARCHTERM
+	local POST_PROCESS
+	local DESC
+
+	hilite () {
+		sed -e "s/\benabled/$(echo ${GREEN_FG}enabled${RESET})/g" \
+			-e "s/\brunning/$(echo ${GREEN_FG}running${RESET})/g" \
+			-e "s/\bdisabled/$(echo ${RED_FG}disabled${RESET})/g" \
+			-e "s/\binactive/$(echo ${RED_FG}inactive${RESET})/g" \
+			-e "s/\bactive/$(echo ${BOLD}${YELLOW_FG}active${RESET})/g" \
+			-e "s/\bloaded/$(echo ${BOLD}${YELLOW_FG}loaded${RESET})/g" \
+			-e "s/\bmasked/$(echo ${BOLD}${YELLOW_FG}masked${RESET})/g" \
+			-e "s/\bstatic/$(echo ${BOLD}${YELLOW_FG}static${RESET})/g"
+	}
+
+	#Execution
+	read -r -d '' DESC<<___EOF
+View current systemd services
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	[[ -n $1 ]] && SEARCHTERM=$1
+
+	if [[ -n ${SEARCHTERM} ]];then
+		#echo "Searching for:${WHITE_FG}${SEARCHTERM}${RESET}"
+		POST_PROCESS="grep -i ${SEARCHTERM} | tr -s '[:space:]' | sed 's/^[ \t]//g' | sort | hilite | mypager"
+	else
+		POST_PROCESS="tr -s '[:space:]' | sed 's/^[ \t]//g' | hilite | mypager"
+	fi
+
+	(
+	echo "${GREEN_FG}[ UNIT FILES ]\n"
+	echo "${WHITE_FG}Enabled unit-files...${RESET}\n"
+	sudo systemctl list-unit-files | grep enabled
+	echo "\n${WHITE_FG}Disabled unit-files...${RESET}\n"
+	sudo systemctl list-unit-files | grep disabled
+	echo "\n${WHITE_FG}Static unit-files...${RESET}\n"
+	sudo systemctl list-unit-files | grep static
+	echo "\n${WHITE_FG}Masked unit-files...${RESET}\n"
+	sudo systemctl list-unit-files | grep masked
+	echo "\n${WHITE_FG}Indirect unit-files...${RESET}\n"
+	sudo systemctl list-unit-files | grep indirect
+	echo "\n${GREEN_FG}[ SERVICES ]"
+	echo "\n${WHITE_FG}Running services...${RESET}\n"
+	sudo systemctl list-units --type=service --all | grep running
+	echo "\n${WHITE_FG}Exited services...${RESET}\n"
+	sudo systemctl list-units --type=service --all | grep exited
+	echo "\n${WHITE_FG}Inactive or Dead services...${RESET}\n"
+	sudo systemctl list-units --type=service --all | grep inactive
+	#echo "\n${WHITE_FG}Dead services...${RESET}\n"
+	#sudo systemctl list-units --type=service --all | sort | grep dead
+	) | eval "${POST_PROCESS}"
+}
+
+mkinitscript () {
+	#Init Script Creator
+	# 2009 - Mike Golvach - eggi@comcast.net - heavily modified by mr miller
+	#
+	#Creative Commons License
+	#rcscript.sh by Mike Golvach is licensed under a Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License.
+	#Based on a work at linuxshellaccount.blogspot.com.
+	#Permissions beyond the scope of this license may be available at http://linuxshellaccount.blogspot.com.
+	#
+
+	#trap 'rm -f ${INIT_DIR}/${SCRIPT_NAME} ${RC3_DIR}/${SCRIPT_NAME} ${RC0_DIR}/${SCRIPT_NAME} ${SCRIPT_NAME}' 1 2 3 9 15
+
+	# Tips for a few command line arguments - setting an argument to zero will not be considered equivalent to not defining it
+	# a. set INIT_DIR to 0 if you don't want any scripts and links setup - set RC3_DIR, rc2_dir and/or INIT_DIR to "0" to not create that link/script.
+	# b. If any of the INIT_DIR, rc2_dir and/or RC3_DIR variables are not set, they will default to the examples below.
+	# c. options that include 0 in the example do not need to be set and are entirely optional
+	# 
+
+	local INIT_DIR=/etc/init.d
+	local RC3_DIR=/etc/rc3.d
+	local RC0_DIR=/etc/rc0.d
+	local SCRIPT_NAME=myStartScript.sh
+	local PROGRAM_NAME=testProgram
+	local START_OPTIONS=start
+	local BIN_DIR=/bin
+	local GREP=/bin/grep
+	local AWK=/usr/bin/awk
+	local PS=/bin/ps
+	local CHMOD=/bin/chmod
+	local CP=/bin/cp
+	local LN=/bin/ln
+	local DELETE=false
+	local OPTION
+
+	#FULLY_QUALIFIED_PROGRAM_NAME=/usr/local/bin/testProgram
+	# sure_kill=   "space delimited list of extra programs to kill" or 0
+	#
+
+	function usage {
+		(
+		echo
+		echo "${WHITE_FG}\nUsage${RESET}: ${_WRAPPER} ${_SCRIPT} [${WHITE_FG}-H${RESET} for this help screen]\n"
+		echo -e "\n${WHITE_FG}Required switches${RESET}:"
+		echo "[${WHITE_FG}-n${RESET} init script name] [${WHITE_FG}-f${RESET} controlled program's fully qualified name]"
+		echo -e "\n${WHITE_FG}Optional switches${RESET}:"
+		echo "[${WHITE_FG}-i${RESET} init directory] [-3 rc3.d directory] [-0 rc0.d directory]"
+		echo "[${WHITE_FG}-s${RESET} start options for your program]"
+		echo "[${WHITE_FG}-k${RESET} additional programs to kill on stop - space separated]"
+		echo "[${WHITE_FG}-b${RESET} common binary directory - defaults to /usr/bin]"
+		echo "[${WHITE_FG}-d${RESET} script_name - delete existing script_name"
+		echo -e "\n${WHITE_FG}Ensure switch arguments with spaces are \"double quoted\"${RESET}!\n"
+		) >&2
+		exit_leave
+	}
+
+	while getopts 0:3:b:f:Hi:k:n:s:d OPTION; do
+		case ${OPTION} in
+			'i')
+				if [[ "${OPT_ARG}" == "0" ]];then
+					INIT_DIR=0
+				else
+					INIT_DIR="${OPTARG}"
+					fi;;
+			'3')
+				if [[ "${OPT_ARG}" == "0" ]];then
+					RC3_DIR=0
+				else
+					RC3_DIR="${OPTARG}"
+					fi;;
+			'0')
+				if [[ "${OPT_ARG}" == "0" ]];then
+					RC0_DIR=0
+				else
+					RC0_DIR="${OPTARG}"
+				fi;;
+			'n')
+				SCRIPT_NAME="${OPTARG}";;
+			'f')
+				FULLY_QUALIFIED_PROGRAM_NAME="${OPTARG}";;
+			's')
+				if [[ "${OPT_ARG}" == "0" ]];then
+					START_OPTIONS=""
+				else
+					START_OPTIONS="${OPTARG}"
+				fi;;
+			'k')
+				if [[ "${OPT_ARG}" == "0" ]];then
+					ADDITIONAL_KILLS=""
+				else
+					ADDITIONAL_KILLS="${OPTARG}"
+				fi;;
+			'b')
+				if [[ "${OPT_ARG}" == "0" || -z "${OPT_ARG}" ]];then
+					BIN_DIR="/usr/bin"
+				else
+					BIN_DIR="${OPTARG}"
+				fi;;
+			'd')
+					DELETE=true
+					SCRIPT_NAME=${2}
+					;;
+			'H')
+					usage;;
+			*)
+					usage;;
+		esac
+	done
+	shift $((${OPTIND} - 1))
+
+	if [[ ${DELETE} == 'true' ]];then
+		if [[ -n "${SCRIPT_NAME}" ]];then
+			echo "Removing all traces of:${INIT_DIR}/${SCRIPT_NAME}"
+			pushd
+			cd /
+			[[ -e ${INIT_DIR}/${SCRIPT_NAME} ]] && sudo rm -i ${INIT_DIR}/${SCRIPT_NAME}
+			[[ -e ${RC3_DIR}/${SCRIPT_NAME} ]] && sudo rm -i ${RC3_DIR}/${SCRIPT_NAME}
+			[[ -e ${RC0_DIR}/${SCRIPT_NAME} ]] && sudo rm -i ${RC0_DIR}/${SCRIPT_NAME}
+			popd
+			exit 0;
+		fi
+	fi
+
+	if [[ -z "${SCRIPT_NAME}" || -z "${FULLY_QUALIFIED_PROGRAM_NAME}" ]];then
+		echo -e "\nOptions -n and -f are required!\n"
+		usage
+	fi
+
+	PROGRAM_NAME=$(basename ${FULLY_QUALIFIED_PROGRAM_NAME})
+
+	if [[ -z "${BIN_DIR}" ]];then
+		BIN_DIR="/usr/bin"
+	fi
+
+	if [[ -e "${SCRIPT_NAME}" ]];then
+		rm ${SCRIPT_NAME}
+	fi
+
+	cat<< ___EOT >>${SCRIPT_NAME}
+	#!/bin/sh 
+
+	### BEGIN INIT INFO
+	# Provides:          ${PROGRAM_NAME}
+	# Required-Start:    ${PROGRAM_NAME}
+	# Required-Stop:     ${PROGRAM_NAME} ${ADDITIONAL_KILLS}
+	# Default-Start:     
+	# Default-Stop:      
+	# Short-Description: start ${PROGRAM_NAME}
+	### END INIT INFO
+
+	case \${1} in 
+		'start') 
+			echo "\nStarting ${PROGRAM_NAME}....\n"
+			${FULLY_QUALIFIED_PROGRAM_NAME} ${START_OPTIONS} >/dev/null 2>&1 &
+			sleep 2
+			${PROGRAM_NAME}_RUNNING=\$(${PS} -ef | ${GREP} "${FULLY_QUALIFIED_PROGRAM_NAME}" | ${GREP} -v grep | ${AWK} '{print \${2}}')
+			if [ "\$${PROGRAM_NAME}_RUNNING" = "" ];then
+				echo "${PROGRAM_NAME} start failed. Please check application logs"
+			else
+				echo "${PROGRAM_NAME} was started successfully"
+			fi;;
+		'stop') 
+			echo
+			echo Stopping ${PROGRAM_NAME}....
+			echo
+			${PROGRAM_NAME}_RUNNING=\$(${PS} -ef | ${GREP} "${FULLY_QUALIFIED_PROGRAM_NAME}" | ${GREP} -v grep | ${AWK} '{print \${2}}')
+			if [ "\$${PROGRAM_NAME}_RUNNING" = "" ];then
+				echo "${PROGRAM_NAME} is stopped."
+			else
+				COUNTER=5
+				DEAD="alive"
+				echo "Shutting ${PROGRAM_NAME} [pid: \$${PROGRAM_NAME}_RUNNING] down."
+				while [ \${COUNTER} -gt 0 ];do
+					${PROGRAM_NAME}_STILL_RUNNING=\$(${PS} -ef | ${GREP} "${FULLY_QUALIFIED_PROGRAM_NAME}" | ${GREP} -v grep | ${AWK} '{print \${2}}')
+					if [ "\$${PROGRAM_NAME}_STILL_RUNNING" != "" ];then
+						echo "killing pid: \$${PROGRAM_NAME}_STILL_RUNNING "
+						${BIN_DIR}/kill \$${PROGRAM_NAME}_STILL_RUNNING
+						COUNTER=\$(expr \${COUNTER} - 1)
+						sleep 1
+					else
+						DEAD="dead"
+						echo "process was killed"
+						COUNTER=0
+					fi
+				done
+				if [ \${DEAD} = "alive" ];then
+					echo "Could not kill process after 5 attempts. Process: ${PROGRAM_NAME}_RUNNING is a zombie."
+				fi
+			fi
+___EOT
+		if [[ -n "${ADDITIONAL_KILLS}" ]];then
+			cat << ___EOT >>${SCRIPT_NAME}
+			for AKS in $(echo ${ADDITIONAL_KILLS});do
+				echo
+				echo Stopping \${AKS}....
+				echo
+				AKS_RUNNING=\$(${PS} -ef | ${GREP} "\${AKS}" | ${GREP} -v grep | ${AWK} '{print \${2}}')
+				if [ "\${AKS_RUNNING}" = "" ];then
+					echo "\${AKS} is stopped."
+				else
+					COUNTER=5
+					DEAD="alive"
+					echo "Shutting \${AKS} [pid: \$${AKS_RUNNING}] down."
+					while [ \${COUNTER} -gt 0 ];do
+						AKS_STILL_RUNNING=\$(${PS} -ef | ${GREP} "\${AKS}" | ${GREP} -v grep | ${AWK} '{print \${2}}')
+						if [ "\${AKS_STILL_RUNNING}" != "" ];then
+							echo "killing pid: \${AKS_STILL_RUNNING}"
+							${BIN_DIR}/kill \${AKS_STILL_RUNNING}
+							COUNTER=\$(expr \${COUNTER} - 1)
+							sleep 1
+						else
+							DEAD="dead"
+							echo "process was killed"
+							COUNTER=0
+						fi
+					done
+					if [ \${DEAD} = "alive" ];then
+						echo "Could not kill process after 5 attempts. Process: ${AKS}_RUNNING is a zombie."
+					fi
+				fi
+			done
+___EOT
+		fi
+		cat << ___EOT >>${SCRIPT_NAME}
+		;; 
+		'restart')
+			echo
+			echo Restarting ${PROGRAM_NAME}....
+			echo
+			\${0} stop
+			\${0} start
+			;;
+		'status') 
+			${PROGRAM_NAME}_RUNNING=\$(${PS} -ef | ${GREP} "${FULLY_QUALIFIED_PROGRAM_NAME}" | ${GREP} -v grep | ${AWK} '{print \${2}}')
+			if [ -z "\$${PROGRAM_NAME}_RUNNING" ];then
+				echo "${PROGRAM_NAME} is NOT running"
+			else
+				echo "${PROGRAM_NAME} is running as process \$${PROGRAM_NAME}_RUNNING"
+			fi;;
+		*) 
+			echo "Usage: \${0} [start|stop|restart]";;
+	esac 
+___EOT
+
+	local RC1
+	local RC2
+	local RC3
+	local RC4
+	local RC
+
+	sudo ${CHMOD} 750 ${SCRIPT_NAME} && RC1=${?}
+	sudo ${CP} ${SCRIPT_NAME} ${INIT_DIR}/${SCRIPT_NAME} && RC2=${?}
+	sudo ${LN} -fs ${INIT_DIR}/${SCRIPT_NAME} ${RC3_DIR}/${SCRIPT_NAME} && RC3=${?}
+	sudo ${LN} -fs ${INIT_DIR}/${SCRIPT_NAME} ${RC0_DIR}/${SCRIPT_NAME} && RC4=${?}
+
+	((RC = ${RC1} + ${RC2} + ${RC3} + ${RC4}))
+
+	if [[ ${RC} -eq 0 ]];then
+		echo init script: ${SCRIPT_NAME} was created.
+	else
+		echo An error occurred. init script: ${SCRIPT_NAME} was NOT created.
+	fi
+}
+
+pkg_update () {
+	local ACTION=none
+	local APP
+	local DESC
+	local FOUND=false
+	local MSG
+	local OPTS=none
+	local PACKAGES
+	local PARTIAL_MATCH=false
+	local P
+
+	read -r -d '' DESC<<___EOF
+Set update flag for package
+\tOptionally prevent/allow package updates
+___EOF
+
+	function usage {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		(
+		echo -e "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-Hxus] <PACKAGE>\n"
+		echo -e "-H help"
+		echo -e "-x hold current release"
+		echo -e "-u update current release"
+		echo -e "-s current update status"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	function status {
+		local S
+		local MSG
+
+		 MSG="Current update status for package:${1}"
+
+		 echo "\n${MSG}"
+		 echo ${MAGENTA_FG}$(str_unicode_line ${#MSG})${RESET}
+		 S=$(sudo dpkg --get-selections ${1} | tr -s '[:space:]' | cut -f2)
+		 [[ ${S} == install ]] && echo "${1} ${S} (updates will be applied)"
+		 [[ ${S} == hold ]] && echo "${1} ${S} (updates will NOT be applied)"
+		 echo ${MAGENTA_FG}$(str_unicode_line ${#MSG})${RESET}
+		 sudo dpkg -s ${1} | egrep 'Package:|Status:|Maintainer:|Version:|Description:'
+		 exit_leave
+	}
+
+	OPTIND=0
+	while getopts ":Hxus" OPTS;do
+		case ${OPTS} in
+		  h) usage;;
+		  x) ACTION=hold;;
+		  u) ACTION=install;;
+		  s) ACTION=status;;
+		 \?) print -u2 "\nERR:${0} - unknown option ${OPTARG}"; usage ;;
+		esac
+	done
+	shift $((${OPTIND} - 1))
+
+	[[ ${#} -ne 0 ]] && APP=${1} || usage "Missing package name"
+	[[ ${ACTION} == none ]] && usage "No action specified"
+
+	PACKAGES=($(dpkg --get-selections | cut -f1))
+
+	for P in ${PACKAGES};do
+		 [[ ${P} == ${APP} ]] && FOUND=true
+		 [[ ${P} =~ ${APP} ]] && PARTIAL_MATCH=true
+	done
+
+	if [[ ${FOUND} == false ]];then
+		echo -e "\n${RED_FG}Uninstalled package${RESET}:${APP}\n"
+		if [[ ${PARTIAL_MATCH} == 'true' ]];then
+			MSG="HINTS: packages matching:${APP}"
+			echo "\n${MSG}"
+			echo ${MAGENTA_FG}$(str_unicode_line ${#MSG})${RESET}
+			for P in ${PACKAGES};do
+				[[ ${P} =~ ${APP}  ]] && echo ${P}
+			done
+			echo ${MAGENTA_FG}$(str_unicode_line ${#MSG})${RESET}
+			exit_leave
+		fi
+	else
+		[[ ${ACTION} == status ]] && status ${APP}
+		#prevent/allow update
+		echo ${APP} ${ACTION} | sudo dpkg --set-selections
+		status ${APP}
+	fi
+}
+
+ppamgr () {
+	#Constants
+	local -a SOURCES=(/etc/apt/sources.list /etc/apt/sources.list.d) 
+
+	#Declarations
+	local	ADD_PPA=false
+	local	ADD_PPA_KEY=false
+	local	DEBUG=false
+	local	FIND_PKG=false
+	local	FIND_PPA=false
+	local	_LOCAL_LIST_PPA=false
+	local	OPTIND=0
+	local	PPA_ARG
+	local	REMOVE_PPA=false
+	local -a PPAS=()
+	local OPT_PASSED=false
+
+	#Functions
+	add_ppa () {
+		local PPA_ARG=$1
+		local RC
+
+		[[ -z ${PPA_ARG} ]] && usage
+		[[ ${DEBUG} == "true" ]] && echo "PPA_ARG:${PPA_ARG}"
+
+		sudo add-apt-repository -y ${PPA_ARG} 
+		RC=$?
+
+		if [[ ${RC} -eq 0 ]];then
+			echo "${GREEN_FG}Added:${WHITE_FG}${PPA_ARG}${RESET}"
+			update-repo 
+		else
+			echo "${RED_FG}WARNING:${RESET} add-apt-repository returned non-zero exit status:${RC}"
+		fi
+	}
+
+	add_ppa_key () {
+		local PPA_KEY=$1
+		local RC
+
+		[[ -z ${PPA_KEY} ]] && usage
+		[[ ${DEBUG} == "true" ]] && echo "PPA_KEY:${PPA_KEY}"
+
+		sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys ${PPA_KEY}
+
+		RC=$?
+		if [[ ${RC} -eq 0 ]];then
+			echo "${GREEN_FG}Added:${WHITE_FG}${PPA_KEY}${RESET}"
+			update-repo 
+		else
+			echo "${RED_FG}WARNING:${RESET} apt-key returned non-zero exit status:${RC}"
+		fi
+	}
+
+	find_pkg () {
+		local PKG_ARG=$1
+		local P
+		local PKG
+		local PPA
+		local RC
+		local UNINSTALLED
+
+		#optional arg 
+		if [[ -n ${PKG_ARG} ]];then
+			[[ ${DEBUG} == "true" ]] && echo "PKG_ARG:${PKG_ARG}"
+			PKG=${PKG_ARG}
+		else
+			PKG='*' 
+		fi
+
+		INSTALLED=($(dpkg-query --showformat='${Package}:${Status}\n' -W "*${PKG}*" | grep 'ok installed' | sed -e 's/:.*//g'))
+		RC=$?
+
+		if [[ ${RC} -eq 0 ]] && for P in ${INSTALLED};do
+		  echo "${GREEN_FG}Installed Package${RESET}:${P}"
+		  PPA=$(echo $(apt-cache policy ${p} | grep ' http') | cut -d\  -f2)
+		  [[ -z ${PPA} ]] && PPA=Unknown
+		  echo "${MAGENTA_FG}  Source${RESET}: ${WHITE_FG}${PPA}${RESET}"
+		done
+
+		UNINSTALLED=($(dpkg-query --showformat='${Package}:${Status}\n' -W "*${PKG}*" | grep -v 'ok installed' | sed -e 's/:.*//g'))
+
+		for P in ${UNINSTALLED};do
+		  echo "${RED_FG}Uninstalled Package${RESET}: ${P}"
+		done
+	}
+
+	find_ppa () {
+		local PPA_ARG=$1
+		local L S
+		local LINE
+		local _LOCAL_LIST
+		local PPA
+		local PPA_PATH
+
+		[[ -z ${PPA_ARG} ]] && usage
+		[[ ${DEBUG} == "true" ]] && echo "PPA_ARG:${PPA_ARG}"
+
+		[[ ${PPA_ARG} =~ '/' ]] && echo "${WHITE_FG}PPA_ARG${RESET}:${SEARCHTERM} ${WHITE_FG}should be a keyword${RESET}; ${RED_FG}NOT${RESET} a pathname" && return 1
+
+		for S in ${SOURCES};do
+			if [[ -d ${S} ]];then
+				_LOCAL_LIST=("${(f)$(find ${S} -iname "*${PPA_ARG}*")}") 
+				for L in ${_LOCAL_LIST};do
+					if [[ ${L:e} == "list" ]];then
+						LINE=$(cat ${L} | grep -v '^#')
+						if [[ ${LINE} =~ "launchpad" ]];then
+							PPA=$(echo ${LINE} | sed -e 's#deb http://ppa.launchpad.net/##g' -e 's/[ ].*$//g')
+						else
+							PPA=$(echo ${LINE} | sed 's#.*//##g')
+						fi
+						[[ -n ${PPA} ]] && echo "${WHITE_FG}Source${RESET}:${L}"
+						[[ -n ${PPA} ]] && echo "${WHITE_FG}   PPA${RESET}:ppa:${PPA:h}"
+						[[ -n ${LINE} ]] && echo "${WHITE_FG}   URL${RESET}:${LINE}\n"
+					fi
+				done
+				continue
+			fi
+			if [[ -f ${S} ]];then
+				PPA_PATH=$(grep -i "${SEARCHTERM}" ${S} | grep -v '^#')
+				[[ -n ${PPA_PATH} ]] && echo "${WHITE_FG}Source${RESET}:${S}"
+				[[ -n ${PPA_PATH} ]] && echo ${PPA_PATH}
+				continue
+			fi
+		done
+	}
+
+	list_ppa () {
+		local PPA_ARG=$1
+		local -A PPAS
+		local ALL=false
+		local FILE_CONTENT
+		local HDR_LBL
+		local LINE
+		local _LOCAL_LIST
+		local L S
+
+		if [[ -n ${PPA_ARG} ]];then
+			[[ ${DEBUG} == "true" ]] && echo "PPA_ARG:${PPA_ARG}"
+			[[ ${DEBUG} == "true" ]] && echo "No PPA_ARG passed; listing sources matching ${PPA_ARG}"
+		else
+			[[ ${DEBUG} == "true" ]] && echo "No PPA_ARG passed; listing all sources..."
+			ALL=true
+		fi
+
+		#build list of active ppas
+		for S in ${SOURCES};do
+			if [[ -d ${S} ]];then
+				_LOCAL_LIST=("${(f)$(find ${S})}") 
+				for L in ${_LOCAL_LIST};do
+					if [[ ${L:e} == "list" ]];then
+						FILE_CONTENT=("${(f)$(cat ${L})}")
+						for LINE in ${FILE_CONTENT};do
+							[[ ${LINE} =~ "^#" ]] && continue #ignore commented out 
+							PPAS[${LINE}]=${L}
+
+						done
+					fi
+				done
+			else
+				if [[ ${ALL} == "true" ]];then
+					FILE_CONTENT=("${(f)$(cat ${S})}")
+					for LINE in ${FILE_CONTENT};do
+						[[ ${LINE} =~ "^#" ]] && continue #ignore commented out 
+						PPAS[${LINE}]=${S}
+
+					done
+					HDR_LBL="All Active Sources\n------------------"
+				else
+					HDR_LBL="All Active Sources matching:${PPA_ARG}\n---------------------------"
+				fi
+			fi
+		done
+		(
+		echo "${BOLD}${WHITE_FG}${HDR_LBL}${RESET}"
+		for P in ${(k)PPAS};do
+			PPA=$(echo ${P} | grep -oP 'launchpad.net/\K.*?(?=/ubuntu)')
+			if [[ -n ${PPA_ARG} ]];then
+				echo ${PPA} | grep -qi ${PPA_ARG}
+
+				[[ $? -ne 0 ]] && continue
+			fi
+			[[ -n ${PPA} ]] && PPA_LBL=${PPA} || PPA_LBL="${BOLD}${RED_FG}Not a Launchpad PPA${RESET} (possibly added manually)"
+
+			echo ${P} | grep -qi 'universe\|multiverse\|restricted'
+			[[ $? -eq 0 ]] && PPA_LBL="Distribution Source"
+
+			[[ -n ${PPA} ]] && PPA_COLOR=${BOLD}${GREEN_FG} || PPA_COLOR=$WHITE_FG
+
+			echo "\n${WHITE_FG}Source${RESET}:${PPAS[${P}]}"
+			echo "${WHITE_FG}   URL${RESET}:${P}"
+			echo "${WHITE_FG}   PPA${RESET}:${PPA_COLOR}${PPA_LBL}${RESET}"
+		done
+		) | mypager
+	}
+
+	remove_ppa () {
+		local PPA_ARG=$1
+		local RC
+
+		[[ -z ${PPA_ARG} ]] && usage
+		[[ ${DEBUG} == "true" ]] && echo "PPA_ARG:${PPA_ARG}"
+
+		echo "${RED_FG}Removing${RESET}:${PPA_ARG}..."
+		sudo add-apt-repository -r ${PPA_ARG}
+
+		RC=$?
+		[[ ${RC} -eq 0 ]] && echo "${RED_FG}Removed:${WHITE_FG}${1}${RESET}" || echo "${RED_FG}WARNING:${RESET} add-apt-repository returned non-zero exit status:${RC}"
+	}
+
+	update-repo () {
+		local RC
+
+		echo -n "Updating repository info..."
+		sudo apt-get update 
+		 RC=$?
+		[[ ${RC} -eq 0 ]] && echo "done." || echo "${RED_FG}WARNING:${RESET} apt-get update returned non-zero exit status:${RC}"
+	}
+
+	#--Begin GetOpts--
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+
+		echo ${OPTSTR}
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			a) echo "<PPA>";;
+			k) echo "<KEY>";;
+			r) echo "<PPA>";;
+			f) echo "<PACKAGE>";;
+			l) echo "<PPA>";;
+			p) echo "<PACKAGE>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		(
+		echo -e "\n${WHITE_FG}Usage${RESET}:$_SCRIPT ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET} <PPA>\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}-a $(opt_type a)${RESET} Add PPA (default action)"
+		echo -e "${WHITE_FG}-r $(opt_type r)${RESET} Remove PPA"
+		echo -e "${WHITE_FG}-k $(opt_type k)${RESET} Add key"
+		echo -e "${WHITE_FG}-f $(opt_type f)${RESET} Find source"
+		echo -e "${WHITE_FG}-l $(opt_type l)${RESET} List PPA"
+		echo -e "${WHITE_FG}-p $(opt_type p)${RESET} Find installed/uninstalled source"
+		echo -e "${WHITE_FG}-u ${RESET} Update sources"
+		echo -e "\n${WHITE_FG}Desc${RESET}:Manage/show PPA repositories or show package with PPA\n"
+		) >&2
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	OPTSTR=":DHa:r:f:l:p:k:u"
+
+
+	while getopts ${OPTSTR} OPTION;do
+		OPT_PASSED=true
+		case $OPTION in
+		  H) usage;;
+		  D) DEBUG=true;;
+		  a) ADD_PPA=true;PPA_ARG=${OPTARG};;
+		  r) REMOVE_PPA=true;PPA_ARG=${OPTARG};;
+		  f) FIND_PPA=true;PPA_ARG=${OPTARG};;
+		  l) _LOCAL_LIST_PPA=true;PPA_ARG=${OPTARG};;
+		  p) FIND_PKG=true;PKG_ARG=${OPTARG};;
+		  k) ADD_PPA_KEY=true;PPA_KEY=${OPTARG};;
+		  u) update-repo;exit;;
+		  :) if [[ ${OPTARG} == "l" ]];then
+				_LOCAL_LIST_PPA=true #optional option
+				continue
+			elif [[ ${OPTARG} == "f" ]];then
+				FIND_PKG=true #optional option
+				continue
+			else
+				print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"
+				usage
+			fi;;
+		 \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+		esac
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+	 
+	#--Execution--
+	#set default action
+	if [[ ${OPT_PASSED} == "false" ]];then
+		if [[ -n ${1} ]];then
+			PPA_ARG=$1
+			ADD_PPA=true #make default
+		else
+			usage
+		fi
+	fi
+
+	[[ ${ADD_PPA} == "true" ]] && add_ppa ${PPA_ARG} && exit_leave
+	[[ ${REMOVE_PPA} == "true" ]] && remove_ppa ${PPA_ARG} && exit_leave
+	[[ ${FIND_PPA} == "true" ]] && find_ppa ${PPA_ARG} && exit_leave
+	[[ ${_LOCAL_LIST_PPA} == "true" ]] && list_ppa ${PPA_ARG} && exit_leave
+	[[ ${FIND_PKG} == "true" ]] && find_pkg ${PKG_ARG} && exit_leave
+	[[ ${ADD_PPA_KEY} == "true" ]] && add_ppa_key ${PPA_KEY} && exit_leave
+}
+
+pw_info () {
+	local FILTER=false
+	local USER
+	local I S
+	local HDR
+	local PLINE
+	local SKIP
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Show password and group details
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] [USER]"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	[[ -n ${1} ]] && USER=${1} && FILTER=true
+
+	local PWDF=/etc/passwd
+	local GRPF=/etc/group
+
+	local PASSWD=("${(@f)$(cat ${PWDF} | sed -e 's/::/:empty:/g' -e 's/,,,//g' | sort)}")
+	local GROUPS=("${(@f)$(cat ${GRPF} | sed -e 's/::/:empty:/g' -e 's/,,,//g' | sort)}")
+	local GRPSEEN=()
+
+	is-group-user () {
+		local GLINE
+		local G
+
+		for (( G=1; G<${#GROUPS[@]}; G++ ));do
+			GLINE=(${(@s.:.)GROUPS[${G}]})
+			[[ ${1} != ${GLINE[3]} ]] && continue
+			[[ -n ${GLINE[4]} ]] && [[ ${GLINE[4]} =~ "${USER}" ]] && return 0
+		done
+		return 1
+	}
+
+	(
+	get-group-info () {
+		local GLINE
+		local G
+
+		for (( G=1; G<${#GROUPS[@]}; G++ ));do
+			GLINE=(${(@s.:.)GROUPS[${G}]})
+			[[ ${1} != ${GLINE[3]} ]] && continue
+			GRPSEEN+=${GLINE[3]}
+			printf "${WHITE_FG}%12s${RESET}: ${GREEN_FG}%-20s\n" "Group Name" ${GLINE[1]}
+			[[ -n ${GLINE[4]} ]] && printf "${GREEN_FG}%12s${RESET}: ${WHITE_FG}%-30s${RESET}\n" "Members" ${GLINE[4]}
+		done
+	}
+
+	echo "------------------------------------------"
+	echo "${WHITE_FG}Password file${RESET}:${PWDF}"
+	echo "------------------------------------------"
+	for (( I=1; I<${#PASSWD[@]}; I++ ));do
+		PLINE=(${(@s.:.)PASSWD[${I}]})
+		[[ ${FILTER} = true ]] && is-group-user ${PLINE[4]} && SKIP=false || SKIP=true
+		[[ ${SKIP} = true ]] && [[ ${PLINE[1]} = ${USER} ]] && SKIP=false 
+		[[ ${FILTER} = true ]] && [[ ${SKIP} = true ]] && continue
+		printf "${WHITE_FG}%12s${RESET}: ${GREEN_FG}%-20s\n" "User" ${PLINE[1]}
+		printf "%12s: %-3s\n" "UID" ${PLINE[3]}
+		printf "%12s: %-3s\n" "GID" ${PLINE[4]}
+		get-group-info ${PLINE[4]}
+		printf "%12s: %-30s\n" "Comment" ${PLINE[5]}
+		printf "%12s: %-30s\n" "Home" ${PLINE[6]}
+		printf "%12s: %-30s\n" "Shell" ${PLINE[7]}
+		echo "${RED_FG}>${RESET}"
+	done
+
+	HDR=false
+	for (( I=1; I<${#GROUPS[@]}; I++ ));do
+		GLINE=(${(@s.:.)GROUPS[${I}]})
+		SKIP=false
+		for S in ${GRPSEEN};do
+			[[ ${S} -eq ${GLINE[3]} ]] && SKIP=true
+		done
+		[[ ${SKIP} = true ]] && continue
+		[[ ${FILTER} = true ]] && is-group-user ${GLINE[3]} && SKIP=false || SKIP=true
+		[[ ${SKIP} = true ]] && [[ ${GLINE[1]} = ${USER} ]] && SKIP=false 
+		[[ ${FILTER} = true ]] && [[ ${SKIP} = true ]] && continue
+		[[ ${HDR} = false ]] && echo "------------------------------------------"
+		[[ ${HDR} = false ]] && echo "${WHITE_FG}Group file${RESET}:${GRPF}"
+		[[ ${HDR} = false ]] && echo "(${YELLOW_FG}only groups not already referenced above${RESET})"
+		[[ ${HDR} = false ]] && echo "------------------------------------------"
+		HDR=true
+		printf "${WHITE_FG}%12s${RESET}: ${GREEN_FG}%-20s\n" "Group Name" ${GLINE[1]}
+		printf "%12s: %-3s\n" "GID" ${GLINE[3]}
+		[[ -n ${GLINE[4]} ]] && printf "${GREEN_FG}%12s${RESET}: ${WHITE_FG}%-30s${RESET}\n" "Members" ${GLINE[4]}
+		echo "${RED_FG}>${RESET}"
+	done
+	) | mypager
+}
+
+tstumask () {
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Test a given/current umask
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] [UMASK]"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	function um {
+		echo
+		echo "Testing umask:$1"
+		umask $1
+		echo
+		echo "File creation:"
+		touch x;ls -la x;rm -f x
+		echo
+		echo "Directory creation:"
+		mkdir xx;ls -lad xx;rm -rf xx
+		echo
+	}
+
+	cat <<___EOF
+		File	Dir
+	0	rw-	rwx
+	1	rw-	rw-
+	2	r--	r-x
+	3	r--	r--
+	4	-w-	-wx
+	5	-w-	-w-
+	6	--x	--x
+	7	none	none
+___EOF
+
+	um $1
+}
+
+updates () {
+	#Constants
+	local DEFAULT=$(date +"%Y-%m-%d")
+	local LOGS=("${(f)$(find /var/log/dpkg.log*)}") 
+
+	local DESC
+	read -r -d '' DESC<<___EOF
+Show all dpkg activity for date range specified (day,month,year) or any grep-able keyword
+\tPartial keywords ok i.e \"grub, purge, install\"
+\tDate is in form:${WHITE_FG}${DEFAULT}${RESET}
+\tDefault is today
+\tPartial dates are allowed:
+\t${WHITE_FG}${DEFAULT[1,2]}${RESET}
+\t${WHITE_FG}${DEFAULT[1,3]}${RESET}
+\t${WHITE_FG}${DEFAULT[1,4]}${RESET}
+\t${WHITE_FG}${DEFAULT[1,6]}${RESET}
+\t${WHITE_FG}${DEFAULT[1,7]}${RESET}
+\t${WHITE_FG}${DEFAULT[1,9]}${RESET}
+\t${WHITE_FG}${DEFAULT[1,10]}${RESET} etc...
+___EOF
+
+	#--Begin GetOpts--
+	function parse_opts {
+		local OPTS=$@
+		local -a OPTSTR
+		for O in {1..${#OPTS}};do
+			[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+			[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+			OPTSTR+="-${OPTS[$O]}"
+		done
+		echo $OPTSTR
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		(
+		echo "${WHITE_FG}Usage${RESET}:${_WRAPPER} ${_SCRIPT} date-criterion | keyword"
+		echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
+		) >&2
+
+		exit_leave $(msg_err "${PENDING_MSGS}")
+	}
+
+	local OPTSTR=":HD:"
+	local OPTION
+	local DEBUG=false
+
+	OPTIND=0
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) DEBUG=true;;
+		  :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+		esac
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#Execution
+	local DATEARG=${1:=${DEFAULT}}
+	local PRE_LOCAL_LIST=$(zgrep -h ${DATEARG} $LOGS | sed -e 's/status //g' -e '/startup/d')
+	local _LOCAL_LIST=("${(f)$(echo ${PRE_LOCAL_LIST} | zgrep -hP "\sinstalled|remove|purge" | cut -d' ' -f1,3- | sort -u)}") 
+	local MSG
+
+	[[ -z ${_LOCAL_LIST} ]] && echo "No update activity for ${WHITE_FG}${DATEARG}${RESET}" && exit
+	[[ ${DATEARG} == ${DEFAULT} ]] && MSG="Last update" || MSG=" Updated on"
+
+	local LASTDATE=?
+	local L
+	local LDATE
+	local LLINE
+	local LEADING
+	local TRAILING
+
+	for L in ${_LOCAL_LIST};do
+		LDATE=$(echo $L | cut -d' ' -f1)
+		LLINE=$(echo $L | cut -d' ' -f2-)
+		if [[ ${LASTDATE} != ${LDATE} ]];then
+			echo ${WHITE_FG}$(str_unicode_line 22)${RESET}
+			echo ${MSG}:${WHITE_FG}${LDATE}${RESET}
+			echo ${WHITE_FG}$(str_unicode_line 22)${RESET}
+			LASTDATE=${LDATE}
+		fi
+		LEADING=$(echo ${LLINE} | cut -d' ' -f1)
+		TRAILING=$(echo ${LLINE} | cut -d' ' -f2-)
+		case ${LEADING} in
+			*installed*) echo "${GREEN_FG}${LEADING} ${WHITE_FG}${TRAILING}${RESET}";;
+			*remove*) echo "${RED_FG}   ${LEADING} ${WHITE_FG}${TRAILING}${RESET}";;
+			*purge*) echo "${BOLD}${RED_FG}    ${LEADING} ${WHITE_FG}${TRAILING}${RESET}";;
+			*) echo ${LLINE};;
+		esac
+	done >/tmp/updates.out
+	cat /tmp/updates.out | mypager
+}
+
+mime_defaults () {
+	local MIMETYPES=/etc/mime.types
+	local M_LOCAL_LIST=($(awk 'NF && $1!~/^#/ {print $1}' < ${MIMETYPES}))
+	local SEARCHTERM
+	local SHOW_ONLY_APPS=false
+	local USERMIMETYPES=~/.local/share/applications/mimeapps.list
+	local APP
+	local M
+
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTION
+
+	read -r -d '' DESC<<___EOF
+Display mimetype default apps
+\tLimit output by applying a <SEARCHTERM>
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTR
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTR+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTR}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+		local OPTS=$(parse_opts ${OPTSTR})
+
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		tabs 5
+		(
+		echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [<SEARCHTERM>]"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+		echo -e "${WHITE_FG}-a${RESET} show only mimetypes with default apps assigned"
+		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+		) >&2
+
+		exit_leave $(msg_err "${PENDING_MSGS}")
+	}
+
+	OPTSTR=":HDa"
+	OPTIND=0
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) dbg_set_level;;
+		  a) SHOW_ONLY_APPS=true;;
+		  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+		esac
+		[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+	#Execution
+	[[ ${#} -ne 0 ]] && SEARCHTERM=${1} && echo "Searching for keyword: ${SEARCHTERM}"
+
+	call_xdg_app () {
+		[[ ! -e /usr/bin/xdg-mime ]] && exit_leave $(msg_err "xdg-mime not found")
+		xdg-mime query default ${1}
+	}
+
+	call_gio_app () {
+		[[ ! -e /usr/bin/gio ]] && exit_leave $(msg_err "gio not found")
+		gio mime ${1}
+	}
+
+	show_default () {
+		local DA
+
+		[[ -n ${2} ]] && DA="${WHITE_FG}${APP}" || DA="${RED_FG}no default app"
+		echo "mimetype: ${WHITE_FG}${1}${RESET} -> default app: ${WHITE_FG}${DA}${RESET}"
+	}
+
+	for M in ${M_LOCAL_LIST};do
+		if [[ -n ${SEARCHTERM} ]];then
+			[[ ! ${M} =~ "${SEARCHTERM}" ]] && continue
+			APP=$(call_xdg_app ${M})
+			echo -n "XDG:"
+			show_default ${M} ${APP}
+			APP=$(call_gio_app ${M})
+			echo -n "GVFS:"
+			show_default ${M} ${APP}
+			continue
+		fi
+
+		APP=$(call_xdg_app ${M})
+
+		if ${SHOW_ONLY_APPS};then
+			[[ -z ${APP} ]] && continue
+			show_default ${M} ${APP}
+		else
+			show_default ${M} ${APP}
+		fi
+	done
+}
+
+host_mac () {
+	read -r -d '' DESC<<___EOF
+Display mac address of host
+___EOF
+
+	if [[ ${1} == '-H' ]];then
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+		tabs 5
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+		exit_leave
+	fi
+
+	local LIST=("${(f)$(ifconfig)}")
+	local IN_WIRELESS=false
+	local L
+
+	for L in ${LIST};do
+		if [[ ${L} =~ "^wlo1" ]];then
+			IN_WIRELESS=true
+		fi
+		if [[ ${IN_WIRELESS} == 'true' && ${L} =~ 'ether' ]];then
+			echo $L | tr -s '[:space:]' | cut -d' ' -f3
+		fi
+	done
+}
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+
+read -r -d '' DESC<<EOF
+Execute system utilities
+\t------------------------
+$(for K in ${(ok)_UTILS_DESC};do
+printf "${WHITE_FG}%-14s${RESET} %s\n" ${K} ${_UTILS_DESC[${K}]}
+done)
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		u) echo "<UTIL>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type u)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+OPTSTR=":HD"
+OPTIND=0
+
+UTIL=''
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+		H) usage;;
+		D) dbg_set_level;;
+		:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ ${#} -ne 0 ]] && UTIL=${1}
+
+[[ ${UTIL:=null} != 'null' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
+
+if [[ ${UTIL:=null} != 'null' ]];then
+	UTIL=${1}
+	_SCRIPT=${UTIL}
+	[[ ${_UTILS[${UTIL}]} -eq 1 ]] && shift && ${UTIL} ${@}
+else
+	[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+	selection_list_set ${(v)_UTILS_DESC}
+	selection_list -O ${GREEN_FG} -x11 -y32 -c -w10 "<w>Show System Utilities usage or <h>(q)uit<N>"
+
+	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
+	${_SCRIPT} -H # call function help
+fi
+
+exit_leave

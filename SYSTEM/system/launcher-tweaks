@@ -1,0 +1,62 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+typeset -a DESKTOP_LIST
+typeset -A APP_ALT_NAMES=(deluge deluge-gtk org.kde.haruna haruna)
+
+LAUNCHER_DIR=/usr/local/bin/system/launchers
+DESKTOP_DIR=/usr/share/applications
+LAUNCHER_LIST=("${(f)$(find ${LAUNCHER_DIR}/run_*)}") # launchers have format: run_<APPNAME>
+
+for L in ${LAUNCHER_LIST};do
+	APP=$(echo ${L} | cut -d '_' -f2) #remove 'run_' prefix of launcher
+	DESKTOP_FILE=$(find ${DESKTOP_DIR} -iname "${APP}.desktop" 2>/dev/null) # find matching system desktop file
+	[[ -n ${DESKTOP_FILE} ]] && DESKTOP_LIST+=${DESKTOP_FILE:t}
+done
+
+get_file_state () {
+	local FN=${1}
+	local LAST_FILE_REFRESH=0
+	local CURR_FILE_TIME
+	local STAMP_FILE=${LAUNCHER_DIR}/.${FN:t}
+
+	[[ -e ${FN} ]] || return 1
+	[[ -e ${STAMP_FILE} ]] && LAST_FILE_REFRESH=$(<${STAMP_FILE}) #get state
+
+	CURR_FILE_TIME=$(stat -c %Z ${FN}(:A)) #file change time in seconds; the modifier `(:A)` resolves any symbolic links
+
+	if [[ ${LAST_FILE_REFRESH} -lt ${CURR_FILE_TIME} ]]; then
+		sudo touch ${FN}
+		CURR_FILE_TIME=$(stat -c %Z ${FN}) #file change time in seconds
+		echo "${CURR_FILE_TIME}" > ${STAMP_FILE} #set state
+		echo "stale"
+	else
+		echo "current"
+	fi
+}
+
+# scan desktop files for stale versions
+for L in ${DESKTOP_LIST};do
+	APP="run_${L:r}"
+	STATUS=$(get_file_state ${DESKTOP_DIR}/${L})
+	#printf "%15s Desktop file:%s is %-10s\n" ${0:t} ${L} ${STATUS}
+	if [[ ${STATUS} == "stale" ]];then
+		sudo cp ${DESKTOP_DIR}/${L} ${DESKTOP_DIR}/${L}.orig #backup original
+		APP_RUNNER=${LAUNCHER_DIR}/${APP}
+		APP_NAME=${APP_ALT_NAMES[${L}]}
+		[[ -z ${APP_NAME} ]] && APP_NAME=${L}
+		EXEC=$(grep Exec ${DESKTOP_DIR}/${APP_NAME} | head -1 | cut -d= -f2 | cut -d' ' -f1)
+		sudo sed -i "s#Exec=${EXEC}#Exec=${APP_RUNNER}#g" ${DESKTOP_DIR}/${L}
+		[[ ${?} -eq 0 ]] && MSG="desktop file was modified" || MSG="ERROR - desktop file was NOT modified"
+		printf "${BOLD}Desktop file${RESET}:%s ... %s to %s\n" ${DESKTOP_DIR}/${L} ${MSG} ${LAUNCHER_DIR}/${APP}
+	fi
+done
+

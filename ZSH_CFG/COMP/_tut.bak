@@ -1,0 +1,13 @@
+#compdef tut
+
+_arguments \
+'-H[help]' \
+'-D[debug (repeats increase level)]' \
+
+_values \
+'Commands:' \
+'add_braces' \
+'ascii_only' \
+'blank_lines' \
+'strip_ansi' \
+'to_lower' 

@@ -1,0 +1,414 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a _RAW_LIST
+typeset -aU _LOCAL_LIST
+typeset -aU _T_LIST
+typeset -a _MARKED
+typeset -a _TRACK_QUEUE
+typeset -aU _MUSIC_DIRS
+typeset -aU _ARTISTS
+
+#Constants
+_AUDIO_FILES='\(\.mp3\|\.m4a\|\.flac\|\.ogg\|\.wav\)$'
+_MUSIC_DIRS+="${PWD}"
+_MUSIC_DIRS+="/home/kmiller/Documents/Music"
+_MUSIC_DIRS+="/media/kmiller/KEM_Misc/Music/KEM-B9"
+_PLAYLIST_FILE=/home/kmiller/.tmp/playlist.m3u
+_DEFAULT_PLAYER=/usr/bin/clementine
+
+#Globals
+g_TITLE=''
+g_ARTIST=''
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/WIN.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local M
+
+	for M in ${_MARKED};do
+		_TRACK_QUEUE+=${_LIST[${M}]}
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+	player_playlist
+	player_start
+}
+
+action_warn () {
+	local M
+	
+	msg_box -p -PQ "<I>Please respond|$(str_unicode_line 14)| |${#_MARKED} $(str_pluralize track ${#_MARKED}) selected"
+
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${_MARKED};do
+			list_set_selected ${M} 0
+		done
+	fi
+}
+
+item_decorate () {
+	local NDX=${1}
+	local FN
+	local M
+
+	FN=${_LIST[${NDX}]}
+
+	for M in ${_MUSIC_DIRS};do
+		if [[ ${#${FN}##${M}} -lt ${#FN} ]];then
+			if [[ ${_LIST_SELECTED[${NDX}]} -eq 2 ]];then
+				echo -n "${${FN}##${M}/} ${ITALIC}${BOLD}${GREEN_FG} -- queued${RESET}"
+			else
+				tput el
+				echo -n "${${FN}##${M}/}"
+				list_set_selected ${NDX} 0
+			fi
+		fi
+	done
+}
+
+n2l () {
+	local DIR_SLICE=${1}
+	local TARGET=${2}
+	local TARGET_NUM=${TARGET[4,-1]:=1}
+	local SEGS=(${(s:/:)${DIR_SLICE}})
+	local SEG_COUNT=${#SEGS}
+	local NDX=0
+	local LEADING=true
+	local ELEM=0
+	local X
+
+	[[ ${TARGET_NUM} -gt ${SEG_COUNT} ]] && TARGET_NUM=${SEG_COUNT}
+
+	for ((X=${TARGET_NUM}; X>0; --X));do
+		[[ ${LEADING} == 'true' ]] && echo -n "/" && LEADING=false
+		ELEM=$(( SEG_COUNT - X ))
+		[[ ${ELEM} -gt 0 && ${ELEM} -le ${SEG_COUNT} ]] && echo -n "${SEGS[${ELEM}]}/"
+	done
+}
+
+path_segment () {
+	local P=${1}
+	local TARGET=${2}
+	local -a SEGS
+	local M S X
+	local SHORTEST=${#P}
+	local M_SHORTEST
+	local P_OUT
+	local DIR_SLICE
+
+	for M in ${_MUSIC_DIRS};do
+		if [[ ${#${P}##${M}} -le ${SHORTEST} ]];then
+			[[ ${M} =~ ${PWD} ]] && M_SHORTEST='' ||  M_SHORTEST="${M}"
+			SHORTEST=${#${P}##${M}} 
+			DIR_SLICE=${${P}##${M}} 
+			SEGS=(${(s:/:)${${P}##${M}}})
+		fi
+	done
+
+	#Numeric targets
+	if [[ -n ${TARGET} && ${TARGET} == ${TARGET%%[!0-9]*} ]];then
+		[[ ${TARGET} -le 0 ]] && echo "TARGET:${TARGET} invalid" && return 1
+		[[ ${TARGET} -gt ${#SEGS} ]] && echo "TARGET:${TARGET} exceeds SEGMENTS:${#SEGS}" && return 1
+
+		if [[ ${TARGET} -ge 1 && ${TARGET} -le ${#SEGS} ]];then
+			P_OUT="${M_SHORTEST}/"
+			for (( X=1; X <= ${#SEGS}; X++ ));do
+				P_OUT+="${SEGS[${X}]}/"
+				[[ ${X} -eq ${TARGET} ]] && break
+			done
+			echo ${P_OUT}
+		fi
+	else
+		#Keyword targets
+		case ${TARGET} in
+			head) echo "${M_SHORTEST}";; # _MUSIC_DIR
+			tail) echo "${DIR_SLICE}";; # path w/o _MUSIC_DIR
+			n2l*) P_OUT=$(n2l "${DIR_SLICE}" ${TARGET});echo "${M_SHORTEST}${P_OUT}";; # next to last
+			*) return 1;;
+		esac
+	fi
+	return 0
+}
+
+player_playlist () {
+	local T
+
+	for T in ${_TRACK_QUEUE};do
+		echo $(realpath ${T})
+	done | m3u >${_PLAYLIST_FILE} #create the playlist using external tool m3u
+}
+
+player_start () {
+	${_DEFAULT_PLAYER} --load ${_PLAYLIST_FILE} 2>/dev/null &
+	sleep 1 && win_focus_title terminal
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Play music files...
+\tSearch by artist or title or both using options
+\tIf no options are used, a <SEARCHTERM> will match either title or artist
+\tIf no search is indicated, all music files will be listed
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		s) echo "<SEARCHTERM>";;
+		t) echo "<KEYWORD>";;
+		a) echo "<KEYWORD>";;
+		e) echo "<FILETYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+	
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type s)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a$(opt_type a)${RESET} search by artist"
+	echo -e "${WHITE_FG}-e$(opt_type e)${RESET} choose file type: mp3, flac, etc."
+	echo -e "${WHITE_FG}-l${RESET} search in current directory only"
+	echo -e "${WHITE_FG}-t$(opt_type t)${RESET} search by title"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDa:e:lt:"
+OPTIND=0
+
+LOCAL_ONLY=false
+LIMIT_FILETYPE=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     a) g_ARTIST=${OPTARG};;
+     e) LIMIT_FILETYPE=true;_AUDIO_FILES="\(\.${OPTARG}\)$";;
+     l) LOCAL_ONLY=true;;
+     t) g_TITLE=${OPTARG};;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ! -d ~/.tmp ]] && mkdir ~/.tmp
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+RAWPATH=$(path_get_raw)
+[[ ${?} -ne 0 ]] && exit_leave $(msg_warn "path_get_raw had errors:${@}")
+
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FPATH=${FPATH:q}
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+PATHLBL=$(path_get_label 40)
+
+#Arg check
+[[ ${#} -gt 1 ]] && usage "Only one argument accepted. Surround multi word search in quotes"
+[[ ${#} -eq 1 ]] && SEARCHTERM=${1}
+[[ (-n ${g_ARTIST} || -n ${g_TITLE}) && ${#} -ne 0 ]] && usage "Specify a search using either options or a <SEARCHTERM>; not both"
+
+#Build list from all available music dirs
+[[ ${LOCAL_ONLY} == 'true' ]] && _MUSIC_DIRS=${PWD}
+
+msg_box "Searching..."
+
+for D in ${_MUSIC_DIRS};do
+	_RAW_LIST+=("${(f)$(find ${D} -type f -iregex ".*${SEARCHTERM}.*${_AUDIO_FILES}" 2>/dev/null)}")
+done
+
+msg_box_clear
+
+if [[ ${?} -ne 0 ]];then
+	dbg "${0}:${LINENO} ${RED_FG}find command failed${RESET}: find \${D} -type f -iregex \".*${SEARCHTERM}.*${_AUDIO_FILES}\""
+else
+	dbg "${0}:${LINENO} ${GREEN_FG}_LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
+fi
+
+#Early exit if no rows
+if ! arr_is_populated "${_RAW_LIST}";then
+	if [[ -n ${SEARCHTERM} ]];then
+		exit_leave $(msg_warn "No audio files matching:${SEARCHTERM} were found")
+	else
+		exit_leave $(msg_warn "No audio files were found")
+	fi
+fi
+
+#filter results and build either artist list or full list
+NDX=0
+tput cup 0 0
+typeset -A SEEN=()
+for R in ${(o)_RAW_LIST};do
+	((NDX++))
+
+	[[ ${SEEN[${R:t}]} -eq 1 ]] && continue
+	[[ ${#_RAW_LIST} -ge 20 ]] && printf "\r${WHITE_FG}[${RESET}${_SCRIPT}${WHITE_FG}]${RESET} Processing titles:${WHITE_FG}%s${RESET} of ${#_RAW_LIST}" ${NDX} >&2
+
+#	if [[ ${_DEBUG} -ge 4 ]]:then
+#		[[ ${R:l} =~ 'iphone' ]]     && dbg "${0}:${LINENO} skipping iphone"
+#		[[ ${R:l} =~ 'flashcards' ]] && dbg "${0}:${LINENO} skipping flashcards"
+#		[[ ${PWD} == ${HOME} ]]      && dbg "${0}:${LINENO} skipping ${HOME}"
+#		[[ ! -s ${R} ]]              && dbg "${0}:${LINENO} skipping zero length file"
+#	fi
+
+	[[ ${R:l} =~ 'iphone' ]]  && continue #skip
+	[[ ${R:l} =~ 'flashcards' ]] && continue #skip
+	[[ ${PWD} == ${HOME} ]] && continue #skip
+	[[ ! -s ${R} ]] && continue #skip
+
+	SEEN[${R:t}]=1
+
+	if [[ -n ${g_ARTIST} ]];then
+		_ARTISTS+=$(path_segment "${R}" n2l3)
+	else
+		_LOCAL_LIST+=${R}
+	fi
+done
+
+#Build artist list if indicated
+if [[ -n ${g_ARTIST} ]];then
+	for A in ${(o)_ARTISTS};do
+		if [[ ${A:l} =~ ".*${g_ARTIST:l}.*" ]];then
+			_LOCAL_LIST+=("${(f)$(find ${A} -type f -iregex ".*${_AUDIO_FILES}" ! -path ${A} 2>/dev/null)}")
+		fi
+	done
+
+	if [[ ${?} -ne 0 ]];then
+		dbg "${0}:${LINENO} ${RED_FG}find command failed${RESET}"
+	else
+		dbg "${0}:${LINENO} ${GREEN_FG}_LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
+	fi
+
+	if ! arr_is_populated "${_LOCAL_LIST}";then
+		exit_leave $(msg_warn "No artists matching:${g_ARTIST} found")
+	fi
+fi
+
+#Filter on title
+if [[ -n ${g_TITLE} ]];then
+	for L in ${_LOCAL_LIST};do
+		[[ ${L:t:l} =~ ${g_TITLE} ]] && T_LIST+=(${L})
+	done
+
+	_LOCAL_LIST=(${T_LIST})
+
+	if ! arr_is_populated "${_LOCAL_LIST}";then
+		exit_leave $(msg_warn "No titles matching:${g_TITLE} found")
+	fi
+fi
+
+#Early exit if no rows
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	if [[ -n ${SEARCHTERM} ]];then
+		exit_leave $(msg_warn "No audio files matching:${SEARCHTERM} were found")
+	else
+		exit_leave $(msg_warn "No audio files were found")
+	fi
+fi
+
+#Sort the list
+_LOCAL_LIST=(${(o)_LOCAL_LIST})
+
+#set headings
+[[ ${LOCAL_ONLY} == 'true' ]] && SMSG="(Local)" || SMSG='None'
+[[ -n ${SEARCHTERM} ]] && SMSG="(General):${SEARCHTERM}"
+[[ -n ${g_TITLE} ]] && SMSG="(Title):${g_TITLE}"
+[[ -n ${g_ARTIST} ]] && SMSG="(Artist):${g_ARTIST}"
+tabs 2
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET}  Search ${WHITE_FG}%-s${RESET}  Path:${WHITE_FG}%-*s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SMSG} ${#PATHLBL} "${PATHLBL}" ${SELECTED_COUNT}'
+list_add_header_break 
+list_set_header_break_color ${MAGENTA_FG}
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to queue track (${ITALIC}or exit if none selected${RESET})"
+list_set_clear_ghosts true
+list_set_barlines true
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	_MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_warn
+		if [[ ${_MSG_KEY} == "y" ]];then
+			action_do
+		fi
+	fi
+done
+
+exit_leave

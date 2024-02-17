@@ -1,0 +1,6 @@
+#compdef make_comps
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-r[print the raw help text]'

@@ -1,0 +1,204 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+FIELDS=4
+E_ROW=32
+T_ROW=35
+
+search_exe () {
+	local FN=${1}
+	local -a LIST
+	local HIT=false
+	local L WI
+	local -a HITS
+
+	LIST=("${(f)$(find /opt -type f -iname "*${FN}*" 2>/dev/null)}")
+	for L in ${LIST};do
+		[[ ${L:l} =~ "appimage" ]] && echo ${L} && HIT=true
+		F_TYPE=$(file ${L})
+		[[ ${F_TYPE} =~ "executable" && ${L:t:l} =~ "${FN:l}" ]] && echo ${L} && HIT=true
+	done
+
+	if [[ ${HIT} == 'false' ]];then
+		WI=($(realpath .))
+		WI+=($(cut -d':' -f2 <<<$(whereis ${FN})))
+		for L in ${WI};do
+			[[ ! -d ${L} ]] && continue
+			LIST=("${(f)$(eval "find ${L}/*")}")
+			for L in ${(o)LIST};do
+				[[ ${L:t} == ${FN} ]] && HITS+=(${L})
+			done
+		done
+	fi
+	for H in ${(o)HITS};do
+		[[ ${H:t} == ${FN} ]] && echo ${H} && break
+	done
+}
+
+is_file () {
+	FN=${1}
+
+	[[ -e ${FN} && -f ${FN} ]] && return 0 || return 1
+}
+
+is_exe () {
+	FN=${1}
+
+	[[ -e ${FN} && -x ${FN} ]] && return 0 || return 1
+}
+
+get_hint () {
+	local FIELD=${1}
+	local VAL=${2}
+	local FE IC
+
+	case ${FIELD:l} in
+		exec) FE=$(fut findexe ${VAL})
+				FE=$(tut strip_ansi <<<${FE})
+				[[ ! ${FE:l} =~ "not found" ]] && echo ${FE}
+				;;
+		icon) IC=$(icons -p ${VAL} | head -1)
+				[[ -n ${IC} ]] && echo ${IC}
+				;;
+	esac
+}
+
+eclr () {
+	local R=${E_ROW}
+
+	tput cup ${R} 0; tput el; ((R++))
+	tput cup ${R} 0; tput el
+}
+
+emsg () {
+	local E_FIELD=${1}
+	local E_ERR=${2}
+	local E_VAL=${3}
+	local R=${E_ROW}
+
+	tput cup ${R} 0; tput el; ((R++))
+	tput cup ${R} 0; tput el
+	R=${E_ROW}
+
+	case ${E_ERR} in
+		pop) tput cup ${R} 0; echo -n "${RED_FG}Error${RESET}:${WHITE_FG}${E_FIELD} ${RED_FG}not populated${RESET}";;
+		nof) tput cup ${R} 0; echo -n "${RED_FG}Error${RESET}:${WHITE_FG}${E_FIELD} ${RED_FG}not found${RESET}";;
+	esac
+}
+
+#Execution
+APPFILE=${1:l}
+APPNAME=${(C)APPFILE}
+
+echo "Working..."
+#EH=$(get_hint exec ${APPFILE})
+EH=$(search_exe ${APPFILE})
+IH=$(get_hint icon ${APPFILE})
+
+while true;do
+	tput smcup
+	ROW=${T_ROW}
+	[[ -n ${EH} ]] && APPEXEC=${EH}
+	[[ -n ${IH} ]] && APPICON=${IH}
+
+	tput cup ${ROW} 0; tput ed
+	tput cup ${ROW} 0; echo "Creating desktop file for:${CYAN_FG}${APPNAME}${RESET}"; ((ROW+=2))
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Name:${APPNAME}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Desc:${(C)APPDESC}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Exec:${GREEN_FG}${APPEXEC}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Icon:${GREEN_FG}${APPICON}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Cats:${(C)APPCATS}${RESET}"; ((ROW++))
+
+	((ROW -= FIELDS))
+	tput cup ${ROW} 9 && read APPDESC_IN;
+	APPDESC=${APPDESC_IN:=${APPDESC:=''}}
+
+	while [[ -z ${APPDESC} ]];do
+		tput cup ${ROW} 0; echo -n "${WHITE_FG}App Desc:${RED_FG}${APPDESC}${RESET}"
+		emsg "Desc" pop
+		tput cup ${ROW} 9 && read APPDESC_IN
+		[[ -n ${APPDESC_IN} ]] && APPDESC=${APPDESC_IN}; tput cup ${ROW} 9; tput el
+	done
+	eclr
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Desc:${GREEN_FG}${APPDESC}${RESET}"
+	((ROW++))
+
+	tput cup ${ROW} 9 && read APPEXEC_IN
+	APPEXEC=${APPEXEC_IN:=${APPEXEC:=''}}
+
+	while ! is_exe ${APPEXEC};do
+		tput cup ${ROW} 0; echo -n "${WHITE_FG}App Exec:${RED_FG}${APPEXEC}${RESET}"
+		[[ -z ${APPEXEC} ]] && emsg "Exec" pop || emsg "Exec" nof ${APPEXEC}
+		tput cup ${ROW} 9 && read APPEXEC_IN
+		[[ -n ${APPEXEC_IN} ]] && APPEXEC=${APPEXEC_IN}; tput cup ${ROW} 9; tput el
+	done
+	eclr
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Exec:${GREEN_FG}${APPEXEC}${RESET}"
+	((ROW++))
+
+	tput cup ${ROW} 9 && read APPICON_IN
+	APPICON=${APPICON_IN:=${APPICON:=''}}
+
+	while ! is_file ${APPICON} ]];do
+		tput cup ${ROW} 0; echo -n "${WHITE_FG}App Icon:${RED_FG}${APPICON}${RESET}"
+		[[ -z ${APPICON} ]] && emsg "Icon" pop || emsg "Icon" nof ${APPICON}
+		tput cup ${ROW} 9 && read APPICON_IN
+		[[ -n ${APPICON_IN} ]] && APPICON=${APPICON_IN}; tput cup ${ROW} 9; tput el
+	done
+	eclr
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Icon:${GREEN_FG}${APPICON}${RESET}"
+	((ROW++))
+
+	tput cup ${ROW} 9 && read APPCATS_IN;
+	APPCATS=${APPCATS_IN:=${APPCATS:=''}}
+
+	while [[ -z ${APPCATS} ]];do
+		tput cup ${ROW} 0; echo -n "${WHITE_FG}App Cats:${RED_FG}${APPCATS}${RESET}"
+		emsg "Cats" pop
+		tput cup ${ROW} 9 && read APPCATS_IN
+		[[ -n ${APPCATS_IN} ]] && APPCATS=${APPCATS_IN}; tput cup ${ROW} 9; tput el
+	done
+	eclr
+	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Cats:${GREEN_FG}${APPCATS}${RESET}"
+	((ROW++))
+
+	echo "[Desktop Entry]" >${APPFILE}.desktop
+	echo "Version=1.0" >>${APPFILE}.desktop
+	echo "Name=${APPNAME}" >>${APPFILE}.desktop
+	echo "Comment=${(C)APPDESC}" >>${APPFILE}.desktop
+	echo "TryExec=${APPEXEC}" >>${APPFILE}.desktop
+	echo "Exec=${APPEXEC} %U" >>${APPFILE}.desktop
+	echo "Icon=${APPICON}" >>${APPFILE}.desktop
+	echo "Type=Application" >>${APPFILE}.desktop
+	echo "Categories=${APPCATS}" >>${APPFILE}.desktop
+
+	tput cup ${ROW} 0
+	echo -n "Create desktop file? (y/n)?" && read -q RESP
+	if [[ ${RESP} == 'y' ]];then
+		break
+	else
+		ROW=${T_ROW}
+		rm ${APPFILE}.desktop
+		tput cup ${ROW} 0; tput ed
+	fi
+	tput rmcup
+done
+

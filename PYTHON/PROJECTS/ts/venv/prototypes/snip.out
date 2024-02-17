@@ -1,0 +1,112 @@
+def app_exit(hist_model):
+    hist_save(hist_model)
+    Gtk.main_quit()
+    sys.exit(0)
+
+
+def ascii_only(string):
+    return ''.join(char for char in string if ord(char) < 128)
+
+
+def filter_sz_age(tag):
+    if tag.find('a') is not None:  # eliminate <td> containing <a> tags
+        return False
+    return tag.name == 'td' and len(tag.attrs) == 2 and (
+            tag.attrs["class"] == ["forum_thread_post"] and tag.attrs["align"] == 'center')
+
+
+def get_cmdline():
+    opts, args = [], []
+    set_opts = {"engine": DEFAULT_ENGINE}
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "he:", ["engine="])
+    except getopt.GetoptError as err:
+        print(err)  # option not recognized
+        usage()
+
+    for o, a in opts:
+        if o in ("-h", "--help"):
+            usage()
+        elif o in ("-e", "--engine"):
+            set_opts = {"engine": a}
+        else:
+            assert False, "unhandled option"
+
+    return set_opts, args
+
+
+def get_model(site):
+    engine_models = {
+        "pb": "PBModel",
+        "lime": "LimeModel",
+        "eztv": "EztvModel"
+    }
+    return engine_models[site]
+
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+
+def hist_save(hist_model):
+    hist_file = set_hist_file()
+
+    os.remove(hist_file)
+    hist_file = create_history()
+
+    for rows in hist_model:
+        row = list(rows[:])
+        line = row[0] + "\n"
+        with open(hist_file, "a") as fh:
+            fh.write(line)
+
+
+def init_logging():
+    sys_logger = logging.getLogger(__name__)
+    sys_logger.setLevel(logging.WARN)
+
+    syslog = logging.handlers.SysLogHandler(address='/dev/log')
+    sys_logger.addHandler(syslog)  # file
+    sys_logger.addHandler(logging.StreamHandler())  # stderr
+
+    return sys_logger
+
+
+def is_number(str_int):
+    try:
+        float(str_int)
+        return True
+    except ValueError:
+        return False
+
+
+def model_query(model, search_term):
+    return_val, torrent_list = model.get_list(search_term)
+    return return_val, torrent_list
+
+
+def set_gtk_theme_name(gtk_theme_name):
+    settings = Gtk.Settings.get_default()
+    settings.set_property("gtk-theme-name", gtk_theme_name)
+def set_hist_file():
+    # Create history file if it doesn't exist
+    hist_path = os.environ['HOME'] + r'/.ts'
+
+    try:
+        if not os.path.exists(os.path.dirname(hist_path)):
+            os.mkdir(os.path.dirname(hist_path))
+    except OSError as err:
+        print(err)
+
+    return hist_path + '/hist.txt'
+
+
+def usage():
+    print(USAGE_TXT)
+    sys.exit(0)
+

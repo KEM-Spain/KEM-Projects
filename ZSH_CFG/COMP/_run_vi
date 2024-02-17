@@ -1,0 +1,3 @@
+#compdef run_vi
+
+_files -W ${PWD} run_vi

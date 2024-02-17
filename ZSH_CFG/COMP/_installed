@@ -1,0 +1,8 @@
+#compdef installed
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-a[all (include libs,fonts)]' \
+'-d[details (show sub packages)]' \
+'-w[aptitude dependency info]'

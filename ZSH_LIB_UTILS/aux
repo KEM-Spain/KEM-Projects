@@ -1,0 +1,241 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _CMD
+typeset -A _HDR_LBL
+typeset -A _LBL_WIDTH=(o 12 p 12 c 12)
+typeset -A _OWNER
+typeset -A _PID
+typeset -a _LOCAL_LIST=()
+typeset -a _MARKED=()
+
+#Constants
+_LIB_DIR=/usr/local/lib
+_HDR_LBL=(o "Owner" p "Process ID" c "Command")
+
+#Imports
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local M
+	local M_PID
+
+	for M in ${_MARKED};do
+		M_PID=$(get_pid ${M})
+		msg_box -p -PX "(<c>$(get_owner ${M})<N>) - <c>$(get_cmd ${M})<N>|<w>Process<N>:${M_PID}"
+		[[ ${_MSG_KEY} == 'y' ]] && sudo kill -9 ${M_PID} >/dev/null 2>&1
+	done
+
+	for M in ${_MARKED};do
+		_MARKED[${M}]=0
+		[[ ${_MSG_KEY} == 'y' ]] && list_set_selected ${M} ${_GHOST_ROW} || list_set_selected ${M} 0
+	done
+}
+
+squeeze () {
+	local TEXT=${1}
+	tr -s '[:space:]' <<<${TEXT}
+}
+
+item_decorate () {
+	local NDX=${1}
+	local D_OUT=$(get_cmd ${NDX})
+
+	if [[ ${_LIST_SELECTED[${NDX}]} -eq 2 ]];then
+		echo -n "${E_STRIKE}${E_RED_FG}${D_OUT}${E_RESET} ${E_RED_FG}${E_ITALIC}killed${E_RESET}" 
+	else
+		echo -n ${D_OUT}
+	fi
+}
+
+
+get_owner () {
+	local NDX=$1
+
+	echo ${_OWNER[${NDX}]}
+}
+
+get_pid () {
+	local NDX=$1
+
+	echo ${_PID[${NDX}]}
+}
+
+get_cmd () {
+	local NDX=$1
+
+	echo ${_CMD[${NDX}]}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+read -r -d '' DESC<<EOF
+Show processes with ability to kill
+\tIf a <SEARCHTERM> is entered, list is limited to any matching commands 
+\tBy default, only processes for the current user are displayed
+EOF
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [SEARCHTERM]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a${RESET} All user processes"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDa"
+
+ALL_USERS=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+	  a) ALL_USERS=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ ${#} -ne 0 ]] && KEYWORD=${1} || KEYWORD=?
+
+USER=$(id -un)
+
+#Set content
+if [[ ${ALL_USERS} == 'true' ]];then
+	RAWLIST=("${(@f)$(ps --no-headers -Ao user,pid,command)}")
+else
+	RAWLIST=("${(@f)$(ps --no-headers --user ${USER} -o user,pid,command)}")
+fi
+
+NDX=0
+msg_box "Working... ${#RAWLIST} lines"
+for R in ${RAWLIST};do
+	[[ ( ${KEYWORD} != '?' ) && ( ! ${R} =~ ${KEYWORD} ) ]] && continue
+	[[ ${R} =~ ${0} ]] && continue
+	_LOCAL_LIST+=${R}
+
+	((NDX++))
+
+	_OWNER[${NDX}]=$(str_trim $(cut -d' ' -f1 <<<$(squeeze ${R})))
+	_PID[${NDX}]=$(str_trim $(cut -d' ' -f2 <<<$(squeeze ${R})))
+	_CMD[${NDX}]=$(str_trim $(cut -d' ' -f3- <<<$(squeeze ${R})))
+
+	[[ ${#_CMD[${NDX}]} -ge $((_MAX_COLS - 40)) ]] && _CMD[${NDX}]=${${_CMD[${NDX}][1,$((_MAX_COLS - 60))]}} # truncate lines too long
+
+	[[ ${#_OWNER[${NDX}]} -gt ${_LBL_WIDTH[o]} ]] && _LBL_WIDTH[o]=${#_OWNER[${NDX}]}
+	[[ ${#_PID[${NDX}]} -gt ${_LBL_WIDTH[p]} ]] && _LBL_WIDTH[p]=${#_PID[${NDX}]}
+	[[ ${#_CMD[${NDX}]} -gt ${_LBL_WIDTH[c]} ]] && _LBL_WIDTH[c]=${#_CMD[${NDX}]}
+done
+msg_box_clear
+
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	if [[ ${KEYWORD} != '?' ]];then
+		exit_leave $(msg_warn "No matches for:${KEYWORD}")
+	else
+		exit_leave
+	fi
+fi
+
+if [[ ${#_LOCAL_LIST} -eq 1 ]];then # process a single pid directly
+	_LIST=(${_LOCAL_LIST})
+	_MARKED=(1)
+	action_do
+	exit_leave
+fi
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize process ${#_LIST})  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
+list_set_header ' '
+list_set_header 'printf "%-5s %-${_LBL_WIDTH[p]}s %-${_LBL_WIDTH[o]}s %-${_LBL_WIDTH[o]}s" "" ${_HDR_LBL[p]} ${_HDR_LBL[o]} ${_HDR_LBL[c]}'
+list_set_header 'printf "%-5s ${MAGENTA_FG}%${_LBL_WIDTH[p]}s %${_LBL_WIDTH[o]}s %${_LBL_WIDTH[c]}s${RESET}" "" "$(str_unicode_line ${_LBL_WIDTH[p]})" "$(str_unicode_line ${_LBL_WIDTH[o]})" "$(str_unicode_line ${_LBL_WIDTH[c]})"'
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%${_LBL_WIDTH[p]}s %${_LBL_WIDTH[o]}s %-${_LBL_WIDTH[c]}s${RESET}\n" ${_LIST_NDX} "$(get_pid ${_LIST_NDX})"  "$(get_owner ${_LIST_NDX})"  "$(item_decorate ${_LIST_NDX})" 
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select process then <${GREEN_FG}ENTER${RESET}> to kill (${ITALIC}or exit if none selected${RESET})."
+list_set_action_msgs kill process
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	_MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_do
+	fi
+done
+
+exit_leave

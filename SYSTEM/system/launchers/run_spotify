@@ -1,0 +1,3 @@
+#!/usr/bin/zsh
+exec google-chrome --disable-extensions https://accounts.spotify.com/en/login
+#eckmil@att.net:Mm3698741

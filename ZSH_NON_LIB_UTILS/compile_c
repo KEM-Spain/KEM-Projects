@@ -1,0 +1,32 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+read -r -d '' DESC<<EOF
+Compile C lang source file
+EOF
+
+if [[ $# -ne 1 ]];then
+	echo "Usage: ${0} <FILE>.c"
+	echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	exit
+fi
+
+C_SOURCE=${1}
+OUT_FN=${C_SOURCE:t:r}
+
+gcc ${C_SOURCE}
+
+if [[ -e a.out ]];then
+	mv a.out ${OUT_FN}
+	echo "Created ${WHITE_FG}${OUT_FN}${RESET} from ${C_SOURCE}"
+else
+	echo "${RED_FG}Problem compiling ${WHITE_FG}${C_SOURCE}${RESET}"
+fi

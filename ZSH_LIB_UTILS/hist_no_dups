@@ -1,0 +1,160 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A TIME_CMD
+typeset -A TIME_ARG
+typeset -a CMD_UNIQ
+typeset -a HIST_NEW
+typeset -A LOCAL_EXES
+
+#Constants
+#_HIST_FILE=./.zsh_history #for testing
+_HIST_FILE=~/.zsh_history
+_HIST_FILE_NEW=/tmp/zsh_history.new
+_ALIAS_FILE=/etc/zsh/aliases
+_LOCAL_EXE_PATH=~/Code/LOCAL
+_LIB_DIR=/usr/local/lib
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+validate_cmd () {
+	local CMD=${@}
+
+	#validate command or alias
+	which ${CMD} >/dev/null 2>&1
+	if [[ ${?} -eq 0 ]];then
+			return 0
+	elif [[ ${LOCAL_EXES[${CMD}]} -eq 1 ]];then
+			return 0
+	else
+		grep -q "^alias ${CMD}=" < ${_ALIAS_FILE}
+		if [[ ${?} -eq 0 ]];then
+			return 0
+		fi
+	fi
+	return 1
+}
+
+get_last_cmd () {
+	local CMD=${@}
+	local ITEM_NDX=0
+	local -a ITEM_STACK
+	local HIT=false
+	local IN_ITEM=false
+	local V
+
+	#find most recent cmd
+	for V in ${(onv)TIME_CMD};do
+		if [[ ${CMD} == "${V/\#\#*}" ]];then
+			HIT=true
+			IN_ITEM=true
+			((ITEM_NDX++))
+			ITEM_STACK[${ITEM_NDX}]=${(k)TIME_CMD[(r)${V}]} #unique timestamp resolution
+			#echo "CMD:${CMD} RLU:${(k)TIME_CMD[(r)${V}]} ITEM_NDX:${ITEM_NDX} ITEM_STACK:${ITEM_STACK[${ITEM_NDX}]}" >&2
+		else
+			IN_ITEM=false
+		fi
+		[[ ${HIT} == 'true' && ${IN_ITEM} == 'false' ]] && break
+	done
+
+	echo ${ITEM_STACK[${ITEM_NDX}]} #return most recent instance based on timestamp
+}
+
+_cleanup () {
+	rm -f ${_HIST_FILE_NEW}
+}
+
+#Execution
+sort -u < ${_HIST_FILE} > ${_HIST_FILE_NEW}
+mv -f ${_HIST_FILE_NEW} ${_HIST_FILE}
+
+local -a LIST=("${(f)$(find ${_LOCAL_EXE_PATH} -executable)}")
+
+for L in ${LIST};do
+	if [[ $(file ${L}) =~ 'zsh script' ]];then
+		LOCAL_EXES[${L:t}]=1
+	fi
+done
+
+HIST_CNT=0
+VALID_CNT=0
+INVALID_CNT=0
+DUPLICATE_CNT=0
+NDX=0
+while read LINE;do
+	((NDX++))
+	TIME=$(cut -d':' -f2 <<<${LINE} | sed 's/^ *//')
+	CMD=$(cut -d':' -f3- <<<${LINE} | sed 's/0;//' | cut -d' ' -f1)
+	ARG=$(cut -d':' -f3- <<<${LINE} | sed 's/0;//' | cut -s -d' ' -f2-)
+	if validate_cmd ${CMD};then
+		((VALID_CNT++))
+		TIME_CMD[${TIME}]="${CMD}##${NDX}" #force unique time stamp resolution
+		TIME_ARG[${TIME}]="${ARG}"
+		CMD_UNIQ+=${CMD}
+	else
+		((INVALID_CNT++))
+	fi
+	((HIST_CNT++))
+done < ${_HIST_FILE}
+
+HIST_NEW=()
+typeset -A SEEN
+
+for C in ${(o)CMD_UNIQ};do
+	[[ ${C} =~ '^\[' ]] && continue #skip bracket commands
+	TS=$(get_last_cmd ${C})
+	CA=$(tr -d '[:space:]' <<<${C}${TIME_ARG[${TS}]}) # cmd + args
+	[[ -n ${CA} && ${SEEN[${CA:q}]} -ge 1 ]] && continue
+	HIST_NEW+=": ${TS}:0;${C} ${TIME_ARG[${TS}]}"
+	(( SEEN[${CA:q}]+=1 ))
+done
+#for C in ${(u)CMD_UNIQ};do
+#	[[ ${C} =~ '^\[' ]] && continue #skip bracket commands
+#	TS=$(get_last_cmd $C)
+#	HIST_NEW+=": ${TS}:0;$C ${TIME_ARG[${TS}]}"
+#done
+
+DUPLICATE_CNT=$(( (HIST_CNT-${#HIST_NEW}) - INVALID_CNT ))
+# printf "History lines:${WHITE_FG}%d${RESET} Valid:${WHITE_FG}%d${RESET} Invalid:${WHITE_FG}%d${RESET} Duplicate:${WHITE_FG}%d${RESET} Remaining:${WHITE_FG}%d${RESET}\n" ${HIST_CNT} ${VALID_CNT} ${INVALID_CNT} ${DUPLICATE_CNT} ${#HIST_NEW}
+printf "History ${WHITE_FG}%d${RESET} | (${WHITE_FG}%d${RESET}) | ${WHITE_FG}%d${RESET} lines\n" ${HIST_CNT} $(( INVALID_CNT + DUPLICATE_CNT )) ${#HIST_NEW}
+
+rm -f ${_HIST_FILE_NEW}
+for L in ${(on)HIST_NEW};do
+	echo ${L} >>${_HIST_FILE_NEW}
+done
+ 
+cp ${_HIST_FILE} ${_HIST_FILE}.bak
+cp ${_HIST_FILE_NEW} ${_HIST_FILE}
+fc -R ${_HIST_FILE}
+
+_cleanup
+
+exit_leave

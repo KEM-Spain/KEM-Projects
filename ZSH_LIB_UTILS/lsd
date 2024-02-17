@@ -1,0 +1,256 @@
+#!/usr/bin/zsh
+#Ansi colors
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+STRIKE="\033[9m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+
+#Echoed ansi colors
+E_REVERSE=$(echo "\033[7m")
+E_RESET=$(echo "\033[m")
+E_BOLD=$(echo "\033[1m")
+E_BLACK_FG=$(echo "\033[30m")
+E_RED_FG=$(echo "\033[31m")
+E_GREEN_FG=$(echo "\033[32m")
+E_YELLOW_FG=$(echo "\033[33m")
+E_BLUE_FG=$(echo "\033[34m")
+E_MAGENTA_FG=$(echo "\033[35m")
+E_CYAN_FG=$(echo "\033[36m")
+E_WHITE_FG=$(echo "\033[37m")
+E_STRIKE=$(echo "\033[9m")
+
+#Declarations
+typeset -a _MARKED=()
+typeset -a _LOCAL_LIST=()
+typeset -a _FILTER
+
+#Constants
+_LIB_DIR=/usr/local/lib
+
+#Imports
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local M
+	local RC
+
+	for M in ${_MARKED};do
+		if [[ -d ${_LOCAL_LIST[${M}]} ]];then
+			sudo /bin/rm -r ${_LOCAL_LIST[${M}]:Q} >/dev/null 2>&1
+			RC=${?}
+		else
+			sudo /bin/rm ${_LOCAL_LIST[${M}]:Q} >/dev/null 2>&1
+			RC=${?}
+		fi
+		[[ ${RC} -ne 0 ]] && msg_box -p -PK "FILE:${_LOCAL_LIST[${M}]} RC:${RC}"
+	done
+
+	for M in ${_MARKED};do
+		_MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local CNT=$(list_get_selected_count)
+	local M 
+	local -a DLIST
+	local FN
+	
+	msg_box "Working..."
+	for M in ${_MARKED};do
+		[[ ${_LOCAL_LIST[${M}]:h} == ${PWD} ]] && FN=${_LOCAL_LIST[${M}]:t} || FN=${_LOCAL_LIST[${M}]}
+		DLIST+=${FN}
+	done
+
+	msg_box -c -p -PP "<I>Please respond<N>|$(str_unicode_line 14)|$(str_pluralize ${OBJTYPE} ${CNT} true) queued for deletion|${_INVISIBLE_ROWS_MSG}|$(msg_list ${(o)DLIST})"
+	if [[ ${_MSG_KEY} != 'y' ]];then
+		for M in ${_MARKED};do
+			list_clear_selected ${M}
+		done
+	fi
+}
+
+item_decorate () {
+	local NDX=${1}
+
+	[[ ${_LIST_SELECTED[${NDX}]} -eq 2 ]] && echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}deleted${E_RESET}" || echo -n ${_LIST[${NDX}]}
+}
+
+sort_option () {
+	local LINE
+	local SORT_OPTION
+
+	[[ ${TIMESORT} == 'true' ]] && SORT_OPTION='-rn' || SORT_OPTION='' 
+
+	while read LINE;do
+		[[ -z ${SORT_OPTION} ]] && echo ${LINE:t} || echo ${LINE}
+		echo $LINE
+	done | sort ${SORT_OPTION}
+}
+
+#--Begin GetOpts--
+read -r -d '' DESC<<EOF
+Select either files or directories to delete
+\tBy default, only files are shown
+\tDirectories are shown using the -d option
+\t<SEARCHTERM> case sensitive matching of files or dirs
+EOF
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		f) echo "<SEARCHTERM>";;
+	esac
+}
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-E${RESET} no executables"
+	echo -e "${WHITE_FG}-d${RESET} directories only"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDEd"
+DIRS=false
+NOEXEC=false
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     d) DIRS=true;;
+     E) NOEXEC=true;;
+    \?) exit_leave "${RED_FG}Error${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
+	  :) exit_leave "${RED_FG}Error${RESET}: option -${OPTARG} requires an argument${RESET}";;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+#--Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ ${#} -ne 0 ]] && SEARCHTERM=(${@}) || SEARCHTERM=''
+
+#Set content
+[[ ${DIRS} == "true" ]] && OBJTYPE="directory" || OBJTYPE="file"
+
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FPATH=${FPATH:q}
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+#TODO: PATHLBL seems to break - try lsd *srt - got *srt/*srt - s/b dir/glob
+PATHLBL=$(path_get_label 40)
+
+if [[ ${DIRS} == 'true' ]];then
+	RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path ${FPATH}" 2>/dev/null)}") #double quote surrounding command
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path ${FPATH}"
+else
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} find ${FPATH} -maxdepth 1 ${FGLOB} -type f ! -path ${FPATH}"
+	RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} -type f,l ! -path ${FPATH}" 2>/dev/null)}") #double quote surrounding command
+fi
+
+for R in ${(on)RAWLIST};do
+	[[ ${R:h} == ${PWD} ]] && FN=${R:t} || FN=${R}
+	#TODO: not sure what this was intending - monitor until understood
+	#TODO: [[ -n ${SEARCHTERM} && (! ${FN} =~ ^${SEARCHTERM}) ]] && continue
+	[[ ${NOEXEC} == 'true' && -x ${FN} ]] && continue
+	_LOCAL_LIST+=${FN}
+done
+
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	[[ ${NOEXEC} == 'true' ]] && MSG1="non executable " || MSG1=''
+	[[ ${#} -ne 0 ]] && MSG2=" matching ${RESET}\"${WHITE_FG}${SEARCHTERM}${RESET}\"" || MSG2=''
+	exit_leave $(msg_warn "No regular ${MSG1}${RESET}${BOLD}${ITALIC}$(str_pluralize ${OBJTYPE})${RESET} found${MSG2}")
+fi
+
+if [[ ${DIRS} == 'true' ]];then
+	_FILTER+='Dirs Only'
+elif [[ ${NOEXEC} == 'true' ]];then
+	_FILTER+='No Exec'
+fi
+
+if [[ -n ${SEARCHTERM} ]];then
+	[[ -n ${_FILTER} ]] && _FILTER="${_FILTER}:${SEARCHTERM}" || _FILTER="${SEARCHTERM}"
+else
+	[[ -z ${_FILTER} ]] && _FILTER='None'
+fi
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize ${OBJTYPE} ${#_LIST}) Path:${WHITE_FG}%-*s${RESET}  Filter:${WHITE_FG}%s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} ${PATHLBL} "${_FILTER[1,60]}" ${SELECTED_COUNT}'
+list_add_header_break
+list_set_header_break_color ${RED_FG}
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to delete (${ITALIC}or exit if none selected${RESET})."
+list_set_action_msgs delete file
+
+while true;do
+	#display list
+	list_select ${(on)_LOCAL_LIST}
+	RC=${?}
+
+	[[ ${RC} -eq 0 ]] && break
+
+	#get user selections
+	_MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_warn
+		if [[ ${_MSG_KEY} == "y" ]];then
+			action_do
+		fi
+	fi
+done
+
+exit_leave

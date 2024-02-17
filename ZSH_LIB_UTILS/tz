@@ -1,0 +1,222 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+E_RESET=$(echo -n "\033[m")
+E_GREEN_FG=$(echo -n "\033[32m")
+E_RED_FG=$(echo -n "\033[31m")
+E_MAGENTA_FG=$(echo -n "\033[35m")
+
+#Declarations
+typeset -a TZ=(Los_Angeles Denver Chicago New_York)
+typeset -a ZONES
+typeset -a LIST
+typeset -i HOUR_DIFF
+typeset -i UTC_DIFF_VAL
+typeset LONGEST=0
+
+#Constants
+ZPATH=/usr/share/zoneinfo
+EXCLUDE="${ZPATH:t}|posix|right|SystemV|Etc"
+LOCAL_TIME=$(date +"%T")
+LOCAL_DATE=$(date +"%D")
+LOCAL_ZONE=$(date +"%Z")
+UTC_TIME=$(date -u +"%T")
+UTC_DATE=$(date -u +"%D")
+UTC_HOUR=$(date -u +"%H")
+UTC_DIFF=$(date +"%z")
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/DBG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+rep () {
+	local CHAR=${1}
+	local LENGTH=${2}
+	local LINE=''
+	local X
+
+	for ((X=0;X < ${LENGTH};X++));do
+		LINE=${LINE}''${CHAR}
+	done
+
+	echo ${LINE}
+}
+
+list () {
+	LIST=($(find ${ZPATH} -maxdepth 1))
+	for L in ${LIST};do
+		if [[ -d ${L} && ! ${L:t} =~ ${EXCLUDE} ]];then
+			echo "\n"
+			HDR="${L:t}:"
+			echo ${WHITE_FG}${HDR}${RESET}
+			echo $(rep - ${#HDR})
+			/bin/ls ${L}
+		fi
+	done
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+parse_opts () {
+	local OPTS=$@
+	local O
+
+	local -a OPTSTR
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+		OPTSTR+="-${OPTS[$O]}"
+	done
+	echo $OPTSTR
+}
+
+usage () {
+	local OPTS=$(parse_opts $OPTSTR)
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET} <TZ>\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} list zones"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Show times in other zones. Accepts TZ id as an argument.  Default is USA\n"
+	) >&2
+	exit_leave
+}
+
+OPTSTR=":HDl"
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     l) list;exit;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#--Execution--
+[[ -n $1 ]] && TZ=$1
+
+for Z in ${TZ};do
+	LIST+=($(find ${ZPATH} -iname "*${Z}*"))
+	[[ -z ${LIST[1]} ]] && echo "${RED_FG}Error${RESET}:No time zone(s) matching ${WHITE_FG}[${RESET} ${BOLD}${TZ}${RESET} ${WHITE_FG}]${RESET} were found" && exit_leave
+done
+
+for L in ${LIST};do
+	[[ ${L} =~ '\.list' ]] && continue
+	[[ ${L} =~ '\.tab' ]] && continue
+	[[ ${L} =~ 'Factory' ]] && continue
+	[[ ${L} =~ 'posix' ]] && continue
+	[[ ${L} =~ 'local' ]] && continue
+	[[ ${L} =~ 'leap' ]] && continue
+	[[ ${L} =~ 'Etc' ]] && continue
+	[[ ${L} =~ 'MT' ]] && continue
+	[[ ${L} =~ 'ST' ]] && continue
+	[[ ${L} =~ 'DT' ]] && continue
+	[[ ${L} =~ "^${ZPATH}$" ]] && continue
+	ZONES+=${${L}##${ZPATH}/}
+	[[ ${#${L}##${ZPATH}/} -gt ${LONGEST} ]] && LONGEST=${#${L}##${ZPATH}/}
+done
+
+UTC_DIFF_VAL=$(date +"%:::z")
+
+[[ ${UTC_DIFF} =~ "^\+" ]] && UTC_LBL="ahead" || UTC_LBL="behind"
+[[ ${UTC_DIFF_VAL} -eq 1 ]] && HP='' || HP='s'
+
+if [[ ${_DEBUG} -gt 0 ]];then
+	dbg "${0}:${LINENO} --> LOCAL_TIME:${LOCAL_TIME}"
+	dbg "${0}:${LINENO} --> UTC_DIFF:${UTC_DIFF}"
+	dbg "${0}:${LINENO} --> UTC_DIFF_VAL:${UTC_DIFF_VAL}"
+	dbg "${0}:${LINENO} --> UTC_LBL:${UTC_LBL}"
+	dbg "${0}:${LINENO} --> UTC_TIME:${UTC_TIME}"
+fi
+
+echo "   LOCAL:${WHITE_FG}${LOCAL_TIME} ${CYAN_FG}${LOCAL_ZONE}${RESET} ${LOCAL_DATE}"
+echo "UTC(GMT):${WHITE_FG}${UTC_TIME}${RESET} ${UTC_DATE} (${UTC_DIFF_VAL} hour${HP} ${UTC_LBL})\n"
+
+#typeset -i TZ_DIFF
+
+for Z in ${ZONES};do
+	TZ_HEAD=$(TZ=${Z} date +"%A, %B %d %Y,")
+	TZ_DATE=$(TZ=${Z} date +"%D")
+	TZ_TIME=$(TZ=${Z} date +"%I:%M")
+	TZ_AMPM=$(TZ=${Z} date +"%p")
+	TZ_TAIL=$(TZ=${Z} date +"%Z")
+	TZ_DIFF=$(TZ=${Z} date +"%z")
+
+	[[ ${TZ_AMPM} == "AM" ]] && TZ_AMPM="${E_GREEN_FG}${TZ_AMPM}${E_RESET}" || TZ_AMPM="${E_RED_FG}${TZ_AMPM}${E_RESET}"
+
+	if [[ ${_DEBUG} -gt 0 ]];then
+		dbg "${0}:${LINENO} ZONE:${Z}"
+		dbg "${0}:${LINENO} TZ_HEAD=\$(TZ=\${Z} date +\"\%A, \%B \%d \%Y,\")"
+		dbg "${0}:${LINENO} --> TZ_HEAD=${TZ_HEAD}"
+		dbg "${0}:${LINENO} TZ_TAIL=\$(TZ=${Z} date +"%Z")"
+		dbg "${0}:${LINENO} --> TZ_TAIL=${TZ_TAIL}"
+		dbg "${0}:${LINENO} TZ_DATE=\$(TZ=${Z} date +"%D")"
+		dbg "${0}:${LINENO} --> TZ_DATE=${TZ_DATE}"
+		dbg "${0}:${LINENO} TZ_TIME=\$(TZ=${Z} date +"%I:%M")"
+		dbg "${0}:${LINENO} --> TZ_TIME=${TZ_TIME}"
+		dbg "${0}:${LINENO} TZ_AMPM=\$(TZ=${Z} date +"%p")"
+		dbg "${0}:${LINENO} --> TZ_AMPM=${TZ_AMPM}"
+		dbg "${0}:${LINENO} TZ_DIFF=\$(TZ=${Z} date +"%z")"
+		dbg "${0}:${LINENO} --> TZ_DIFF=${TZ_DIFF}"
+	fi
+	
+	TZ_DIFF_VAL=${TZ_DIFF[1,3]}
+	UTC_DIFF_VAL=${UTC_DIFF[1,3]}
+	(( HOUR_DIFF = TZ_DIFF_VAL - UTC_DIFF_VAL ))
+
+	if [[ ${_DEBUG} -gt 0 ]];then
+		dbg "${0}:${LINENO} --> HOUR_DIFF = ${TZ_DIFF_VAL} - ${UTC_DIFF_VAL}"
+		dbg "${0}:${LINENO} --> HOUR_DIFF:${HOUR_DIFF}"
+		dbg "${0}:${LINENO} --> TZ_DIFF_VAL:${TZ_DIFF_VAL}"
+		dbg "${0}:${LINENO} --> UTC_DIFF_VAL:${UTC_DIFF_VAL}"
+	fi
+
+	if [[ ${HOUR_DIFF} -gt 0 ]];then
+		HOUR_LBL="behind"
+	elif [[ ${HOUR_DIFF} -lt 0 ]];then
+		HOUR_LBL="ahead"
+	fi
+
+	if [[ ${_DEBUG} -gt 0 ]];then
+		dbg "${0}:${LINENO} --> HOUR_LBL:${HOUR_LBL}"
+		dbg "${0}:${LINENO} --> TZ_DIFF_VAL:${TZ_DIFF_VAL} UTC_DIFF_VAL:${UTC_DIFF_VAL}"
+	fi
+
+	[[ ${TZ_DIFF} =~ "^-" ]] && (( HOUR_DIFF = TZ_DIFF_VAL - UTC_DIFF_VAL )) && HOUR_DIFF=$(echo ${HOUR_DIFF} | tr -d -) && DIFF_LBL="You [${E_MAGENTA_FG}${LOCAL_ZONE}${E_RESET}] are ${HOUR_DIFF} hours ${HOUR_LBL}"
+	[[ ${TZ_DIFF} =~ "^\+" ]] && (( HOUR_DIFF = TZ_DIFF_VAL - UTC_DIFF_VAL )) && DIFF_LBL="You [${E_MAGENTA_FG}${LOCAL_ZONE}${E_RESET}] are ${HOUR_DIFF} hours ${HOUR_LBL}"
+	[[ ${HOUR_DIFF} -lt 0 ]] && HOUR_DIFF=$(echo ${HOUR_DIFF} | tr -d -) && DIFF_LBL="You [${E_MAGENTA_FG}${LOCAL_ZONE}${E_RESET}] are ${HOUR_DIFF} hours ${HOUR_LBL}"
+	[[ ${HOUR_DIFF} -eq 0 ]] && DIFF_LBL="You [${E_MAGENTA_FG}${LOCAL_ZONE}${E_RESET}] have the same time"
+	[[ ${HOUR_DIFF} -eq 1 ]] && DIFF_LBL=$(echo ${DIFF_LBL} | sed 's/hours/hour/g')
+
+	printf "In the ${WHITE_FG}%*s${RESET} ${CYAN_FG}%3s${RESET} time zone it is %20s at ${WHITE_FG}%5s${RESET} %2s (%s)\n" ${LONGEST} ${Z} ${TZ_TAIL} ${TZ_HEAD} ${TZ_TIME} ${TZ_AMPM} ${DIFF_LBL}
+done
+
+exit_leave

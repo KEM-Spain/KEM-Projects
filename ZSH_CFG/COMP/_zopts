@@ -1,0 +1,6 @@
+#compdef zopts
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-i[interactive list]'

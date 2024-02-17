@@ -1,0 +1,31 @@
+#!/usr/bin/zsh
+
+BOLD="\033[1m"
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+WHITE_FG="\033[37m"
+
+_SCRIPT=${0:t}
+
+read -r -d ''  DESC<<EOF
+Display id3 tag info for mp3 files
+EOF
+
+usage () {
+	(
+	echo "Usage:${_SCRIPT}: <FILELIST>"
+	echo " Desc:${DESC}\n"
+	) >&2
+	exit
+}
+
+#Execution
+[[ -z ${1} ]] && usage
+
+for F in ${@};do
+	echo "${WHITE_FG}${F}${RESET}"
+	id3v2 -R ${F} | egrep 'TIT2|TALB|TPE1' | sed 's/.*: //g'
+	echo
+done

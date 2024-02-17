@@ -1,0 +1,9 @@
+#compdef dsk_external
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-u[unmount all]' \
+'-m[mount all]' \
+'-l[select disk(s) from a list]' \
+'-s[display disk mount status]'

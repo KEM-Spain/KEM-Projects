@@ -1,0 +1,68 @@
+#compdef dut
+
+_dut() {
+    local line state
+
+    _arguments -C \
+               '1: :->cmds' \
+					'-H[help]' \
+					'-D[debug]' \
+               '*::arg:->args'
+
+    case "$state" in
+        cmds)
+				_values 'Commands:' \
+				'external[Mount/Unmount external drive]' \
+				'space[Current disk usage]' \
+				'unplug[Safely disconnect external drive]' \
+				'fstab_info[Show fstab details]' \
+				'usbdisks[Show usb disk mounts]' \
+				;;
+        args)
+            case $line[1] in
+                external) _do_external;;
+                space) _do_space;;
+                unplug) _do_unplug;;
+                fstab_info) _do_fstab_info;;
+                usbdisks) _do_usbdisks;;
+            esac
+            ;;
+    esac
+}
+
+_do_external() {
+    _arguments -s \
+	'-H[help]' \
+	'-D[debug]' \
+	'-b[brief status message]' \
+	'-u[unmount all]' \
+	'-m[mount all]' \
+	'-l[select disk(s) from a list]' \
+	'-s[display disk mount status]' \
+	'-v[verbose activity]' \
+}
+
+_do_space() {
+    _arguments -s \
+	'-H[help]' \
+	'-D[debug]' \
+	'-a[ascending file sizes]' \
+}
+
+_do_unplug() {
+    _arguments -s \
+	'-H[help]'  \
+	'-D[debug]' \
+}
+
+_do_fstab_info() {
+    _arguments -s \
+	'-H[help]'  \
+	'-D[debug]' \
+}
+
+_do_usbdisks() {
+    _arguments -s \
+	'-H[help]'  \
+	'-D[debug]' \
+}

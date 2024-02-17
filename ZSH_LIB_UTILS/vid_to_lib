@@ -1,0 +1,488 @@
+#!usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a VIDEOS
+typeset -A VID_DESTS
+typeset -AU TITLES_PROCESSED
+
+#Constants
+_LIB=/usr/local/lib
+_VW=/usr/local/bin
+
+#_BASEDIR=${PWD} #test mode
+_BASEDIR=~/Downloads/Torrents #all target dirs are relative to BASEDIR
+
+_COMPLETED_DIR=${_BASEDIR}/Completed
+_DELUGE_STATE=~/.config/deluge/state
+_INCOMPLETED_DIR=${_BASEDIR}/Incomplete
+_LIBRARY_DIR=${_BASEDIR}/Library
+_LOG=/tmp/${0:t}.log
+_MOVIES_SUB=movies
+_SERIES_SUB=series
+
+#find regexes (posix-basic syntax)
+_VIDEO_REGEX='.*\(mkv\|mp4\|avi\)$'
+
+#perl regexes (extended syntax)
+_SERIES_REGEX='((?<!^)[Ss]\d{2}[Ee]\d{2}|\d{4}.\d{2}.\d{2})'
+_YEAR_REGEX='(?<!^)(?<=[(. ])(\d{4})(?=[). ])'
+_RES_REGEX='(?<!^)(720p|1080p)'
+_SHORT_TITLE_REGEX='s/^([^.]*[.][^.]*)[.].*$'
+
+#sed regexes (posix-basic syntax)
+_TITLE_JUNK_REGEX='[.(_ ]'
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/ARRAY.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+clean_media () {
+	local -a VIDEOS=("${(f)$(find ${_LIBRARY_DIR} -regex "${_VIDEO_REGEX}")}")
+	local TITLE
+	local LAST_TITLE=?
+	local V
+	local MSG="Cleaning media file names..."
+	local FSUB_OPTS
+
+	echo "\n${WHITE_FG}${MSG}${RESET}"
+	echo "${CYAN_FG}$(str_unicode_line ${#MSG})${RESET}"
+
+	for V in ${(on)VIDEOS};do
+		TITLE=$(title_info "short" "${V:t:r}")
+		[[ ${TITLES_PROCESSED[${TITLE}]} -ne 1 ]] && continue #only videos from this session
+		[[ ${LAST_TITLE} == ${TITLE} ]] && continue
+
+		if [[ -n ${TITLE} ]];then
+			pushd ${V:h}
+			echo "Cleaning title:${WHITE_FG}${TITLE}${RESET}"
+			[[ ${SERVICE_MODE} == 'true' ]] && FSUB_OPTS="-Sarm" || FSUB_OPTS="-arm"
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: Calling: ${_VW}/fsub ${FSUB_OPTS} ${TITLE}"
+			logit "${0} calling fsub ${FSUB_OPTS} ${TITLE}"
+			${_VW}/fsub "${FSUB_OPTS} ${TITLE}"
+			[[ ${?} -ne 0 ]] && logit "${0}: fsub returned an error"
+			popd
+		else
+			echo "${0}: Failed to extract a title from: ${V:t:r}"
+		fi
+
+		[[ ${TITLE} != ${LAST_TITLE} ]] && LAST_TITLE=${TITLE}
+	done
+
+	logit "${0} Cleaned titles\n $(tree ${_LIBRARY_DIR})"
+}
+
+clear_deluge_state () {
+	local MSG="Checking Deluge state..."
+
+	echo "\n${WHITE_FG}${MSG}${RESET}"
+	echo "${CYAN_FG}$(str_unicode_line ${#MSG})${RESET}"
+	
+	local INCOMPLETE_CNT=$(find ${_INCOMPLETED_DIR} -type f ! -path ${_INCOMPLETED_DIR} | wc -l)
+
+	if [[ ${INCOMPLETE_CNT} -eq 0 ]];then
+		echo "${GREEN_FG}Clearing${RESET}: ${WHITE_FG}${_DELUGE_STATE}${RESET}"
+		rm -rf ${_DELUGE_STATE}
+	else
+		lsof 2>/dev/null | agrep -is "deluge;incomplete" ${_INCOMPLETED_DIR}
+		if [[ ${?} -eq 0 ]];then
+			echo "${GREEN_FG}Clearing${RESET}:${_DELUGE_STATE}${RESET}"
+			rm -rf ${_DELUGE_STATE}
+		else
+			echo "${RED_FG}Warning${RESET}: ${_INCOMPLETED_DIR} contains active entries - unable to clear state"
+		fi
+	fi
+}
+
+fix_orphan_subs () {
+	local -a DIFF=(${@})
+	local -a SUBTITLE_FILES
+	local VIDEO_FILE=''
+	local D S
+	local PARENT
+
+	for D in ${DIFF};do
+		[[ ${D:e} == 'srt' ]] && SUBTITLE_FILES+=${D}
+		grep -q ${_VIDEO_REGEX} <<<${D}
+		[[ ${?} -eq 0 ]] && VIDEO_FILE=${D}
+	done
+
+	PARENT=$(title_info "short" ${VIDEO_FILE:t:r})
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: VIDEO_FILE:${VIDEO_FILE}, PARENT:${PARENT}"
+
+	for S in ${SUBTITLE_FILES};do
+		echo "${RED_FG}Orphan${RESET}:${WHITE_FG}${S:t}${RESET} ${ITALIC}was marked for further processing...${RESET}"
+		[[ ! ${S} =~ ${PARENT} ]] && mv ${S} ${VIDEO_FILE:h}/${PARENT}-orphan-${S:t:r}.srt
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: SUBTITLE_FILE:${S} RENAME:${VIDEO_FILE:h}/${PARENT}-orphan-${S:t:r}.srt"
+	done
+}
+
+move_media () {
+	local SOURCE=${1} #FQFN
+	local DESTINATION=${2}
+	local EXTRACT=${3}
+	local -a PRE_LIST
+	local -a POST_LIST
+	local -a DIFF
+	local DEST_HEAD DEST_TAIL
+	local SOURCE_DIR
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: SOURCE:${SOURCE}, DESTINATION:${DESTINATION}, EXTRACT:${EXTRACT}"
+
+	DEST_HEAD=${DESTINATION:h}
+	DEST_TAIL=${DESTINATION:t}
+	DEST_TAIL=$(sed "s/${_TITLE_JUNK_REGEX}/ /g" <<<${DEST_TAIL})
+	DEST_TAIL=${DEST_TAIL}
+	DESTINATION=${DEST_HEAD}/${DEST_TAIL}
+
+	logit "${0} DESTINATION:${DESTINATION}"
+
+	[[ ! -e ${SOURCE} ]] && return # nothing to do
+
+	if [[ -z ${DESTINATION:e} && ! -d ${DESTINATION} ]];then #no file extension; is directory
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: creating a subdirectory:${DESTINATION}"
+		[[ ! -e ${DESTINATION} ]] && mkdir -p "${DESTINATION}"
+		[[ ${?} -ne 0 ]] && exit_leave "${BOLD}${RED_FG}Error${RESET}:failed to create subdirectory:${DESTINATION}"
+	fi
+
+	if [[ ${EXTRACT} == 'true' ]];then #if the source is in a subdirectory call fut surface
+		SOURCE_DIR=${SOURCE:h}
+		if [[ -d ${SOURCE_DIR} ]];then
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: ${WHITE_FG}EXTRACTING${RESET}: ${SOURCE_DIR} is a directory"
+			#enclose filenames in double quotes to protect filenames with spaces
+			PRE_LIST=(${(qqq)"${(f)$(find ${_LIBRARY_DIR} -maxdepth 1 -type f ! -path ${_LIBRARY_DIR})}"}) 
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: ${WHITE_FG}PRE_LIST${RESET}:${PRE_LIST}"
+
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: Calling fut surface -it ${DESTINATION} ${SOURCE}"
+			fut surface -it ${DESTINATION} ${SOURCE_DIR}
+
+			logit "${0} Files extracted by fut surface..."
+
+			POST_LIST+=(${(qqq)"${(f)$(find ${_LIBRARY_DIR} -maxdepth 1 -type f ! -path ${_LIBRARY_DIR})}"})
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: ${WHITE_FG}POST_LIST${RESET}:${POST_LIST}"
+
+			#get a list of names that are not in PRE_LIST; add newline where " " separates names; scrub quotes when done
+			DIFF=("${(f)$(echo ${PRE_LIST[@]} ${POST_LIST[@]} | sed 's/\" \"/\"\n\"/g' | sort | uniq -u | sed 's/\"//g')}")
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: ${WHITE_FG}DIFF${RESET}:${DIFF}"
+
+			fix_orphan_subs ${DIFF}
+		else
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: $SOURCE_DIR is NOT a directory. fut surface was NOT called"
+			exit_leave "${BOLD}${RED_FG}Error${RESET}:source directory not found:${SOURCE_DIR}"
+		fi
+	else
+		logit "${0} File moved directly..."
+		echo "${GREEN_FG}${BOLD}Moving files...${RESET}"
+		echo "From: ${WHITE_FG}${SOURCE}${RESET}"
+		echo "  To: ${WHITE_FG}${DESTINATION}${RESET}" 
+		mv "${SOURCE}" "${DESTINATION}"
+		[[ ${?} -ne 0 ]] && echo "${BOLD}${RED_FG}Error${RESET}:failed to move file:${SOURCE} to ${DESTINATION}"
+	fi
+}
+
+sub_rename () {
+	local -a VIDEOS
+	local -a SUBS
+	local V S
+	local TITLE
+	local V_HEAD
+	local ORPHAN_TAG
+	local S_CLEAN V_CLEAN
+	local HIT=false
+	local MSG="Scanning subtitles for naming errors..."
+
+	# handle naming issues for subtitles that fsub misses
+	# and some that are orphaned due to filenaming
+
+	VIDEOS=("${(f)$(find ${_LIBRARY_DIR} -type f -regex "${_VIDEO_REGEX}")}")
+	SUBS=("${(f)$(find ${_LIBRARY_DIR} -type f -name '*srt' )}")
+
+	echo "\n${WHITE_FG}${MSG}${RESET}"
+	echo "${CYAN_FG}$(str_unicode_line ${#MSG})${RESET}"
+
+	for V in ${VIDEOS};do
+		TITLE=$(title_info "short" "${V:t:r}")
+		#echo "Scanning for ${WHITE_FG}${TITLE}${RESET} candidates"
+		V_HEAD=${V:h}
+		for S in ${SUBS};do
+			V_CLEAN=$(sed 's/[\._]/ /g' <<<${TITLE})
+			S_CLEAN=$(sed 's/[\._]/ /g' <<<${S})
+			if [[ ${S_CLEAN} =~ ${V_CLEAN} ]];then
+				if [[ ${V:r} != ${S:r} ]];then
+					if [[ ${S:r:l} =~ 'orphan' ]];then #handle subs that don't match the video name
+						ORPHAN_TAG=$(perl -ne '/\w+\.\w+$/ && print "$&"' <<<${S})
+						if [[ -e ${S} && ! -e ${V:t:r}.${ORPHAN_TAG} ]];then
+							HIT=true
+							echo "${GREEN_FG}Moving...${WHITE_FG}${S:t}${RESET} to ${WHITE_FG}${V:t:r}.${ORPHAN_TAG}${RESET}"
+							mv "${S}" "${V:r}.${ORPHAN_TAG}"
+						fi
+					fi
+				fi
+			fi
+		done
+	done
+	[[ ${HIT} == 'true' ]] && echo "Subtitles verified" || echo "No subtitle files"
+}
+
+title_info () {
+	local -a TITLE_ARG=(${@})
+	local INFO_TYPE=${1}
+	local INFO_TITLE=${2}
+	local TITLE_REGEX
+	local LONG_INFO
+	local YEAR SERIES RES
+	local SHORT_TITLE
+	local LONG_TITLE
+	local NDX
+
+	YEAR=$(perl -p -e "s/(.*)(${_YEAR_REGEX})(.*)/\$2/" <<<${INFO_TITLE})
+	[[ ${YEAR} == ${INFO_TITLE} ]] && YEAR=''
+
+	SERIES=$(perl -p -e "s/(.*)(${_SERIES_REGEX})(.*)/\$2/" <<<${INFO_TITLE})
+	[[ ${SERIES} == ${INFO_TITLE} ]] && SERIES=''
+
+	RES=$(perl -p -e "s/(.*)(${_RES_REGEX})(.*)/\$2/" <<<${INFO_TITLE})
+	[[ ${RES} == ${INFO_TITLE} ]] && RES=''
+
+	LONG_INFO=true
+	if [[ -n ${YEAR} ]];then
+		TITLE_REGEX=${_YEAR_REGEX}
+	elif [[ -n ${SERIES} ]];then
+		TITLE_REGEX=${_SERIES_REGEX}
+	elif [[ -n ${RES} ]];then
+		TITLE_REGEX=${_RES_REGEX}
+	else
+		TITLE_REGEX='(.*)'
+		LONG_INFO=false
+	fi
+
+	SHORT_TITLE=$(perl -p -e "s/^(.*)(${TITLE_REGEX})(.*)/\$1/" <<<${INFO_TITLE})
+
+	NDX=0
+	while true;do
+		((NDX++))
+		if [[ ${SHORT_TITLE[-1]} =~ "${_TITLE_JUNK_REGEX}$" ]];then
+			SHORT_TITLE=$(sed "s/${_TITLE_JUNK_REGEX}$//" <<<${SHORT_TITLE})
+			[[ ${NDX} -ge 5 ]] && break # safety break
+		else
+			break
+		fi
+	done
+
+	[[ ${LONG_INFO} == 'true' ]] && LONG_TITLE=$(echo "${SHORT_TITLE} ${YEAR} ${SERIES} ${RES}" | tr -s '[:space:]')
+
+	case ${INFO_TYPE} in
+		short) echo ${SHORT_TITLE};;
+		long) echo ${LONG_TITLE};;
+		series) echo ${SERIES};;
+	esac
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Move media files from ${_COMPLETED_DIR} to ${_LIBRARY_DIR}
+EOF
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-c${RESET} clear deluge state"
+	echo -e "${WHITE_FG}-S${RESET} running as service"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
+
+	exit_leave "\n${PENDING_MSGS}\n"
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDcS"
+OPTIND=0
+
+SERVICE_MODE=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     c) clear_deluge_state;;
+     S) SERVICE_MODE=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+#Execution
+[[ -e ${_LOG} ]] && rm -f ${_LOG}
+logit "start"
+logit "SERVICE_MODE:${SERVICE_MODE}"
+
+[[ ! -e ${_LIBRARY_DIR}/movies ]] && mkdir ${_LIBRARY_DIR}/movies 
+[[ ! -e ${_LIBRARY_DIR}/series ]] && mkdir ${_LIBRARY_DIR}/series 
+
+echo "Scanning ${_COMPLETED_DIR} for video..."
+VIDEOS=("${(f)$(find ${_COMPLETED_DIR} -regex "${_VIDEO_REGEX}" ! -path ${_COMPLETED_DIR})}")
+
+if arr_is_populated "${VIDEOS}";then
+	echo "Processing ${WHITE_FG}${#VIDEOS}${RESET} media file(s)..."
+else
+	echo "No videos found" && HIT=false 
+fi
+
+NDX=0
+HIT=false
+
+for V in ${VIDEOS};do
+	((NDX++))
+
+	logit "\nVID ${NDX}:${V}"
+
+	echo "\n${CYAN_FG}$(str_unicode_line 10) Media File ${NDX} ${CYAN_FG}$(str_unicode_line 10)${RESET}"
+
+	MEDIA_FN=${${V}##${_COMPLETED_DIR}/}
+	FN_HEAD=${MEDIA_FN:h} #with _COMPLETED_DIR clipped ${FN_HEAD:h} will be . unless it's in a subdir
+	MEDIA_FQFN=${_COMPLETED_DIR}/${MEDIA_FN}
+
+	# This section is testing subtitle file rename before library move
+	if [[ -d ${_COMPLETED_DIR}/${FN_HEAD} ]];then
+		SUB_FILES=("${(f)$(find ${_COMPLETED_DIR}/${FN_HEAD} -maxdepth 1 -type f -name '*srt')}")
+		logit "SUB_FILES COUNT:${#SUB_FILES}"
+		logit "SUB_FILE:${SUB_FILES[1]}"
+		logit "MEDIA_FN:${MEDIA_FN}"
+		logit "MEDIA FQFN w/o EXTENSION:${MEDIA_FN:r}"
+		logit "SUB FILE w/o EXTENSION: ${SUB_FILE[1]:r}"
+		if [[ ${#SUB_FILES} -eq 1 && ${MEDIA_FQFN:r} != ${SUB_FILE[1]:r} ]];then
+			logit "POSSIBLE RENAME"
+		fi
+	fi
+
+	if [[ ${_DEBUG} -gt 0 ]];then
+		 dbg "${0}: ${WHITE_FG}NDX${RESET}:${NDX}: V:${V}"
+		 dbg "${0}: MEDIA_FN:${MEDIA_FN}"
+		 dbg "${0}: FN_HEAD:${FN_HEAD}"
+		 dbg "${0}: MEDIA_FQFN:${MEDIA_FQFN}"
+		 if [[ ${#SUB_FILES} -gt 1 ]];then
+			 for S in ${SUB_FILES};do
+				dbg "${0}: SUB_FILE:${S}"
+			 done
+		 fi
+	fi
+
+	[[ -n $(title_info "series" "${V:t}") ]] && IS_SERIES=true || IS_SERIES=false
+
+	if [[ ${IS_SERIES} == 'true' ]];then
+		SERIES_TITLE_SUB=$(title_info "short" "${V:t}")
+		SERIES_TITLE=$(title_info "series" "${V:t}")
+	fi
+
+	EXTRACT=false
+	if [[ ${IS_SERIES} == 'true' ]];then
+		MEDIA_DEST=${_LIBRARY_DIR}/${_SERIES_SUB}/${(C)SERIES_TITLE_SUB} # dest is series directory to house series files
+		[[ ${FN_HEAD} != '.' ]] && EXTRACT=true
+	else
+		MEDIA_DEST=${_LIBRARY_DIR}/${_MOVIES_SUB} # dest is movies directory to house movie files
+		[[ ${FN_HEAD} != '.' ]] && EXTRACT=true
+	fi
+
+	if [[ ${_DEBUG} -gt 0 ]];then
+		dbg "${0}: MEDIA_DEST:${MEDIA_DEST}"
+		dbg "${0}: EXTRACT:${EXTRACT}"
+	fi
+
+	[[ ${IS_SERIES} == 'true' ]] && echo "${BOLD}${MAGENTA_FG}Identified Series${RESET}:${WHITE_FG}${SERIES_TITLE_SUB} (${SERIES_TITLE})${RESET}"
+
+	vut info ${MEDIA_FQFN}
+
+	move_media "${MEDIA_FQFN}" "${MEDIA_DEST}" ${EXTRACT}
+
+	HIT=true
+	TITLE=$(title_info "short" "${V:t:r}")
+	TITLES_PROCESSED[${TITLE}]=1
+done
+
+if [[ ${HIT} == 'true' ]];then
+	#Clean media file names
+	clean_media
+
+	#Validate/Correct subtitle file names
+	sub_rename
+
+	#Clear Deluge queue
+	clear_deluge_state
+fi
+
+logit "stop"
+
+exit_leave

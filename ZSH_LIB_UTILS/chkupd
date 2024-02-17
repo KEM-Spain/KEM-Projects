@@ -1,0 +1,207 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+STRIKE="\033[9m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+
+#Declarations
+typeset -Z2 CNT
+
+#Constants
+TODAY=$(date +'%Y-%m-%d')
+LOG=~/.${0:t}.log
+MOTD=/etc/update-motd.d
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/STR.zsh
+source ${_LIB_DIR}/ARRAY.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+need_boot () {
+   [[ -e /var/run/reboot-required ]] && return 0 || return 1
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Detect and optionally install pending updates
+\tNote: This utility only updates the current installation
+\tTo upgrade to a new release run: do-release-upgrade -d
+EOF
+
+SCRIPT=${0:t}
+parse_opts () {
+	local OPTS=$@
+	local -a OPTSTR
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+		OPTSTR+="-${OPTS[$O]}"
+	done
+	echo $OPTSTR
+}
+
+usage () {
+	local PENDING_MSGS=${@}
+	local OPTS=$(parse_opts $OPTSTR)
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-y${RESET} no prompting"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}\n"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDy"
+
+PRE_APPROVED=false
+INLINE=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     y) PRE_APPROVED=true;;
+     :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#--Execution--
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+LIST=("${(@f)$(sudo apt-get -s dist-upgrade)}")
+
+PENDING=false
+for L in ${LIST};do
+	[[ ${L:l} =~ "^inst" ]] && PENDING=true
+done
+
+if [[ ${PENDING} == 'false' ]];then
+	if need_boot;then
+		msg_box -p -PB "<r>Reboot required<N>"
+		[[ ${_MSG_KEY} == 'y' ]] && rb -r
+	fi
+	exit_leave $(msg_info "No updates available")
+fi
+
+if [[ ${PRE_APPROVED} == false ]];then
+	tput cup 0 0
+	echo "Finding ${WHITE_FG}obsolete packages${RESET} and any ${WHITE_FG}pending updates${RESET}...\n"
+	sleep .5
+
+	LIST=("${(@f)$(sudo apt-get -s dist-upgrade)}")
+
+	CNT=0
+	SECTION=?
+	I_HEADER_OUT=false
+	C_HEADER_OUT=false
+	R_HEADER_OUT=false
+	GETPKGLIST=false
+	DOUPGRADE=false
+
+	[[ ${#LIST} -ge ${_MAX_ROWS} ]] && do_rmcup
+
+	for L in ${LIST};do
+		[[ ${L:l} =~ "^inst" ]] && SECTION=INST 
+		[[ ${L:l} =~ "^remv" ]] && SECTION=REMV 
+
+		IN_SECTION=true
+		case ${SECTION} in
+			INST) 
+				DOUPGRADE=true
+				[[ ${I_HEADER_OUT} == false ]] && echo "\n${GREEN_FG}Pending installations...${RESET}" && CNT=0
+				I_HEADER_OUT=true
+				;;
+			REMV) 
+				[[ ${R_HEADER_OUT} == false ]] && echo "\n${GREEN_FG}Pending removals...${RESET}" && CNT=0
+				R_HEADER_OUT=true
+				;;
+			*) IN_SECTION=false;;
+		esac
+
+		(( CNT++ ))
+
+		if [[ ${IN_SECTION} == true ]];then
+			echo "${WHITE_FG}${CNT})${RESET}${L[5,-1]}"
+		else
+			if [[ ${GETPKGLIST} == true ]];then
+				PKGLIST=(${L})
+				GETPKGLIST=false
+				echo "\n${GREEN_FG}Found obsolete packages${RESET}:"
+				for P in ${=PKGLIST};do
+					echo "-> ${P}"
+				done
+				continue
+			fi
+			if [[ ${L} =~ "no longer required:$" ]];then
+				GETPKGLIST=true
+				continue
+			fi
+			if [[ ${L} =~ "autoremove" ]];then
+				echo -n "\n${RED_FG}Remove${RESET} obsolete packages${WHITE_FG}?${RESET}:"
+				read -sq RESPONSE
+				if [[ ${RESPONSE} != "n" ]];then
+					sudo apt-get -y autoremove | tee -a ${LOG}
+				else
+					echo "no\n"
+				fi
+				continue
+			fi
+			echo "${WHITE_FG}${L}${RESET}"
+		fi
+	done
+
+	if [[ ${DOUPGRADE} == true && ${PRE_APPROVED} == false ]];then
+		echo -n "\n${GREEN_FG}Install${RESET} updates${WHITE_FG}?${RESET}:"
+		read -sq RESPONSE
+		if [[ ${RESPONSE} != "n" || ${PRE_APPROVED} == true ]];then
+			sudo apt-get -y dist-upgrade | tee -a ${LOG}
+		else
+			echo "no\n"
+		fi
+	fi
+fi
+
+sudo snap refresh
+
+if need_boot;then
+	msg_box -p -PB "<r>Reboot required<N>"
+	[[ ${_MSG_KEY} == 'y' ]] && rb -r
+fi

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=PyCharm
+Exec=/usr/local/bin/system/launchers/run_pycharm
+Icon=/opt/pycharm/bin/pycharm.png
+Terminal=false
+Categories=IDE;Development;

@@ -1,0 +1,102 @@
+#!/usr/bin/zsh
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/DBG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		l) echo "<INT>";;
+		p) echo "<PATH>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type p)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} maximum length allowed before abbreviation happens"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Abbreviate paths. If $(opt_type p) is missing ${SCRIPT} will attempt to read from stdin."
+	) >&2
+	exit_leave
+}
+
+OPTSTR=":HDl:"
+
+MAX_LEN=false
+
+OPTIND=0
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     l) MAX_LEN=${OPTARG};;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${MAX_LEN} != 'false' ]] && LEN_LIMIT=${MAX_LEN} || LEN_LIMIT=60
+
+if [[ ! -t 0 ]];then
+	read -r LINE
+else
+	LINE=${1}
+fi
+
+[[ ${#LINE} -le ${LEN_LIMIT} ]] && printf ${LINE} && return
+
+echo ${LINE} | perl -wane'
+	foreach $w (@F) {
+		$w =~ s#/$(?=^/.*)##g;             #kill if trailing slash if preceded by any chars
+		$w =~ s#([^/])([^/]*(?=.*/))#$1#g; #for every word btwn slashes kill all after first char
+		$w =~ s/%//g;                      #kill any percent signs (not sure why)
+		push (@line,$w);                   #build line
+	}
+	printf("%-s\n", "@line");
+;' 
+
+exit_leave
+

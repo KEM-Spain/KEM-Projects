@@ -1,0 +1,69 @@
+gTile Keyboard Shortcuts
+------------------------
+Super+Enter - open 
+
+Space  - to change the grid scheme [optional]
+Enter  - and the window will resize
+Escape - to cancel resize
+
+Configured presets
+------------------
+Accelerator key binding for preset
+Window will resize  - GUI stays open
+Alternatively, enable "Auto close on keyboard shortcut" 
+
+Shortcuts
+---------
+Pre-configured
+
+Super+Alt      - Grid 2x2
+Super+Control  - Grid 2x3
+Super+Shift    - Grid 3x3
+
+Grid selectors are combined with a keypad number to define placement
+
+
+Shortcuts for Super+Alt+KP_1-9
+
+KP_1 - Bottom left quarter of screen
+KP_2 - Bottom half
+KP_3 - Bottom right quarter
+KP_4 - Center left
+KP_5 - Center
+KP_6 - Center right
+KP_7 - Top left quarter
+KP_8 - Top half
+KP_9 - Top right quarter
+
+Shortcuts are optimized for horizontal screens
+For **cyclable presets**, invoke the corresponding shortcut consecutively on a window to activate format variants.
+
+
+Auto Tiling  - All windows on screen
+------------------------------------
+Open gTile
+Click autotile buttons, or
+Press one of `[1..9,0]` (total 10 available) for vertical columns autotiling, or
+M "main" autotiling
+
+Press `M` multiple times to cycle through variants
+Main variables are configurable.
+
+Autogrow - fill available space to neighbors
+--------------------------------------------
+Default shortcut <Alt><Ctrl>s
+
+Focus window to expand
+Open gTile
+Press <Alt><Ctrl>s - windows snap to neighbors
+
+Window Spacing and Insets
+-------------------------
+Optionally configure an inset and spacing
+
+Gnome-shell shortcuts
+---------------------
+Super+Up - Maximize
+Super+Down - Un-Maximize (return to size and position previous to maximizing)
+Super+Left/Right - left/right half of screen
+Shift+Super+Up/Down/Left/Right - move window to adjacent monitor/workspace

@@ -1,0 +1,51 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/STR.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+HDR="${CYAN_FG}Printer${RESET}:${WHITE_FG}${PRINTER}${RESET}"
+
+echo $(str_unicode_line $(echo ${HDR} | str_strip_ansi -l))
+echo ${HDR}
+echo $(str_unicode_line $(echo ${HDR} | str_strip_ansi -l))
+
+LIST=($(lpoptions -p ${PRINTER} | sed -E -e 's/=/=\n/g' -e 's/ /\n/g'))
+
+RS=''
+LS=''
+for ((L=1; L<=${#LIST};L++));do
+	[[ -z ${LS} && ${LIST[${L}]} =~ '^.*=' ]] && LS=${LIST[${L}]}
+	[[ ! ${LIST[${L}]} =~ '^.*=' ]] && RS+="${LIST[${L}]} "
+	if [[ ${LIST[${L}]} =~ '^.*=' ]];then
+		[[ -n ${RS} ]] && echo "${CYAN_FG}${LS}${WHITE_FG}${RS}${RESET}"
+		LS=${LIST[${L}]}
+		RS=''
+	fi
+done
+[[ -n ${RS} ]] && echo "${CYAN_FG}${LS}${WHITE_FG}${RS}${RESET}"

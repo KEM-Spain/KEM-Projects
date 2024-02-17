@@ -1,0 +1,7 @@
+#!/usr/bin/zsh
+THIS=$$
+LIST=($(ps -aux | grep viber | grep -v ${THIS} | tr -s '[:space:]' | cut -d' ' -f2))
+
+for L in ${LIST};do
+	kill -9 ${L} >/dev/null 2>&1
+done

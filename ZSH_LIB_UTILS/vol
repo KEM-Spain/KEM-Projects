@@ -1,0 +1,194 @@
+#!/usr/bin/zsh
+
+BOLD="\033[1m"
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+WHITE_FG="\033[37m"
+
+ERESET=$(echo "\033[m")
+EGREEN_FG=$(echo "\033[32m")
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/DBG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+function get_level {
+	local LIST
+	local LEVEL=0
+	local STATE=off
+	local L
+
+	LIST=("${(f)$(amixer -D pulse)}")
+	
+	for L in ${LIST};do
+		[[ ! ${L:l} =~ "front.*playback" ]] && continue
+		LEVEL=$(echo ${L} | cut -d\[ -f2 | sed 's/%].*//g')
+		STATE=$(echo ${L} | cut -d\[ -f3 | sed 's/]//g')
+	done
+	echo "${LEVEL}:${STATE}"
+}
+
+function get_mode {
+	local MIX=("${(@f)$(amixer -D pulse)}")
+	local SCAN=false
+	local STATE="${RED_FG}muted${RESET}"
+	local M
+
+	[[ ${_DEBUG} -gt 0 ]] && set +xv
+	for M in ${MIX};do
+		[[ ${M:l} =~ "simple.*master" ]] && SCAN=true
+		[[ ${M:l} =~ "simple.*capture" ]] && SCAN=false
+		[[ ${SCAN} == "true" && ${M:l} =~ "^[ \t]*front[ \t]*left.*on" ]] && STATE="${GREEN_FG}unmuted${RESET}"
+	done
+	echo ${STATE}
+}
+
+function set_mode {
+	local MODE=$1
+	amixer -q -D pulse sset Master $MODE
+}
+
+function show-mix {
+	local STATE=$(get_mode)
+	local MIX=("${(@f)$(amixer -D pulse)}")
+	local M
+
+	[[ ${_DEBUG} -gt 0 ]] && set +xv
+	echo "Volume is currently:${BOLD}${STATE}${RESET}"
+	for M in ${MIX};do
+		if echo $M | grep -qi 'simple.*master';then
+			echo "Pulse ${WHITE_FG}Output${RESET} levels..."
+		fi
+		if echo $M | grep -qi 'simple.*capture';then
+			echo "\nPulse ${WHITE_FG}Input${RESET} levels..."
+		fi
+		echo $M | grep -i 'left\|right' | grep -vi 'channels' | sed "s/\[\(.*\)%/\[${EGREEN_FG}\1%${ERESET}/g"
+	done
+}
+
+function full_volume {
+	amixer -q -D pulse sset Master 100%
+	set_mode unmute
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+function parse_opts {
+	local OPTS=$@
+	local -a OPTSTR
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ $O -eq 1 && ${OPTS[$O]} == ":" ]] && continue
+		[[ $O -gt 1 && ${OPTS[$O]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+		OPTSTR+="-${OPTS[$O]}"
+	done
+	echo $OPTSTR
+}
+
+function usage {
+	local OPTS=$(parse_opts $OPTSTR)
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: $SCRIPT $OPTS\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-m${RESET} mute"
+	echo -e "${WHITE_FG}-u${RESET} unmute"
+	echo -e "${WHITE_FG}-t${RESET} toggle mute"
+	echo -e "${WHITE_FG}-f${RESET} full volume"
+	echo -e "\n${WHITE_FG}Desc${RESET}:change volume I/O levels or mute state\n"
+	) >&2
+	exit_leave
+}
+
+OPTSTR=":HDmutf"
+
+OPTIND=0
+ACTION=?
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     m) ACTION=mute;;
+     u) ACTION=unmute;;
+     t) ACTION=toggle;;
+     f) ACTION=full;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+CURR_LEVEL=$(get_level)
+
+#Execution
+if [[ ${ACTION} != "?" ]];then
+	case ${ACTION} in
+		mute) set_mode mute;;
+		unmute) set_mode unmute;;
+		toggle) set_mode toggle;;
+		full) full_volume;;
+		*) echo "Unknown ACTION:${ACTION}";;
+	esac
+	show-mix
+	exit_leave
+fi
+
+[[ ${_DEBUG} -gt 0 ]] && set -xv
+
+#no options - default action is to unmute and display settings
+if [[ $# -eq 0 ]];then
+	set_mode unmute
+	show-mix
+	exit_leave
+fi
+
+[[ $# -eq 1 ]] && OLEVEL=$1
+[[ $# -eq 2 ]] && ILEVEL=$2
+
+[[ ${_DEBUG} -gt 0 ]] && set +xv
+
+if [[ $OLEVEL -ge 0 && $OLEVEL -le 100 ]];then
+	[[ ${_DEBUG} -gt 0 ]] && set -xv
+	amixer -q -D pulse sset Master ${OLEVEL}%
+	set_mode unmute
+	[[ ${_DEBUG} -gt 0 ]] && set +xv
+else 
+	echo "${BOLD}${WHITE_FG}OUTPUT LEVEL:${YELLOW_FG}${OLEVEL}${RED_FG} invalid${RESET}"
+	set_exit_value 1
+	exit_leave
+fi
+
+if [[ -n $ILEVEL ]];then
+	if [[ $ILEVEL -ge 0 && $ILEVEL -le 100 ]];then
+		[[ ${_DEBUG} -gt 0 ]] && set -xv
+		amixer -q -D pulse sset Capture ${ILEVEL}% 
+		[[ ${_DEBUG} -gt 0 ]] && set +xv
+	else 
+		echo "${BOLD}${WHITE_FG}INPUT LEVEL:${YELLOW_FG}${ILEVEL}${RED_FG} invalid${RESET}"
+		set_exit_value 1
+		exit_leave
+	fi
+fi
+show-mix
+
+exit_leave

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Enpass
+Comment=Password Manager
+TryExec=/usr/local/bin/launchers/run_enpass
+Exec=/usr/local/bin/launchers/run_enpass %U
+Icon=/home/kmiller/.local/share/Enpass/icons/item/web/enpass.io@2x.png
+Type=Application
+Categories=Passwords

@@ -1,0 +1,149 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+typeset -A DISKS
+typeset -A MODELS
+typeset -A MOUNTS
+typeset -a USB_STICKS
+typeset -a SD_DEVS 
+
+#Execution
+[[ ${1} == '-H' ]] && echo "${WHITE_FG}Usage${RESET}:${0:t} [ -D debug -H help -d quiet ]\n${WHITE_FG} Desc${RESET}:detect presence of usb sticks" && exit
+[[ ${1} == '-D' ]] && _DEBUG=true
+
+FDISK=("${(f)$(sudo fdisk -l | grep -i 'disk\|disk model')}")
+
+START_PRINT=false
+if [[ ${_DEBUG} == 'true' ]];then
+	echo "${WHITE_ON_GREY}DEBUG: fdisk info${RESET}"
+	for L in ${FDISK};do
+		[[ ${L} =~ 'sdb' ]] && START_PRINT=true
+		[[ ${START_PRINT} == 'true' ]] && printf "%s\n" ${L}
+	done
+fi
+
+HIT=false
+LINE=''
+for F in ${FDISK};do
+	[[ ! ${F:l} =~ "^disk" ]] && continue
+	[[ ${HIT} == 'true' ]] && LINE+=${F} && HIT=false && SD_DEVS+=${LINE} && LINE='' # join lines to include model
+	[[ ${F:l} =~ '/sd' ]] && LINE=${F} && HIT=true && continue # hit disk line; model line is next
+done
+
+for S in ${SD_DEVS};do
+	MODEL=$(cut -d: -f3 <<<${S} | sed -e 's/ [\t]*//' -e 's/[ \t]*$//')
+	DEV=$(cut -d: -f1 <<<${S} | cut -d'/' -f3)
+	DATA=$(cut -d: -f2 <<<${S} | sed 's/ [\t]*//')
+	SIZE=$(cut -d, -f1 <<<${DATA})
+	DISKS[${DEV}]=${SIZE}
+	MODELS[${DEV}]=${MODEL}
+done
+
+if [[ ${_DEBUG} == 'true' ]];then
+	echo "${WHITE_ON_GREY}DEBUG: SD Devices${RESET}"
+	for L in ${SD_DEVS};do
+		printf "%s\n" ${L}
+	done
+	echo "MODEL:${MODEL}"
+	echo "DEV:${DEV}"
+	echo "DATA:${DATA}"
+	echo "SIZE:${SIZE}"
+fi
+
+if [[ ${_DEBUG} == 'true' ]];then
+	echo "${WHITE_ON_GREY}DEBUG: BUS Info${RESET}"
+	for D in ${(k)DISKS};do
+		BUS=$(udevadm info --query=all --name=${D} | grep -wi "id_bus" | cut -d'=' -f2)
+		[[ ${BUS:l} == 'usb' ]] && USB_STICKS+=${D} # pick off usb
+		if [[ -n ${USB_STICKS} ]];then
+			echo "DISK:${D}"
+			echo "BUS:${BUS}"
+			echo "USB_STICKS:${USB_STICKS}"
+		else
+			echo "${RED_FG}NON USB:${YELLOW_FG}${BOLD}${BUS}${RESET}"
+		fi
+	done
+fi
+
+BUS=''
+USB_STICKS=()
+for D in ${(k)DISKS};do
+	BUS=$(udevadm info --query=all --name=${D} | grep -wi "id_bus" | cut -d'=' -f2)
+	[[ ${BUS:l} == 'usb' ]] && USB_STICKS+=${D} # pick off usb
+done
+
+if [[ ${_DEBUG} == 'true' ]];then
+	echo "${WHITE_ON_GREY}DEBUG: MOUNT Info${RESET}"
+	for S in ${USB_STICKS};do
+		MINFO=("${(f)$(mount | grep ${S} | sed 's/ type.*//')}")
+		[[ -z ${MINFO} ]] && echo "No ${WHITE_FG}${S}${RESET} mount points detected"
+		for M in ${MINFO};do
+			KEY=$(cut -d' ' -f1 <<<${M})
+			VAL=$(cut -d' ' -f3- <<<${M})
+			echo "VAL:${VAL}"
+			echo "KEY:${KEY}"
+			MOUNTS[${KEY}]=${VAL}
+			for K in ${(k)MOUNTS};do
+				printf "KEY:%s VAL:%s\n" ${K} ${MOUNTS[${K}]}
+			done
+		done
+	done
+fi
+
+MOUNTS_DETECTED=false
+for S in ${USB_STICKS};do
+	MINFO=("${(f)$(mount | grep ${S} | sed 's/ type.*//')}")
+	for M in ${MINFO};do # can be multiple mount points per stick
+		MOUNTS_DETECTED=true
+		KEY=$(cut -d' ' -f1 <<<${M})
+		VAL=$(cut -d' ' -f3- <<<${M})
+		MOUNTS[${KEY}]=${VAL}
+	done
+	MINFO=()
+done
+
+if [[ ${MOUNTS_DETECTED} == 'true' ]];then
+	typeset -aU MOUNT_KEYS
+	for K in ${(k)MOUNTS};do
+		MOUNT_KEYS+=$(grep -P -o 'sd.' <<<${K}) # unique keys from mount points
+	done
+
+	if [[ ${1} == '-d' ]];then # quiet service option -d
+		[[ -z ${MOUNT_KEYS} ]] && return 1
+		for L in ${MOUNT_KEYS};do
+			for K in ${(k)MOUNTS};do
+				[[ ${K} =~ ${L} ]] && echo "${L}|${MODELS[${L}]}|${DISKS[${L}]}|${K}|${MOUNTS[${K}]}"
+			done
+		done
+	else
+		[[ -z ${MOUNT_KEYS} ]] && echo "No usb sticks detected" && exit 1
+		for L in ${MOUNT_KEYS};do
+			echo "USB disk:${L} - ${MODELS[${L}]} ${DISKS[${L}]}"
+			for K in ${(k)MOUNTS};do
+				[[ ${K} =~ ${L} ]] && echo "\t${K} - Mounted on:${MOUNTS[${K}]}"
+			done
+		done
+	fi
+	exit 0
+else
+	if [[ ${1} == '-d' ]];then # quiet service option -d
+		return 2
+	else
+		if [[ -n ${USB_STICKS} ]];then
+			echo "Unmounted usb stick was detected"
+		fi
+	fi
+fi

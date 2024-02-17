@@ -1,0 +1,11 @@
+ALERT="Warning"
+DESCRIPTION="This will do something"
+echo -n "\n${RED_FG}${ALERT}!${RESET} ${DESCRIPTION}${WHITE_FG}?${RESET}:"
+read -q RESPONSE
+echo
+if [[ ${RESPONSE} != "n" ]];then
+	echo "${WHITE_FG}Doing something${RESET}"
+else
+	echo "${RED_FG}Operation cancelled..."
+	exit
+fi

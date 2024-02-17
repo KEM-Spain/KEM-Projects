@@ -1,0 +1,244 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a LIST
+typeset -R2 SNDX=0
+typeset -a SUBLIST
+typeset -a _ICO_DIRS=(/opt /home/kmiller/.local/share /usr/share/icons /usr/share/pixmaps)
+
+#Constants
+_LIB_DIR=/usr/local/lib
+_ICO_REGEX='.*(ico|png|svg)$'
+
+#Globals
+g_LIMIT=200
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+#Functions
+is_valid_int () {
+	local ARG=${1}
+	local REGEX='^[0-9]+$'
+
+	[[ ${ARG} =~ ${REGEX} ]] && return 0
+	return 1
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Search and display system icons
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		l) echo "<INTEGER>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [<SEARCHTERM>]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l $(opt_type l)${RESET} set limit on icons per page (default:${g_LIMIT})"
+	echo -e "${WHITE_FG}-p print icon paths"
+	echo -e "${WHITE_FG}-s${RESET} limit selection by icons size"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDl:ps"
+OPTIND=0
+
+GET_SIZE=false
+PRINT_PATHS=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+	  l) if is_valid_int ${OPTARG};then
+           g_LIMIT=${OPTARG}
+        else
+			  exit_leave $(msg_warn "Invalid integer")
+        fi;;
+     p) PRINT_PATHS=true;;
+     s) GET_SIZE=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 && ${PRINT_PATHS} == 'false' ]] && do_smcup
+[[ ${#} -ne 0 ]] && SEARCHTERM=${1}
+
+SIZE=''
+typeset -aU SIZES
+
+if [[ ${GET_SIZE} == 'true' ]];then
+	for D in ${_ICO_DIRS};do
+		SIZES+=("${(f)$(find ${D} -type d -regex ".*[0-9]x[0-9].*" | grep -oE '[0-9]?[0-9]?[0-9]x[0-9][0-9]?[0-9]?' 2>/dev/null)}")
+	done
+
+	selection_list_set ${SIZES}
+	selection_list -x11 -y32 "<w>Select icon size<N>"
+	[[ ${_SELECTION_VALUE} == '?' ]] && echo "${BOLD}${RED_FG}Cancelled...${RESET}" && exit_leave
+	SIZE=${_SELECTION_VALUE}
+fi
+
+typeset -aU DIRLIST
+
+if [[ -n ${SIZE} ]];then
+	for D in ${_ICO_DIRS};do
+		DIRLIST+=("${(f)$(find ${D} -type d 2>/dev/null | grep "${SIZE}")}")
+	done
+else
+	for D in ${_ICO_DIRS};do
+		DIRLIST+=("${(f)$(find ${D} -type d 2>/dev/null)}")
+	done
+fi
+
+typeset -aU RAWLIST_FILES
+typeset -aU RAWLIST
+
+NDX=0
+for D in ${DIRLIST};do
+	((NDX++))
+	[[ ${D} =~ ".*MAC.*" ]] && continue
+	[[ ${D:l} =~ ".*qt.*" ]] && continue
+	RAWLIST_FILES=("${(f)$(find -P ${D} -maxdepth 1 -type f -regextype 'posix-extended' -regex ".*${_ICO_REGEX}" 2>/dev/null)}")
+	if [[ ${PRINT_PATHS} == 'false' ]];then
+		tput cup 0 0; printf "\rProcessing directory ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} directories ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#DIRLIST} $(( NDX * 100. / ${#DIRLIST} )) 
+	fi
+	if [[ -n ${RAWLIST_FILES} ]];then
+		RAWLIST+=(${RAWLIST_FILES})
+		RAWLIST_FILES=()
+	fi
+done
+
+if [[ ${PRINT_PATHS} == 'false' ]];then
+	tput cup 0 0 && tput el
+	tput cup 0 0 && printf "Extracting individual files..."
+	[[ -n ${SEARCHTERM} ]] && tput cup 1 0 && printf "Applying SEARCHTERM:${SEARCHTERM}"
+fi
+
+for F in ${RAWLIST};do
+		if [[ -n ${SEARCHTERM} ]];then # apply SEARCHTERM
+			[[ ${F:l} =~ "${SEARCHTERM}" ]] && LIST+=${F}
+		else
+			LIST+=${F}
+		fi
+	done
+
+if [[ ${PRINT_PATHS} == 'true' ]];then
+	for L in ${LIST};do
+		RANK=3
+		[[ ${L:t:l} =~ "${SEARCHTERM:l}" ]] && RANK=1
+		[[ ${L:t:l} =~ "[0-9]x[0-9]" ]] && RANK=2
+		echo ${RANK}${L}
+	done | sort -u | sed 's/^[0-9]//'
+	exit_leave
+fi
+
+MSG="\nFound:${WHITE_FG}${#LIST}${RESET} icon file(s)"
+[[ -n ${SIZE} ]] && MSG+=" of size:${WHITE_FG}${SIZE}${RESET}"
+[[ -n ${SEARCHTERM} ]] && MSG+=" matching SEARCH:${WHITE_FG}${SEARCHTERM}${RESET}"
+
+if ! arr_is_populated "${LIST}";then
+	exit_leave $(msg_warn "No icons found:${MSG:l}")
+else
+	echo ${MSG}
+fi
+
+echo -n "Continue (y/n)?"
+read -sq RESPONSE
+[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_warn "Operation Cancelled")
+
+SHOWN=0
+NDX=0
+
+for L in ${LIST};do
+	((NDX++))
+	SUBLIST+=${L}
+	if [[ ${#LIST} -gt ${g_LIMIT} && $(( NDX % g_LIMIT )) -eq 0 ]];then
+		viewnior ${SUBLIST}
+		SUBLIST=()
+		SHOWN=$(( SHOWN + g_LIMIT ))
+		echo -n "Continue viewing icons (y/n)?"
+		read -sq RESPONSE
+		[[ ${RESPONSE} == 'n' ]] && break
+		echo
+	fi
+	if [[ $(( ${#LIST} - SHOWN )) -le ${g_LIMIT} ]];then
+		viewnior ${LIST[$(( SHOWN+1 )),-1]} &
+		break
+	fi
+done
+exit_leave

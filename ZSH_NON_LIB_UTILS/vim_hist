@@ -1,0 +1,54 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+VIM_HIST=~/.vim/undo
+
+#Declarations
+typeset -a LIST
+
+#Execution
+RAW_LIST=("${(f)$(find ${VIM_HIST} ! -path ${VIM_HIST})}")
+
+tput smcup
+
+NDX=0
+for L in ${RAW_LIST};do
+	((NDX++))
+	tput cup 0 0; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#RAW_LIST} $(( NDX * 100. / ${#RAW_LIST} ))
+	FDATE=$(cut -d' ' -f1 <<<$(stat -t -c'%w' ${L}))
+	FNAME=$(sed -e 's#%#/#g' -e 's#^//#/#' <<<${${L}##${VIM_HIST}})
+	if [[ ! -e ${FNAME} ]];then
+		/bin/rm -f ${L}
+		continue
+	fi
+	[[ -z ${FNAME} ]] && continue
+	LIST+="${FDATE}|${FNAME}"
+done
+
+TODAY=$(date +"%Y-%m-%d")
+
+for L in ${(On)LIST};do
+	FDATE=$(cut -d'|' -f1 <<<${L})
+	FNAME=$(cut -d'|' -f2- <<<${L})
+	[[ ${FDATE} == ${TODAY} ]] && COLOR=${CYAN_FG} || COLOR=${WHITE_FG}
+	printf "${COLOR}%s${RESET} %s\n" ${FDATE} ${FNAME}
+done | mypager
+
+tput rmcup

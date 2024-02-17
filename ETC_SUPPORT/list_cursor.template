@@ -1,0 +1,76 @@
+#(move to #Globals)
+g_ACTION=action
+g_OBJECT=object
+
+#(move to #Functions)
+action_do () {
+	local M
+
+	for M in ${_MARKED};do
+		msg_box -p -PK "Place action here"
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local M
+	
+	msg_box -p -PP "<I>Please respond|$(str_unicode_line 14)| |${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected"
+
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${_MARKED};do
+			list_set_selected ${M} 0
+		done
+	fi
+}
+
+item_decorate () {
+	local NDX=${1}
+
+	echo -n ${_LIST[${NDX}]}
+}
+
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+
+[[ ${?} -ne 0 ]] && exit_leave "${0}: ${RED_FG}no matches found${RESET} ${WHITE_FG}${@}${RESET}"
+PATHLBL=$(path_get_label 40)
+
+LOCAL_LIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} -type f ! -path ." 2>/dev/null )}")
+if [[ ${?} -ne 0 ]];then
+	dbg "${0}:${RED_FG}COMMAND FAILED${RESET}: find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path . 2>/dev/null" 
+else
+	dbg "${0}:${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#LOCAL_LIST}"
+fi
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%s${RESET}\tPath:${WHITE_FG}%-*s${RESET}\tPage:${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET}\tSelected:${WHITE_FG}%d${RESET}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${PAGE} ${MAX_PAGES} ${SELECTED_COUNT}'
+list_add_header_break
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${ARRAY_NDX} "$(item_decorate ${ARRAY_NDX})" 
+'
+
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${g_ACTION} ${g_OBJECT}(s) (${ITALIC}or exit if none selected${RESET})"
+
+while true;do
+	#get selection
+	list_cursor_select ${LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_warn
+		if [[ ${_MSG_KEY} == "y" ]];then
+			action_do
+		fi
+	fi
+done
+
+exit_leave

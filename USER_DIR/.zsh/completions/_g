@@ -1,0 +1,14 @@
+#compdef g
+ 
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-I[case sensitive]' \
+'-e[exclude search]' \
+'-l[list files]' \
+'-m[max lines to process]' \
+'-n[line numbers]' \
+'-o[only matched]' \
+'-p[alternate path <PATH>]' \
+'-r[recurse]' \
+'-w[whole word match]'

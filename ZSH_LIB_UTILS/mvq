@@ -1,0 +1,408 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLACK_FG="\033[30m"
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+#Constants
+_LOG=/tmp/mvqry.log
+_LIB_DIR=/usr/local/lib
+_DIRECTOR_LIST=/usr/local/etc/.directors
+_ACTOR_LIST=/usr/local/etc/.actors
+
+#Declarations
+typeset -a SLIST
+typeset -a RAWLIST
+typeset -a LIST
+typeset -a _DECADE_LIST=(1960 1970 1980 1990 2000 2010 2020)
+typeset -A TEMPLATE
+typeset -A _DISPLAY_LIST
+_LIST_VALUE=''
+
+TEMPLATE[1]="1-4"
+TEMPLATE[2]="6-81"
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/VALIDATE.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local YR TITLE URL M
+
+	for M in ${_MARKED};do
+		YR=$(get_field 1 ${M})
+		TITLE=$(get_field 2 ${M})
+		msg_box -p "${TITLE} ${YR}|<Z>|<L>1) review|<L>2) imdb|<L>3) pyts|<Z>|or [n] to skip"
+	done
+
+	tput clear
+	case ${_MSG_KEY} in
+		1) ddgr -n5 "${TITLE} ${YR} review";;
+		2) imdb "${TITLE} ${YR}";;
+		3) pyts "${TITLE} ${YR}";;
+	esac
+
+		#2) ddgr -n5 "${TITLE} ${YR} imdb";;
+
+	grep -qi "${TITLE} ${YR}" ${_LOG}
+	[[ ${?} -eq 1 ]] && logit "${TITLE} ${YR}"
+
+	if [[ ${_MSG_KEY} != 'y' ]];then
+		for M in ${_MARKED};do
+			list_clear_selected ${M}
+		done
+	fi
+}
+
+imdb () {
+	local STR=${@}
+	local URL
+
+	msg_box "Querying imdb..."
+
+	{
+	URL=$(wget --quiet -O - "http://www.imdb.com/find?q=${STR}" | pup '.ipc-page-content-container a attr{href}' | grep 'tt_1' | sed 's/\/?ref.*//')
+	nohup google-chrome "http://www.imdb.com/${URL}" >>${_LOG} 2>&1 &
+	} 2>/dev/null
+}
+
+blank_lines () {
+	local FN=${@}
+	local LINE
+
+	if [[ ! -t 0 ]];then
+		while read LINE;do
+			echo ${LINE} | sed -r '/^\s*$/d'
+		done
+	else
+		sed -r '/^\s*$/d' <${FN}
+	fi
+}
+
+get_field () {
+	local FIELD=${1}
+	local NDX=${2}
+	local YR TITLE LEN URL
+
+	case ${FIELD} in
+		1) YR=$(cut -d'|' -f1 <<<${SLIST[${NDX}]});echo -n ${YR};;
+		2) TITLE=$(cut -d'|' -f2 <<<${SLIST[${NDX}]});echo -n ${TITLE};;
+		3) LEN=$(cut -d'|' -f3 <<<${SLIST[${NDX}]});echo -n ${LEN};;
+		4) URL=$(cut -d'|' -f4 <<<${SLIST[${NDX}]});echo -n ${URL};;
+	esac
+}
+
+url_quote () {
+	local TXT=${@}
+	local PY_SCRIPT
+
+	read -r -d '' PY_SCRIPT <<___EOF
+
+import urllib.parse
+print(urllib.parse.quote_plus("${TXT}", safe=''))
+
+___EOF
+
+python <<<${PY_SCRIPT}
+}
+
+last_name_sort () {
+	local -a RAW_NAME
+	local -A LAST_NAME
+	local LAST REST LINE
+	local R K FN
+
+	while read LINE;do
+		_DISPLAY_LIST[${LINE}]=1
+	done < ${_LIST_FILE}
+}
+
+# Only used to initialize an unsorted list
+name_list_uninitialized () {
+	local -a RAW_NAME
+	local -A LAST_NAME
+	local LAST REST LINE
+	local R K FN
+
+	while read LINE;do
+		RAW_NAME+=${LINE}
+		_DISPLAY_LIST[${LINE}]=1
+	done < ${_LIST_FILE}
+
+	for R in ${RAW_NAME};do
+		LAST=$(rev <<<${R} | cut -d' ' -f1 | rev)
+		REST=$(rev <<<${R} | cut -d' ' -f2- | rev)
+		LAST_NAME[${LAST}]=${REST}
+	done
+
+	for K in ${(ok)LAST_NAME};do
+		FN="${K}, ${LAST_NAME[${K}]}"
+		echo ${FN} >> x
+		_DISPLAY_LIST[${FN}]=1
+	done
+}
+
+do_query () {
+	QRY=${1}
+
+	wget -O - "https://www.flickchart.com/Charts.aspx?${QRY}&perpage=100" 2>/dev/null | pup --charset utf8 '.movieTitle text{}' | blank_lines
+}
+
+do_list () {
+	local TYPE_ARG=${1}
+	local _LIST_FILE
+	local _LIST_TYPE
+	local L_NAME F_NAME
+	local -a LIST
+	local RNDX
+	local _SELECTION_F2
+	local TITLE
+	local D
+
+	if [[ ${TYPE_ARG} == "a" ]];then
+		_LIST_TYPE=actor
+		_LIST_FILE=${_ACTOR_LIST}
+		last_name_sort
+	elif [[ ${TYPE_ARG} == "d" ]];then
+		_LIST_TYPE=director
+		_LIST_FILE=${_DIRECTOR_LIST}
+		last_name_sort
+	elif [[ ${TYPE_ARG} == "e" ]];then
+		_LIST_TYPE=decade
+		for D in ${_DECADE_LIST};do
+			_DISPLAY_LIST[${D}]=1
+		done
+	fi
+
+	selection_list_set ${(k)_DISPLAY_LIST}
+
+	_SELECTION_VALUE=?
+	selection_list "<w>Select ${(C)_LIST_TYPE} or <h>(q)uit<N>"
+	[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+
+	if [[ ${TYPE_ARG} =~ '[ad]' ]];then
+		_SELECTION_F2=$(cut -d: -f2 <<<${_SELECTION_VALUE})
+		L_NAME=$(cut -d',' -f1 <<<${_SELECTION_F2})
+		F_NAME=$(cut -d',' -f2 <<<${_SELECTION_F2} | sed 's/^ //')
+		_LIST_VALUE="${F_NAME} ${L_NAME}"
+	else
+		_LIST_VALUE=${_SELECTION_VALUE}
+	fi
+}
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+local DESC
+
+read -r -d '' DESC<<EOF
+Get movie listings by actor, director, year, or decade
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "${WHITE_FG}-a${RESET} actor (Jack Nicholson)"
+	echo -e "${WHITE_FG}-d${RESET} director (François Truffaut)"
+	echo -e "${WHITE_FG}-e${RESET} decade (1990 2000 2010 etc.)"
+	echo -e "${WHITE_FG}-l${RESET} select from list (combine with option a,d,e)"
+	echo -e "${WHITE_FG}-y${RESET} year (4 digits - ${WHITE_ON_GREY}default${RESET})"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+OPTSTR=":HDadely"
+OPTIND=0
+
+ACTOR=false
+DIRECTOR=false
+DECADE=false
+YEAR=false
+DO_LIST=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     a) ACTOR=true;;
+     d) DIRECTOR=true;;
+     e) DECADE=true;;
+     l) DO_LIST=true;;
+     y) YEAR=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+#Mashall arguments
+SEARCHTERM=${@}
+if [[ ${DO_LIST} == 'true' && (${ACTOR} == 'true' || ${DIRECTOR} == 'true' || ${DECADE} == 'true') ]];then
+	if [[ ${ACTOR} == 'true' ]];then
+		do_list a
+		QRY="actor=${_LIST_VALUE}" && HEADER="Movies starring:"
+		[[ $(wc -w <<<${QRY}) -gt 1 ]] && QRY=$(sed 's/ /+/g' <<<${QRY})
+		SEARCHTERM=${_LIST_VALUE}
+	elif [[ ${DIRECTOR} == 'true' ]];then
+		do_list d
+		QRY="director=${_LIST_VALUE}" && HEADER="Movies directed by:"
+		[[ $(wc -w <<<${QRY}) -gt 1 ]] && QRY=$(sed 's/ /+/g' <<<${QRY})
+		SEARCHTERM=${_LIST_VALUE}
+	elif [[ ${DECADE} == 'true' ]];then
+		do_list e
+		QRY="decade=${_LIST_VALUE}" && HEADER="Movies for the decade:"
+		SEARCHTERM=${_LIST_VALUE}
+	fi
+elif [[ ${DO_LIST} == 'false' ]];then
+	HEADER="Movies for the year:"
+	QRY="year=${1}"
+
+	[[ ${#} -eq 0 ]] && usage "Missing argument"
+	[[ ${YEAR} == 'true' && ! ${1} =~ '[0-9][0-9][0-9][0-9]' ]] && usage "Invalid argument for <YEAR>:${1}"
+	[[ ${DECADE} == 'true' && ! ${1} =~ '[0-9][0-9][0-9]0' ]] && usage "Invalid argument for <DECADE>:${1}"
+
+	[[ ${ACTOR} == 'true' ]] && QRY="actor=${@}" && HEADER="Movies starring:"
+	[[ ${DIRECTOR} == 'true' ]] && QRY="director=${@}" && HEADER="Movies directed by:"
+	[[ ${DECADE} == 'true' ]] && QRY="decade=${1}" && HEADER="Movies for the decade:"
+	[[ ${YEAR} == 'true' ]] && QRY="year=${1}"
+else
+	exit_leave $(msg_err "List option must be compbined with option:a,d, or e")
+fi
+
+HEADER="${HEADER}"
+
+#Submit query
+msg_box -c "Working...querying flickchart (a very slow site) for ${QRY}"
+
+LIST=("${(f)$(do_query ${QRY})}")
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "wget -O - https://www.flickchart.com/Charts.aspx?${QRY}&perpage=100"
+
+if ! arr_is_populated "${LIST}";then
+	exit_leave "${RED_FG}No matches for:${WHITE_FG}${SEARCHTERM}"
+fi
+
+msg_box -c "Working...formatting data"
+NDX=0
+LN=0
+for L in ${LIST};do
+	((NDX++))
+	((LN++))
+	case ${LN} in
+		1) TITLE=$(html2text -ascii <<<${L});;
+		2) URL=${L};;
+		3) YR=${L};;
+		4) LEN=$(sed 's/^,*//' <<<${L});;
+	esac
+	if [[ $(( NDX % 4 )) -eq 0 ]];then
+		SLIST+="${YR}|${TITLE[1,50]}|${LEN}|${URL}"
+		LN=0
+	fi
+done
+SLIST=(${(on)SLIST}) #sort
+
+HLEN=$((${#TITLE} + ${#HEADER} + ${#SEARCHTERM} + 17))
+DLEN=$((112))
+HPAD=$((DLEN-HLEN))
+PAD=$(str_rep_char '-' ${HPAD})
+
+msg_box_clear
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} Selected:${WHITE_FG}%-3d %s ${CYAN_FG}%s ${BLACK_FG}${PAD}${WHITE_FG}${_PG}${RESET}" ${#SLIST} ${SELECTED_COUNT} ${HEADER} ${SEARCHTERM}'
+list_add_header_break
+list_set_header_break_color ${MAGENTA_FG}
+list_set_barlines true
+
+#set line item
+list_set_line_item ' 
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%4s ${WHITE_FG}%-50s ${CYAN_FG}%15s ${GREEN_FG}%43s${RESET}\n" ${_LIST_NDX} $(get_field 1 ${_LIST_NDX}) "$(get_field 2 ${_LIST_NDX})" "$(get_field 3 ${_LIST_NDX})" "$(get_field 4 ${_LIST_NDX})"
+'
+
+while true;do
+	#display list
+	list_select ${SLIST}
+	RC=${?}
+
+	[[ ${RC} -eq 0 ]] && break
+
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		#get user selections
+		_MARKED=($(list_get_selected))
+		action_do
+	fi
+done
+
+exit_leave

@@ -1,0 +1,583 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _UTILS
+typeset -A _UTILS_DESC
+
+#Constants
+_UTILS=(
+info 1
+length 1
+merge 1
+rescale 1
+dts2ac3 1
+)
+
+_UTILS_DESC=(
+info "INFO:Display video information"
+length "LENGTH:Display video length"
+merge "MERGE:Merge videos"
+rescale "SCALE:Rescale videos"
+dts2ac3 "AUDIO:Convert DTS audio to AC3"
+)
+
+_WRAPPER=${0:t}
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+info () {
+	#Declarations
+	local -a LIST
+	local HIT
+	local L
+
+	#Constants
+	local _VID_REGEX_Z='.*\.(mp4|avi|mkv)$'
+	local _VID_REGEX_F='.*\.\(mp4\|avi\|mkv\)$'
+
+	#Functions
+	trim () {
+		local LINE
+
+		while read LINE;do
+			echo ${LINE} | sed -e 's/^ *//' -e 's/ *$//'
+		done
+	}
+
+	do_info () {
+		local LIST=("${(f)$(ffprobe ${1}  2>&1 | grep -i 'duration\|stream')}")
+		local DUR=Duration:None
+		local VID=Video:None
+		local AUD=Audio:None
+		local RES=None
+		local SUB=false
+		local DESC
+		local VAL
+		local HDR
+		local -a INFO
+		local L I
+
+		for L in ${LIST};do
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} L: ${L}"
+			[[ ${L} =~ 'attached pic' ]] && continue
+			[[ ${L:l} =~ 'subtitle:' ]] && SUB=true
+			[[ ${L:l} =~ 'duration:' ]] && DUR=$(perl -p -e 's/(\s+)([^,]+)(.*)/$2/i' <<<${L})
+			[[ ${L:l} =~ "video:" ]] && RES=$(perl -p -e 's/^(.*)(?<=[ ,])(\d+x\d+)(?=[ ,])(.*)$/$2/g' <<<${L})
+			[[ ${L:l} =~ "video:" ]] && VID=$(perl -pe 's/^(.*)(vid.*?)(?=[,(])(.*)/$2/i' <<<${L})
+			[[ ${L:l} =~ "audio:" ]] && AUD=$(perl -pe 's/^(.*)(aud.*?)(?=[,(])(.*)/$2/i' <<<${L})
+		done
+
+		[[ ${SUB} == 'true' ]] && SUB="yes" || SUB="no"
+		[[ ${AUD} != 'Audio:None' ]] && AUD=${AUD:u}
+
+		DUR=$(sed 's/[0]+$//' <<<${DUR})
+
+		INFO=("${(C)DUR}" "${(C)VID}" "Resolution:${RES}" "${AUD}" "Subtitiles:${(C)SUB}")
+
+		HDR="\nVideo Information: ${WHITE_FG}${@:t}${RESET}"
+		echo ${HDR}
+		echo $(str_unicode_line $(echo ${HDR} | str_strip_ansi -l))
+
+		for I in ${INFO};do
+			DESC=${$(cut -d: -f1 <<<${I} | trim):=None}
+			VAL=$(cut -d: -f2- <<<${I} | trim)
+			printf "${CYAN_FG}%20s${RESET}: ${WHITE_FG}%-20s${RESET}\n" ${(C)DESC} ${VAL}
+		done
+
+		echo
+	}
+
+	#--Begin GetOpts--
+	local DESC
+	local -a OPTIONS
+
+	read -r -d '' DESC<<___EOF
+Provide essential info about video files
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTRING
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTRING+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTRING}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	OPTSTR=":HD"
+	OPTIND=0
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) dbg_set_level;;
+		  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+		esac
+		[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#Execution
+	if [[ ${#} -eq 0 ]];then
+		LIST=("${(f)$(find . -maxdepth 1 -type f -regex "${_VID_REGEX_F}")}")
+	else
+		LIST=(${@})
+	fi
+
+	HIT=false
+	for L in ${LIST};do
+		[[ ! ${L} =~ ${_VID_REGEX_Z} ]] && continue
+		[[ -d ${L} ]] && continue
+		HIT=true
+		do_info ${L}
+	done
+
+	[[ ${HIT} == 'false' ]] && usage "No video files found in ${PWD}/${@}"
+}
+
+length () {
+	local DESC
+	local FN
+
+	read -r -d '' DESC<<___EOF
+Display network connections
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	[[ ${#} -eq 0 ]] && usage "missing video filename" || FN=${1}
+	[[ ! -f ${FN} ]] && exit_leave $(msg_err "file not found:${FN}")
+
+	file ${FN} | grep -qi 'media\|matroska\|video'
+	[[ ${?} -ne 0 ]] && exit_leave $(msg_err "not a video file:${FN}")
+
+	echo "The duration length of:${WHITE_FG}${FN}${RESET}"
+	ffmpeg -i "${FN}"  2>&1 | grep Duration 
+}
+
+
+merge () {
+	#Declarations
+	local -a FILE_ARGS
+	local -a WORKFILES
+	local APP=ffmpeg
+	local DESTINATION_FILE
+	local RESPONSE
+	local F
+
+	#Constants
+	local _DEFAULT_OUT=vid_merge
+
+	#--Begin GetOpts--
+	local DESC
+	local -a OPTIONS
+	local OPTSTR
+
+	read -r -d '' DESC<<___EOF
+Merge video files
+\tDefault merge tool is ffmpeg
+\tOptionally, choose other tools: melt or mkvmerge
+\tIf no destination file is given, a default will be assigned
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTRING
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTRING+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTRING}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+		esac
+	}
+
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT}\n"
+		echo "${WHITE_FG}-H${RESET} help"
+		echo "${WHITE_FG}-m${RESET} use melt"
+		echo "${WHITE_FG}-k${RESET} use mkvmerge"
+		echo "${WHITE_FG}-o $(opt_type f)${RESET} output file name"
+		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	OPTSTR=":HDkmo:"
+
+	OPTIND=0
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) DEBUG=true;;
+		  m) APP=melt;;
+		  k) APP=mkvmerge;;
+		  o) _DEFAULT_OUT=${OPTARG};;
+		  :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+		esac
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#--Execution--
+	[[ ${#} -lt 2 ]] && usage  "missing required arguments"
+
+	WORKFILES=(${@})
+	for F in ${WORKFILES};do 
+		[[ ! -e ${F} ]] && exit_leave $(msg_err "file:${F} not found")
+		file ${F} | grep -qi 'media\|matroska\|video'
+		[[ ${?} -ne 0 ]] && exit_leave $(msg_err "file:${F} is not of type video")
+	done
+
+	DESTINATION_FILE=${_DEFAULT_OUT}.${1:e}
+
+	if [[ -e ${DESTINATION_FILE} ]];then
+		echo -n "Overwrite ${DESTINATION_FILE} (y/n):"; read -q RESPONSE
+		[[ ${RESPONSE} == 'n' ]] && exit_leave "operation cancelled" || echo
+		rm ${DESTINATION_FILE}
+	fi
+
+	echo "Application for merge:${BOLD}${ITALIC}${APP}${RESET}"
+	echo "Files to merge:${BOLD}${ITALIC}${WORKFILES}${RESET}"
+	echo "Output file:${BOLD}${ITALIC}${DESTINATION_FILE}${RESET}"
+	echo -n "\nPlease review...Continue (y/n):"; read -q RESPONSE
+	echo
+
+	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_warn "operation cancelled")
+
+	echo "Merging:${WHITE_FG}${WORKFILES}${RESET} to ${WHITE_FG}${DESTINATION_FILE}${RESET} using APP:${WHITE_FG}${APP}${RESET}"
+	case ${APP} in
+		ffmpeg)		echo "ffmpeg -loglevel panic -f concat -safe 0 -i <(for F in ${WORKFILES}; do echo "file '${PWD}/${F}'"; done) -c copy ${DESTINATION_FILE}"
+						ffmpeg -loglevel panic -f concat -safe 0 -i <(for F in ${WORKFILES}; do echo "file '${PWD}/${F}'"; done) -c copy ${DESTINATION_FILE}
+						;;
+		melt)			echo "melt ${WORKFILES} -consumer avformat:${DESTINATION_FILE} acodec=libmp3lame vcodec=libx264 -progress"
+						melt ${WORKFILES} -consumer avformat:${DESTINATION_FILE} acodec=libmp3lame vcodec=libx264 -progress
+						;;
+		mkvmerge)	FILE_ARGS+="${=WORKFILES[1]}"
+						for W in ${=WORKFILES[2,${#WORKFILES}]};do
+							FILE_ARGS+="\+ ${W}"
+						done
+						echo "mkvmerge -o ${DESTINATION_FILE} ${FILE_ARGS}"
+						eval "mkvmerge -o ${DESTINATION_FILE} ${FILE_ARGS}"
+						;;
+	esac
+}
+
+rescale () {
+	#Declarations
+	local -a RESOLUTIONS
+	local SCALE
+	local FN_OUT
+
+	#Constants
+	local RESOLUTIONS=(1920:1080 1280:720)
+
+	#--Begin GetOpts--
+	local -a OPTIONS
+	local OPTSTR
+	local DESC
+
+	read -r -d '' DESC<<___EOF
+Rescale video files
+___EOF
+
+	parse_opts () {
+		local OPTS=${@}
+		local -a OPTSTRING
+		local LETTER_OPT
+		local O
+
+		for O in {1..${#OPTS}};do
+			[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+			[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+			[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+			OPTSTRING+="-${OPTS[${O}]}"
+		done
+		echo ${OPTSTRING}
+	}
+
+	opt_exists () {
+		local OPT=${1}
+		[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+	}
+
+	opt_type () {
+		local OPT=${1}
+		case ${OPT} in
+			d) echo "<DIR>";;
+			f) echo "<FILE>";;
+			t) echo "<FILE_TYPE>";;
+			v) echo "<VIDEO_FILE>";;
+		esac
+	}
+
+	usage () {
+		local OPTS=$(parse_opts ${OPTSTR})
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type v)\n"
+		echo -e "${WHITE_FG}-H${RESET} help"
+		echo -e "${WHITE_FG}-D${RESET} debug"
+		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	OPTSTR=":HD"
+	OPTIND=0
+
+	while getopts ${OPTSTR} OPTION;do
+		case $OPTION in
+		  H) usage;;
+		  D) dbg_set_level;;
+		  :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		 \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+		esac
+		[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+	done
+	shift $((OPTIND -1))
+	#--End GetOpts--
+
+	#Execution
+	[[ ${#} -eq 0 ]] && usage "Missing argument $(opt_type v)" || FN=${1}
+
+	[[ ! -e ${FN} ]] && usage "File not found:${FN}"
+
+	selection_list_set ${RESOLUTIONS}
+	selection_list -x3 -y3 "<w>Select Resolution<N>"
+	SCALE=${_SELECTION_VALUE}
+
+	FN_OUT="${FN:r} ${SCALE}.mkv"
+	[[ -e ${FN_OUT} ]] && exit_leave $(msg_warn "File naming confict: ${FN_OUT}")
+
+	ffmpeg -i ${FN} -vf scale=${SCALE} ${FN_OUT}
+}
+
+
+dts2ac3 () {
+	local DESC
+	local FN
+	
+	read -r -d '' DESC<<___EOF
+Convert DTS audio to AC3
+___EOF
+
+	#Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] <VIDEO_FILE>\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+
+		exit_leave $(msg_err ${PENDING_MSGS})
+	}
+
+	#Execution
+	[[ ${1} == '-H' ]] && usage
+
+	[[ ${#} -eq 0 ]] && usage "missing argument:<VIDEO_FILE>" || FN=${1}
+	[[ ! -e ${FN} ]] && exit_leave $(msg_err "file not found:${FN}")
+
+	ffmpeg -i ${FN} -map 0 -map 0:a -c copy -c:a:1 ac3 -b:a:1 640k ${FN:r}_ac3.mkv
+}
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+
+read -r -d '' DESC<<EOF
+Execute system utilities
+\t------------------------
+$(for K in ${(ok)_UTILS_DESC};do
+printf "${WHITE_FG}%-14s${RESET} %s\n" ${K} ${_UTILS_DESC[${K}]}
+done)
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		u) echo "<UTIL>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	echo -e "\n${WHITE_FG}\nUsage${RESET}:${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type u)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+OPTSTR=":HD"
+OPTIND=0
+
+UTIL=none
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+		H) usage;;
+		D) dbg_set_level;;
+		:) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+		\?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${#} -ne 0 ]] && UTIL=${1}
+
+[[ ${UTIL} != 'none' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
+
+if [[ ${UTIL} != 'none' ]];then
+	UTIL=${1}
+	_SCRIPT=${UTIL}
+	[[ ${_UTILS[${UTIL}]} -eq 1 ]] && shift && ${UTIL} ${@}
+else
+	[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+	selection_list_set ${(v)_UTILS_DESC}
+	selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
+
+	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
+	echo #clear read
+	${_SCRIPT} -H # call function help
+fi
+
+exit_leave

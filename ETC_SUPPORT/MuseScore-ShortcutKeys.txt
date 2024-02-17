@@ -1,0 +1,220 @@
+Accessibility: Next element|Ctrl+Alt+Shift+Right
+Accessibility: Previous element|Ctrl+Alt+Shift+Left
+Add acciaccatura|/
+Add bass clef|Ctrl+Y,Ctrl+2
+Add chord symbol|Ctrl+K
+Add crescendo|<
+Add decrescendo|>
+Add ﬁgured bass|Ctrl+G
+Add fret 0 on current string (TAB only)|0; A
+Add fret 1 on current string (TAB only)|1; B
+Add fret 2 on current string (TAB only)|2; C
+Add fret 3 on current string (TAB only)|3; D
+Add fret 4 on current string (TAB only)|4; E
+Add fret 5 on current string (TAB only)|5; F
+Add fret 6 on current string (TAB only)|6; G
+Add fret 7 on current string (TAB only)|7; H
+Add fret 8 on current string (TAB only)|8; J
+Add fret 9 on current string (TAB only)|9; K
+Add lyrics|Ctrl+L
+Add next chord to selection|Shift+Right
+Add note A to chord|Shift+A
+Add note B to chord|Shift+B
+Add note C to chord|Shift+C
+Add note D to chord|Shift+D
+Add note E to chord|Shift+E
+Add note F to chord|Shift+F
+Add note G to chord|Shift+G
+Add ottava 8va|Ctrl+Y,Ctrl+O,Ctrl+A
+Add ottava 8vb|Ctrl+Y,Ctrl+O,Ctrl+B
+Add previous chord to selection|Shift+Left
+Add rehearsal mark|Ctrl+M
+Add slur|S
+Add staff above to selection|Shift+Up
+Add staff below to selection|Shift+Down
+Add staff text|Ctrl+T
+Add system text|Ctrl+Shift+T
+Add tempo marking|Alt+T
+Add treble clef|Ctrl+Y,Ctrl+1
+Advance of a 16th note (Figured bass/Chord symbol only)|Ctrl+3
+Advance of a 32nd note (Figured bass/Chord symbol only)|Ctrl+2
+Advance of a 64th note (Figured bass/Chord symbol only)|Ctrl+1
+Advance of a double whole note (Figured bass/Chord symbol only)|Ctrl+8
+Advance of a half note (Figured bass/Chord symbol only)|Ctrl+6
+Advance of a longa (Figured bass/Chord symbol only)|Ctrl+9
+Advance of a quarter note (Figured bass/Chord symbol only)|Ctrl+5
+Advance of a whole note (Figured bass/Chord symbol only)|Ctrl+7
+Advance of an eighth note (Figured bass/Chord symbol only)|Ctrl+4
+Append measures|Alt+Shift+B
+Append one measure|Ctrl+B
+Backspace|Backspace
+Bold face|Ctrl+B
+Copy|Ctrl+C
+Create new revision|Ctrl+F11
+Cut|Ctrl+X
+Decrease active duration (TAB)|Q
+Decrease stretch|{
+Delete|Del
+Delete selected measures|Ctrl+Del
+Diatonic pitch down|Alt+Shift+Down
+Diatonic pitch up|Alt+Shift+Up
+Double duration|W
+Duplet|Ctrl+2
+Edit element|Ctrl+E
+Enharmonic down|Ctrl+J
+Enharmonic up|J
+Enter ﬁfth below|Alt+5
+Enter fourth below|Alt+4
+Enter ninth below|Alt+9
+Enter note A|A
+Enter note B|B
+Enter note C|C
+Enter note D|D
+Enter note E|E
+Enter note F|F
+Enter note G|G
+Enter octave above|Alt+8
+Enter rest|0
+Enter rest (TAB)|;
+Enter second below|Alt+2
+Enter seventh below|Alt+7
+Enter sixth below|Alt+6
+Enter third below|Alt+3
+Enter unison above|Alt+1
+Escape|Esc
+File: New|Ctrl+N
+Flip direction|X
+Full measure rest|Ctrl+Shift+Del
+Full screen|Ctrl+U
+Go to bottom note in chord|Ctrl+Alt+Down
+Go to higher pitched note in chord|Alt+Up
+Go to lower pitched note in chord|Alt+Down
+Go to next chord or move text right|Right
+Go to next measure or move text right|Ctrl+Right
+Go to previous chord or move text left|Left
+Go to previous measure or move text left|Ctrl+Left
+Go to the ﬁrst element|Ctrl+Home
+Go to the last element|Ctrl+End
+Go to top note in chord|Ctrl+Alt+Up
+Half duration|Q
+Increase active duration (TAB)|W
+Increase stretch|}
+Insert measures|Ctrl+Ins
+Insert note A|Ctrl+Shift+A
+Insert note B|Ctrl+Shift+B
+Insert note C|Ctrl+Shift+C
+Insert note D|Ctrl+Shift+D
+Insert note E|Ctrl+Shift+E
+Insert note F|Ctrl+Shift+F
+Insert note G|Ctrl+Shift+G
+Insert one measure|Ins
+Insert special characters|F2
+Italic|Ctrl+I
+Local handbook|F1
+Lock score|Ctrl+Shift+L
+Mirror note head|Shift+X
+Mixer|F10
+Move chord/rest left|Shift+Left
+Move chord/rest right|Shift+Right
+Move down|Ctrl+Shift+Down
+Move up|Ctrl+Shift+Up
+Move word left|Ctrl+Left
+Move word right|Ctrl+Right
+Navigator|F12
+Next beat (Chord symbol)|;
+Next measure (Figured bass/Chord symbol only)|Tab
+Next syllable|Space
+Nonuplet|Ctrl+9
+Note duration: 128th (TAB)|Shift+0; NumPad+0
+Note duration: 16th|3
+Note duration: 16th (TAB)|Shift+3; NumPad+3
+Note duration: 32nd|2
+Note duration: 32nd (TAB)|Shift+2; NumPad+2
+Note duration: 64th|1
+Note duration: 64th (TAB)|Shift+1; NumPad+1
+Note duration: Augmentation dot|.
+Note duration: Double whole|8
+Note duration: Double whole (TAB)|Shift+8; NumPad+8
+Note duration: Eighth|4
+Note duration: Eighth (TAB)|Shift+4; NumPad+4
+Note duration: Half|6
+Note duration: Half (TAB)|Shift+6; NumPad+6
+Note duration: Longa|9
+Note duration: Longa (TAB)|Shift+9; NumPad+9
+Note duration: Quarter|5
+Note duration: Quarter (TAB)|Shift+5; NumPad+5
+Note duration: Tie|+
+Note duration: Whole|7
+Note duration: Whole (TAB)|Shift+7; NumPad+7
+Note input|N
+Note input: Eighth rest|Shift+R,Shift+Q
+Note input: Half rest|Shift+R,Shift+M
+Note input: Quarter rest|Shift+R,Shift+R
+Note input: Whole rest|Shift+R,Shift+S
+Octuplet|Ctrl+8
+Page End|End
+Page Next|PgDown
+Page Previous|PgUp
+Page Top|Home
+Palettes|F9
+Paste|Ctrl+V
+Piano keyboard|P
+Pitch down octave|Ctrl+Down
+Pitch down or move text or articulation down|Down
+Pitch up octave|Ctrl+Up
+Pitch up or move text or articulation up|Up
+Play next chord|Right
+Play next measure|Ctrl+Right
+Play panel|F11
+Play previous chord|Left
+Play previous measure|Ctrl+Left
+Player play|Space
+Player seek to begin|Home
+Player seek to end|End
+Plugin creator|Ctrl+Shift+P
+Previous beat (Chord symbol)|:
+Previous measure (Figured bass/Chord symbol only)|Shift+Tab
+Previous syllable|Shift+Space
+Print|Ctrl+P
+Quadruplet|Ctrl+4
+Quintuplet|Ctrl+5
+Quit|Ctrl+Q
+Repeat selection|R
+Replace pitches without changing rhythms|Ctrl+Shift+I
+Reset user settings|Ctrl+R
+Select all|Ctrl+A
+Select string above (TAB only)|Up
+Select string below (TAB only)|Down
+Select to beginning of line|Shift+Home
+Select to beginning of measure|Ctrl+Shift+Left
+Select to beginning of score|Ctrl+Shift+Home
+Select to end of line|Shift+End
+Select to end of measure|Ctrl+Shift+Right
+Select to end of score|Ctrl+Shift+End
+Selection ﬁlter|F6
+Septuplet|Ctrl+7
+Sextuplet|Ctrl+6
+Show inspector|F8
+Show instruments dialog|I
+Show key signature palette|Shift+K
+Show master palette|Shift+F9
+Show symbol palette|Z
+Show time signature palette|Shift+T
+Start center|F4
+Toggle create multimeasure rest|M
+Toggle marcato|Ctrl+Alt+O
+Toggle page break|Ctrl+Return
+Toggle staccato|Shift+S
+Toggle system break|Return
+Toggle tenuto|Ctrl+Alt+N
+Toggle visibility|V
+Transpose down|Shift+F2
+Transpose up|F2
+Triplet|Ctrl+3
+Underline|Ctrl+U
+Voice 1|Ctrl+Alt+1
+Voice 2|Ctrl+Alt+2
+Voice 3|Ctrl+Alt+3
+Voice 4|Ctrl+Alt+4
+Zoom in|Ctrl++
+Zoom out|Ctrl+-

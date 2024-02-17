@@ -1,0 +1,391 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -A _COL_WIDTHS
+typeset -A _DESCRIPTIONS
+typeset -A _RUN_STATES
+typeset -A _SORT_TABLE
+typeset -A _STATES
+typeset -A _STATE_TABLE=(a alias d disabled e enabled g generated i indirect m masked s static t transient)
+typeset -A _UNIT_FILES
+typeset -a _ACTION_TABLE=(enable disable view stop restart)
+typeset -a _LOCAL_LIST
+typeset -a _MARKED
+typeset -a _RAWLIST
+typeset -a _RAW_STATES
+typeset -a _STATE_SELECT
+
+#Constants
+_MAX_ITEM_LEN=75
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local M
+	local NDX
+
+	selection_list_set ${_ACTION_TABLE}
+	selection_list -x11 -y32 "<w>Select action<N>"
+
+	if [[ ${?} -ne 2 ]];then
+		for M in ${_MARKED};do
+			NDX=${_LIST[${M}]}
+			if [[ ${_SELECTION_VALUE} == 'view' ]];then
+				msg_stream "sudo systemctl show ${_UNIT_FILES[${NDX}]}"
+			else
+				action_warn ${_SELECTION_VALUE}
+				[[ ${?} -ne 0 ]] && msg_box -p -PK "Operation Cancelled" && return
+				sudo systemctl ${_SELECTION_VALUE} ${_UNIT_FILES[${NDX}]} 2>/dev/null
+			fi
+		done
+		upd_unit ${M}
+	fi
+
+	for M in ${_MARKED};do
+		_MARKED[${M}]=0
+		list_set_selected ${M} ${_GHOST_ROW}
+	done
+}
+
+action_warn () {
+	local M
+	local ACTION=${1}
+	local INFO_MSG
+	
+	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
+	msg_box -p -PP "<I>Please respond<N>|$(str_unicode_line 14)| |${#_MARKED} unit files queued for action <w>${ACTION}<N>${INFO_MSG}"
+
+	if [[ ${_MSG_KEY} =~ '(n|esc)' ]];then
+		for M in ${_MARKED};do
+			list_clear_selected ${M}
+		done
+		return 1
+	fi
+	return 0
+}
+
+item_decorate () {
+  local NDX=$1
+
+  case ${_LIST_SELECTED[${NDX}]} in
+			 2) echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}viewed${E_RESET}";;
+			 *)      tput el;echo -n ${_UNIT_FILES[${_LIST[${NDX}]}]};;
+  esac
+}
+
+upd_unit () {
+	local NDX=${1}
+	local UNIT=${_UNIT_FILES[${NDX}]}
+	local STATE
+	local RUN_STATE
+	local UNIT_INFO
+	local DESC
+
+	UNIT_INFO=$(sudo systemctl list-unit-files | tr -s '[:space:]' | grep ${UNIT} 2>/dev/null)
+	RUN_STATE=$(sudo systemctl list-units -all | tr -s '[:space:]' | grep ${UNIT} 2>/dev/null)
+
+	if [[ ${RUNNING} == 'true' ]];then
+		STATE=$(cut -d' ' -f4 <<<${RUN_STATE})
+		DESC=$(cut -d' ' -f5- <<<${RUN_STATE})
+
+		_UNIT_FILES[${NDX}]=${UNIT}
+		_STATES[${NDX}]=${STATE}
+		_DESCRIPTIONS[${NDX}]=${DESC}
+	else
+		STATE=$(cut -d' ' -f2 <<<${UNIT_INFO})
+		RUN_STATE=$(cut -d' ' -f4 <<<${RUN_STATE})
+
+		_UNIT_FILES[${NDX}]=${UNIT}
+		_STATES[${NDX}]=${STATE}
+		_RUN_STATES[${NDX}]=${RUN_STATE}
+	fi
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+View/manage systemd unit files
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+		s) echo "<SEARCH_TERM>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+	tabs 5
+
+	(
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type s) \n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-R${RESET} daemon-reload"
+	echo -e "${WHITE_FG}-a${RESET} show only alias unit files"
+	echo -e "${WHITE_FG}-d${RESET} show only disabled unit files"
+	echo -e "${WHITE_FG}-e${RESET} show only enabled unit files"
+	echo -e "${WHITE_FG}-g${RESET} show only generated unit files"
+	echo -e "${WHITE_FG}-i${RESET} show only indirect unit files"
+	echo -e "${WHITE_FG}-m${RESET} show only masked unit files"
+	echo -e "${WHITE_FG}-r${RESET} show only running services"
+	echo -e "${WHITE_FG}-s${RESET} show only static unit files"
+	echo -e "${WHITE_FG}-t${RESET} show only transient unit files"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+OPTSTR=":HDRadegimrst"
+OPTIND=0
+RUNNING=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     R) sudo systemctl daemon-reload;;
+	  a|d|e|g|i|m|s|t) _STATE_SELECT+=${_STATE_TABLE[${OPTION}]};;
+	  r) RUNNING=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ -n ${1} ]] && SEARCHTERM=${1} || SEARCHTERM=''
+
+if [[ ${RUNNING} == 'true' ]];then
+	_RAWLIST=("${(f)$(sudo systemctl list-units --all --type=service --state=active | tail -n +2 | head -n -6 | sed 's/^ *//g' | tr -s '[:space:]')}")
+
+	if [[ ${_DEBUG} -gt 2 ]];then
+		dbg "${0}:${LINENO} Running _RAWLIST"
+		(
+		echo "${GREEN_FG}DEBUG${RESET}:${WHITE_FG}Running list_units...${RESET}"
+		for L in ${_RAWLIST};do
+			printf "%s\n" ${L}
+		done
+		)| dbg
+	fi
+
+	HDR_TYPE="Running Services"
+	_SORT_TABLE=(1 _UNIT_FILES 2 STATES 3 _DESCRIPTIONS)
+
+	NDX=0
+	for L in ${(o)_RAWLIST};do
+		[[ -n ${SEARCHTERM} && (! ${L} =~ ${SEARCHTERM}) ]] && continue # enforce search
+
+		#echo to translate any hex encoding
+		UNIT=$(cut -d' ' -f1 <<<$(echo ${L}))
+		STATE=$(cut -d' ' -f4 <<<$(echo ${L}))
+		DESC=$(cut -d' ' -f5- <<<$(echo ${L}))
+
+		((NDX++))
+		echo "UNIT:${UNIT}"
+		echo "_MAX_ITEM_LEN:${_MAX_ITEM_LEN}"
+		echo "UNIT-LEN:${UNIT[1,${_MAX_ITEM_LEN}]}"
+		_UNIT_FILES[${NDX}]=${UNIT[1,${_MAX_ITEM_LEN}]}
+		_STATES[${NDX}]=${STATE}
+		_DESCRIPTIONS[${NDX}]=${DESC[1,${_MAX_ITEM_LEN}]}
+		_LOCAL_LIST+=${NDX}
+
+		[[ ${#_UNIT_FILES[${NDX}]} -gt ${_COL_WIDTHS[UNIT]} ]] && _COL_WIDTHS[UNIT]=${#_UNIT_FILES[${NDX}]}
+		[[ ${#_STATES[${NDX}]} -gt ${_COL_WIDTHS[STATE]} ]] && _COL_WIDTHS[STATE]=${#_STATES[${NDX}]}
+		[[ ${#_DESCRIPTIONS[${NDX}]} -gt ${_COL_WIDTHS[DESC]} ]] && _COL_WIDTHS[DESC]=${#_DESCRIPTIONS[${NDX}]}
+	done
+else
+	_RAWLIST=("${(f)$(sudo systemctl list-unit-files | tr -s '[:space:]' | tail -n +2 | head -n -2)}")
+	_RAW_STATES=("${(f)$(sudo systemctl list-units -all | tr -s '[:space:]' | tail -n +2 | head -n -2)}")
+
+	if [[ ${_DEBUG} -gt 2 ]];then
+		dbg "${0}:${LINENO} Not Running _RAWLIST"
+		dbg "${0}:${LINENO} Not Running _RAW_STATES"
+		(
+		echo "${GREEN_FG}DEBUG${RESET}:${WHITE_FG}Not Running list_units...${RESET}"
+		for L in ${_RAWLIST};do
+			printf "%s\n" ${L}
+		done
+		echo "${GREEN_FG}DEBUG${RESET}:${WHITE_FG}Not Running states...${RESET}"
+		for L in ${_RAW_STATES};do
+			printf "%s\n" ${L}
+		done
+		) | dbg
+	fi
+
+	HDR_TYPE="Unit Files"
+	_SORT_TABLE=(1 _UNIT_FILES 2 STATES 3 _RUN_STATES)
+
+	if [[ -n ${_STATE_SELECT} ]];then
+		REGEX="("
+		for ((S=1;S<${#_STATE_SELECT};S++));do
+			REGEX+="${_STATE_SELECT[${S}]}|"
+		done
+		REGEX+="${_STATE_SELECT[${S}]})"
+	fi
+
+	NDX=0
+	for L in ${(o)_RAWLIST};do
+		[[ -n ${SEARCHTERM} && (! ${L} =~ ${SEARCHTERM}) ]] && continue
+
+		#echo to translate any hex encoding
+		UNIT=$(cut -d' ' -f1 <<<$(echo ${L}))
+		STATE=$(cut -d' ' -f2 <<<$(echo ${L}))
+
+		if [[ -n ${_STATE_SELECT} ]];then
+			grep -Pq "${REGEX}" <<<${STATE}
+			[[ ${?} -ne 0 ]] && continue
+		fi
+
+		for R in ${(o)_RAW_STATES};do
+			[[ ${R} =~ ${UNIT} ]] && RUN_STATE=${R} && break
+		done
+
+		[[ -n ${RUN_STATE} ]] && RUN_STATE=$(cut -d' ' -f4 <<<${RUN_STATE}) || RUN_STATE=''
+
+		((NDX++))
+		_UNIT_FILES[${NDX}]=${UNIT[1,${_MAX_ITEM_LEN}]}
+		_STATES[${NDX}]=${STATE}
+		_RUN_STATES[${NDX}]=${RUN_STATE:=N/A}
+
+		# capture longest column
+		[[ ${#_UNIT_FILES[${NDX}]} -gt ${_COL_WIDTHS[UNIT]} ]] && _COL_WIDTHS[UNIT]=${#_UNIT_FILES[${NDX}]}
+		[[ ${#_STATES[${NDX}]} -gt ${_COL_WIDTHS[STATE]} ]] && _COL_WIDTHS[STATE]=${#_STATES[${NDX}]}
+		[[ ${#_RUN_STATES[${NDX}]} -gt ${_COL_WIDTHS[RUN_STATE]} ]] && _COL_WIDTHS[RUN_STATE]=${#_RUN_STATES[${NDX}]}
+
+		_LOCAL_LIST+=${NDX}
+	done
+	((_COL_WIDTHS[UNIT]+=4))
+fi
+
+if ! arr_is_populated "${_LOCAL_LIST}";then
+	exit_leave $(msg_warn "No systemd entries matching:${SEARCHTERM}")
+fi
+
+
+if [[ ${_DEBUG} -gt 2 ]];then
+	dbg "${0}:${LINENO} _LOCAL_LIST"
+	(
+	echo "${GREEN_FG}DEBUG${RESET}:${WHITE_FG}_UNIT_FILES...${RESET}"
+	for L in ${_UNIT_FILES};do
+		printf "%s\n" ${L}
+	done
+	echo "${GREEN_FG}DEBUG${RESET}:${WHITE_FG}_STATES...${RESET}"
+	for L in ${_STATES};do
+		printf "%s\n" ${L}
+	done
+	echo "${GREEN_FG}DEBUG${RESET}:${WHITE_FG}_RUN_STATES...${RESET}"
+	for L in ${_RUN_STATES};do
+		printf "%s\n" ${L}
+	done
+	) | dbg
+fi
+
+#Boundary check
+[[ ${_COL_WIDTHS[UNIT]} -gt ${_MAX_ITEM_LEN} ]] && _COL_WIDTHS[UNIT]=${_MAX_ITEM_LEN}
+[[ ${_COL_WIDTHS[DESC]} -gt ${_MAX_ITEM_LEN} ]] && _COL_WIDTHS[DESC]=${_MAX_ITEM_LEN}
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} System Control ${HDR_TYPE}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
+list_set_header 'printf ""'
+if [[ ${RUNNING} == 'true' ]];then
+	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_COL_WIDTHS[UNIT]} "Unit File" ${_COL_WIDTHS[STATE]} "State" ${_COL_WIDTHS[DESC]} "Description"'
+	list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %-*s %-*s${RESET}" 5 "" ${_COL_WIDTHS[UNIT]} $(str_unicode_line ${_COL_WIDTHS[UNIT]}) ${_COL_WIDTHS[STATE]} $(str_unicode_line ${_COL_WIDTHS[STATE]}) ${_COL_WIDTHS[DESC]} $(str_unicode_line ${_COL_WIDTHS[DESC]})'
+
+	#set line item
+	list_set_line_item ' 
+	local FNDX=${_LIST[${_LIST_NDX}]};
+	local ST_COLOR=$(boolean_color ${_STATES[${FNDX}]});
+	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-*s${RESET} ${BAR}${ST_COLOR}%-*s${RESET} ${BAR}%-*s${RESET}\n" ${_LIST_NDX} ${_COL_WIDTHS[UNIT]} "${_UNIT_FILES[${FNDX}]}" ${_COL_WIDTHS[STATE]} "${_STATES[${FNDX}]}" ${_COL_WIDTHS[DESC]} "${_DESCRIPTIONS[${FNDX}]}"'
+else
+	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_COL_WIDTHS[UNIT]} "Unit File" ${_COL_WIDTHS[STATE]} "State" ${_COL_WIDTHS[RUN_STATE]} "Status"'
+	list_set_header 'printf "%*s ${MAGENTA_FG}%*s %*s %*s${RESET}" 5 "" ${_COL_WIDTHS[UNIT]} $(str_unicode_line ${_COL_WIDTHS[UNIT]}) ${_COL_WIDTHS[STATE]} $(str_unicode_line ${_COL_WIDTHS[STATE]}) ${_COL_WIDTHS[RUN_STATE]} $(str_unicode_line ${_COL_WIDTHS[RUN_STATE]})'
+
+	#set line item
+	list_set_line_item ' 
+	local FNDX=${_LIST[${_LIST_NDX}]};
+	local ST_COLOR=$(boolean_color ${_RUN_STATES[${FNDX}]});
+	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%*s${RESET}${BAR} %-*s ${ST_COLOR}%-*s${RESET}\n" ${_LIST_NDX} ${_COL_WIDTHS[UNIT]} "${_UNIT_FILES[${FNDX}]}" ${_COL_WIDTHS[STATE]} "${_STATES[${FNDX}]}" ${_COL_WIDTHS[RUN_STATE]} "${_RUN_STATES[${FNDX}]}"'
+fi
+
+list_set_key_msg '
+printf "Press ${WHITE_FG}Home End PgUp PgDn, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}, <${WHITE_FG}s${RESET}>ort columns"
+'
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to manage unit file (${ITALIC}or exit if none selected${RESET})."
+list_set_sortable true
+list_set_clear_ghosts true
+list_set_max_sort_col ${#_SORT_TABLE}
+list_set_sort_type assoc
+list_set_barlines true
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	_MARKED=($(list_get_selected))
+
+	if [[ $(list_get_selected_count) -ne 0 ]];then
+		action_do
+	fi
+done
+
+exit_leave

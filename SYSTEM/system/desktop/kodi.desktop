@@ -1,0 +1,28 @@
+[Desktop Entry]
+Version=1.0
+Name=Kodi
+Exec=/usr/local/bin/run_kodi %U
+GenericName=Media Center
+Comment=Manage and view your media
+Icon=kodi
+Terminal=false
+Type=Application
+Categories=AudioVideo;Video;Player;TV;
+
+Actions=NoLocalMonitor;LocalMonitor;Fullscreen;Standalone
+
+[Desktop Action NoLocalMonitor]
+Name=Open with NoLocalMonitor (default)
+Exec=/usr/local/bin/run_kodi %U
+
+[Desktop Action LocalMonitor]
+Name=Open with LocalMonitor
+Exec=/usr/bin/kodi %U
+
+[Desktop Action Fullscreen]
+Name=Open Fullscreen
+Exec=/usr/bin/kodi %U
+
+[Desktop Action Standalone]
+Name=Open Standalone
+Exec=/usr/bin/kodi %U

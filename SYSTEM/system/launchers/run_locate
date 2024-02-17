@@ -1,0 +1,18 @@
+#!/usr/bin/zsh
+ARGLIST=(${@})
+
+if [[ ${#} -eq 0 ]];then
+	echo "${0:t} Missing argument"
+	return
+elif [[ ${1} == '--help' || ${1} == '-H' ]];then
+	locate ${ARGLIST} 
+	return
+elif [[ ${1} == '-u' ]];then
+	shift
+	ARGLIST=(${@})
+	echo "Updating locate db" && sudo updatedb --prunepaths='/media/kmiller' >/dev/null 2>&1 
+fi
+
+echo "locate ${ARGLIST}"
+/usr/bin/locate ${ARGLIST} 
+[[ ${?} -ne 0 ]] && echo "Nothing located..."

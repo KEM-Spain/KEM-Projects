@@ -1,0 +1,228 @@
+#!/usr/bin/zsh
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+BLACK_FG="\033[30m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+#Declarations
+typeset -A _TYPE_LABELS
+typeset -a _RAWLIST
+typeset -a _LOCAL_LIST
+typeset -a _SORT_LIST
+typeset -a _STATS
+
+#Constants
+_TYPE_LABELS=(a "Last Access" m "Last Modification" c "Last Change")
+
+#Globals
+g_FN_TAG=''
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+get_stat () {
+	local NDX=${1}
+	local TYPE=${2}
+	local STAT
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} NDX:${NDX} TYPE:${TYPE}"
+
+	case ${TYPE} in
+		c) STAT=$(echo "${_LIST[${NDX}]}" | cut -d'|' -f2);;
+		a) STAT=$(echo "${_LIST[${NDX}]}" | cut -d'|' -f3);;
+		m) STAT=$(echo "${_LIST[${NDX}]}" | cut -d'|' -f4);;
+	esac
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Returning: STAT:${STAT}"
+
+	echo ${STAT}
+}
+
+item_decorate () {
+	local NDX=${1}
+	local FN=$(cut -d'|' -f1 <<<"${_LIST[${NDX}]:t}")
+
+	[[ -d ${FN} ]] && g_FN_TAG=' (d)' || g_FN_TAG=''
+	echo -n ${FN}${g_FN_TAG}
+}
+
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Show file statistics
+
+${WHITE_FG}Access Time${RESET}: is the time when the file was last accessed or read. 
+For example, using the cat, head or an editor. But remember you did not modify the contents.
+
+${WHITE_FG}Modification Time${RESET}: is the time when the contents of the file was last modified. 
+For example, you used an editor to add new content or delete some existing content.
+
+${WHITE_FG}Change Time${RESET}: is the time when the file’s inode has been changed. 
+For example, by changing permissions, ownership, file name, number of hard links.
+
+Column sorting alternates between forward and reverse.
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET} $OPTS ${WHITE_FG}]${RESET} [$(opt_type d)]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+typeset -a OPTIONS
+OPTSTR=":HD"
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ ${#} -ne 0 && ! -e ${1} ]] && exit_leave $(msg_warn "No files found matching:${1}")
+
+RAWPATH=$(path_get_raw)
+FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
+FPATH=${FPATH:q}
+FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
+PATHLBL=$(path_get_label 40)
+
+_RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} ! -path ${FPATH}")}")
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} find ${FPATH} -maxdepth 1 ${FGLOB} ! -path ${FPATH}"
+
+if ! arr_is_populated "${_RAWLIST}";then
+	exit_leave $(msg_warn "Nothing found for: ${FPATH}")
+fi
+
+LONGEST=0
+NDX=0
+
+for L in ${(o)_RAWLIST};do
+	((NDX++))
+	LINE=$(tr -cd '[:print:]' <<<${L})
+	[[ ${#LINE:t} -ge ${LONGEST} ]] && LONGEST=${#LINE:t}
+	tput cup 0 0; 
+	printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#_RAWLIST} $(( (NDX * 100.00)  / ${#_RAWLIST} ))
+	_STATS=("${(f)$(stat ${L} -c'%x %y %z' | perl -ne 'for (m/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/g) { print "$_\n" }')}")
+	_SORT_LIST+="${(f)LINE}|${_STATS[1]}|${_STATS[2]}|${_STATS[3]}" #columns sort indexing
+done
+LONGEST=$(( LONGEST+4 )) # allow for directory markup ' (d)'
+
+_LOCAL_LIST=("${(f)$(list_sort_perl ${_LIST_DELIM} 4 a _SORT_LIST)}") && _SORT_DIRECTION[3]=d # default sort mod_date desc
+
+if [[ ${_DEBUG} -ge 4 ]];then
+	dbg "${0}:${LINENO} $(for L in ${_LOCAL_LIST};do echo "${L}";done)"
+fi
+
+#set headings
+LBL_WIDTH=17
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file)  Path:${WHITE_FG}%-40s${RESET} ${_PG}" ${#_LIST} "${PATHLBL}"'
+list_set_header 'printf " "'
+list_set_header 'printf "%-*s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s" $((LONGEST+5)) "" ${_TYPE_LABELS[c]} ${_TYPE_LABELS[a]} ${_TYPE_LABELS[m]}'
+list_set_header 'printf "%-*s ${MAGENTA_FG}%${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s${RESET}" $((LONGEST+5)) "" "$(str_unicode_line ${LBL_WIDTH})" "$(str_unicode_line ${LBL_WIDTH})" "$(str_unicode_line ${LBL_WIDTH})"'
+
+#set line item
+list_set_line_item ' 
+[[ -d $(cut -d"|" -f1 <<<${_LIST[${_LIST_NDX}]}) ]] && local LC=${ITALIC}${CYAN_FG} || local LC=${RESET}
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${BAR}${LC}%-*s${RESET}%${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s\n" ${_LIST_NDX} ${LONGEST} "$(item_decorate ${_LIST_NDX})" "$(get_stat ${_LIST_NDX} c)" "$(get_stat ${_LIST_NDX} a)" "$(get_stat ${_LIST_NDX} m)"
+'
+list_set_key_msg '
+printf "Press ${WHITE_FG}Home End PgUp PgDn, ${RESET}<${WHITE_FG}n${RESET}>ext, <${WHITE_FG}p${RESET}>rev, <${WHITE_FG}b${RESET}>ottom, <${WHITE_FG}t${RESET}>op, <${WHITE_FG}s${RESET}>ort columns, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}"
+'
+list_set_prompt " "
+list_set_barlines true
+list_set_sortable true
+list_set_selectable false
+
+while true;do
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+done
+
+exit_leave

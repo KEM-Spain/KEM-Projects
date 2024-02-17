@@ -1,0 +1,47 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/STR.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+[[ -n ${1} ]] && DIR=${1} || DIR=.
+
+MSG="git clones in:${WHITE_FG}$(realpath ${DIR})${RESET}"
+echo ${MSG}
+echo $(str_unicode_line $(echo ${MSG} | str_strip_ansi -l))
+
+LIST=("${(f)$(sudo find ${DIR} -type d -name ".git")}")
+NDX=0
+if [[ -n ${LIST} ]];then
+	for L in ${LIST};do
+		((NDX++))
+		printf "${WHITE_FG}%3d${RESET}) %s\n" ${NDX} ${L:h}
+	done
+else
+	echo "No git clones found"
+fi

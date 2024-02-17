@@ -1,0 +1,98 @@
+#compdef nut
+
+_nut() {
+    local line state
+
+    _arguments -C \
+               "1: :->cmds" \
+					"-H[help]" \
+					"-D[debug]" \
+               "*::arg:->args"
+    case "$state" in
+        cmds)
+				_values "Commands:" \
+				"conn[Display current network connections]" \
+				"info[Display networking info]" \
+				"ip_ext[Display external IP]" \
+				"ip_int[Display interal IP]" \
+				"lan[Display LAN devices]" \
+				"port[Display networking info]" \
+				"scan[Scan host]" \
+				"toggle[Toggle networking]" \
+				"tuco[Display tcp/udp connections]" \
+				"geo[Display geo-location info]" \
+				;;
+        args)
+            case $line[1] in
+                conn) _do_conn ;;
+                info) _do_info ;;
+                ip_ext) _do_ip_ext ;;
+                ip_int) _do_ip_int ;;
+                lan) _do_lan ;;
+                port) _do_port ;;
+                scan) _do_scan ;;
+                toggle) _do_toggle ;;
+                tuco) _do_tuco ;;
+                geo) _do_geo ;;
+            esac
+            ;;
+    esac
+}
+
+#	_files -W ${PWD} ${0}
+
+_do_conn() {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_info() {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_ip_ext() {
+    _arguments -s \
+			'-H[help]'  \
+}
+
+_do_ip_int() {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_lan() {
+    _arguments -s \
+			'-H[help]' \
+			'-i[inline util - no prompts]' \
+}
+
+_do_port() {
+    _arguments -s \
+			'-H[help]' \
+			'-p[specify port to scan]' \
+			'-t[specify tool to use (lsof, ss, nmap)]' \
+}
+
+_do_scan() {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_tuco() {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_toggle() {
+    _arguments -s \
+			'-H[help]' \
+}
+
+_do_geo() {
+    _arguments -s \
+			'-H[help]' \
+			'-l[linear output]' \
+}
+
+

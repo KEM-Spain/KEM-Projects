@@ -1,0 +1,5 @@
+#!/usr/bin/zsh
+
+# gsettings set org.gnome.shell.extensions.dash-to-dock show-apps-at-top true
+# echo show-apps-at-top=true >> /usr/share/glib-2.0/schemas/10_ubuntu-dock.gschema.override
+# glib-compile-schemas /usr/share/glib-2.0/schemas/

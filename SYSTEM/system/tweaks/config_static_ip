@@ -1,0 +1,8 @@
+#!/usr/bin/zsh
+
+# SSID=$(nmcli -c no -f d | grep --color=never 'ted to' | sed 's/^.*ted to //g')
+# SUB_NET=$(nmcli -c no -f d | grep --color=never 'inet4' | sed 's/^.*inet4 //g' | cut -d'.' -f1-3)
+# nmcli con mod ${SSID} ipv4.addresses ${SUB_NET}.100/24
+# nmcli con mod ${SSID} ipv4.gateway ${SUB_NET}.1
+# nmcli con mod ${SSID} ipv4.dns 8.8.8.8
+# nmcli con mod ${SSID} ipv4.method manual

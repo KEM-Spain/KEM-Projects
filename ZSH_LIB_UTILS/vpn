@@ -1,0 +1,301 @@
+#!/usr/bin/zsh
+REVERSE="\033[7m"
+RESET="\033[m"
+BOLD="\033[1m"
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+STRIKE="\033[9m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+
+E_WHITE_FG=$(echo "\033[37m")
+E_RESET=$(echo "\033[m")
+
+#Constants
+VPN=/usr/bin/nordvpn
+DEFAULT_ARGS='--group P2P'
+_DO_PARSE=true
+_TOKEN="e9f2abd840a7d6121ac3eac6236b6cf681d31967e56489d1f0633381a14e9bf7"
+
+#Declaration
+typeset -A SHORTCUTS=(us United_States gb United_Kingdom gr Germany fr France es Spain lx Luxembourg tr Turkey)
+
+#Globals
+g_SHORTLIST=true
+g_CURRENT_STATE=?
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+call_nord () {
+	local CMD=(${@})
+
+
+	case ${CMD} in
+		status) echo "\n${CYAN_FG}$(str_unicode_line 22) ${GREEN_FG}VPN Status${RESET} ${CYAN_FG}$(str_unicode_line 22)${RESET}";;
+		settings) echo "\n${CYAN_FG}$(str_unicode_line 21) ${GREEN_FG}VPN Settings${RESET} ${CYAN_FG}$(str_unicode_line 21)${RESET}";;
+	esac
+
+	_DO_PARSE=true
+	case ${CMD} in
+		status) eval "${VPN} ${CMD}" | format_nord;;
+		settings) eval "${VPN} ${CMD}" | format_nord;;
+		login) do_login;;
+		*) _DO_PARSE=false;eval "${VPN} ${CMD} 2>&1" | format_nord;;
+	esac
+}
+
+do_disconnect () {
+	call_nord disconnect
+	nord_reset >/dev/null 2>&1 &
+}
+
+do_login () {
+	local -a RESPONSE
+	local R
+
+	RESPONSE=("${(f)$(nordvpn login --token ${_TOKEN})}")
+
+	for R in ${RESPONSE};do
+		[[ ${R} =~ 'already logged in' ]] && echo "logged in..." && return
+	done
+	echo "logging in..."
+}
+
+format_nord () {
+	local L
+	local LBL
+	local LINE
+	local LONGEST=0
+	local OFFSET=''
+	local VAL
+	local -a LIST
+
+	while read LINE;do
+		[[ ${LINE:l} =~ "(version|http|rate)" ]] && continue #continue past info header
+
+		if [[ ${_DO_PARSE} == 'false' ]];then
+			echo ${LINE}
+		else
+			L=$(echo "${LINE}" | sed -e 's/[	\-]//g') #kill tabs, carriage, and dash
+
+			LBL=$(echo ${L} | cut -d':' -f1 | sed 's/^ *//')
+			VAL=$(echo ${L} | cut -d':' -f2 | sed 's/^ *//')
+			[[ ${#LBL} -gt ${LONGEST} ]] && LONGEST=${#LBL}
+
+			if [[ -n ${OFFSET} ]];then #offset, get value
+				LBL=${OFFSET}
+				VAL=${VAL}
+			fi
+
+			if [[ ${L:l} =~ 'subnet' ]];then #get offset label, catch value next cycle
+				LBL=$(echo ${L} | cut -d':' -f1)
+				OFFSET=${LBL}
+				continue
+			elif [[ ${L:l} =~ 'ports' ]];then #get offset label, catch value next cycle
+				LBL=$(echo ${L} | cut -d':' -f1)
+				OFFSET=${LBL}
+				continue
+			fi
+
+			LIST+="${LBL}^${VAL}"
+		fi
+	done
+
+	if [[ ${_DO_PARSE} == 'true' ]];then
+			for L in ${LIST};do
+				LBL=$(echo ${L} | cut -d'^' -f1)
+				VAL=$(echo ${L} | cut -d'^' -f2)
+				printf "${CYAN_FG}%*s${RESET}: ${WHITE_FG}%s${RESET}\n" ${LONGEST} ${LBL} ${VAL}
+			done
+	fi
+}
+
+get_current_state () {
+	local -a LIST=("${(f)$(nordvpn status)}")
+	local L
+
+	for L in ${LIST};do
+		if [[ ${L:l} =~ 'disconnected' ]];then
+			echo 'disconnected'
+			return
+		fi
+	done
+	echo 'connected'
+}
+
+	list_servers () {
+		local SELECTED
+		local COUNTRY
+		local -a _LOCAL_LIST
+		local -a RAWLIST
+		local L
+
+		#reflects current output of 'countries' command. Extraneous info
+		#on first 2 lines (tail -n -+2) is eliminated.  Could change.
+		RAWLIST=($(call_nord countries | tail -n +2 | sed -re 's/\t+/ /g' -e 's/\x0d\x2d\x0d\x20\x20\x0d//g'))
+
+		for L in ${(o)RAWLIST};do
+			if [[ ${g_SHORTLIST} == 'true' ]];then
+				[[ ${L} =~ 'help' ]] && continue
+				grep -qi ${L:l} <<<"${(v)SHORTCUTS:l}"
+				[[ ${?} -eq 0 ]] && _LOCAL_LIST+=${L}
+			else
+				_LOCAL_LIST+=${L}
+			fi
+		done
+
+		if ! arr_is_populated "${_LOCAL_LIST}";then
+			exit_leave $(msg_warn "No countries matched:${SEARCHTERM}")
+		fi
+
+		list_set_header 'printf "Found:${WHITE_FG}%-*d${RESET} $(str_pluralize country ${#__LOCAL_LIST}) providing VPN  ${_PG}" ${#${#_LOCAL_LIST}} ${#_LOCAL_LIST}'
+		list_add_header_break
+
+		list_set_prompt "Hit <SPACE> to select server then <ENTER> to connect (or exit if none selected)."
+		list_set_action_msgs connect "to country"
+		list_set_selection_limit 1
+
+		list_select ${_LOCAL_LIST}
+
+		if [[ ${?} -ne 0 ]];then
+			SELECTED=$(list_get_selected)
+			COUNTRY=$(echo ${_LOCAL_LIST[${SELECTED}]} | cut -d: -f2)
+			tput clear
+			echo "${GREEN_FG}Connecting to ${COUNTRY} ${DEFAULT_ARGS}${RESET}"
+			call_nord connect ${DEFAULT_ARGS} ${COUNTRY}
+		fi
+	}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+function parse_opts {
+	local OPTS=${@}
+	local -a OPTSTR
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		c) echo "<COUNTRY>";;
+	esac
+}
+
+function usage {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET} ${OPTS} ${WHITE_FG}]${RESET} $(opt_type c)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a${RESET} show active status"
+	echo -e "${WHITE_FG}-c${RESET} connect $(opt_type c)"
+	echo -e "${WHITE_FG}-d${RESET} disconnect"
+	echo -e "${WHITE_FG}-f${RESET} show full list (default is custom list)"
+	echo -e "${WHITE_FG}-l${RESET} show server select list"
+	echo -e "${WHITE_FG}-v${RESET} show version"
+	echo -e "${WHITE_FG}-r${RESET} reset nordvpn"
+	echo -e "${WHITE_FG}-s${RESET} show current settings"
+	echo -e "${WHITE_FG}-t${RESET} perform speedtest"
+	echo -e "\n${WHITE_FG}Desc${RESET}:Frontend to nordvpn\n\tValid $(opt_type c) shortcuts:${(kv)SHORTCUTS[@]}"
+	) >&2
+
+	exit_leave ${PENDING_MSGS}
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDacdflvrst"
+OPTIND=0
+
+CONNECT=false
+STATUS_OPT=false
+
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+		H) usage;;
+		D) dbg_set_level;;
+		a) call_nord status;STATUS_OPT=true;;
+		c)	CONNECT=true;;
+		d) do_disconnect;;
+		f) g_SHORTLIST=false;list_servers;exit_leave;;
+		v) nordvpn --version;;
+		r) exit_pre_exit;exec nord_reset;; #external 
+		s) call_nord settings;;
+		t) exit_pre_exit;exec speedtest --single --no-upload;; #external 
+		l) list_servers;exit_leave;;
+		:) if [[ ${OPTARG} == "l" ]];then #list requested - optional argument
+				if [[ ${OPTION} == ":" ]];then #no args
+					list_servers 
+					exit_leave
+				fi
+			else
+				print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage
+			fi
+			;;
+		\?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#--Execution
+[[ ${_DEBUG} -gt 0 ]] && do_smcup
+
+g_CURRENT_STATE=$(get_current_state)
+
+if [[ -n ${1} ]];then
+	SC=${SHORTCUTS[${1:l}]}
+	[[ -n ${SC} ]] && DEST=${SC} || DEST=${1}
+
+	call_nord login
+
+	if [[ ${CONNECT} == "true" || -n $DEST ]];then
+		eval "call_nord connect ${DEFAULT_ARGS} ${DEST}"
+		exit_leave
+	fi
+else
+	if [[ ${#OPTIONS} -eq 0 ]];then
+		if [[ ${g_CURRENT_STATE} == 'connected' ]];then
+			call_nord status
+		else
+			echo -n "\nVPN is disconnected"
+			call_nord settings
+		fi
+	fi
+fi
+
+exit_leave

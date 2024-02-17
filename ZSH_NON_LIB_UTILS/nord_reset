@@ -1,0 +1,35 @@
+#!/usr/bin/zsh
+#vim: syntax off
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+echo "Setting IPTABLES"
+sudo iptables -P INPUT ACCEPT
+sudo iptables -F INPUT
+sudo iptables -P OUTPUT ACCEPT
+sudo iptables -F OUTPUT
+echo "Removing old settings"
+sudo rm /var/lib/nordvpn/data/settings.dat >/dev/null 2>&1
+sudo rm -rf ~/.config/nordvpn >/dev/null 2>&1
+echo "Restarting Networking"
+sudo systemctl restart NetworkManager >/dev/null 2>&1
+sudo systemctl restart nordvpnd >/dev/null 2>&1
+echo "Adding current settings"
+nordvpn set technology NordLynx
+nordvpn whitelist add subnet 192.168.18.0/24
+nordvpn whitelist add port 64000
+nordvpn set dns 103.86.96.100 103.86.99.100
+echo "Logging in..."
+nord_login

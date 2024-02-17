@@ -1,0 +1,325 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Declarations
+typeset -a _RAWLIST
+typeset -a _LOCAL_LIST
+typeset -A _COL_WIDTHS
+typeset -a _BLACKLIST=(-v "\.so\|\.pcm")
+
+#Constants
+_LIB_DIR=/usr/local/lib
+CUR_USER=$(whoami)
+
+#Imports
+zmodload -F zsh/stat b:zstat
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+action_do () {
+	local -a MARKED=(${@})
+	local M
+	local APP
+	local KEY
+	local ARGS
+	local LAUNCH_CMD
+	local -a EDIT_LIST
+
+	for M in ${MARKED};do
+		if  [[ $(file ${_LIST[${M}]}) =~ 'text|script' ]];then
+			EDIT_LIST+=${_LIST[${M}]}
+		fi
+	done
+
+	msg_box -jl -p -P"Enter selection or <RETURN> to cancel:" "Select either| |1) Edit|2) Execute"
+	case ${_MSG_KEY} in
+		1) if [[ -n ${EDIT_LIST[@]} ]];then
+				exit_pre_exit
+				echo
+				vim ${EDIT_LIST[@]}
+			fi;;
+		2) if [[ ${#MARKED} -gt 1 ]];then
+				msg_box -p -PK "Execute not valid for multiple items"
+			else
+				if [[ $(file ${EDIT_LIST[@]}) =~ 'executable' ]];then
+					if [[ -n ${EDIT_LIST[@]} ]];then
+						exit_pre_exit
+						echo
+						exec ${EDIT_LIST[@]}
+					fi
+				else
+					msg_box -p -PK "${EDIT_LIST[@]:t}: not an executable file"
+				fi
+			fi;;
+		*) msg_box -p -PK "Not a valid selection"
+	esac
+
+	for M in ${MARKED};do
+		[[ ${M} -eq 0 ]] && continue
+		MARKED[${M}]=0
+		list_set_selected ${M} 0
+	done
+}
+
+action_warn () {
+	local MARKED=(${@})
+	local CNT=$(list_get_selected_count ${MARKED})
+	local M
+	local INFO_MSG
+	
+	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
+	msg_box -p -PO "<I>Please respond<N>|$(str_unicode_line 14)| |$(str_pluralize item $CNT true) queued for opening${INFO_MSG}"
+	if [[ ${_MSG_KEY} == 'n' ]];then
+		for M in ${MARKED};do
+			list_clear_selected ${M}
+		done
+	fi
+}
+
+is_valid_depth () {
+	local DEPTH=${1}
+	if [[ ${DEPTH} =~ '[1-9]' ]];then
+		echo "true"
+	else
+		msg_box -p -PK "${RED_FG}Depth${RESET} must be an integer > 0. Got:${WHITE_FG}${DEPTH}${RESET}" >&2
+		msg_box_clear >&2
+		echo "false"
+	fi
+}
+
+show_options () {
+	printf "\t${MAGENTA_FG}%s${RESET}\n" "Current Options"
+   printf "${WHITE_FG}%12s${RESET}:%-s\n" "HIDDEN" ${HIDDEN}
+   printf "${WHITE_FG}%12s${RESET}:%-s\n" "MAX_DEPTH" ${MAX_DEPTH}
+   printf "${WHITE_FG}%12s${RESET}:%-s\n" "FUZZY" ${FUZZY}
+   printf "${WHITE_FG}%12s${RESET}:%-s\n" "IS_OWNER" ${IS_OWNER}
+   printf "${WHITE_FG}%12s${RESET}:%-s\n" "EXACT_MATCH" ${EXACT_MATCH}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+IS_OWNER=false
+HIDDEN=false
+EXACT_MATCH=false
+FUZZY=false
+DEFAULT_DEPTH=1
+MAX_DEPTH=${DEFAULT_DEPTH}
+TOP_LEVEL=/
+
+read -r -d '' DESC<<EOF
+Find executable files
+\tBy default, a <SEARCHTERM> matches the leading portion of a filename
+\tUse option -f (fuzzy) to match any portion of a filename
+\tWithout a <SEARCHTERM>, the current directory is scanned for executable files
+\tIf a <SEARCHTERM> is provided, searches begin at ${TOP_LEVEL} unless overridden 
+\twith option -t. Any single item may be edited or executed. Multiple items may 
+\tbe edited but execution is limited to a single item. When editing, the list 
+\twill be redisplyed for further interactions. When executing, the application
+\texits after launching the selection
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<INT>";;
+		t) echo "<DIR>";;
+	esac
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} Help"
+	echo -e "${WHITE_FG}-D${RESET} Debug"
+	echo -e "-h Show hidden files"
+	echo -e "-d ${WHITE_FG}$(opt_type d)${RESET} depth level of search (default is ${DEFAULT_DEPTH})"
+	echo -e "-f Fuzzy search"
+	echo -e "-o Owned by user"
+	echo -e "-t ${WHITE_FG}$(opt_type t)${RESET} top level of search"
+	echo -e "-x Exact match of <SEARCHTERM>"
+	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err ${PENDING_MSGS})
+}
+
+typeset -a OPTIONS
+OPTIND=0
+OPTSTR=":HDhfd:ot:x"
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     h) HIDDEN=true;;
+     d) MAX_DEPTH=${OPTARG};;
+     f) FUZZY=true;;
+     o) IS_OWNER=true;;
+     t) TOP_LEVEL=${OPTARG};;
+     x) EXACT_MATCH=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+[[ ${#} -gt 1 ]] && usage "Too many arguments:${#}"
+
+[[ $(is_valid_depth ${MAX_DEPTH}) == 'false' ]] && usage "-d (depth) must be:>= 1"
+
+[[ -n ${1} ]] && SEARCHTERM=${@} || SEARCHTERM=''
+
+if [[ -z ${SEARCHTERM} ]];then
+	[[ ${EXACT_MATCH} == 'true' ]] && usage "EXACT_MATCH requires:<SEARCHTERM>"
+	START_DIR=.
+else
+	if [[ ${MAX_DEPTH} -eq ${DEFAULT_DEPTH} ]];then
+		MAX_DEPTH=4 #default depth for SEARCHTERM unless overridden
+	fi
+	START_DIR=${TOP_LEVEL}
+fi
+
+_RAWLIST=("${(@f)$(find ${START_DIR} -maxdepth ${MAX_DEPTH} -executable -type f -iregex ".*${SEARCHTERM}.*" 2>/dev/null | grep ${_BLACKLIST})}")
+
+if ! arr_is_populated "${_RAWLIST}";then
+	[[ -n ${SEARCHTERM} ]] && MSG="${RED_FG}No${RESET} matches for: ${WHITE_FG}${SEARCHTERM}${RESET}" || MSG="${RED_FG}No${RESET} executables found"
+	exit_leave ${MSG}
+fi
+
+HIT=false
+HIDDEN_CNT=0
+FUZZY_CNT=0
+EXACT_CNT=0
+OWNER_CNT=0
+DO_HDR=true
+
+NDX=0
+for F in ${(o)_RAWLIST};do
+	((NDX++))
+	tput cup 0 0; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#_RAWLIST} $(( NDX * 100. / ${#_RAWLIST} ))
+	if [[ ${HIDDEN} == 'false' && ${F} =~ "\/\." ]];then
+		((HIDDEN_CNT++))
+		continue
+	fi
+	if [[ ${FUZZY} == 'false' && (! ${F:t} =~ "^${SEARCHTERM}") ]];then
+		((FUZZY_CNT++))
+		continue
+	fi
+	if [[ ${EXACT_MATCH} == 'true' && (! ${F:t} =~ "^${SEARCHTERM}$") ]];then
+		((EXACT_CNT++))
+		continue
+	fi
+	if [[ ${IS_OWNER} == 'true' && (! -O ${F}) ]];then
+		((OWNER_CNT++))
+		continue
+	fi
+	HIT=true
+	FN=$(realpath ${F})
+	[[ ${#FN} -gt ${_COL_WIDTHS[FN]} ]] && _COL_WIDTHS[FN]=${#FN}
+	_LOCAL_LIST+=${FN}
+done
+((_COL_WIDTHS[FN]+=6))
+[[ ${_COL_WIDTHS[FN]} -gt $((_MAX_COLS-10)) ]] && _COL_WIDTHS[FN]=$((_MAX_COLS-=10))
+
+if [[ ${HIT} == 'false' ]];then
+	typeset -a OPTMSGS
+	[[ -n ${#OPTIONS} ]] && OPTMSGS+="| |<w>Hidden Filter is Active<N>"
+	[[ ${HIDDEN} == 'false' && ${HIDDEN_CNT} -ne 0 ]] && OPTMSGS+="| |Use option [-h]|to see files that matched but were hidden:${HIDDEN_CNT}"
+	[[ ${FUZZY} == 'false' && ${FUZZY_CNT} -ne 0 ]] && OPTMSGS+="| |Use option [-f]|to see files that matched the substring \"${SEARCHTERM}\":${FUZZY_CNT}"
+	[[ ${EXACT_MATCH} == 'true' && ${EXACT_CNT} -ne 0 ]] && OPTMSGS+="| |Use option [-x]|to see files that matched but not exactly:${EXACT_CNT}"
+	[[ ${IS_OWNER} == 'true' && ${OWNER_CNT} -ne 0 ]] && OPTMSGS+="| |Use option [-o]|to see files that matched but you are not the owner:${OWNER_CNT}"
+	msg_box -p -PK -jl "<r>No Matches for${RESET}:${SEARCHTERM}${OPTMSGS}|$(msg_list ${(o)_RAWLIST})"
+	msg_box_clear
+	exit_leave
+fi
+
+#set headings
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST}) Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
+list_add_header_break
+
+#set line item
+list_set_line_item '
+printf "${WHITE_FG}%4s${RESET}) ${BAR}${SHADE}%-*s${RESET}\n" ${_LIST_NDX} ${_COL_WIDTHS[FN]} "${_LIST[${_LIST_NDX}]}"
+'
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to open (${ITALIC}or exit if none selected${RESET})."
+list_set_action_msgs open file
+
+while true;do
+	#get selection
+	list_select ${_LOCAL_LIST}
+	[[ ${?} -eq 0 ]] && break
+
+	#get selections
+	MARKED=($(list_get_selected))
+	
+	if [[ $(list_get_selected_count) -gt 1 ]];then
+		action_warn ${MARKED} #warn if more than 1 selected
+	fi
+
+	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then
+		action_do ${MARKED}
+	fi
+done
+
+exit_leave

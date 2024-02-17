@@ -1,0 +1,138 @@
+#!/usr/bin/zsh
+
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+_LIB=/usr/local/lib
+_COMP_DIR=~/.zsh/completions
+
+#Imports
+source ${_LIB}/LIB_INIT.zsh
+source ${_LIB}/MSG.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB}/${D} ]];then
+		source ${_LIB}/${D}
+	else
+		echo "Cannot source:${_LIB}/${D} - not found"
+		exit 1
+	fi
+done
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+local DESC
+
+read -r -d '' DESC<<EOF
+Install/update completion files
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		s) echo "<SCRIPT>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type s)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_err "${PENDING_MSGS}")
+}
+
+OPTSTR=":HD"
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+# Execution
+[[ ${#} -eq 0 ]] && usage "Missing argument:$(opt_type s)"
+
+COMP_FILE="_${1}"
+[[ ! -e ${COMP_FILE} ]] && usage "File:${COMP_FILE} NOT found"
+
+echo "${CYAN_FG}Completion file found${RESET}:${WHITE_FG}${COMP_FILE}${RESET}"
+
+colordiff -Bws ${_COMP_DIR}/${COMP_FILE} ./${COMP_FILE} 
+[[ ${?} -eq 0 ]] && echo "${CYAN_FG}Completion file is up to date${RESET}" && exit 0
+
+echo -n "Install ${COMP_FILE} to ${_COMP_DIR} (y/n)?" && read -q RESPONSE
+[[ ${RESPONSE} == 'n' ]] && echo "${RED_FG}Operation cancelled${RESET}" && exit 1
+
+echo "${WHITE_FG}Installing${RESET}: ${WHITE_FG}${COMP_FILE}${RESET} to ${WHITE_FG}${_COMP_DIR}${RESET}"
+sudo cp ${COMP_FILE} ${_COMP_DIR}
+[[ ${?} -ne 0 ]] && echo "${RED_FG}Copy failed${RESET}" exit 1
+
+echo "Changing owner..."
+sudo chown root:root ${_COMP_DIR}/${COMP_FILE}; 
+[[ ${?} -ne 0 ]] && echo "${RED_FG}chown failed${RESET}" exit 1
+
+echo "Changing permissions..."
+sudo chmod 775 ${_COMP_DIR}/${COMP_FILE}
+[[ ${?} -ne 0 ]] && echo "${RED_FG}chmod failed${RESET}" exit 1
+
+echo "Changing age..."
+sudo touch -d '25 hours ago' ${_COMP_DIR}/${COMP_FILE}
+[[ ${?} -ne 0 ]] && echo "${RED_FG}age change failed${RESET}" exit 1
+
+echo "${GREEN_FG}${COMP_FILE} installed${RESET}"
+exit 0

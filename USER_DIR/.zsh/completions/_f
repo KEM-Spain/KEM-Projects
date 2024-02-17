@@ -1,0 +1,9 @@
+#compdef f
+
+_arguments \
+'-H[help]' \
+'-D[debug; when repeated increases level]' \
+'-d[depth; when repeated increases depth]' \
+'-l[add listing detail]' \
+'-r[arg is a regex]' \
+'-t[(f)ile|(d)ir  Default:both]'

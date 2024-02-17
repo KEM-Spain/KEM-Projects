@@ -1,0 +1,8 @@
+#compdef rb
+
+_arguments \
+'-H[help]' \
+'-D[debug]' \
+'-l[logout]' \
+'-p[power off]' \
+'-y[no prompting]' \

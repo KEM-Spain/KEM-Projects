@@ -1,0 +1,20 @@
+#!/usr/bin/zsh
+[[ ${#} == 0 || ${1} == "-h" ]] && echo "perl edit in place: ${0:t} <find> <replace> <files>" && exit
+
+[[ -z ${1} ]] && echo "arg 1 of 3 required: find string" && exit
+str1=${1}
+
+[[ -z ${2} ]] && echo "arg 2 of 3 required: replace string" && exit
+str2=${2};shift 2
+
+[[ -z ${@} ]] && echo "arg 3 of 3 required: file(s) to process" && exit
+
+LIST=(${@})
+for f in ${LIST};do
+	echo "Substituting [${str1}] with [${str2}] in file: ${f}"
+	# -w print warnings
+	# -p iterate over filenames
+	# -i edit-in-place
+	# -e perl expression
+	perl -w -p -i.bak -e "s/${str1}/${str2}/g" ${f}
+done
