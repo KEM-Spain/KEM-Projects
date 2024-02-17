@@ -35,7 +35,7 @@ git branch -M main
 REMOTE_SHA=$(git rev-parse --short origin/main)
 git pull origin main
 # Overwrite repo 
-#git push -u origin main --force
+# git push -u origin main --force
 git push --set-upstream origin main
 LOCAL_SHA=$(git rev-parse --short HEAD)
 
