@@ -652,7 +652,7 @@ save_changes () {
 			continue #no collisions
 		fi
 		if [[ ! -e ${C} ]];then
-			echo "${WHITE_FG}${_SCRIPT}${RESET}:Moving From: ${_FILE_IN_LIST[${NDX}]:t} \nTo: ${C:t}" >&2
+			echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_FILE_IN_LIST[${NDX}]:t} \n  To: ${C:t}" >&2
 			/bin/mv "${_FILE_IN_LIST[${NDX}]:t}" "${C:t}"
 		fi
 	done

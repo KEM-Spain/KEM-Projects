@@ -13,12 +13,13 @@ _CURRENT_CURSOR=0
 _CURRENT_PAGE=1
 _CURSOR_COL=${CURSOR_COL:=0}
 _CURSOR_ROW=${CURSOR_ROW:=0}
+_AVAIL_ROW=0
+_HELD_ROW=1
 _GHOST_ROW=2 # any value above 1 is not selectable
 _HEADER_CALLBACK_FUNC=''
 _HOLD_CURSOR=false
 _HOLD_PAGE=false
 _INVISIBLE_ROWS_MSG=''
-_USED_ROW=1
 _KEY_CALLBACK_FUNC=''
 _LIST_DELIM='|'
 _LIST_HEADER_BREAK=false
@@ -153,36 +154,36 @@ list_do_header () {
 
 			[[ ${_LIST_HEADER[${L}]} =~ '_PG' ]] && HDR_PG=true # do page numbering
 
-			if [[ ${HDR_PG} == 'true' ]];then #append page number
-				PG_TAG=$(eval "printf 'Page:${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET}' ${PAGE} ${MAX_PAGE}") && CLEAN_TAG=$(str_strip_ansi <<<${PG_TAG})
-				HDR_LEN=$(( ${#CLEAN_HDR} + ${#CLEAN_TAG} ))
-				[[ ${LONGEST_HDR} -gt ${HDR_LEN} ]] && PAD_LEN=$(( LONGEST_HDR-HDR_LEN )) || PAD_LEN=1
-				PG_TAG="$(str_rep_char ' ' ${PAD_LEN})${PG_TAG}"
-				[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: HDR_LEN:${HDR_LEN}, LONGEST_HDR:${LONGEST_HDR}, PAD_LEN:${PAD_LEN}"
+				if [[ ${HDR_PG} == 'true' ]];then #append page number
+					PG_TAG=$(eval "printf 'Page:${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET}' ${PAGE} ${MAX_PAGE}") && CLEAN_TAG=$(str_strip_ansi <<<${PG_TAG})
+					HDR_LEN=$(( ${#CLEAN_HDR} + ${#CLEAN_TAG} ))
+					[[ ${LONGEST_HDR} -gt ${HDR_LEN} ]] && PAD_LEN=$(( LONGEST_HDR-HDR_LEN )) || PAD_LEN=1
+					PG_TAG="$(str_rep_char ' ' ${PAD_LEN})${PG_TAG}"
+					[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: HDR_LEN:${HDR_LEN}, LONGEST_HDR:${LONGEST_HDR}, PAD_LEN:${PAD_LEN}"
 
-				HDR_LINE="${HDR_LINE}${PG_TAG}"
-				CLEAN_HDR=$(str_strip_ansi <<<${HDR_LINE})
-				LONGEST_HDR=${#CLEAN_HDR} # this header will now be the longest
-				[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Added header page tag:${HDR_LINE}, LONGEST_HDR:${LONGEST_HDR}"
+					HDR_LINE="${HDR_LINE}${PG_TAG}"
+					CLEAN_HDR=$(str_strip_ansi <<<${HDR_LINE})
+					LONGEST_HDR=${#CLEAN_HDR} # this header will now be the longest
+					[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Added header page tag:${HDR_LINE}, LONGEST_HDR:${LONGEST_HDR}"
 
-				HDR_PG=false
+					HDR_PG=false
+				fi
+				
+				tput el
+				echo ${HDR_LINE}
 			fi
-			
+
+			tput cup ${L} 0
+		done
+
+		if [[ ${_LIST_HEADER_BREAK} == 'true' ]];then
 			tput el
-			echo ${HDR_LINE}
+			echo -n ${_LIST_HEADER_BREAK_COLOR}
+			str_unicode_line ${LONGEST_HDR}
+			[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Header break length:${LONGEST_HDR}"
+			echo -n ${RESET}
 		fi
-
-		tput cup ${L} 0
-	done
-
-	if [[ ${_LIST_HEADER_BREAK} == 'true' ]];then
-		tput el
-		echo -n ${_LIST_HEADER_BREAK_COLOR}
-		str_unicode_line ${LONGEST_HDR}
-		[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Header break length:${LONGEST_HDR}"
-		echo -n ${RESET}
-	fi
-}
+	}
 
 list_get_index_range () {
 	echo "${_LIST_INDEX_RANGE}"

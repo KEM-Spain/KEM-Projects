@@ -35,6 +35,7 @@ msg_box () {
 	local USABLE_COLS=$((MAX_Y_COORD-MIN_Y_COORD)) # Horizontal space boundary
 	local USABLE_ROWS=$((MAX_X_COORD-MIN_X_COORD)) # Vertical space boundary
 	local MAX_LINE_WIDTH=$((USABLE_COLS-20))
+	local NAV_BAR="<c>Navigation keys<N>: (<w>t<N>,<w>h<N>=top <w>b<N>,<w>l<N>=bottom <w>u<N>,<w>k<N>=up <w>d<N>,<w>j<N>=down, <w>Esc<N>=close)"
 	local BOX_X_COORD=0
 	local BOX_Y_COORD=0
 	local BREAK_POINT=0
@@ -58,7 +59,6 @@ msg_box () {
 	local MSG_STR
 	local MSG_X_COORD=0
 	local MSG_Y_COORD=0
-	local NAV_BAR="<c>Navigation keys<N>: (<w>t<N>,<w>h<N>=top <w>b<N>,<w>l<N>=bottom <w>u<N>,<w>k<N>=up <w>d<N>,<w>j<N>=down, <w>Esc<N>=close)"
 	local OPTION
 	local PADDED
 	local PAGING=false
@@ -287,6 +287,7 @@ msg_box () {
 		if [[ ${_CONT_BOX} == 'false' ]];then
 			msg_box_frame ${_OUTLINE_COLOR} ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
 			_CONT_BOX_COORDS=(X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH})
+			_CONT_W=${BOX_WIDTH}
 		fi
 		_CONT_BOX=true
 	else
@@ -334,7 +335,7 @@ msg_box () {
 		_CONT_TOP=${COORDS[X]} && ((_CONT_TOP++))
 		_CONT_Y=${COORDS[Y]} && ((_CONT_Y++))
 		_CONT_MAX=${COORDS[H]} && ((_CONT_MAX-=2))
-		_CONT_COLS=${COORDS[W]} && ((_CONT_COLS-=2))
+		_CONT_COLS=${COORDS[W]} && ((_CONT_COLS-=4))
 
 		[[ ${_CONT_OUT} -eq 0 ]] && _CONT_SCR=${_CONT_TOP}
 
@@ -349,11 +350,13 @@ msg_box () {
 			done
 		fi
 		 
-		MSG_OUT=$(msg_box_align ${MSGS[1]}) # Apply padding to both sides of msg
+		MSG_OUT=$(msg_box_align ${_CONT_W} ${MSGS[1]}) # Apply padding to both sides of msg
 		MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
+
 		tput cup ${_CONT_SCR} ${_CONT_Y} # Place cursor
 		tput ech ${_CONT_COLS} # Clear line
-		echo -n ${MSG_OUT}
+		echo -n ${MSG_OUT} # Output line
+
 		_CONT_ROWS+=${MSG_OUT}
 		((_CONT_SCR++))
 		((_CONT_OUT++))
@@ -369,7 +372,7 @@ msg_box () {
 			((SCR_NDX++))
 			((DTL_NDX++))
 
-			MSG_OUT=$(msg_box_align ${MSGS[${MSG_NDX}]}) # Apply padding to both sides of msg
+			MSG_OUT=$(msg_box_align ${BOX_WIDTH} ${MSGS[${MSG_NDX}]}) # Apply padding to both sides of msg
 			MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
@@ -423,6 +426,7 @@ msg_box () {
 }
 
 msg_box_align () {
+	local BOX_WIDTH=${1}; shift
 	local MSG=${@}
 	local MSG_OUT
 	local MSG_PAD_L

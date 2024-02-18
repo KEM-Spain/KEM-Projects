@@ -116,7 +116,7 @@ action_do () {
 				msg_box -C -jl "<w>${ETA[-1]}<N>"
 				PARSED=true
 				if [[ ${ETA[-1]} =~ '100' ]];then
-					msg_box -C -jc "<g><b>$(str_unicode_line 3)<N>"
+					msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
 					_STATUS_MSGS[${DL_CNT}]="completed"
 					msg_box "Download ${DL_CNT} complete - $((${#_MARKED}-DL_CNT)) remaining"
 					_DOWNLOADS[${M}]=true
