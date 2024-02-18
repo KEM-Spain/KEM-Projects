@@ -72,14 +72,13 @@ action_do () {
 		3) pyts "${TITLE} ${YR}";;
 	esac
 
-		#2) ddgr -n5 "${TITLE} ${YR} imdb";;
-
 	grep -qi "${TITLE} ${YR}" ${_LOG}
 	[[ ${?} -eq 1 ]] && logit "${TITLE} ${YR}"
 
 	if [[ ${_MSG_KEY} != 'y' ]];then
 		for M in ${_MARKED};do
-			list_clear_selected ${M}
+			_MARKED[${M}]=0
+			list_set_selected ${M} ${_GHOST_ROW}
 		done
 	fi
 }
@@ -92,7 +91,12 @@ imdb () {
 
 	{
 	URL=$(wget --quiet -O - "http://www.imdb.com/find?q=${STR}" | pup '.ipc-page-content-container a attr{href}' | grep 'tt_1' | sed 's/\/?ref.*//')
-	nohup google-chrome "http://www.imdb.com/${URL}" >>${_LOG} 2>&1 &
+	URL="http://www.imdb.com/${URL}"
+	if [[ ! $(curl --connect-timeout 2 -Is "${URL}" | head -1) =~ "404" ]];then
+		nohup google-chrome "${URL}" >>${_LOG} 2>&1 &
+	else
+		msg_box -p -PK "${0}: Could not obtain a valid URL:${URL}"
+	fi
 	} 2>/dev/null
 }
 
@@ -179,46 +183,46 @@ do_query () {
 }
 
 do_list () {
-	local TYPE_ARG=${1}
-	local _LIST_FILE
-	local _LIST_TYPE
-	local L_NAME F_NAME
-	local -a LIST
-	local RNDX
-	local _SELECTION_F2
-	local TITLE
-	local D
+			local TYPE_ARG=${1}
+			local _LIST_FILE
+			local _LIST_TYPE
+			local L_NAME F_NAME
+			local -a LIST
+			local RNDX
+			local _SELECTION_F2
+			local TITLE
+			local D
 
-	if [[ ${TYPE_ARG} == "a" ]];then
-		_LIST_TYPE=actor
-		_LIST_FILE=${_ACTOR_LIST}
-		last_name_sort
-	elif [[ ${TYPE_ARG} == "d" ]];then
-		_LIST_TYPE=director
-		_LIST_FILE=${_DIRECTOR_LIST}
-		last_name_sort
-	elif [[ ${TYPE_ARG} == "e" ]];then
-		_LIST_TYPE=decade
-		for D in ${_DECADE_LIST};do
-			_DISPLAY_LIST[${D}]=1
-		done
-	fi
+			if [[ ${TYPE_ARG} == "a" ]];then
+				_LIST_TYPE=actor
+				_LIST_FILE=${_ACTOR_LIST}
+				last_name_sort
+			elif [[ ${TYPE_ARG} == "d" ]];then
+				_LIST_TYPE=director
+				_LIST_FILE=${_DIRECTOR_LIST}
+				last_name_sort
+			elif [[ ${TYPE_ARG} == "e" ]];then
+				_LIST_TYPE=decade
+				for D in ${_DECADE_LIST};do
+					_DISPLAY_LIST[${D}]=1
+				done
+			fi
 
-	selection_list_set ${(k)_DISPLAY_LIST}
+			selection_list_set ${(k)_DISPLAY_LIST}
 
-	_SELECTION_VALUE=?
-	selection_list "<w>Select ${(C)_LIST_TYPE} or <h>(q)uit<N>"
-	[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+			_SELECTION_VALUE=?
+			selection_list "<w>Select ${(C)_LIST_TYPE} or <h>(q)uit<N>"
+			[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 
-	if [[ ${TYPE_ARG} =~ '[ad]' ]];then
-		_SELECTION_F2=$(cut -d: -f2 <<<${_SELECTION_VALUE})
-		L_NAME=$(cut -d',' -f1 <<<${_SELECTION_F2})
-		F_NAME=$(cut -d',' -f2 <<<${_SELECTION_F2} | sed 's/^ //')
-		_LIST_VALUE="${F_NAME} ${L_NAME}"
-	else
-		_LIST_VALUE=${_SELECTION_VALUE}
-	fi
-}
+			if [[ ${TYPE_ARG} =~ '[ad]' ]];then
+				_SELECTION_F2=$(cut -d: -f2 <<<${_SELECTION_VALUE})
+				L_NAME=$(cut -d',' -f1 <<<${_SELECTION_F2})
+				F_NAME=$(cut -d',' -f2 <<<${_SELECTION_F2} | sed 's/^ //')
+				_LIST_VALUE="${F_NAME} ${L_NAME}"
+			else
+				_LIST_VALUE=${_SELECTION_VALUE}
+			fi
+		}
 
 #--Begin GetOpts--
 local -a OPTIONS

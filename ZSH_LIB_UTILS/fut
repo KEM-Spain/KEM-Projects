@@ -146,6 +146,7 @@ ______EOF
 	[[ ${#} -eq 0 ]] && usage "missing argument:<FILE>" || FN=${1}
 
 	RAWLINE=("${(f)$(whereis -bf ${FN} | cut -d: -f2-)}")
+	RAWLINE+=("${(f)$(whereis -B ~/Code -f ${FN} | cut -d: -f2-)}")
 
 	for R in ${=RAWLINE};do
 		LIST+=${R}

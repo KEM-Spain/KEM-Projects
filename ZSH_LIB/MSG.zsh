@@ -28,17 +28,19 @@ msg_box () {
 	local -a MSGS=()
 	local -a HDR=()
 	local -a MFOLD
+	local MAX_X_COORD=$((_MAX_ROWS-5)) # Not including frame 5 up from bottom, 4 with frame
+	local MAX_Y_COORD=$((_MAX_COLS-10)) # Not including frame 10 from sides, 9 with frame
+	local MIN_X_COORD=$(( (_MAX_ROWS-MAX_X_COORD)-1 )) # vertical limit
+	local MIN_Y_COORD=$((_MAX_COLS-MAX_Y_COORD)) # horiz limit
+	local USABLE_COLS=$((MAX_Y_COORD-MIN_Y_COORD)) # Horizontal space boundary
+	local USABLE_ROWS=$((MAX_X_COORD-MIN_X_COORD)) # Vertical space boundary
+	local MAX_LINE_WIDTH=$((USABLE_COLS-20))
 	local BOX_X_COORD=0
 	local BOX_Y_COORD=0
 	local BREAK_POINT=0
-	local MAX_X_COORD=$((_MAX_ROWS-5)) # Not including frame 5 up from bottom, 4 with frame
-	local MAX_Y_COORD=$((_MAX_COLS-10)) # Not including frame 10 from sides, 9 with frame
-	local MIN_X_COORD=$(( (_MAX_ROWS-MAX_X_COORD)-1 )) #=3 with frame
-	local MIN_Y_COORD=$((_MAX_COLS-MAX_Y_COORD)) #=9 with frame
-	local USABLE_COLS=$((MAX_Y_COORD-MIN_Y_COORD)) # Horizontal space boundary
-	local USABLE_ROWS=$((MAX_X_COORD-MIN_X_COORD)) # Vertical space boundary
 	local DELIM='|'
 	local DELIM_ARG=?
+	local DISPLAY_ROWS=0
 	local DTL_NDX=0
 	local FRAME
 	local GAP=0
@@ -47,7 +49,6 @@ msg_box () {
 	local IN_TOKEN=false
 	local KEY
 	local LAST_LINE
-	local MAX_LINE_WIDTH=$((USABLE_COLS-20))
 	local MSG_CLEAN
 	local MSG_COLS=0
 	local MSG_COUNT=0
@@ -55,7 +56,6 @@ msg_box () {
 	local MSG_NDX=0
 	local MSG_OUT
 	local MSG_STR
-	local DISPLAY_ROWS=0
 	local MSG_X_COORD=0
 	local MSG_Y_COORD=0
 	local NAV_BAR="<c>Navigation keys<N>: (<w>t<N>,<w>h<N>=top <w>b<N>,<w>l<N>=bottom <w>u<N>,<w>k<N>=up <w>d<N>,<w>j<N>=down, <w>Esc<N>=close)"
@@ -341,10 +341,10 @@ msg_box () {
 		if [[ ${_CONT_OUT} -ge $((_CONT_MAX)) ]];then
 			shift _CONT_ROWS
 			_CONT_SCR=${_CONT_TOP}
-			for X in ${_CONT_ROWS};do
+			for M in ${_CONT_ROWS};do
 				tput cup ${_CONT_SCR} ${_CONT_Y} # Place cursor
-				tput ech ${MSG_COLS} # Clear line
-				echo -n "${X}"
+				tput ech ${_CONT_COLS} # Clear line
+				echo -n "${M}"
 				((_CONT_SCR++))
 			done
 		fi

@@ -80,9 +80,9 @@ for F in ${LOCAL_FILES};do
 		if [[ ! ${PROD} =~ 'LOCAL' ]];then
 			diff -b ${F} ${PROD} >/dev/null 2>&1
 			if [[ ${?} -ne 0 ]];then
-				printf "Development:${WHITE_FG}%-*s${RESET} ${BOLD}${RED_FG}%14s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F:t} "does not match" ${PROD:t}
+				printf "Development:${WHITE_FG}%-*s${RESET} ${BOLD}${RED_FG}%14s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F} "does not match" ${PROD}
 			else
-				printf "Development:${WHITE_FG}%-*s${RESET} ${BOLD}${GREEN_FG}%14s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F:t} "matches" ${PROD:t}
+				printf "Development:${WHITE_FG}%-*s${RESET} ${BOLD}${GREEN_FG}%14s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F} "matches" ${PROD}
 			fi
 		fi
 	fi

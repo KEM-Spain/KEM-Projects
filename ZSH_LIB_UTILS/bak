@@ -72,7 +72,7 @@ get_prod_dir () {
 		CANDIDATE="$(fut findexe ${FN})"
 		echo "CANDIDATE:${CANDIDATE}" >&2
 		if [[ -f ${CANDIDATE} ]];then # a regular file 
-			if [[ ${CANDIDATE:l} =~ "etc|system|src" ]];then
+			if [[ ${CANDIDATE:l} =~ "code|etc|system|src" ]];then
 				echo ${CANDIDATE:h}
 			else
 				echo ${_PRODUCTION_DIR}
