@@ -37,7 +37,6 @@ _LS_FORMAT+='--group-directories-first'
 _LS_FORMAT+='-h'
 _LS_FORMAT+='-v'
 _LS_FORMAT+='-N'
-_LS_FORMAT+='-X'
 
 
 #Imports
@@ -278,6 +277,7 @@ usage () {
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-a${RESET} all files"
 	echo -e "${WHITE_FG}-d [$(opt_type d)]${RESET} directories only"
+	echo -e "${WHITE_FG}-e${RESET} sort by extension"
 	echo -e "${WHITE_FG}-l [$(opt_type d)]${RESET} links only"
 	echo -e "${WHITE_FG}-t sort by time"
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
@@ -287,25 +287,26 @@ usage () {
 }
 
 typeset -a OPTIONS
-OPTSTR=":HDadlt"
+OPTSTR=":HDadelt"
 OPTIND=0
 
 [[ ${_CALLER} == 'llr' ]] && RECURSE=true || RECURSE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
-     H)	if [[ ${_CALLER} == 'llr' ]];then
+		H)	if [[ ${_CALLER} == 'llr' ]];then
 				exec /usr/bin/tree --help
 			else
 				usage
 			fi;;
-     D) dbg_set_level;;
-     a) _ALL_FILES=true;_LS_OPTS+='-A';;
-     d) _DIRS_ONLY=true;_F_TYPE='d';;
-     l) _LINKS_ONLY=true;_F_TYPE='l';;
-     t) _TIME_SORT=true;_LS_OPTS+='-t';;
-     :) [[ ${RECURSE} == 'false' ]] && print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument" && usage;;
-    \?) [[ ${RECURSE} == 'false' ]] && print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}" && usage;;
+		D) dbg_set_level;;
+		a) _ALL_FILES=true;_LS_OPTS+='-A';;
+		d) _DIRS_ONLY=true;_F_TYPE='d';;
+		e) _LS_FORMAT+='-X';;
+		l) _LINKS_ONLY=true;_F_TYPE='l';;
+		t) _TIME_SORT=true;_LS_OPTS+='-t';;
+		:) [[ ${RECURSE} == 'false' ]] && print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument" && usage;;
+		\?) [[ ${RECURSE} == 'false' ]] && print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}" && usage;;
 	esac
 	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
 done

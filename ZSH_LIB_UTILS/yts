@@ -2,6 +2,7 @@
 #Declarations
 typeset -a _LOCAL_LIST
 typeset -A _DOWNLOADS
+typeset -A _FAILED
 typeset -A _FIELD_LEN
 typeset -A _STATUS_MSGS
 
@@ -39,6 +40,7 @@ done
 #Functions
 action_do () {
 	local -A ERROR_SEEN=()
+	local -A COORDS=(X 10 Y 40 H 10 W 80)
 	local -a ETA
 	local -a LOG_LINES
 	local -a MSGS
@@ -47,26 +49,32 @@ action_do () {
 	local DEST_2
 	local DL_CNT=0
 	local ERROR
+	local HAS_ERRORS=false
+	local HDRS_OUT=false
 	local M
 	local NDX=0
 	local PARSED=false
+	local PAUSE=.3
+	local TITLE
 	local URL
-	local HAS_ERRORS=false
 
 	msg_box_clear
 
 	for M in ${_MARKED};do
 		((DL_CNT++))
-		_DOWNLOADS[${M}]=false
+		#_DOWNLOADS[${M}]=false
 		ERROR_SEEN[${DL_CNT}]=false
 		PARSED=false
 		URL=$(get_field url ${M})
+		HDRS_OUT=false
 
 		[[ -e ${_LOG} ]] && rm -f ${_LOG}
 		nohup yt -i ${URL} >>${_LOG} 2>&1 &
+		msg_box -t${PAUSE} -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "Download requested...|${URL}"
 
 		while true;do
-			sleep .5
+			[[ ${NDX} -eq ${#_MARKED} ]] && break
+			sleep ${PAUSE}
 			((NDX++))
 			if [[ ! -e ${_LOG} ]];then
 				[[ ${NDX} -gt 10 ]] && exit_leave "${_LOG} not detected" # 5 seconds no activity
@@ -84,30 +92,38 @@ action_do () {
 				fi
 			fi
 
-			LOG_LINES=("${(f)$(grep -i "already been" ${_LOG})}")
+			#TODO: failure should not break; continue with remaining downloads
+			LOG_LINES=("${(f)$(grep -i "already been\|giving up" ${_LOG})}")
 			if [[ ${?} -eq 0 ]];then
 				HAS_ERRORS=true
 				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' <<<${LOG_LINES})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				MSGS=("<r>[error]<N>|${DEST_1}")
-				DEST_2=("${(f)$(sed -e "s/has already/|has already/" <<<${DEST_2})}")
-				DEST_1=$(cut -d'|' -f1 <<<${DEST_2})
-				DEST_2=$(cut -d'|' -f2 <<<${DEST_2})
-				MSGS+="|${DEST_1}"
-				MSGS+="|<r>${DEST_2}<N>"
-				_STATUS_MSGS[${DL_CNT}]="<w>$(get_field title ${M})<N>|${MSGS}"
-				break
+				MSGS=("<r>[error]<N>")
+				grep -qi "has already" <<<${DEST_2}
+				_DOWNLOADS[${M}]=true
+				[[ ${?} -eq 0 ]] && MSGS+="Has already been downloaded"
+				grep -qi "giving up" <<<${DEST_2}
+				[[ ${?} -eq 0 ]] && MSGS+=="Network failure - giving up"
+				_FAILED[${M}]=true
+				TITLE=$(get_field title ${M})
+				TITLE=${TITLE[1,78]}
+				_STATUS_MSGS[${M}]="<w>${TITLE}<N>|${MSGS}"
+				continue
 			fi
 
-			LOG_LINES=("${(f)$(grep -i "destination" ${_LOG})}")
-			if [[ ${?} -eq 0 ]];then
-				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINES})}")
-				DEST_1=$(cut -d'|' -f1 <<<${DEST})
-				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				msg_box -C -jl -x10 -y40 -w80 -h10 ${DEST_1}
-				msg_box -C -jl "[title] ${DEST_2[1,65]}"
-				PARSED=true
+			if [[ ${HDRS_OUT} == 'false' ]];then
+				LOG_LINES=("${(f)$(grep -i "destination" ${_LOG})}")
+				if [[ ${?} -eq 0 ]];then
+					DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINES})}")
+					DEST_1=$(cut -d'|' -f1 <<<${DEST})
+					DEST_2=$(cut -d'|' -f2 <<<${DEST})
+					msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1}<N>"
+					msg_box -C -jl "<c>[title] ${DEST_2[1,65]}<N>"
+					msg_box -C -jl "<m>$(str_unicode_line $(( COORDS[W] - 4 )))<N>"
+					PARSED=true
+					HDRS_OUT=true
+				fi
 			fi
 
 			LOG_LINES=("${(f)$(grep -i "eta" ${_LOG})}")
@@ -116,9 +132,11 @@ action_do () {
 				msg_box -C -jl "<w>${ETA[-1]}<N>"
 				PARSED=true
 				if [[ ${ETA[-1]} =~ '100' ]];then
-					msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
-					_STATUS_MSGS[${DL_CNT}]="completed"
-					msg_box "Download ${DL_CNT} complete - $((${#_MARKED}-DL_CNT)) remaining"
+					if [[ ${#_MARKED} -gt 1 ]];then
+						msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
+						msg_box -t${PAUSE} -x$(( COORDS[X] +1 )) "Download ${DL_CNT} complete - $((${#_MARKED}-DL_CNT)) remaining"
+						_STATUS_MSGS[${DL_CNT}]="completed"
+					fi
 					_DOWNLOADS[${M}]=true
 					break
 				fi
@@ -139,15 +157,15 @@ action_do () {
 			for M in ${(k)_STATUS_MSGS};do
 				MSGS+="Download:${M} ${_STATUS_MSGS[${M}]}|"
 			done
-			msg_box -c -p -PK "${MSGS}"
+			msg_box -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} -c -p -PK "${MSGS}"
 		else
-			msg_box -c -p -PK "${DL_CNT} downloads completed"
+			msg_box -x$(( COORDS[X] +1 )) -c -p -PK "${DL_CNT} downloads completed"
 		fi
 	fi
 
 	for M in ${_MARKED};do
 		_MARKED[${M}]=0
-		list_set_selected ${M} ${_GHOST_ROW}
+		list_set_selected ${M} ${_USED_ROW}
 	done
 }
 
@@ -170,6 +188,8 @@ item_decorate () {
 
 	if [[ ${_DOWNLOADS[${NDX}]} == 'true' ]];then
 		STR="Downloaded..."
+	elif [[ ${_FAILED[${NDX}]} == 'true' ]];then
+		STR="Failed..."
 	else
 		STR="$(get_field age ${NDX}) ($(get_field time ${NDX}))"
 		[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"

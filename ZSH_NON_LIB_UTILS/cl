@@ -70,7 +70,7 @@ for F in ${PWD}/*;do
 	[[ ${F:e} == 'bak' ]] && continue
 	if [[ $(file ${F}) =~ 'zsh script' || ${F:e} == 'zsh' ]];then
 		LOCAL_FILES+=${F}
-		[[ ${#F:t} -gt ${LONGEST} ]] && LONGEST=${#F:t}
+		[[ ${#F} -gt ${LONGEST} ]] && LONGEST=${#F}
 	fi
 done
 
@@ -80,9 +80,9 @@ for F in ${LOCAL_FILES};do
 		if [[ ! ${PROD} =~ 'LOCAL' ]];then
 			diff -b ${F} ${PROD} >/dev/null 2>&1
 			if [[ ${?} -ne 0 ]];then
-				printf "Development:${WHITE_FG}%-*s${RESET} ${BOLD}${RED_FG}%14s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F} "does not match" ${PROD}
+				printf "Development:${WHITE_FG}%*s${RESET} ${BOLD}${RED_FG}%-15s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F}   'does not match' ${PROD}
 			else
-				printf "Development:${WHITE_FG}%-*s${RESET} ${BOLD}${GREEN_FG}%14s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F} "matches" ${PROD}
+				printf "Development:${WHITE_FG}%*s${RESET} ${BOLD}${GREEN_FG}%-15s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F} '       matches' ${PROD}
 			fi
 		fi
 	fi

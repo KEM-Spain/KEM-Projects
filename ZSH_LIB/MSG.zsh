@@ -7,10 +7,12 @@ _DEPS_+="ARRAY.zsh DBG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 typeset -a _LIST # Holds the list values to be managed by the list menu
 typeset -A _MSG_BOX_COORDS=(X 0 Y 0 H 0 W 0) # Holds the coordinates (X,Y,H,W) of the last displayed msg_box
 typeset -A _CONT_BOX_COORDS=(X 0 Y 0 H 0 W 0) # Holds the coordinates (X,Y,H,W) of the last displayed msg_box
-typeset -a _CONT_ROWS=()
+typeset -a _CONT_BUFFER=()
+typeset -A _CONT_COORDS=()
 _OUTLINE_COLOR=${RESET}
 _CONT_BOX=false
 _CONT_COLS=0
+_CONT_HDRS=0
 _CONT_MAX=0
 _CONT_NDX=0
 _CONT_OUT=0
@@ -73,7 +75,7 @@ msg_box () {
 	local BOX_WIDTH=0
 	local CLEAR_MSG=false
 	local DELIM_ARG=false
-	local HEADER_LINES
+	local HEADER_LINES=0
 	local IGNORE_MARKUP=false
 	local INLINE_LIST=false
 	local MSG_DEBUG=false
@@ -86,8 +88,7 @@ msg_box () {
 	local SO=false
 	local TEXT_STYLE=c # default to center
 	local TIMEOUT=0
-	local _CONTINUOUS=false
-	local _RESET=false
+	local CONTINUOUS=false
 
 	local OPTSTR=":DH:P:O:CRch:inpruj:s:t:w:x:y:"
 	OPTIND=0
@@ -97,8 +98,8 @@ msg_box () {
 			D) MSG_DEBUG=true;;
 			H) HEADER_LINES=${OPTARG};;
 			O) _OUTLINE_COLOR=${OPTARG};;
-			C) _CONTINUOUS=true;;
-			R) _RESET=true;;
+			C) CONTINUOUS=true;;
+			R) _CONT_BOX=false;;
 			c) CLEAR_MSG=true;;
 			h) BOX_HEIGHT=${OPTARG};;
 			i) IGNORE_MARKUP=true;;
@@ -119,23 +120,6 @@ msg_box () {
 	shift $((OPTIND -1))
 
 	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	if [[ ${_RESET} == 'true' ]];then
-		_CONT_BOX=false
-		_CONT_BOX_COORDS=()
-		_CONT_ROWS=()
-		_CONT_COLS=0
-		_CONT_MAX=0
-		_CONT_NDX=0
-		_CONT_OUT=0
-		_CONT_SCR=0
-		_CONT_TOP=0
-		_CONT_X=0
-		_CONT_Y=0
-		_CONT_H=0
-		_CONT_W=0
-		return
-	fi
 
 	# Clear last MSG?
 	[[ ${CLEAR_MSG} == 'true' ]] && msg_box_clear # Clear last msg ?
@@ -282,71 +266,76 @@ msg_box () {
 		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  _MSG_BOX_COORDS: ${(kv)_MSG_BOX_COORDS}"
 	fi
 
-	#call only once for _CONTINUOUS
-	if [[ ${_CONTINUOUS} == 'true' ]];then
+	#call once for CONTINUOUS
+	if [[ ${CONTINUOUS} == 'true' ]];then
 		if [[ ${_CONT_BOX} == 'false' ]];then
 			msg_box_frame ${_OUTLINE_COLOR} ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
 			_CONT_BOX_COORDS=(X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH})
 			_CONT_W=${BOX_WIDTH}
+			_CONT_HDRS=${HEADER_LINES}
+			_CONT_OUT=0
+			_CONT_BUFFER=()
+			_CONT_BOX=true
 		fi
-		_CONT_BOX=true
 	else
 		msg_box_frame ${_OUTLINE_COLOR} ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
-	fi
 
-	[[ ${HEADER_LINES} -ne 0 ]] && HDR=(${MSGS[1,${HEADER_LINES}]})
+		[[ ${HEADER_LINES} -ne 0 ]] && HDR=(${MSGS[1,${HEADER_LINES}]})
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSGS:${WHITE_FG}${#MSGS}${RESET} DISPLAY_ROWS:${WHITE_FG}${DISPLAY_ROWS}${RESET}"
+		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSGS:${WHITE_FG}${#MSGS}${RESET} DISPLAY_ROWS:${WHITE_FG}${DISPLAY_ROWS}${RESET}"
 
-	# Handle last page gap
-	if [[ ${#MSGS} -gt $((DISPLAY_ROWS)) ]];then
-		PAGING=true
-		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}MESSAGE PAGING TRIGGERED${RESET}"
-		((HEADER_LINES++))
+		# Handle last page gap
+		if [[ ${#MSGS} -gt $((DISPLAY_ROWS)) ]];then
+			PAGING=true
+			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}MESSAGE PAGING TRIGGERED${RESET}"
+			((HEADER_LINES++))
 
-		LAST_LINE=${MSGS[-1]} # Save the last line
-		MSGS[-1]=" " # Erase last line
+			LAST_LINE=${MSGS[-1]} # Save the last line
+			MSGS[-1]=" " # Erase last line
 
-		GAP=$(msg_calc_gap ${#MSGS} ${DISPLAY_ROWS} ${HEADER_LINES})
-		
-		if [[ ${_DEBUG} -ge 3 ]];then
-			dbg "${functrace[1]} called ${0}:${LINENO}: HEADER_LINES:${WHITE_FG}${HEADER_LINES}${RESET}"
-			dbg "${functrace[1]} called ${0}:${LINENO}:          GAP:${WHITE_FG}${GAP}${RESET}"
-			dbg "${functrace[1]} called ${0}:${LINENO}:      PARTIAL:${WHITE_FG}$((DISPLAY_ROWS-GAP))${RESET}"
-			dbg "${functrace[1]} called ${0}:${LINENO}:     GAP FILL:${#MSGS}"
+			GAP=$(msg_calc_gap ${#MSGS} ${DISPLAY_ROWS} ${HEADER_LINES})
+			
+			if [[ ${_DEBUG} -ge 3 ]];then
+				dbg "${functrace[1]} called ${0}:${LINENO}: HEADER_LINES:${WHITE_FG}${HEADER_LINES}${RESET}"
+				dbg "${functrace[1]} called ${0}:${LINENO}:          GAP:${WHITE_FG}${GAP}${RESET}"
+				dbg "${functrace[1]} called ${0}:${LINENO}:      PARTIAL:${WHITE_FG}$((DISPLAY_ROWS-GAP))${RESET}"
+				dbg "${functrace[1]} called ${0}:${LINENO}:     GAP FILL:${#MSGS}"
+			fi
+
+			# Pad messages to break evenly across pages
+			for ((GAP_NDX=1;GAP_NDX<=${GAP};GAP_NDX++));do
+				MSGS+=" "
+			done
+
+			MSGS[-1]=${LAST_LINE} # Move the last line to the bottom
+
+			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: AFTER GAP FILL: MSGS:${#MSGS}"
+		else
+			PAGING=false
 		fi
-
-		# Pad messages to break evenly across pages
-		for ((GAP_NDX=1;GAP_NDX<=${GAP};GAP_NDX++));do
-			MSGS+=" "
-		done
-
-		MSGS[-1]=${LAST_LINE} # Move the last line to the bottom
-
-		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: AFTER GAP FILL: MSGS:${#MSGS}"
-	else
-		PAGING=false
 	fi
 
 	# Output MSG lines
 
-	if [[ ${_CONTINUOUS} == 'true' ]];then
-		local -A COORDS=($(get_cont_box_coords kv))
-		_CONT_TOP=${COORDS[X]} && ((_CONT_TOP++))
-		_CONT_Y=${COORDS[Y]} && ((_CONT_Y++))
-		_CONT_MAX=${COORDS[H]} && ((_CONT_MAX-=2))
-		_CONT_COLS=${COORDS[W]} && ((_CONT_COLS-=4))
+	if [[ ${CONTINUOUS} == 'true' ]];then
+		_CONT_COORDS=($(msg_get_cbox_coords kv))
+		_CONT_TOP=${_CONT_COORDS[X]} && ((_CONT_TOP++))
+		_CONT_Y=${_CONT_COORDS[Y]} && ((_CONT_Y++))
+		_CONT_MAX=${_CONT_COORDS[H]} && ((_CONT_MAX-=2))
+		_CONT_COLS=${_CONT_COORDS[W]} && ((_CONT_COLS-=4))
 
 		[[ ${_CONT_OUT} -eq 0 ]] && _CONT_SCR=${_CONT_TOP}
+		[[ ${_CONT_HDRS} -gt 0 ]] && (( _CONT_TOP += _CONT_HDRS ))
 
 		if [[ ${_CONT_OUT} -ge $((_CONT_MAX)) ]];then
-			shift _CONT_ROWS
+			shift _CONT_BUFFER
 			_CONT_SCR=${_CONT_TOP}
-			for M in ${_CONT_ROWS};do
+			for M in ${_CONT_BUFFER};do
 				tput cup ${_CONT_SCR} ${_CONT_Y} # Place cursor
 				tput ech ${_CONT_COLS} # Clear line
-				echo -n "${M}"
+				echo -n "${M}" #Output buffer
 				((_CONT_SCR++))
+				((_CONT_OUT++))
 			done
 		fi
 		 
@@ -355,9 +344,9 @@ msg_box () {
 
 		tput cup ${_CONT_SCR} ${_CONT_Y} # Place cursor
 		tput ech ${_CONT_COLS} # Clear line
-		echo -n ${MSG_OUT} # Output line
+		echo -n "${MSG_OUT}" # Output line
 
-		_CONT_ROWS+=${MSG_OUT}
+		[[ ${_CONT_OUT} -ge ${_CONT_HDRS} ]] && _CONT_BUFFER+=${MSG_OUT}
 		((_CONT_SCR++))
 		((_CONT_OUT++))
 	else
@@ -780,7 +769,7 @@ msg_warn () {
 	fi
 }
 
-get_msg_box_coords () {
+msg_get_box_coords () {
 	local TYPE=${1:=null}
 	if [[ ${TYPE} == 'kv' ]];then
 		echo ${(kv)_MSG_BOX_COORDS}
@@ -789,7 +778,7 @@ get_msg_box_coords () {
 	fi
 }
 
-get_cont_box_coords () {
+msg_get_cbox_coords () {
 	local TYPE=${1:=null}
 	if [[ ${TYPE} == 'kv' ]];then
 		echo ${(kv)_CONT_BOX_COORDS}

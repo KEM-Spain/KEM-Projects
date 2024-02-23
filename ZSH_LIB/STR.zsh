@@ -163,6 +163,7 @@ str_pluralize () {
 		day) RETURN_WORD="days";;
 		device) RETURN_WORD="devices";;
 		directory) RETURN_WORD="directories";;
+		download) RETURN_WORD="downloads";;
 		duplicate) RETURN_WORD="duplicates";;
 		entry) RETURN_WORD="entries";;
 		file) RETURN_WORD="files";;
@@ -264,22 +265,22 @@ str_trim () {
 	local TEXT_IN=${@}
 	local TEXT
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TEXT_IN:\"${TEXT_IN}\""
+		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TEXT_IN:\"${TEXT_IN}\""
 
-	if [[ -z ${TEXT_IN} && ! -t 0 ]];then
-		read TEXT
-		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_IN:\"${TEXT}\""
-		TEXT=$(sed 's/\t/ /g' <<<${TEXT}) # tabs distort output
-		TEXT=$(sed 's/^ *//' <<<${TEXT}) # leading spaces
-		TEXT=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT})
-		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT}\""
-		echo ${TEXT}
-	else
-		TEXT_IN=$(sed 's/\t/ /g' <<<${TEXT_IN}) # tabs distort output
-		TEXT_IN=$(sed 's/^ *//' <<<${TEXT_IN}) # leading spaces
-		TEXT_IN=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT_IN})
-		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT_IN}\""
+		if [[ -z ${TEXT_IN} && ! -t 0 ]];then
+			read TEXT
+			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_IN:\"${TEXT}\""
+			TEXT=$(sed 's/\t/ /g' <<<${TEXT}) # tabs distort output
+			TEXT=$(sed 's/^ *//' <<<${TEXT}) # leading spaces
+			TEXT=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT})
+			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT}\""
+			echo ${TEXT}
+		else
+			TEXT_IN=$(sed 's/\t/ /g' <<<${TEXT_IN}) # tabs distort output
+			TEXT_IN=$(sed 's/^ *//' <<<${TEXT_IN}) # leading spaces
+			TEXT_IN=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT_IN})
+			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT_IN}\""
 		echo ${TEXT_IN}
 	fi
 }

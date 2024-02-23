@@ -81,6 +81,7 @@ action_do () {
 
 	for M in ${_MARKED};do
 		_MARKED[${M}]=0
+		list_set_selected ${M} 0
 	done
 }
 

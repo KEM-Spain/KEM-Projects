@@ -469,7 +469,7 @@ list_repaint () {
 }
 
 list_repaint_section () {
-	local -A MC=($(get_msg_box_coords kv))
+	local -A MC=($(msg_get_box_coords kv))
 	local ROWS=${1}
 	local PAGE=${2}
 	local START_ROW=${MC[X]}

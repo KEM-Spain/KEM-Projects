@@ -197,7 +197,7 @@ get_response () {
 	local MSG=${1}
 	local RESPONSE
 
-	echo -n "${MSG}${RESET}?\n(y/n)${RESET}:"
+	echo -n "${MSG}${RESET}\n(y/n)${RESET}:"
 
 	read -sq RESPONSE;echo
 	[[ ${RESPONSE} == 'y' ]] && return 0 || return 1

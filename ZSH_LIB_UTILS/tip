@@ -2155,7 +2155,6 @@ A ‘printf’ cheat sheet
  
 ${E_WHITE_FG}Format Specifiers${E_RESET}
 ${E_GREEN_FG}-----------------${E_RESET}
-
    %c character
    %d decimal (integer) number (base 10)
    %e exponential floating-point number
@@ -2170,7 +2169,6 @@ ${E_GREEN_FG}-----------------${E_RESET}
 
 ${E_WHITE_FG}Integer Width${E_RESET}
 ${E_GREEN_FG}-------------${E_RESET}
-
    The width specifier is used with integers. Default: right-justified.
 
    printf("%3d", 0);          0
@@ -2180,7 +2178,6 @@ ${E_GREEN_FG}-------------${E_RESET}
 
 ${E_WHITE_FG}Integer Left-Justifying${E_RESET}
 ${E_GREEN_FG}-----------------------${E_RESET}
-
    Left-justify integer, add minus sign (-) after the % symbol.
 
    printf("%-3d", 0);          0
@@ -2190,7 +2187,6 @@ ${E_GREEN_FG}-----------------------${E_RESET}
 
 ${E_WHITE_FG}Integer Zero-Fill${E_RESET}
 ${E_GREEN_FG}-----------------${E_RESET}
-
    Zero-Fill integer output, add zero (0) after the % symbol.
 
    printf("%03d", 0);          000
@@ -2201,7 +2197,6 @@ ${E_GREEN_FG}-----------------${E_RESET}
 
 ${E_WHITE_FG}Integer Formatting${E_RESET}
 ${E_GREEN_FG}------------------${E_RESET}
-
    Collection of integer formatting examples. Minimum width, left-justified, zero-filled, plus sign for positive numbers.
 
    Description                          Code                   Result
@@ -2214,7 +2209,6 @@ ${E_GREEN_FG}------------------${E_RESET}
 
 ${E_WHITE_FG}Floating Point Formatting${E_RESET}
 ${E_GREEN_FG}-------------------------${E_RESET}
-
    Format Floating-point numbers.
 
    Description                                                 Code                                Result
@@ -2247,7 +2241,6 @@ ${E_GREEN_FG}-----------------${E_RESET}
 
 ${E_WHITE_FG}Special Characters${E_RESET}
 ${E_GREEN_FG}------------------${E_RESET}
-
    The following character sequences used as printf format specifiers:
 
    \a audible alert
@@ -2261,12 +2254,11 @@ ${E_GREEN_FG}------------------${E_RESET}
 
 ${E_WHITE_FG}Printf Tricks${E_RESET}
 ${E_GREEN_FG}-------------${E_RESET}
-
 ${E_WHITE_FG}Runtime Width Specifier${E_RESET}
 To calculate the width at runtime, use %*.  This says the next argument is the ${E_WHITE_FG}WIDTH${E_RESET}, followed by ${E_WHITE_FG}VALUE${E_RESET}.
 Ex:${E_WHITE_FG}printf "%*d\n" 5 10 ${E_RESET}-> prints a "10" with a width of 5
 
-${E_WHITE_FG}Substrings${E_RESET}
+${E_WHITE_FG}Leading Substrings${E_RESET}
 %.*s  -> print a substring
 With a variable precision, you can print a substring, or print a non-NUL-terminated string, if you
 know its length. printf("%.*s\n", sublen, str) prints the first sublen characters of str.
