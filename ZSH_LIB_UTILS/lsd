@@ -52,18 +52,18 @@ done
 
 #Functions
 action_do () {
-	local M
+	local M X
 	local RC
 
 	for M in ${_MARKED};do
 		if [[ -d ${_LOCAL_LIST[${M}]} ]];then
-			sudo /bin/rm -r ${_LOCAL_LIST[${M}]:Q} >/dev/null 2>&1
+			sudo /bin/rm -r ${_LOCAL_LIST[${M}]:q} >/dev/null 2>&1
 			RC=${?}
 		else
-			sudo /bin/rm ${_LOCAL_LIST[${M}]:Q} >/dev/null 2>&1
+			sudo /bin/rm ${_LOCAL_LIST[${M}]:q} >/dev/null 2>&1
 			RC=${?}
 		fi
-		[[ ${RC} -ne 0 ]] && msg_box -p -PK "FILE:${_LOCAL_LIST[${M}]} RC:${RC}"
+		[[ ${RC} -ne 0 ]] && msg_box -p -PK "Unable to remove FILE:${_LOCAL_LIST[${M}]}"
 	done
 
 	for M in ${_MARKED};do
@@ -209,6 +209,8 @@ if ! arr_is_populated "${_LOCAL_LIST}";then
 	[[ ${#} -ne 0 ]] && MSG2=" matching ${RESET}\"${WHITE_FG}${SEARCHTERM}${RESET}\"" || MSG2=''
 	exit_leave $(msg_warn "No regular ${MSG1}${RESET}${BOLD}${ITALIC}$(str_pluralize ${OBJTYPE})${RESET} found${MSG2}")
 fi
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} echo LOCAL_LIST:${_LOCAL_LIST}"
 
 if [[ ${DIRS} == 'true' ]];then
 	_FILTER+='Dirs Only'

@@ -1,10 +1,32 @@
 #!/usr/bin/zsh
+
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 #Declarations
 typeset -a _LOCAL_LIST
 typeset -A _DOWNLOADS
 typeset -A _FAILED
 typeset -A _FIELD_LEN
 typeset -A _STATUS_MSGS
+typeset -A _REJECTS
+typeset -A COORDS=(X 10 Y 38 H 10 W 86)
 
 #Constants
 _DOWNLOAD_DIR=~/Downloads
@@ -14,8 +36,10 @@ _FIELD_LEN[age]=30
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=90
 _JS_SCRIPT=/usr/local/etc/yts.js
+#_JS_SCRIPT=./yts.js
 _LOG=/tmp/yt.log
 _YTS_FAVORITES=~/.yts_history
+_PID=0
 
 #Globals
 g_ACTION=action
@@ -40,8 +64,8 @@ done
 #Functions
 action_do () {
 	local -A ERROR_SEEN=()
-	local -A COORDS=(X 10 Y 40 H 10 W 80)
-	local -a ETA
+	local -A LOG_SIZE
+	local -a ETAS
 	local -a LOG_LINES
 	local -a MSGS
 	local DEST
@@ -51,122 +75,127 @@ action_do () {
 	local ERROR
 	local HAS_ERRORS=false
 	local HDRS_OUT=false
-	local M
+	local LAST_SIZE=0
+	local LOG_ACTIVE=false
+	local L M S 
+	local ETA
+	local EMSG
 	local NDX=0
-	local PARSED=false
-	local PAUSE=.3
+	local PAUSE=1
+	local SCAN_LIMIT=0
+	local SCAN_MAX=10
+	local STALLS=0
 	local TITLE
 	local URL
+	local LOG_LINE
 
 	msg_box_clear
 
 	for M in ${_MARKED};do
 		((DL_CNT++))
-		#_DOWNLOADS[${M}]=false
+		_DOWNLOADS[${DL_CNT}]=false
 		ERROR_SEEN[${DL_CNT}]=false
-		PARSED=false
 		URL=$(get_field url ${M})
 		HDRS_OUT=false
 
 		[[ -e ${_LOG} ]] && rm -f ${_LOG}
-		nohup yt -i ${URL} >>${_LOG} 2>&1 &
-		msg_box -t${PAUSE} -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "Download requested...|${URL}"
+		_PID=$(start_job ${URL})
+		msg_box -x${COORDS[X]} "Download requested..."
 
 		while true;do
-			[[ ${NDX} -eq ${#_MARKED} ]] && break
-			sleep ${PAUSE}
 			((NDX++))
+			
 			if [[ ! -e ${_LOG} ]];then
-				[[ ${NDX} -gt 10 ]] && exit_leave "${_LOG} not detected" # 5 seconds no activity
-				continue
+				[[ ${NDX} -gt 10 ]] && exit_leave "${_LOG} not detected" # no activity
 			fi
 
-			if [[ ${ERROR_SEEN[${DL_CNT}]} == 'false' ]];then
-				ERROR=$(grep -i "error" ${_LOG})
-				if [[ ${?} -eq 0 ]];then
-					HAS_ERRORS=true
-					ERROR_SEEN[${DL_CNT}]=true
-					[[ ${ERROR:l} =~ 'retry' ]] && continue
-					_STATUS_MSGS[${DL_CNT}]="Download failed|<w>$(get_field title ${M})<N>|<r>${ERROR[1,70]}<N>"
-					break
-				fi
-			fi
-
-			#TODO: failure should not break; continue with remaining downloads
-			LOG_LINES=("${(f)$(grep -i "already been\|giving up" ${_LOG})}")
-			if [[ ${?} -eq 0 ]];then
-				HAS_ERRORS=true
-				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' <<<${LOG_LINES})}")
+			# Get headers
+			LOG_LINE=$(grep -m1 -i "destination" ${_LOG})
+			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
+				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				MSGS=("<r>[error]<N>")
-				grep -qi "has already" <<<${DEST_2}
-				_DOWNLOADS[${M}]=true
-				[[ ${?} -eq 0 ]] && MSGS+="Has already been downloaded"
-				grep -qi "giving up" <<<${DEST_2}
-				[[ ${?} -eq 0 ]] && MSGS+=="Network failure - giving up"
-				_FAILED[${M}]=true
-				TITLE=$(get_field title ${M})
-				TITLE=${TITLE[1,78]}
-				_STATUS_MSGS[${M}]="<w>${TITLE}<N>|${MSGS}"
-				continue
+				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1}<N>"
+				msg_box -C -jl "<m>Downloading:<c>[title] ${DEST_2[1,60]}<N>"
+				msg_box -C -jl "<m>$(str_unicode_line $(( COORDS[W] - 4 )))<N>"
+				HDRS_OUT=true
 			fi
 
-			if [[ ${HDRS_OUT} == 'false' ]];then
-				LOG_LINES=("${(f)$(grep -i "destination" ${_LOG})}")
-				if [[ ${?} -eq 0 ]];then
-					DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINES})}")
-					DEST_1=$(cut -d'|' -f1 <<<${DEST})
-					DEST_2=$(cut -d'|' -f2 <<<${DEST})
-					msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1}<N>"
-					msg_box -C -jl "<c>[title] ${DEST_2[1,65]}<N>"
-					msg_box -C -jl "<m>$(str_unicode_line $(( COORDS[W] - 4 )))<N>"
-					PARSED=true
-					HDRS_OUT=true
-				fi
-			fi
-
-			LOG_LINES=("${(f)$(grep -i "eta" ${_LOG})}")
+			# Scan for already downloaded
+			LOG_LINE=$(grep -m1 -i "already been" ${_LOG})
 			if [[ ${?} -eq 0 ]];then
-				ETA+=("${(f)$(sed 's//\n/g' <<<${LOG_LINES} | grep -vi 'unknown')}")
-				msg_box -C -jl "<w>${ETA[-1]}<N>"
-				PARSED=true
-				if [[ ${ETA[-1]} =~ '100' ]];then
-					if [[ ${#_MARKED} -gt 1 ]];then
-						msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
-						msg_box -t${PAUSE} -x$(( COORDS[X] +1 )) "Download ${DL_CNT} complete - $((${#_MARKED}-DL_CNT)) remaining"
-						_STATUS_MSGS[${DL_CNT}]="completed"
-					fi
-					_DOWNLOADS[${M}]=true
-					break
-				fi
+				TITLE=$(get_field title ${M})
+				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
+				msg_box -p -PK "${EMSG}"
+				_DOWNLOADS[${M}]=true
+				break
 			fi
 
-			if [[ ${NDX} -gt 30 && ${PARSED} == 'false' ]];then
-				exit_leave "${_LOG} not parsing"
-			else
-				NDX=0
-				MSGS=()
+			# Scan for not yet available
+			LOG_LINE=$(grep -m1 -i "will begin" ${_LOG})
+			if [[ ${?} -eq 0 ]];then
+				TITLE=$(get_field title ${M})
+				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
+				msg_box -p -PK "${EMSG}"
+				_DOWNLOADS[${M}]=true
+				break
 			fi
+
+			# Scan for errors
+			LOG_LINES=("${(f)$(grep -i 'error' ${_LOG})}")
+			if [[ ${?} -eq 0 ]];then
+				for L in ${LOG_LINES};do
+					case ${L:l} in
+						*giving\ up*)	TITLE=$(get_field title ${M})	
+											EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>" 
+											msg_box -p -PK "${EMSG}"
+											_FAILED[${M}]=true
+											break 2
+											;;
+					esac
+				done
+			fi
+
+			# Scan for progress
+			if [[ ${HDRS_OUT} == 'true' ]];then
+				LOG_LINE=$(tail -1 ${_LOG})
+				case ${LOG_LINE:l} in
+					*eta*)	ETAS+=("${(f)$(sed 's//\n/g' <<<${LOG_LINE} | grep -vi 'unknown')}")
+								ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${ETAS[-1]})
+								msg_box -C -jl "<w>${ETA}<N>"
+								if [[ ${ETA} =~ '100%' ]];then
+									if [[ ${#_MARKED} -gt 1 ]];then
+										msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
+										msg_box -t${PAUSE} -x$(( COORDS[X] +1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+									fi
+									_DOWNLOADS[${M}]=true
+									break
+								fi
+								;;
+				esac
+			fi
+			sleep .1
 		done
+		NDX=0
 	done
-
-	if [[ -n ${_STATUS_MSGS} ]];then
-		if [[ ${HAS_ERRORS} == 'true' ]];then
-			MSGS=()
-			for M in ${(k)_STATUS_MSGS};do
-				MSGS+="Download:${M} ${_STATUS_MSGS[${M}]}|"
-			done
-			msg_box -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} -c -p -PK "${MSGS}"
-		else
-			msg_box -x$(( COORDS[X] +1 )) -c -p -PK "${DL_CNT} downloads completed"
-		fi
-	fi
 
 	for M in ${_MARKED};do
 		_MARKED[${M}]=0
 		list_set_selected ${M} ${_USED_ROW}
 	done
+}
+
+start_job () {
+	local URL=${@}
+	local PID
+
+	nohup yt -i ${URL} >>${_LOG} 2>&1 &
+	#nohup ./log_sim ./yt.log.error.data >>${_LOG} 2>&1 &
+	#nohup ./log_sim ./yt.log.noerror.data >>${_LOG} 2>&1 &
+	PID=$(pgrep -n yt)
+	[[ -z ${PID} ]] && exit_leave "${0}:unable to start job"
+
+	echo ${PID}
 }
 
 action_warn () {
@@ -218,7 +247,7 @@ get_field () {
 
 	#STR=$(echo ${STR} | tr -cd '[:print:]') #Scrub non ascii
 	STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) #Scrub non ascii
-	echo -n ${STR}
+	echo -n ${STR[1,65]}
 }
 
 query_is_valid () {
@@ -310,17 +339,38 @@ set_favorite () {
 	done
 }
 
+total_rejects () {
+	local TL_VIDS=${1}
+	local K
+	local TL_RJ=0
+	local -F1 RJ_PCT=0
+
+	for K in ${(k)_REJECTS};do
+		[[ ${_REJECTS[${K}]} == 'true' ]] && ((TL_RJ++))
+	done
+
+	TL_VIDS=${TL_VIDS}.00
+	TL_RJ=${TL_RJ}.00
+
+	[[ ${TL_RJ} -ne 0 ]] && RJ_PCT=$(( (TL_RJ/TL_VIDS) * 100 ))
+
+	echo "${RJ_PCT}%"
+}
+
 #--GetOpts--
-OPTSTR=":HDf"
+OPTSTR=":HDafs"
 OPTIND=0
 
 DO_FAV=false
+STRICT=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) eval "node ${_JS_SCRIPT} -h";exit_leave;;
      D) dbg_set_level;;
+     a) AGE=${OPTARG};;
      f) DO_FAV=true;;
+     s) STRICT=true;;
 	esac
 	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
 done
@@ -340,26 +390,33 @@ RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
 if [[ ${DO_FAV} == 'true' || ${#} -eq 0 ]];then
 	do_smcup
 	get_favorite
-	[[ -n ${_FAVORITE} ]] && RCL=${_FAVORITE}
 fi
+
+[[ -z ${_FAVORITE} ]] && PROXY_CMD="node ${_JS_SCRIPT} ${RCL}" || PROXY_CMD="node ${_JS_SCRIPT} ${RCL} ${_FAVORITE}"
+[[ ${RCL:l} =~ '-v' ]] && DATA=info || DATA=false
 
 #Youtube query log
 [[ -e ${_LOG} ]] && /usr/bin/rm -f ${_LOG} # clear log
 
 # Command line processing is in the js script - only proxy the script
-[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} PROXY COMMAND: ${WHITE_FG}node ${_JS_SCRIPT} ${RCL}${RESET}"
+[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} PROXY COMMAND: ${WHITE_FG}${PROXY_CMD}${RESET}"
 
-DATA=false
-[[ ${RCL:l} =~ '-v' ]] && DATA=info
 
+NDX=0
 while read LINE;do
+	#echo "LINE:${LINE}" >> strict.out
 	[[ ${LINE:l} =~ 'matched' ]] && DATA=true && continue
+	((NDX++))
+	[[ ${LINE:l} =~ 'rejected' ]] && _REJECTS[${NDX}]=true || _REJECTS[${NDX}]=false
 	[[ ${LINE:l} =~ 'usage' && ${DATA} != 'true' ]] && DATA=info
 	[[ ${LINE:l} =~ 'error' && ${DATA} != 'true' ]] && DATA=info
-	[[ ${DATA} == 'true' ]] && _LOCAL_LIST+=${LINE:s/Streamed //} || echo ${LINE}
-done <<< $(eval "node ${_JS_SCRIPT} ${RCL}")
+	[[ ${_REJECTS[${NDX}]} == 'false' && ${DATA} == 'true' ]] && _LOCAL_LIST+=${LINE:s/Streamed //}
+done< <(eval ${PROXY_CMD})
+
+[[ ${STRICT} == 'true' ]] && E_MSG="\nSTRICT REJECTS:${RED_FG}$(total_rejects ${NDX})${RESET}" || E_MSG=''
 
 [[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${WHITE_FG}${#_LOCAL_LIST}${RESET}"
+
 [[ ${_SMCUP} == 'false' ]] && do_smcup
 
 if [[ ${DATA} == 'info' ]];then
@@ -367,10 +424,10 @@ if [[ ${DATA} == 'info' ]];then
 fi
 
 if ! arr_is_populated "${_LOCAL_LIST}";then
-	exit_leave $(msg_warn "No rows satisfied query:${@}")
+	exit_leave "No rows satisfied query${WHITE_FG}${E_MSG}${RESET}"
 fi
 
-set_favorite ${RCL}
+[[ -n ${1} ]] && set_favorite ${1}
 
 [[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 [[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"
@@ -408,5 +465,4 @@ while true;do
 	fi
 done
 
-
-exit_leave
+exit_leave ${E_MSG}

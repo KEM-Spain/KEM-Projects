@@ -1,5 +1,7 @@
 #!/usr/bin/zsh
 
+#TODO: add development
+ 
 #Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"

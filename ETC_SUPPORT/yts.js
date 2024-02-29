@@ -36,24 +36,33 @@
 	msgout = false
 	videos.forEach(function (v) {
 		has_match = false
-		if (age === "all") {
+		if (age === "all") { /* any age is default */
 			has_match = true
-			if (msgout === false) process.stdout.write("matched on all\n")
-			msgout = true
+			if (msgout === false) {
+				console.log("matched on all")
+				msgout = true
+			}
+		} else {
+			if (v.ago.indexOf(age) >= 0) { /* age was specified */
+				has_match = true
+				console.log("matched on age (non-strict)")
+				msgout = true
+			}
 		} 
-		/* ago = v.ago */
-		if (v.ago.indexOf(age) >= 1) {
-			if (msgout === false) process.stdout.write("matched on v.ago:"+age+"\n")
-			has_match = true
-			msgout = true
-		} 
-		v.title = v.title.replace(/\|/g, ':')
+		v.title = v.title.replace(/\|/g, ':') /* titles contain pipe separators */
 		if (has_match) {
-			if (strict) {
+			if (strict) { /* searchterm must be in title */
 				t_arg = searchterm.toLowerCase()
 				v_arg = v.author.name.toLowerCase()
-				if (v_arg.indexOf(t_arg) < 0) {
-					return
+				v_arg = v_arg.replace(/ /g, '')
+				if (v_arg.indexOf(t_arg) >= 0) { /* searchterm is in title */
+					if (msgout === false) {
+						console.log("matched strict")
+						msgout = true
+					}
+				} else {
+					console.log("rejected strict:"+v_arg+" != "+t_arg) /* searchterm NOT in title */
+					return	
 				}
 			}
 			console.log(`${v.ago}|${v.author.name}|${v.title}|${v.url}|${v.timestamp}`)

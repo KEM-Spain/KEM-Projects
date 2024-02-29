@@ -71,7 +71,7 @@ arr_is_populated () {
 
 do_rmcup () {
 	[[ ${_SMCUP} == 'false' ]] && return
-	tp rmcup
+	tput rmcup
 	# Echo "called rmcup"
 	_SMCUP=false
 }
@@ -102,6 +102,8 @@ exit_leave () {
 	else
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage
 	fi
+
+	tput cnorm >&2
 
 	kill -SIGINT $$ # Fire the traps
 }
@@ -152,6 +154,7 @@ str_pluralize () {
 		day) RETURN_WORD="days";;
 		device) RETURN_WORD="devices";;
 		directory) RETURN_WORD="directories";;
+		download) RETURN_WORD="downloads";;
 		duplicate) RETURN_WORD="duplicates";;
 		entry) RETURN_WORD="entries";;
 		file) RETURN_WORD="files";;
@@ -191,28 +194,24 @@ str_trim () {
 	local TEXT_IN=${@}
 	local TEXT
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TEXT_IN:\"${TEXT_IN}\""
+		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TEXT_IN:\"${TEXT_IN}\""
 
-	if [[ -z ${TEXT_IN} && ! -t 0 ]];then
-		read TEXT
-		[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_IN:\"${TEXT}\""
-		TEXT=$(sed 's/\t/ /g' <<<${TEXT}) # tabs distort output
-		TEXT=$(sed 's/^ *//' <<<${TEXT}) # leading spaces
-		TEXT=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT})
-		[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT}\""
-		echo ${TEXT}
-	else
-		TEXT_IN=$(sed 's/\t/ /g' <<<${TEXT_IN}) # tabs distort output
-		TEXT_IN=$(sed 's/^ *//' <<<${TEXT_IN}) # leading spaces
-		TEXT_IN=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT_IN})
-		[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT_IN}\""
+		if [[ -z ${TEXT_IN} && ! -t 0 ]];then
+			read TEXT
+			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_IN:\"${TEXT}\""
+			TEXT=$(sed 's/\t/ /g' <<<${TEXT}) # tabs distort output
+			TEXT=$(sed 's/^ *//' <<<${TEXT}) # leading spaces
+			TEXT=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT})
+			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT}\""
+			echo ${TEXT}
+		else
+			TEXT_IN=$(sed 's/\t/ /g' <<<${TEXT_IN}) # tabs distort output
+			TEXT_IN=$(sed 's/^ *//' <<<${TEXT_IN}) # leading spaces
+			TEXT_IN=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT_IN})
+			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT_IN}\""
 		echo ${TEXT_IN}
 	fi
-}
-
-tp () {
-	tput -T${TERM:=xterm} ${@}
 }
 
 validate_is_integer () {
@@ -336,6 +335,8 @@ do_finalize () {
 	local ADDED=0
 	local RESULT BEFORE AFTER
 	local MSG
+	local DELIM="|"
+	local MASKED=false
 
 	[[ ${_PIPED} == "true" ]] && echo ${_FILE_OUT_LIST} && exit_leave
 
@@ -354,10 +355,20 @@ do_finalize () {
 		[[ ${W:t} == '.' || -z ${W} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
 
 		#Final array for output
+		if [[ ${_FILE_IN_LIST[${NDX}]} =~ ${DELIM} ]];then
+			_FILE_IN_LIST[${NDX}]=$(sed "s/${DELIM}/<MASK>/g" <<<${_FILE_IN_LIST[${NDX}]})
+			W=$(sed "s/${DELIM}/<MASK>/g" <<<${W})
+			MASKED=true
+		fi
+
 		RESULT=$(str_diff.pl "${_FILE_IN_LIST[${NDX}]:t}" "${W:t}")
 		BEFORE=$(cut -f1 -d'|' <<<${RESULT})
 		AFTER=$(cut -f2 -d'|' <<<${RESULT} | sed -e 's/[{]//g' -e 's/[}]//g')
 		FINAL[${BEFORE}]=${AFTER}
+
+		if [[ ${MASKED} == 'true' ]];then
+			_FILE_IN_LIST[${NDX}]=$(sed "s/<MASK>/${DELIM}/g" <<<${_FILE_IN_LIST[${NDX}]})
+		fi
 
 		[[ ${#BEFORE} -gt ${LONGEST} ]] && LONGEST=${#BEFORE}
 	done
@@ -598,7 +609,6 @@ do_sdc () {
 	local C OP W
 	local TITLE
 
-	#TODO: not clearing parens
 	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
 
@@ -608,6 +618,10 @@ do_sdc () {
 		CANDIDATE=${C:t:r} # w/o path & extension
 		for OP in ${_SPACE_DOT};do
 			case ${OP} in
+				B)	TITLE=$(echo ${CANDIDATE} | iconv -f utf-8 -t ascii//translit) #Scrub extended ascii/non ascii
+					HIT=false
+					[[ ${TITLE} != ${CANDIDATE} ]] && HIT=true && CANDIDATE=${TITLE}
+					;;
 				S)	if [[ ${CANDIDATE} =~ ' ' ]];then
 						HIT=true
 						if [[ ${CAMEL} == "true" ]];then
@@ -627,10 +641,10 @@ do_sdc () {
 						CANDIDATE=${CANDIDATE:gs/\-//} #Scrub dashes
 						CANDIDATE=${CANDIDATE:gs/\[//} #Scrub brackets
 						CANDIDATE=${CANDIDATE:gs/\]//} #Scrub brackets
-						CANDIDATE=$(echo ${CANDIDATE} | tr -d '()') #Scrub parens
-						CANDIDATE=$(echo ${CANDIDATE} | tr -d \') #Scrub single quotes
-						CANDIDATE=$(echo ${CANDIDATE} | tr -d \") #Scrub double quotes
-						CANDIDATE=$(echo ${CANDIDATE} | tr -cd '[:print:]') #Scrub non ascii
+						CANDIDATE=$(tr -d '()' <<<${CANDIDATE}) #Scrub parens
+						CANDIDATE=$(tr -d \' <<<${CANDIDATE}) #Scrub single quotes
+						CANDIDATE=$(tr -d \" <<<${CANDIDATE}) #Scrub double quotes
+						CANDIDATE=$(iconv -f utf-8 -t ascii//translit <<<${CANDIDATE}) #Scrub extended ascii/non ascii
 					fi;;
 				C) TITLE=()
 					for W in "${(@s/,/)CANDIDATE}";do
@@ -760,6 +774,7 @@ do_trunc_fn () {
 			CEXT=${C:e} #extension
 			[[ -n ${CEXT} ]] && CEXT=".${CEXT}"
 			TRUNCATED=${CANDIDATE[1,${TRUNC_FN_LEN}]} #Implement fn length limit
+			TRUNCATED=$(str_trim <<<${TRUNCATED})
 			_FILE_OUT_LIST[${NDX}]=${CPATH}/${TRUNCATED}${CEXT}
 		fi
 	done
@@ -815,7 +830,7 @@ save_changes () {
 			continue #no collisions
 		fi
 		if [[ ! -e ${C} ]];then
-			echo "${WHITE_FG}${_SCRIPT}${RESET}:Moving...${_FILE_IN_LIST[${NDX}]:t} to ${C:t}" >&2
+			echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_FILE_IN_LIST[${NDX}]:t} \n  To: ${C:t}" >&2
 			/bin/mv "${_FILE_IN_LIST[${NDX}]:t}" "${C:t}"
 		fi
 	done
@@ -882,6 +897,7 @@ usage () {
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-S${RESET} if not running in a terminal (background job)"
 	echo -e "${WHITE_FG}-a${RESET} automatically apply changes (no prompting)"
+	echo -e "${WHITE_FG}-b${RESET} eliminate extended/non-ascii (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-e $(opt_type e)${RESET} limit operations to files having $(opt_type e)"
 	echo -e "${WHITE_FG}-C${RESET} eliminate quotes, parens, dots, dashes, commas, and non-ascii (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-c${RESET} camelCase (${CYAN_FG}M${RESET})"
@@ -904,7 +920,7 @@ usage () {
 	exit_leave $(msg_err ${PENDING_MSGS})
 }
 
-OPTSTR=":HDSae:irscCdm:pnNTt:uxy"
+OPTSTR=":HDSabe:irscCdm:pnNTt:uxy"
 
 ADD_LEADING_DIGITS=false
 ALLOW_DIRS=false
@@ -913,6 +929,7 @@ CAMEL=false
 CASE=S
 CLEAN_LEADING_DIGITS=false
 DOTS=false
+EXTENDED=false
 TRUNC_FN_LEN=0
 GREP_OPTS='-Eq'
 LIMIT_EXT=false
@@ -937,6 +954,7 @@ while getopts ${OPTSTR} OPT;do
      D) dbg_set_level;;
      S) SERVICE_MODE=true;;
      a) AUTOMATIC=true;;
+     b) EXTENDED=true;;
      e) LIMIT_EXT=true;LIMIT_EXT_TEXT=${OPTARG};;
      i) CASE=I; GREP_OPTS='-Eiq';;
      s) SPACES=true;;
@@ -1003,6 +1021,7 @@ if [[ ${#OPTIONS} -ge 1 && $(( $OPTIONS[(Ie)m] )) -ne 0 ]];then
 fi
 
 #Prep for space dot camel
+[[ ${EXTENDED} == "true" ]] && _SPACE_DOT+=(B)
 [[ ${SPACES} == "true" ]] && _SPACE_DOT+=(S)
 [[ ${DOTS} == "true" ]] && _SPACE_DOT+=(D)
 [[ ${CAMEL} == "true" ]] && _SPACE_DOT+=(C)
@@ -1054,14 +1073,14 @@ else
 		PATHLBL=${_FIND_PATH}
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} _FIND_PATH:${_FIND_PATH}"
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} ${LINENO} find ${_FIND_PATH} -maxdepth 2 ${FTYPE} ! -path ${_FIND_PATH}"
-		_FILE_IN_LIST=("${(f)$(eval "find ${_FIND_PATH} -maxdepth 2 ${FTYPE} ! -path ${_FIND_PATH}")}")
+		_FILE_IN_LIST=("${(f)$(eval "find ${(qqq)_FIND_PATH} -maxdepth 2 ${FTYPE} ! -path ${(qqq)_FIND_PATH}")}")
 	else
 		#Find files in current directory
 		g_LIST_METHOD="find in pwd"
 		FPATH=${PWD:q}
 		PATHLBL=${PWD}
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} ${LINENO} find ${FPATH} -maxdepth 1 ${FTYPE} ! -path ${FPATH}"
-		_FILE_IN_LIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FTYPE} ! -path ${FPATH}")}")
+		_FILE_IN_LIST=("${(f)$(eval "find ${(qqq)FPATH} -maxdepth 1 ${FTYPE} ! -path ${(qqq)FPATH}")}")
 	fi
 
 	printf "Scanning path:%s\n" ${PATHLBL}
@@ -1093,6 +1112,7 @@ if [[ ${_DEBUG} -gt 0 ]];then
 	echo MEDIA_FILE=${MEDIA_FILE}
 	echo RESOLUTION=${RES}
 	echo SPACES=${SPACES}
+	echo EXTENDED=${EXTENDED}
 	echo TRIM=${TRIM}
 	echo TRUNCATE=${TRUNCATE}
 	echo UNCAMEL=${UNCAMEL}
@@ -1108,7 +1128,7 @@ fi
 
 #Substitutions
 if [[ ${SEARCH_REPLACE} == 'true' ]];then
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Performing do_subs${RESET}..."
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Calling do_subs${RESET}..."
 	echo "${CYAN_FG}Substituting \"${g_FROM_TEXT}\" with \"${g_TO_TEXT}\"${RESET}" >&2 | tee -a ${_LOG}
 	do_subs
 	[[ ${?} -ne 0 ]] && echo "No matches for substitution" >&2 | tee -a ${_LOG}
@@ -1116,9 +1136,10 @@ fi
 
 #Space_Dot_Camel
 if [[ ${#_SPACE_DOT} -gt 0 ]];then
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Performing do_sdc${RESET}..."
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Calling do_sdc${RESET}..."
 	for X in ${_SPACE_DOT};do
 		case ${X} in
+			B) echo "${CYAN_FG}Eliminating extended/non-ascii...${RESET}";;
 			S) echo "${CYAN_FG}Eliminating spaces...${RESET}";;
 			D) echo "${CYAN_FG}Eliminating dots, dashes, and commas...${RESET}";;
 			C) echo "${CYAN_FG}Camel casing...${RESET}";;
@@ -1131,6 +1152,7 @@ if [[ ${#_SPACE_DOT} -gt 0 ]];then
 	if [[ ${?} -ne 0 ]];then
 		for X in ${_SPACE_DOT};do
 			case ${X} in
+				B) echo "No matches for extended/non-ascii";;
 				S) echo "No matches for eliminating spaces";;
 				D) echo "No matches for eliminating dots, dashes, and commas";;
 				C) echo "No matches for camel casing";;

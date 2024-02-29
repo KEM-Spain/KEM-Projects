@@ -29,6 +29,7 @@ _HIST_FILE_NEW=/tmp/zsh_history.new
 _ALIAS_FILE=/etc/zsh/aliases
 _LOCAL_EXE_PATH=~/Code/LOCAL
 _LIB_DIR=/usr/local/lib
+_CMD_CACHE=~/.cmd_cache
 
 #Imports
 _LIB_DIR=/usr/local/lib
@@ -48,15 +49,21 @@ done
 validate_cmd () {
 	local CMD=${@}
 
+	grep -q ${CMD} ${_CMD_CACHE}
+	[[ ${?} -eq 0 ]] && return 0
+
 	#validate command or alias
 	which ${CMD} >/dev/null 2>&1
 	if [[ ${?} -eq 0 ]];then
+			echo ${CMD} >> ${_CMD_CACHE}
 			return 0
 	elif [[ ${LOCAL_EXES[${CMD}]} -eq 1 ]];then
+			echo ${CMD} >> ${_CMD_CACHE}
 			return 0
 	else
 		grep -q "^alias ${CMD}=" < ${_ALIAS_FILE}
 		if [[ ${?} -eq 0 ]];then
+			echo ${CMD} >> ${_CMD_CACHE}
 			return 0
 		fi
 	fi
@@ -93,8 +100,8 @@ _cleanup () {
 }
 
 #Execution
-sort -u < ${_HIST_FILE} > ${_HIST_FILE_NEW}
-mv -f ${_HIST_FILE_NEW} ${_HIST_FILE}
+sort -u -o ${_CMD_CACHE} < ${_CMD_CACHE}
+sort -u -o ${_HIST_FILE} < ${_HIST_FILE}
 
 local -a LIST=("${(f)$(find ${_LOCAL_EXE_PATH} -executable)}")
 

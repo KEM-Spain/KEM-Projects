@@ -430,7 +430,6 @@ do_sdc () {
 	local C OP W
 	local TITLE
 
-	#TODO: not clearing parens
 	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
 

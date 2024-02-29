@@ -165,7 +165,7 @@ else
 fi
 
 if ! arr_is_populated "${LOCAL_LIST}";then
-	exit_leave $(msg_warn "find ${FPATH} -maxdepth 1 ${FGLOB} -type f ! -path . was unsuccessful")
+	exit_leave $(msg_err "No files found")
 fi
 
 for L in ${LOCAL_LIST};do

@@ -1,7 +1,6 @@
 #Declarations
 
 #Constants
-_LIB=/usr/local/lib
 
 #Globals
 
@@ -92,3 +91,5 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 #Execution
+
+exit_leave
