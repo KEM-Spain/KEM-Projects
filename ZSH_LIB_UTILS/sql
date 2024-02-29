@@ -1,0 +1,239 @@
+#!/usr/bin/zsh
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+BOLD="\033[1m"
+
+#Declarations
+LIB=/usr/local/lib
+typeset -a _DB_LIST
+typeset -a _TB_LIST
+
+#Globals
+_DELIM=' '
+_DB=''
+_TB=''
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+
+for D in ${=_DEPS_};do
+	if [[ -e ${_LIB_DIR}/${D} ]];then
+		source ${_LIB_DIR}/${D}
+	else
+		echo "Cannot source:${_LIB_DIR}/${D} - not found"
+		exit 1
+	fi
+done
+
+#Functions
+query () {
+	local SQL=(${@})
+	sqlite3 -separator ${_DELIM} ${_DB} <<____END_SQL
+.headers on
+${SQL}
+____END_SQL
+}
+
+set_db_list () {
+	local -a LIST
+
+	_DB_LIST=()
+	LIST=("${(f)$(find . -maxdepth 1 -type f)}")
+
+	for L in ${LIST};do
+		[[ $(file ${L:l}) =~ "database" ]] && _DB_LIST+=${L}
+	done
+
+	if ! arr_is_populated "${_DB_LIST}";then
+		exit_leave "No sqlite3 databases found"
+		return 1
+	fi
+	return 0
+}
+
+list_db () {
+	local L
+
+	if set_db_list;then
+		for L in ${_DB_LIST};do
+			echo ${L}
+		done
+	fi
+}
+
+select_db () {
+	if set_db_list;then
+		selection_list_set ${(o)_DB_LIST}
+		selection_list "<w>Select database or <h>(q)uit<N>"
+		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+		_DB=${_SELECTION_VALUE}
+	fi
+}
+
+list_tab () {
+		echo "${RESET}Tables in DB:${_DB}"
+		query .tables
+		exit_leave
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+SCRIPT=${0:t}
+
+read -r -d '' DESC<<EOF
+Perform sqlite3 SQL query
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		s) echo "<SEPARATOR>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	tabs 5
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-l${RESET} list DB's in current directory"
+	echo -e "${WHITE_FG}-p${RESET} print table contents"
+	echo -e "${WHITE_FG}-s $(opt_type s)${RESET} separator"
+	echo -e "${WHITE_FG}-t${RESET} show tables in DB"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+	exit_leave "\n${PENDING_MSGS}\n"
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDld:pst"
+OPTIND=0
+
+LIST_DB=false
+LIST_TB=false
+LIST_SC=false
+PRINT_TAB=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     l) LIST_DB=true;;
+     d) _DELIM=${OPTARG};;
+     p) PRINT_TAB=true;;
+     s) LIST_SC=true;;
+     t) LIST_TB=true;;
+     :) print -u2 "${RED_FG}${SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#Execution
+clear
+
+
+
+typeset -a TABLES
+
+if [[ ${LIST_SC} == 'true' ]];then
+	LIST_DB=("${(f)$(find . -maxdepth 1 -type f)}")
+
+	if arr_is_populated "${LIST_DB}";then
+		selection_list_set ${(o)LIST_DB}
+
+		_SELECTION_VALUE=?
+		selection_list "<w>Select database or <h>(q)uit<N>"
+		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+
+		_DB=${_SELECTION_VALUE}
+	fi
+
+	msg_box_clear
+
+	LIST_TB=($(query .tables))
+	if arr_is_populated "${LIST_TB}";then
+		selection_list_set ${(o)LIST_TB}
+
+		_SELECTION_VALUE=?
+		selection_list "<w>Select table or <h>(q)uit<N>"
+		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+
+		_TB=${_SELECTION_VALUE}
+	fi
+	echo "${RESET}Schema for TB:${_TB}"
+	query .schema ${_TB} 
+	exit_leave
+fi
+
+if [[ ${PRINT_TAB} == 'true' ]];then
+	LIST_DB=("${(f)$(find . -maxdepth 1 -type f)}")
+
+	if arr_is_populated "${LIST_DB}";then
+		selection_list_set ${(o)LIST_DB}
+
+		_SELECTION_VALUE=?
+		selection_list "<w>Select database or <h>(q)uit<N>"
+		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+
+		_DB=${_SELECTION_VALUE}
+	fi
+
+	msg_box_clear
+
+	LIST_TB=($(query .tables))
+	if arr_is_populated "${LIST_TB}";then
+		selection_list_set ${(o)LIST_TB}
+
+		_SELECTION_VALUE=?
+		selection_list "<w>Select table or <h>(q)uit<N>"
+		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+
+		_TB=${_SELECTION_VALUE}
+	fi
+	echo "${RESET}Contents of TB:${_TB}"
+	query "select * from ${_TB}"
+	exit_leave
+fi
+
+query ${@}
+
+exit_leave

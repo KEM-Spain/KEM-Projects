@@ -81,7 +81,7 @@ action_do () {
 	local ETA
 	local EMSG
 	local NDX=0
-	local PAUSE=1
+	local PAUSE=2
 	local SCAN_LIMIT=0
 	local SCAN_MAX=10
 	local STALLS=0
@@ -99,8 +99,9 @@ action_do () {
 		HDRS_OUT=false
 
 		[[ -e ${_LOG} ]] && rm -f ${_LOG}
+
 		_PID=$(start_job ${URL})
-		msg_box -x${COORDS[X]} "Download requested..."
+		msg_box -x$(( COORDS[X] +1 )) "Download requested..."
 
 		while true;do
 			((NDX++))
@@ -137,7 +138,7 @@ action_do () {
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
 				msg_box -p -PK "${EMSG}"
-				_DOWNLOADS[${M}]=true
+				_FAILED[${M}]=true
 				break
 			fi
 
@@ -178,6 +179,8 @@ action_do () {
 		done
 		NDX=0
 	done
+
+	sleep ${PAUSE}
 
 	for M in ${_MARKED};do
 		_MARKED[${M}]=0

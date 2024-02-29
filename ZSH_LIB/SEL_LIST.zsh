@@ -15,15 +15,17 @@ _TITLE_HL=${WHITE_ON_GREY}
 typeset -a _SELECTION_LIST # Holds indices of selected items in a list
 typeset -A _PAGE_TOPS
 typeset -a _CENTER_COORDS
+typeset -A _COL_WIDTHS
 
-_LONGEST_COL1=0
-_LONGEST_COL2=0
 _CUR_PAGE=1
 _MAX_PAGE=0
 _HILITE=${_TITLE_HL}
 
 #LIB Functions
 selection_list () {
+	local -A SKEYS
+	local -a SLIST
+	local MAX_X_COORD=$((_MAX_ROWS-5)) # Up from bottom - frame:5/no frame:4
 	local MAX_NDX=${#_SELECTION_LIST}
 	local BOX_BOT=0
 	local BOX_HEIGHT=$(( MAX_NDX+2 ))
@@ -54,7 +56,6 @@ selection_list () {
 	local LIST_NDX=0
 	local LIST_TOP=0
 	local MAX_BOX=0
-	local MAX_X_COORD=$((_MAX_ROWS-5)) # Up from bottom - frame:5/no frame:4
 	local OPTION
 	local OPTSTR
 	local PAD=2
@@ -75,6 +76,15 @@ selection_list () {
 	OPTSTR=":x:y:cr:w:O:I:s"
 	OPTIND=0
 
+	ITEM_PAD=2
+	ROW_ARG=''
+	X_COORD_ARG=?
+	Y_COORD_ARG=?
+	_INNER_BOX_COLOR=${RESET}
+	_OUTER_BOX_COLOR=${RESET}
+	_SL_CATEGORY=false
+	_SORT_KEY=false
+
 	while getopts ${OPTSTR} OPTION;do
 		case $OPTION in
 	   c) _SL_CATEGORY=true;;
@@ -94,8 +104,6 @@ selection_list () {
 	#Execution
 	TITLE=${1}
 
-	local -A SKEYS
-	local -a SLIST
 	if [[ ${_SORT_KEY} == 'true' ]];then
 		for L in ${_SELECTION_LIST};do
 			SKEYS+=$(cut -d':' -f1 <<<${L})
@@ -195,12 +203,14 @@ selection_list () {
 		msg_unicode_box ${BOX_X_COORD} ${CENTER_Y} ${BOX_WIDTH} ${BOX_HEIGHT} # Display INNER box for list
 		echo -n ${RESET}
 
-		for L in ${_SELECTION_LIST};do
-			F1=$(cut -d: -f1 <<<${L})
-			F2=$(cut -d: -f2 <<<${L})
-			[[ ${#F1} -gt ${_LONGEST_COL1} ]] && _LONGEST_COL1=${#F1}
-			[[ ${#F2} -gt ${_LONGEST_COL2} ]] && _LONGEST_COL2=${#F2}
-		done
+		if [[ ${_SL_CATEGORY} == 'true' ]];then
+			for L in ${_SELECTION_LIST};do
+				F1=$(cut -d: -f1 <<<${L})
+				F2=$(cut -d: -f2 <<<${L})
+				[[ ${#F1} -gt ${_COL_WIDTHS[1]} ]] && _COL_WIDTHS[1]=${#F1}
+				[[ ${#F2} -gt ${_COL_WIDTHS[2]} ]] && _COL_WIDTHS[2]=${#F2}
+			done
+		fi
 
 		ROWS_OUT=0
 		for (( LIST_NDX=LIST_TOP;LIST_NDX<=MAX_NDX;LIST_NDX++ ));do
@@ -211,7 +221,7 @@ selection_list () {
 				F1=$(cut -d: -f1 <<<${_SELECTION_LIST[${LIST_NDX}]})
 				F2=$(cut -d: -f2 <<<${_SELECTION_LIST[${LIST_NDX}]})
 				[[ ${LIST_NDX} -eq 1 ]] && _HILITE=${_TITLE_HL} || _HILITE=''
-				printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_LONGEST_COL1} ${F1} ${_LONGEST_COL2} ${F2}
+				printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
 			else
 				echo ${_SELECTION_LIST[${LIST_NDX}]}
 			fi
@@ -370,7 +380,7 @@ selection_list_hilite () {
 	if [[ ${_SL_CATEGORY} == 'true' ]];then
 		F1=$(cut -d: -f1 <<<${TEXT})
 		F2=$(cut -d: -f2 <<<${TEXT})
-		printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_LONGEST_COL1} ${F1} ${_LONGEST_COL2} ${F2}
+		printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
 	else
 		echo ${TEXT}
 	fi
@@ -390,7 +400,7 @@ selection_list_norm () {
 	if [[ ${_SL_CATEGORY} == 'true' ]];then
 		F1=$(cut -d: -f1 <<<${TEXT})
 		F2=$(cut -d: -f2 <<<${TEXT})
-		printf "${WHITE_FG}%-*s${RESET} %-*s\n" ${_LONGEST_COL1} ${F1} ${_LONGEST_COL2} ${F2}
+		printf "${WHITE_FG}%-*s${RESET} %-*s\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
 	else
 		echo ${TEXT}
 	fi
