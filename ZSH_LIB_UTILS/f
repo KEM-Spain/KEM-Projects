@@ -45,11 +45,11 @@ WHITE_FG="\033[37m"
 
 read -r -d '' DESC<<EOF
 Find files and/or directories in or below the current directory
-\tNOTE: -r is a convenience regex and accepts one or more chars
-\t(unquoted) to find files in the current dir. It can also 
+\tNOTE: -r is a convenience regex and accepts one or more plain 
+\Tchars to find files in the current dir. It can also 
 \tcontain additional regex syntax (quoted) but is still limited 
 \tto files in the current dir. -R is a generic regex and is unlimited.
-\tIf not a regex -[rR] query then <SEARCHTERM> is used to match files
+\tIf regex -[rR] not passed then <SEARCHTERM> is used to match files
 EOF
 
 parse_opts () {

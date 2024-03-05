@@ -714,7 +714,8 @@ unplug () {
 	local -A MODELS
 	local -A MOUNTED
 	local PART_REGEX="sd[abc]"
-	local -a MOUNTS=($(mount | grep ${PART_REGEX} 2>/dev/null | cut -d \  -f1))
+	local -a MOUNTS=($(mount | grep ${PART_REGEX} 2>/dev/null | cut -d' '  -f1))
+	local -a MOUNTPOINTS=($(mount | grep ${PART_REGEX} 2>/dev/null | cut -d' '  -f3- | sed 's/type.*//'))
 	local DEV=?
 	local DLIST=("${(f)$(lsblk)}")
 	local GET_NAME=false
@@ -734,6 +735,10 @@ ___EOF
 		echo "${WHITE_FG} Desc${RESET}:${DESC}"
 		exit_leave
 	fi
+
+	for M in ${MOUNTPOINTS};do
+		[[ ${PWD} =~ ${M} ]] && exit_leave "${0}:${RED_FG}Unable to unmount${RESET}: change directory to an unmounted location"
+	done
 
 	for M in ${MOUNTS};do
 		MOUNTED[${M[1,-2]}]=1
@@ -776,17 +781,13 @@ ___EOF
 
 		[[ ${RESPONSE} =~ "^\x0a" ]] && exit_leave $(msg_warn "Operation cancelled")
 
+		#TODO: MODELS needs mounted info from MOUNTS/not DISKS - i.e. sdb1 NOT sdb
 		for M in ${(k)MODELS};do
 			if [[ ${RESPONSE:l} == 'a' ]];then
 				DEV=${M}
-				sudo eject /dev/${M} 2>/dev/null
+				udisksctl unmount -f -b /dev/${M} 
 			else
 				DEV=${DISKS[${RESPONSE}]}
-				sudo eject /dev/${DEV} 2>/dev/null
-			fi
-			if [[ $? -eq 0 ]];then
-				echo "Ejected ${WHITE_FG}${MODELS[${DEV}]}${RESET}"
-			else
 				echo "An error occurred ejecting ${DEV}:$?"
 			fi
 			[[ ${RESPONSE:l} != 'a' ]] && break
@@ -907,6 +908,10 @@ ___EOF
 		echo "      ${WHITE_FG}DEVICE${RESET}: ${MOUNTS[$NDX]} ${UUID2DEV[${UUID}]}"
 		echo " ${WHITE_FG}MOUNT POINT${RESET}: ${POINTS[$NDX]} -> ${STATUS}"
 		echo "        ${WHITE_FG}TYPE${RESET}: ${TYPES[$NDX]}"
+		echo "     ${WHITE_FG}OPTIONS${RESET}: ${OPTIONS[$NDX]}"
+		echo "       ${WHITE_FG}DUMPS${RESET}: ${DUMPS[$NDX]}"
+		echo "      ${WHITE_FG}PASSES${RESET}: ${PASSES[$NDX]}"
+		echo ""
 		echo "     ${WHITE_FG}OPTIONS${RESET}: ${OPTIONS[$NDX]}"
 		echo "       ${WHITE_FG}DUMPS${RESET}: ${DUMPS[$NDX]}"
 		echo "      ${WHITE_FG}PASSES${RESET}: ${PASSES[$NDX]}"

@@ -57,10 +57,10 @@ action_do () {
 
 	for M in ${_MARKED};do
 		if [[ -d ${_LOCAL_LIST[${M}]} ]];then
-			sudo /bin/rm -r ${_LOCAL_LIST[${M}]:q} >/dev/null 2>&1
+			sudo /bin/rm -r ${_LOCAL_LIST[${M}]} >/dev/null 2>&1
 			RC=${?}
 		else
-			sudo /bin/rm -f ${_LOCAL_LIST[${M}]:q} >/dev/null 2>&1
+			sudo /bin/rm -f ${_LOCAL_LIST[${M}]} >/dev/null 2>&1
 			RC=${?}
 		fi
 		[[ ${RC} -ne 0 ]] && msg_box -p -PK "Unable to remove FILE:${_LOCAL_LIST[${M}]}"

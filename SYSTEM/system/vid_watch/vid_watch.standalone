@@ -1,18 +1,15 @@
 #!/usr/bin/zsh
 
 #Constants
-_FIFO=/tmp/${0:t}.fifo
-_COMPLETED=~/Downloads/Torrents/Completed
-_MUSIC=~/Downloads/Torrents/Music
-_LOG=/tmp/${0:t}.log
-_PID_FN=/tmp/${0:t}.pid
-_LIB=/usr/local/lib
-_VW=/usr/local/bin/system/vid_watch
-_VIDEO_REGEX='.*\(mkv\|mp4\|avi\)$'
 _AUDIO_REGEX='.*\(\.ape\|\.mp3\|\.m4a\|\.flac\|\.ogg\|\.wav\)$'
+_COMPLETED=~/Downloads/Torrents/Completed
+_FIFO=/tmp/${0:t}.fifo
 _INOT_PID=''
-
-source ${_LIB}/common.zsh
+_LOG=/tmp/${0:t}.log
+_MUSIC=~/Downloads/Torrents/Music
+_PID_FN=/tmp/${0:t}.pid
+_VIDEO_REGEX='.*\(mkv\|mp4\|avi\)$'
+_VW=/usr/local/bin/system/vid_watch
 
 #Declarations
 typeset -a _QUEUE
@@ -73,6 +70,7 @@ NDX=0
 while true;do
 	((NDX++))
 	[[ ${NDX} -eq 1 ]] && echo "Reading fifo...$(date +'%T %D')"
+
 	while read -t5 LINE;do # 10 sec timeout
 		((EVENT++))
 		echo "Queuing event..."
@@ -82,6 +80,7 @@ while true;do
 	#if inot dies, activity is missed; count any existing files
 	VID_CNT=$(find ${_COMPLETED} -type f -iregex "${_VIDEO_REGEX}" ! -path ${_COMPLETED} | wc -l) 
 	AUD_CNT=$(find ${_COMPLETED} -type f -iregex "${_AUDIO_REGEX}" ! -path ${_COMPLETED} | wc -l) 
+
 	if [[ ${#_QUEUE} -ne 0 || ${VID_CNT} -ne 0 ]];then
 		echo "Calling vid_to_lib.standalone with ${VID_CNT} files..."
 		${_VW}/vid_to_lib.standalone -S 2>&1 # designate as system service
@@ -90,13 +89,16 @@ while true;do
 		NDX=0
 	elif [[ ${#_QUEUE} -ne 0 || ${AUD_CNT} -ne 0 ]];then
 		echo "Moving ${AUD_CNT} audio files to:${_MUSIC}"
+
 		MUSIC=("${(f)$(find ${_COMPLETED} -iregex "${_AUDIO_REGEX}" ! -path ${_COMPLETED})}")
 		for M in ${MUSIC};do
 			_M_DIRS+=${M:h} # all dirs that contain AUDIO
 		done
+
 		for M in ${_M_DIRS};do
 			mv ${M} ${_MUSIC}
 		done
+
 		echo "Clearing deluge.."
 		${_VW}/vid_to_lib.standalone -c 2>&1 # clear deluge state
 		_QUEUE=()

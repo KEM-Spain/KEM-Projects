@@ -94,6 +94,7 @@ action_do () {
 	for M in ${_MARKED};do
 		((DL_CNT++))
 		_DOWNLOADS[${DL_CNT}]=false
+		_FAILED[${DL_CNT}]=false
 		ERROR_SEEN[${DL_CNT}]=false
 		URL=$(get_field url ${M})
 		HDRS_OUT=false
@@ -133,7 +134,7 @@ action_do () {
 			fi
 
 			# Scan for not yet available
-			LOG_LINE=$(grep -m1 -i "will begin" ${_LOG})
+			LOG_LINE=$(grep -m1 -i "will begin\|premieres" ${_LOG})
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
@@ -179,8 +180,6 @@ action_do () {
 		done
 		NDX=0
 	done
-
-	sleep ${PAUSE}
 
 	for M in ${_MARKED};do
 		_MARKED[${M}]=0
@@ -361,19 +360,67 @@ total_rejects () {
 }
 
 #--GetOpts--
-OPTSTR=":HDafs"
+read -r -d '' DESC<<EOF
+Frontend for yt-search (yts)
+\tHelp for frontend is above...
+\tHelp for backend is below...\n
+EOF
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		f) echo "<SEARCHTERM>";;
+	esac
+}
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+="<PARAM>" && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-a${RESET} filter results by age of video (all,min,hour,day,week,month,year)"
+	echo -e "${WHITE_FG}-f${RESET} display list of recent queries to choose from"
+	echo -e "${WHITE_FG}-h${RESET} do not add query to history"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+}
+
+OPTSTR=":HDva:hfs"
 OPTIND=0
 
 DO_FAV=false
 STRICT=false
+HIST=true
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
-     H) eval "node ${_JS_SCRIPT} -h";exit_leave;;
+     H) usage;eval "node ${_JS_SCRIPT} -h";exit_leave;;
      D) dbg_set_level;;
      a) AGE=${OPTARG};;
      f) DO_FAV=true;;
+     h) HIST=false;;
      s) STRICT=true;;
+    \?) exit_leave "${RED_FG}Error${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
+	  :) exit_leave "${RED_FG}Error${RESET}: option -${OPTARG} requires an argument${RESET}";;
 	esac
 	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
 done
@@ -387,23 +434,34 @@ FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
 RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
+RCL=$(sed 's/\-h//' <<<${RCL}) # front end option only
 
-[[ ${_DEBUG} -ge 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL})
+[[ ${_DEBUG} -ge 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # front end option only
+
+if [[ ${RCL:l} =~ '-v' ]];then
+	echo -n "yt-search version:${WHITE_FG}"
+	node ${_JS_SCRIPT} --version
+	echo ${RESET}
+	exit_leave
+fi
+
+if [[ ${RCL:l} =~ '-a' ]];then
+	echo ${RCL} | grep -q "\-a all\|min\|hour\|day\|week\|month\|year"
+	[[ ${?} -ne 0 ]] && exit_leave "${RED_FG}Invalid argument${RESET} - valid age arguments: ${WHITE_FG}all,min,day,week,month,year${RESET}"
+fi
 
 if [[ ${DO_FAV} == 'true' || ${#} -eq 0 ]];then
 	do_smcup
 	get_favorite
 fi
 
-[[ -z ${_FAVORITE} ]] && PROXY_CMD="node ${_JS_SCRIPT} ${RCL}" || PROXY_CMD="node ${_JS_SCRIPT} ${RCL} ${_FAVORITE}"
-[[ ${RCL:l} =~ '-v' ]] && DATA=info || DATA=false
+[[ -z ${_FAVORITE} ]] && PROXY_CMD="node ${_JS_SCRIPT} ${RCL}" || PROXY_CMD="node ${_JS_SCRIPT} ${RCL} ${_FAVORITE:q}"
 
 #Youtube query log
 [[ -e ${_LOG} ]] && /usr/bin/rm -f ${_LOG} # clear log
 
 # Command line processing is in the js script - only proxy the script
 [[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} PROXY COMMAND: ${WHITE_FG}${PROXY_CMD}${RESET}"
-
 
 NDX=0
 while read LINE;do
@@ -430,7 +488,7 @@ if ! arr_is_populated "${_LOCAL_LIST}";then
 	exit_leave "No rows satisfied query${WHITE_FG}${E_MSG}${RESET}"
 fi
 
-[[ -n ${1} ]] && set_favorite ${1}
+[[ -n ${1} && ${HIST} == 'true' ]] && set_favorite ${1}
 
 [[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 [[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"

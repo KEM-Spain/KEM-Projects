@@ -1,0 +1,88 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+BLACK_LIST='?\|!\|BOLD\|ITALIC\|RESET\|REVERSE\|STRIKE\|UNDER\|BLACK\|BLUE\|CYAN\|GREEN\|MAGENTA\|RED\|WHITE\|YELLOW'
+
+typeset -aU _VARS
+typeset -aU _BARE_VARS
+typeset -aU _ASSIGNED
+typeset -aU _REFERENCED
+
+LOG=/tmp/${0:t}_explode
+[[ -e ${LOG} ]] && /bin/rm ${LOG}
+
+[[ -z ${1} ]] && echo "Missing argument:<ZSH_SCRIPT>" && exit
+SCRIPT=${1}
+
+EXPLODE=$(sed -e 's/\$/\n\$/g' -e 's/[(].*[)]//' -e 's/:.*}/}/' -e 's/{[#=]/{/' ${SCRIPT}) # expose nested variables, eliminate modifiers and flags
+
+_VARS=("${(f)$(perl -ne '/\$\{(.+?)\}/mg && print "$&\n"' <<<${EXPLODE})}")
+#TODO: regex is not correct for read; need to isolate variable after read (options) until terminator (';' or '<' or '||')
+STMT=$(grep --color=never -oP 'read\s.*;' ${SCRIPT})
+GRP=$(perl -p -e 's/read\s+(-.*?)\s(.+?)[ <;|](.*)/\2/' <<<${STMT})
+echo "STMT:${STMT} GRP:${GRP}" >>${LOG}
+echo "Initial extract of variables" >>${LOG}
+
+echo "Clearing variables of modifiers and tags" >>${LOG}
+for V in ${(o)_VARS};do
+	[[ ${V} =~ "\[" ]] && VAR=$(cut -d'[' -f1 <<<${VAR}) || VAR=${V} # strip element refs
+	VAR=$(tr -d '${}' <<<${VAR}) # prefix, braces
+	[[ -z ${VAR} ]] && continue # null
+	[[ ${VAR} =~ "^ *$" ]] && continue # spaces
+	#echo "CLEANED:${VAR}"
+	if $(grep -q "${BLACK_LIST}" <<<${VAR});then # blacklisted
+		echo "BLACKLISTED:${VAR}"
+		continue
+	fi
+	echo "WHITELISTED:${VAR}"
+	_BARE_VARS+=${VAR}
+done >> ${LOG}
+
+echo "Assigned and Referenced vars" >>${LOG}
+for B in ${(o)_BARE_VARS};do
+	[[ ${B} =~ "_PARTITIONS" ]] && set -xv
+	OUT=$(grep -m1 -io "\b${B}=\|\b${B}+=\|\b${B}\[.*\]=\|\b${B}\[.*\]+=\|for\s.*${B}.*in\|read\s.*${B}" ${SCRIPT})
+	if [[ ${?} -eq 0 ]];then
+		_ASSIGNED+=${B}
+		echo "ASSIGNED:[${B}] -> $(tr -d '\n'  <<<${OUT})"
+	else
+		echo "REFERENCED:[${B}]"
+		_REFERENCED+=${B}
+	fi
+	[[ ${B} =~ "_PARTITIONS" ]] && set +xv
+done >> ${LOG}
+
+echo "\n${WHITE_ON_GREY}App:${SCRIPT:t} Assigned Variables${RESET}"
+for A in ${_ASSIGNED};do
+	echo ${A}
+done
+
+echo "\n${WHITE_ON_GREY}App:${SCRIPT:t} Referenced Variables${RESET}"
+for R in ${_REFERENCED};do
+	echo "\${${R}}"
+done
+
+echo "\n${WHITE_ON_GREY}App:${SCRIPT:t} Unused Variables${RESET}"
+for U in ${_REFERENCED};do
+	grep -qP "local ${U}" ${SCRIPT}
+	[[ ${?} -eq 0 ]] && echo ${U}
+done
+
