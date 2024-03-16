@@ -96,7 +96,7 @@ get_last_cmd () {
 }
 
 _cleanup () {
-	rm -f ${_HIST_FILE_NEW}
+	[[ -e ${_HIST_FILE_NEW} ]] && rm -f ${_HIST_FILE_NEW}
 }
 
 #Execution
@@ -153,7 +153,8 @@ DUPLICATE_CNT=$(( (HIST_CNT-${#HIST_NEW}) - INVALID_CNT ))
 # printf "History lines:${WHITE_FG}%d${RESET} Valid:${WHITE_FG}%d${RESET} Invalid:${WHITE_FG}%d${RESET} Duplicate:${WHITE_FG}%d${RESET} Remaining:${WHITE_FG}%d${RESET}\n" ${HIST_CNT} ${VALID_CNT} ${INVALID_CNT} ${DUPLICATE_CNT} ${#HIST_NEW}
 printf "History ${WHITE_FG}%d${RESET} | (${WHITE_FG}%d${RESET}) | ${WHITE_FG}%d${RESET} lines\n" ${HIST_CNT} $(( INVALID_CNT + DUPLICATE_CNT )) ${#HIST_NEW}
 
-rm -f ${_HIST_FILE_NEW}
+_cleanup
+
 for L in ${(on)HIST_NEW};do
 	echo ${L} >>${_HIST_FILE_NEW}
 done

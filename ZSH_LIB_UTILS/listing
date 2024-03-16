@@ -336,7 +336,7 @@ fi
 
 _LS_OPTS=$(get_ls_opts ${_CALLER})
 
-[[ ${RAW_CMD} =~ '~' ]] && ARGS=(${HOME}) || ARGS=(${@})
+[[ ${RAW_CMD} == '~' ]] && ARGS=(${HOME}) || ARGS=(${@})
 
 if [[ ${RECURSE} == 'true' ]];then
 	[[ ${_DEBUG} -lt 2 ]] && RAW_CMD=$(sed 's/\-D//' <<<${RAW_CMD})

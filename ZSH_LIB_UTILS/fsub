@@ -32,6 +32,7 @@ _KEYWORDS=(bluray)
 g_FROM_TEXT=?
 g_TO_TEXT=?
 g_LIST_METHOD=?
+g_NO_PROMPTING=?
 
 #Imports
 _LIB_DIR=/usr/local/lib
@@ -216,11 +217,12 @@ do_finalize () {
 		) | dbg
 	fi
 
-	[[ ${AUTOMATIC} == 'true' ]] && save_changes && return
-
 	echo "${WHITE_FG}Found $(str_pluralize match ${#FINAL})${RESET}" >&2
 
-	if [[ ${NO_PROMPT} == 'true' ]];then
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} g_NO_PROMPTING:${g_NO_PROMPTING}"
+
+	if [[ ${g_NO_PROMPTING} == 'true' ]];then
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} g_NO_PROMPTING is true"
 		save_changes
 	else
 		printf "\nThe following ${RED_FG}${BOLD}${ITALIC}changes are pending${RESET}...\n\n"
@@ -745,7 +747,6 @@ OPTSTR=":HDSabe:irscCdm:pnNTt:uxy"
 
 ADD_LEADING_DIGITS=false
 ALLOW_DIRS=false
-AUTOMATIC=false
 CAMEL=false
 CASE=S
 CLEAN_LEADING_DIGITS=false
@@ -762,7 +763,7 @@ SERVICE_MODE=false
 TRUNCATE=false
 TRIM=false
 UNCAMEL=false
-NO_PROMPT=false
+g_NO_PROMPTING=false
 g_FROM_TEXT=''
 g_TO_TEXT=''
 
@@ -774,7 +775,6 @@ while getopts ${OPTSTR} OPT;do
      H) usage;;
      D) dbg_set_level;;
      S) SERVICE_MODE=true;;
-     a) AUTOMATIC=true;;
      b) EXTENDED=true;;
      e) LIMIT_EXT=true;LIMIT_EXT_TEXT=${OPTARG};;
      i) CASE=I; GREP_OPTS='-Eiq';;
@@ -790,7 +790,7 @@ while getopts ${OPTSTR} OPT;do
      T) TRIM=true;;
      u) UNCAMEL=true;;
      x) STRIP_LEADING_DIGITS=true;;
-     y) NO_PROMPT=true;;
+     y) g_NO_PROMPTING=true;;
      :) print -u2 "${0}: option: ${WHITE_FG}-${OPTARG} ${BOLD}${RED_FG}requires an argument${RESET}"; usage;;
     \?) print -u2 "${0}: hit ${BOLD}${RED_FG}Unknown option${RESET} ${OPTARG}"; usage;;
 	esac
@@ -800,6 +800,8 @@ shift $((OPTIND - 1))
 #--End GetOpts--
 #Execution
 [[ -e ${_LOG} ]] && /bin/rm -f ${_LOG}
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} g_NO_PROMPTING:${g_NO_PROMPTING}"
 
 #Handle input method
 _PIPED=false
