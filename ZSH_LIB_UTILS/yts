@@ -47,6 +47,7 @@ _RUMBLE=''
 g_ACTION=action
 g_OBJECT=object
 g_PLATFORM=''
+g_RUMBLE_SEARCH_TYPE=''
 
 #Imports
 _LIB_DIR=/usr/local/lib
@@ -120,8 +121,8 @@ action_do () {
 				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1}<N>"
-				msg_box -C -jl "<m>Downloading:<c>[title] ${DEST_2[1,60]}<N>"
+				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>"
+				msg_box -C -jl "<m>Downloading: <c>${DEST_2[1,60]}<N>"
 				msg_box -C -jl "<m>$(str_unicode_line $(( COORDS[W] - 4 )))<N>"
 				HDRS_OUT=true
 			fi
@@ -137,7 +138,7 @@ action_do () {
 			fi
 
 			# Scan for not yet available
-			LOG_LINE=$(grep -m1 -i "will begin\|premieres" ${_LOG})
+			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${_LOG})
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
@@ -173,7 +174,9 @@ action_do () {
 								if [[ ${ETA} =~ '100%' ]];then
 									if [[ ${#_MARKED} -gt 1 ]];then
 										msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
-										msg_box -t${PAUSE} -x$(( COORDS[X] +1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+										if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+											msg_box -t${PAUSE} -x$(( COORDS[X] +1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+										fi
 									fi
 									_DOWNLOADS[${M}]=true
 									break
@@ -260,14 +263,25 @@ get_field () {
 	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} _LIST[NDX]:${_LIST[${NDX}]}"
 
 	if [[ ${_RUMBLE} == 'true' ]];then
-		case ${FIELD} in
-			author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
-			title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
-			age) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
-			url) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="http://rumble.com${STR}";;
-			time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
-		esac
-		[[ -z ${STR} ]] && STR="Unknown"
+		if [[ ${g_RUMBLE_SEARCH_TYPE} == 'channel' ]];then
+			case ${FIELD} in
+				author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
+				title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
+				age) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
+				url) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="http://rumble.com${STR}";;
+				time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
+			esac
+			[[ -z ${STR} ]] && STR="Unknown"
+		else
+			case ${FIELD} in
+				author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
+				title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
+				age) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
+				url) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="http://rumble.com${STR}";;
+				time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
+			esac
+			[[ -z ${STR} ]] && STR="Unknown"
+		fi
 	else
 		case ${FIELD} in
 			age) STR=$(cut -d'|' -f1 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
@@ -347,33 +361,50 @@ query_is_valid () {
 
 rumble () {
 	local SEARCH=${@}
-	local -a VIDEOS
-	local -a A1
-	local -a A2
-	local -a A3
-	local -a A4
+	local G_SEARCH
+	local -a AGES
+	local -a CHANNELS
+	local -a DURATIONS
+	local -a LINKS
+	local -a TITLES
 	local AGE
+	local CHANNEL
 	local PG
 	local X
 
-#TODO: Alternate more general search - different parse required
-#	if [[ -z ${PG} ]];then
-#		SEARCH=$(sed 's/ /%20/g' <<<${SEARCH})
-#		PG=$(wget -q -O - "https://rumble.com/search/all?q=${SEARCH}")
-#		echo ${PG} >x
-#	fi
+	msg_box "Requesting video list..."
 
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCH}?page=1")
-	A1=("${(f)$(pup '.title__link text{}' <<<${PG} | tut blank_lines | sed 's/|//g' | html2text -ascii)}")
-	A2=("${(f)$(pup '.videostream__data text{}' <<<${PG} | tut blank_lines | tr '[\012|\015]' '[ ]' | sed -e 's/comments /comments\n/g')}")
-	A3=("${(f)$(pup 'a.videostream__link attr{href}' <<<${PG})}")
-	A4=("${(f)$(pup '.videostream__badge text{}' <<<${PG} | tut blank_lines)}")
 
-	for ((X=1; X<=${#A1}; X++));do
-		AGE=$(sed 's/ago .*/ago/' <<<${A2[${X}]})
-		[[ -z ${AGE} ]] && continue
-		_RUMBLE_VIDEOS+="${X}|${SEARCH}|${A1[${X}]}|${AGE}|${A3[${X}]}|${A4[${X}]}"
-	done
+	if [[ -n ${PG} ]];then # channel search
+		g_RUMBLE_SEARCH_TYPE=channel
+		TITLES=("${(f)$(pup --charset utf8 '.title__link text{}' <<<${PG} | tut blank_lines | html2text -ascii | sed 's/|//g')}")
+		AGES=("${(f)$(pup --charset utf8 '.videostream__data text{}' <<<${PG} | tut blank_lines | tr '[\012|\015]' '[ ]' | sed -e 's/comments /comments\n/g')}")
+		LINKS=("${(f)$(pup --charset utf8 'a.videostream__link attr{href}' <<<${PG})}")
+		DURATIONS=("${(f)$(pup --charset utf8 '.videostream__badge text{}' <<<${PG} | tut blank_lines)}")
+
+		for ((X=1; X<=${#TITLES}; X++));do
+			AGE=$(sed 's/ago .*/ago/' <<<${AGES[${X}]})
+			[[ -z ${AGE} ]] && continue
+			_RUMBLE_VIDEOS+="${X}|${SEARCH}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}"
+		done
+	else # geneeral search
+		g_RUMBLE_SEARCH_TYPE=general
+		G_SEARCH=$(sed 's/ /%20/g' <<<${SEARCH})
+		PG=$(wget -q -O - "https://rumble.com/search/all?q=${G_SEARCH}")
+		TITLES=("${(f)$(pup --charset utf8 '.video-item--title text{}' <<<${PG} | html2text -ascii | sed 's/|//g')}")
+		AGES=("${(f)$(pup --charset utf8 '.video-item--meta attr{datetime}' <<<${PG})}")
+		DURATIONS=("${(f)$(pup --charset utf8 '.video-item--duration attr{data-value}' <<<${PG})}")
+		LINKS=("${(f)$(pup --charset utf8 '.video-item--a attr{href}' <<<${PG})}")
+		CHANNELS=("${(f)$(pup --charset utf8 '.video-item--by-a attr{href}' <<<${PG})}")
+
+		for ((X=1; X<=${#TITLES}; X++));do
+			AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
+			CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
+			CHANNEL="${(C)SEARCH} (${CHANNEL})"
+			_RUMBLE_VIDEOS+="${X}|${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}"
+		done
+	fi
 }
 
 set_favorite () {
@@ -476,6 +507,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-R${RESET} query RUMBLE"
 	echo -e "${WHITE_FG}-a${RESET} filter results by age of video (all,min,hour,day,week,month,year)"
 	echo -e "${WHITE_FG}-f${RESET} display list of recent queries to choose from"
 	echo -e "${WHITE_FG}-h${RESET} do not add query to history"
@@ -483,7 +515,7 @@ usage () {
 	) >&2
 }
 
-OPTSTR=":HDva:hfrs"
+OPTSTR=":HDRva:hfs"
 OPTIND=0
 
 DO_FAV=false
@@ -495,10 +527,10 @@ while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;eval "node ${_JS_SCRIPT} -h";exit_leave;;
      D) dbg_set_level;;
+     R) _RUMBLE=true;;
      a) AGE=${OPTARG};;
      f) DO_FAV=true;;
      h) HIST=false;;
-     r) _RUMBLE=true;;
      s) STRICT=true;;
     \?) exit_leave "${RED_FG}Error${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
 	  :) exit_leave "${RED_FG}Error${RESET}: option -${OPTARG} requires an argument${RESET}";;
@@ -521,7 +553,11 @@ if [[ ${_RUMBLE} == 'true' ]];then
 	else
 		rumble ${@}
 	fi
-	_LOCAL_LIST=(${_RUMBLE_VIDEOS})
+	if [[ ${g_RUMBLE_SEARCH_TYPE} == 'general' ]];then
+		_LOCAL_LIST=("${(f)$(for L in ${_RUMBLE_VIDEOS};do echo ${L};done | sort -t'|' -k4.1,4.10 -r)}")
+	else
+		_LOCAL_LIST=(${_RUMBLE_VIDEOS})
+	fi
 else
 	g_PLATFORM="YouTube"
 	RAWPATH=$(path_get_raw)
@@ -604,7 +640,7 @@ printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-${_FIELD_LEN[age]}s %-${_
 list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${g_ACTION} ${g_OBJECT}(s) (${ITALIC}or exit if none selected${RESET})"
 list_set_sortable true
 list_set_max_sort_col 3
-list_set_sort_default 1
+[[ ${g_RUMBLE_SEARCH_TYPE} != 'general' ]] && list_set_sort_default 1
 list_set_barlines true
 
 while true;do

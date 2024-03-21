@@ -1,4 +1,5 @@
 #LIB Dependencies
+#TODO: exit_leave should not control cursor in all cases; perhaps a flag to control?
 _DEPS_+="MSG.zsh UTILS.zsh"
 
 

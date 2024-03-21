@@ -1,6 +1,6 @@
-# Options
+# Default Options
 setopt warncreateglobal # Police locals
-setopt rematchpcre # Using perl regex
+setopt rematchpcre # Use perl regex
 
 # Perl vars
 MATCH=?
@@ -11,8 +11,6 @@ mbegin=''
 mend=''
 
 # Constants
-_CURSOR_STATE=''
-_DEBUG_INIT=true
 _GEO_KEY="key=uMibiyDeEGlYxeK3jx6J"
 _GEO_PROVIDER="https://extreme-ip-lookup.com"
 _MAX_COLS=$(tput cols)
@@ -23,13 +21,16 @@ _XSET_DEFAULT_RATE="r rate 500 33" # Default rate
 _XSET_LOW_RATE="r rate 500 8" # Menu rate
 [[ -n ${LIB_TESTING} ]] && _LIB=/home/kmiller/Code/LOCAL/LIBS || _LIB=/usr/local/lib
 
-# LIB Vars
+# LIB declarations
+typeset -aU _DEPS_
+
+# LIB var inits
+_CURSOR_STATE=on
+_DEBUG_INIT=true
 _DEBUG=0
 _EXIT_MSGS=''
 
-# LIB Declarations
-typeset -aU _DEPS_
-
+# Import default LIBS
 source ${_LIB}/ANSI.zsh
 source ${_LIB}/EXIT.zsh
 
@@ -39,5 +40,6 @@ for SIG in {1..9}; do
 	trap 'exit_sigexit '${SIG}'' ${SIG}
 done
 
+# Initialize debugging
 [[ -e ${_DEBUG_FILE} ]] && /bin/rm ${_DEBUG_FILE}
 

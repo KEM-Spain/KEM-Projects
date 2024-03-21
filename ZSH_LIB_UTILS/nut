@@ -1,4 +1,5 @@
 #!/usr/bin/zsh
+#TODO: no exit_leave for individual utilities
 #Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
@@ -978,6 +979,7 @@ else
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
 	echo #clear read
 	${_SCRIPT} -H # call function help
+
+	exit_leave
 fi
 
-exit_leave

@@ -5,6 +5,27 @@ _DEPS_+="DBG.zsh"
 _CURSOR=''
 _SMCUP=''
 
+coord_center () {
+	local AREA=${1}
+	local OBJ=${2}
+	local CTR
+	local REM
+	local AC
+	local OC
+
+	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	CTR=$((AREA / 2))
+	REM=$((CTR % 2))
+	[[ ${REM} -ne 0 ]] && AC=$((CTR+1)) || AC=${CTR}
+
+	CTR=$((OBJ / 2))
+	REM=$((CTR % 2))
+	[[ ${REM} -ne 0 ]] && OC=$((CTR+1)) || OC=${CTR}
+
+	echo $((AC-OC))
+}
+
 cursor_off () {
 	tput civis >&2 # Hide cursor
 	_CURSOR=off
@@ -48,28 +69,3 @@ do_smcup () {
 	tput smcup
 	_SMCUP=true
 }
-
-coord_center () {
-	local AREA=${1}
-	local OBJ=${2}
-	local CTR
-	local REM
-	local AC
-	local OC
-	local C
-
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	CTR=$((AREA / 2))
-	REM=$((CTR % 2))
-	[[ ${REM} -ne 0 ]] && AC=$((CTR+1)) || AC=${CTR}
-
-	CTR=$((OBJ / 2))
-	REM=$((CTR % 2))
-	[[ ${REM} -ne 0 ]] && OC=$((CTR+1)) || OC=${CTR}
-
-	C=$((AC-OC))
-
-	echo ${C}
-}
-

@@ -1,8 +1,6 @@
 #LIB Dependencies
 _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 
-[[ -z ${_CURSOR_STATE} ]] && tput civis >&2 && _CURSOR_STATE=off
-
 #LIB Vars
 _INNER_BOX_COLOR=${RESET}
 _OUTER_BOX_COLOR=${RESET}
@@ -101,8 +99,14 @@ selection_list () {
 	done
 	shift $((OPTIND -1))
 
-	#Execution
+	# Args
 	TITLE=${1}
+
+	# Hide cursor
+	if [[ ${_CURSOR_STATE} == 'on' ]];then
+		tput civis >&2
+		_CURSOR_STATE=off
+	fi
 
 	if [[ ${_SORT_KEY} == 'true' ]];then
 		for L in ${_SELECTION_LIST};do

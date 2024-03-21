@@ -1,4 +1,5 @@
 #!/usr/bin/zsh
+#TODO: no exit_leave for individual utilities
 #Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
@@ -142,6 +143,7 @@ ______EOF
 	done
 	shift $((OPTIND -1))
 	#--End GetOpts--
+	 
 	#Execution
 	[[ ${#} -eq 0 ]] && usage "missing argument:<FILE>" || FN=${1}
 
@@ -155,8 +157,10 @@ ______EOF
 	if [[ ${#LIST} -gt 1 ]];then
 		for L in ${LIST};do
 			if [[ ${LOCAL} == 'true' ]];then
-				[[ ${L:h} == ${PWD} ]] && echo ${L}
-				return
+				if [[ ${L:h} == ${PWD} ]];then
+					echo ${L}
+					return
+				fi
 			elif [[ ${L:h} != ${PWD} ]];then
 				echo ${L}
 				return
@@ -168,8 +172,6 @@ ______EOF
 		echo ${LIST}
 		return
 	fi
-
-	exit_leave
 }
 
 surface () {
@@ -528,8 +530,6 @@ _____EOF
 				fi
 			fi  
 		done
-
-		exit_leave
 }
 
 comments () {
@@ -1296,6 +1296,7 @@ else
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
 	echo #clear read
 	${_SCRIPT} -H # call function help
+
+	exit_leave
 fi
 
-exit_leave

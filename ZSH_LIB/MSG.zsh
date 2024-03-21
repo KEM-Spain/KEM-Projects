@@ -1,8 +1,6 @@
 #LIB Dependencies
 _DEPS_+="ARRAY.zsh DBG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 
-[[ -z ${_CURSOR_STATE} ]] && tput civis >&2 && _CURSOR_STATE=off
-
 #LIB Declarations
 typeset -a _LIST # Holds the list values to be managed by the list menu
 typeset -A _MSG_BOX_COORDS=(X 0 Y 0 H 0 W 0) # Holds the coordinates (X,Y,H,W) of the last displayed msg_box
@@ -120,6 +118,12 @@ msg_box () {
 	shift $((OPTIND -1))
 
 	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	# Hide cursor
+	if [[ ${_CURSOR_STATE} == 'on' ]];then
+		tput civis >&2
+		_CURSOR_STATE=off
+	fi
 
 	# Clear last MSG?
 	[[ ${CLEAR_MSG} == 'true' ]] && msg_box_clear # Clear last msg ?

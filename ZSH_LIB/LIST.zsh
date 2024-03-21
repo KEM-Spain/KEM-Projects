@@ -1,8 +1,6 @@
 #LIB Dependencies
 _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh PATH.zsh STR.zsh TPUT.zsh UTILS.zsh VALIDATE.zsh"
 
-[[ -z ${_CURSOR_STATE} ]] && tput civis >&2 && _CURSOR_STATE=off
-
 #LIB Vars
 _BARLINES=false
 _CB_KEY=''
@@ -653,6 +651,12 @@ list_select () {
 	MAX_ITEM=${#_LIST}
 	_SELECT_ALL=false
 
+	# Hide cursor
+	if [[ ${_CURSOR_STATE} == 'on' ]];then
+		tput civis >&2
+		_CURSOR_STATE=off
+	fi
+
 	# Default sort settings
 	if [[ ${_LIST_SORT_COL_DEFAULT} -ne 0 ]];then
 		_SORT_DIRECTION[${_LIST_SORT_COL_DEFAULT}]=a
@@ -1204,6 +1208,7 @@ list_sort_flat () {
 		[[ ${RANK_COL} =~ 'minute' ]] && RANKED+="${_CAL_SORT[minute]}|${L}" && continue
 		[[ ${RANK_COL} =~ ':' ]] && RANKED+="B999|${L}" && continue
 		[[ ${RANK_COL} =~ '-' ]] && RANKED+="A888|${L}" && continue
+		[[ ${RANK_COL} =~ '^\d{4}-\d{2}-\d{2}' ]] && RANKED+="${L[1-10]}|${L}" && continue
 		[[ ${RANK_COL} =~ '\d{4}$' ]] && RANKED+="ZZZZ|$(echo ${L} | perl -pe 's/(.*)(\d{4})$/\2\1\2/g')" && continue
 		[[ ${RANK_COL} =~ '\d[.]\d\D' ]] && RANKED+="ZZZZ|$(echo ${L} | perl -pe 's/([.]\d)(.*)((G|M).*)$/${1}0 ${3}/g')" && continue
 		[[ ${RANK_COL} =~ 'Mi?B' ]] && RANKED+="A888|${L}" && continue
@@ -1211,7 +1216,7 @@ list_sort_flat () {
 		RANKED+="${RANK_COL}|${L}"
 	done
 
-	# Debugging ranked data
+# Debugging ranked data
 #	/bin/rm -f /tmp/list_sorted
 #	for S in ${RANKED};do
 #		echo ${S} >> /tmp/list_sorted
