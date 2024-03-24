@@ -1,5 +1,4 @@
 #!/usr/bin/zsh
-#TODO: no exit_leave for individual utilities
 #Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"

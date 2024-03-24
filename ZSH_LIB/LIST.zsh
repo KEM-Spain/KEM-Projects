@@ -1258,6 +1258,7 @@ list_sort_set_direction () {
 }
 
 list_toggle_all () {
+	#TODO: very slow
 	local _LIST_NDX=${1}
 	local TOP_OFFSET=${2}
 	local MAX_DISPLAY_ROWS=${3}

@@ -1,5 +1,4 @@
 #!/usr/bin/zsh
-#TODO: no exit_leave for individual utilities
 #Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
@@ -711,19 +710,14 @@ ___EOF
 }
 
 unplug () {
-	local -A DISKS
-	local -A MODELS
-	local -A MOUNTED
-	local PART_REGEX="sd[abc]"
-	local -a MOUNTS=($(mount | grep ${PART_REGEX} 2>/dev/null | cut -d' '  -f1))
-	local -a MOUNTPOINTS=($(mount | grep ${PART_REGEX} 2>/dev/null | cut -d' '  -f3- | sed 's/type.*//'))
-	local DEV=?
-	local DLIST=("${(f)$(lsblk)}")
-	local GET_NAME=false
-	local L K M D
-	local MODEL
+	local PART_REGEX="sd[a-z][0-9]"
+	local -A MOUNTS
+	local -a LIST
+	local MD MP
 	local NDX=0
 	local RESPONSE
+	local -A STRLEN
+	local L M
 
 	read -r -d '' DESC<<___EOF
 Unmount and power off connected external drive
@@ -737,67 +731,49 @@ ___EOF
 		exit_leave
 	fi
 
-	for M in ${MOUNTPOINTS};do
-		[[ ${PWD} =~ ${M} ]] && exit_leave "${0}:${RED_FG}Unable to unmount${RESET}: change directory to an unmounted location"
+	LIST=("${(f)$(mount | grep ${PART_REGEX} 2>/dev/null | cut -d' '  -f1-3 | sed 's/ on /|/')}") # all sdX
+
+	for L in ${LIST};do
+		MD=$(cut -d'|' -f1 <<<${L}) #device
+		MP=$(cut -d'|' -f2 <<<${L}) #mountpoint
+		[[ ${#MD} -gt ${STRLEN[DEV]} ]] && STRLEN[DEV]=${#MD}
+		[[ ${#MP} -gt ${STRLEN[DIR]} ]] && STRLEN[DIR]=${#MP}
+		MOUNTS[${MD}]=${MP}
 	done
 
-	for M in ${MOUNTS};do
-		MOUNTED[${M[1,-2]}]=1
-	done
-
-	for D in ${DLIST};do
-		if [[ ${GET_NAME} == 'true' ]];then
-			if [[ ! ${D} =~ ${DEV} ]];then
-				GET_NAME=false
-			else
-				continue
-			fi
-		fi
-		if [[ ${D:l} =~ "^sd" ]];then
-			((NDX++))
-			DEV=$(cut -d' ' -f1 <<<${D})
-			[[ ${MOUNTED[/dev/${DEV}]} -ne 1 ]] && continue
-			DISKS[${NDX}]=${DEV}
-			GET_NAME=true
-			continue
-		fi
-	done
-
-	if [[ -n ${#MOUNTS} ]];then
-		for K in ${(k)DISKS};do
-			MODEL=("${(f)$(sudo fdisk -l /dev/${DISKS[${K}]} | grep -i model)}")
-			MODEL=$(cut -d':' -f2 <<<${MODEL} | sed -e 's/^ *//' -e 's/ *$//')
-			MODELS[${DISKS[${K}]}]=${MODEL}
+	if [[ -n ${MOUNTS} ]];then
+		for M in ${(v)MOUNTS};do
+			[[ ${PWD} =~ ${M} ]] && exit_leave "${0}:${RED_FG}Unable to unmount${RESET}: change directory to an unmounted location"
 		done
 
-		printf "\n    ${CYAN_FG}%-4s %-6s${RESET}\n" "Disk" "Model"
-		NDX=0
-		for K in ${(k)MODELS};do
+		echo "\nSelect device(s) to unplug..."
+		printf "\n    ${CYAN_FG}%-*s %-*s${RESET}\n" ${STRLEN[DEV]} "Device" ${STRLEN[DIR]} "Path"
+		for M in ${(k)MOUNTS};do
 			((NDX++))
-			printf "${WHITE_FG}%2d${RESET}) ${WHITE_FG}%4s ${MAGENTA_FG}%-6s${RESET}\n" ${NDX} ${K} ${MODELS[${K}]}
+			printf "${WHITE_FG}%2d${RESET}) ${WHITE_FG}%-*s ${MAGENTA_FG}%-*s${RESET}\n" ${NDX} ${STRLEN[DEV]} ${M} ${STRLEN[DIR]} ${MOUNTS[${M}]}
 		done
-		echo -n "\nSelect drive ${WHITE_FG}1${RESET}-${WHITE_FG}${#MODELS}${RESET} or (${WHITE_FG}a${RESET})ll:"
+		echo -n "\nSelect drive to unplug:${WHITE_FG}1${RESET}-${WHITE_FG}${#MOUNTS}${RESET} or (${WHITE_FG}a${RESET})ll:"
 		read -k1 RESPONSE
 		echo
 
 		[[ ${RESPONSE} =~ "^\x0a" ]] && exit_leave $(msg_warn "Operation cancelled")
 
-		#TODO: MODELS needs mounted info from MOUNTS/not DISKS - i.e. sdb1 NOT sdb
-		for M in ${(k)MODELS};do
+		NDX=0
+		for M in ${(k)MOUNTS};do
+			((NDX++))
 			if [[ ${RESPONSE:l} == 'a' ]];then
-				DEV=${M}
-				udisksctl unmount -f -b /dev/${M} 
+				udisksctl unmount -f -b ${M} 
 			else
-				DEV=${DISKS[${RESPONSE}]}
-				echo "An error occurred ejecting ${DEV}:$?"
+				[[ ${NDX} -eq ${RESPONSE} ]] && udisksctl unmount -f -b ${M} && break
 			fi
-			[[ ${RESPONSE:l} != 'a' ]] && break
 		done
+		[[ ${?} -ne 0 ]] && echo "An error occurred ejecting ${M}:$?" || echo "Safe to unplug"
 	else
 		echo
 		exit_leave $(msg_warn "No:${PART_REGEX} partitions appear to be mounted")
 	fi
 }
+
 usbdisks () {
 	local DEVID
 	local DEV

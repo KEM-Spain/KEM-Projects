@@ -158,9 +158,12 @@ _cleanup
 for L in ${(on)HIST_NEW};do
 	echo ${L} >>${_HIST_FILE_NEW}
 done
- 
-cp ${_HIST_FILE} ${_HIST_FILE}.bak
-cp ${_HIST_FILE_NEW} ${_HIST_FILE}
+
+if [[ -e ${_HIST_FILE_NEW} ]];then
+	cp ${_HIST_FILE} ${_HIST_FILE}.bak
+	cp ${_HIST_FILE_NEW} ${_HIST_FILE}
+fi
+
 fc -R ${_HIST_FILE}
 
 _cleanup

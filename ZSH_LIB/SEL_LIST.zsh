@@ -5,6 +5,7 @@ _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 _INNER_BOX_COLOR=${RESET}
 _OUTER_BOX_COLOR=${RESET}
 _SELECTION_VALUE=?
+_SELECTION_DELETE=false
 _SL_CATEGORY=false
 _SL_MAX_ITEM_LEN=0
 _TITLE_HL=${WHITE_ON_GREY}
@@ -23,7 +24,7 @@ _HILITE=${_TITLE_HL}
 selection_list () {
 	local -A SKEYS
 	local -a SLIST
-	local MAX_X_COORD=$((_MAX_ROWS-5)) # Up from bottom - frame:5/no frame:4
+	local MAX_X_COORD=$((_MAX_ROWS-5)) # Up from bottom 
 	local MAX_NDX=${#_SELECTION_LIST}
 	local BOX_BOT=0
 	local BOX_HEIGHT=$(( MAX_NDX+2 ))
@@ -130,10 +131,11 @@ selection_list () {
 
 	[[ ${MAX_X_COORD} -lt ${BOX_HEIGHT} ]] && BOX_HEIGHT=$((MAX_X_COORD-10 )) # Long list
 
-	[[ ${X_COORD_ARG} -ne '?' ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $((_MAX_ROWS)) ${BOX_HEIGHT})
-	[[ ${Y_COORD_ARG} -ne '?' ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $((_MAX_COLS-60)) ${BOX_WIDTH})
-
 	[[ ${_SL_MAX_ITEM_LEN} -gt ${#TITLE} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( ${#TITLE}+2 )) # Choose either item or title for box width
+
+	[[ ${X_COORD_ARG} -ne '?' ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $((_MAX_ROWS)) ${BOX_HEIGHT})
+	[[ ${Y_COORD_ARG} -ne '?' ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $((_MAX_COLS)) ${SW})
+
 	SX=$(( BOX_X_COORD-PAD ))
 	SY=$(( BOX_Y_COORD-PAD ))
 	SW=$(( SW + (PAD * 2) ))
@@ -251,8 +253,10 @@ selection_list () {
 
 		while true;do
 			KEY=$(get_keys)
+			_SELECTION_DELETE=false
 			case ${KEY} in
 				0) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && break 2;;
+				100) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_DELETE=true && break 2;; 
 				110) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				112) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
 				113) exit_request 1 1;;

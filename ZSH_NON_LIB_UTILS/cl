@@ -68,7 +68,7 @@ fi
 LONGEST=0
 for F in ${PWD}/*;do
 	[[ ${F:e} == 'bak' ]] && continue
-	if [[ $(file ${F}) =~ 'zsh script' || ${F:e} == 'zsh' ]];then
+	if [[ $(file ${F}) =~ 'zsh script' || ${F:e} == 'zsh' || ${F:e} == 'js' ]];then
 		LOCAL_FILES+=${F}
 		[[ ${#F} -gt ${LONGEST} ]] && LONGEST=${#F}
 	fi

@@ -24,10 +24,11 @@ typeset -a _LOCAL_LIST
 typeset -a _RUMBLE_VIDEOS
 typeset -A _DOWNLOADS
 typeset -A _FAILED
+typeset -A _FUTURE
 typeset -A _FIELD_LEN
 typeset -A _STATUS_MSGS
 typeset -A _REJECTS
-typeset -A COORDS=(X 10 Y 38 H 10 W 86)
+typeset -A COORDS=(X 15 Y 38 H 10 W 86)
 
 #Constants
 _DOWNLOAD_DIR=~/Downloads
@@ -67,7 +68,6 @@ done
 
 #Functions
 action_do () {
-	local -A ERROR_SEEN=()
 	local -A LOG_SIZE
 	local -a ETAS
 	local -a LOG_LINES
@@ -99,14 +99,14 @@ action_do () {
 		((DL_CNT++))
 		_DOWNLOADS[${DL_CNT}]=false
 		_FAILED[${DL_CNT}]=false
-		ERROR_SEEN[${DL_CNT}]=false
+		_FUTURE[${DL_CNT}]=false
 		URL=$(get_field url ${M})
 		HDRS_OUT=false
 
 		[[ -e ${_LOG} ]] && rm -f ${_LOG}
 
 		_PID=$(start_job ${URL})
-		msg_box -x$(( COORDS[X] +1 )) "Download requested..."
+		msg_box -x$(( COORDS[X]+4 )) "Download requested..."
 
 		while true;do
 			((NDX++))
@@ -123,7 +123,7 @@ action_do () {
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
 				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>"
 				msg_box -C -jl "<m>Downloading: <c>${DEST_2[1,60]}<N>"
-				msg_box -C -jl "<m>$(str_unicode_line $(( COORDS[W] - 4 )))<N>"
+				msg_box -C -jl "<m>$(str_unicode_line $((COORDS[W]-4)))<N>"
 				HDRS_OUT=true
 			fi
 
@@ -143,7 +143,7 @@ action_do () {
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
 				msg_box -p -PK "${EMSG}"
-				_FAILED[${M}]=true
+				_FUTURE[${M}]=true
 				break
 			fi
 
@@ -158,7 +158,7 @@ action_do () {
 											_FAILED[${M}]=true
 											break 2
 											;;
-				 *network*|*retry*)	msg_box -t.2 -x15 -y100 "<r>Network Errors<N>"
+						*network*|*retry*|*timed\ out*)	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -25)) "<r>Network Errors<N>"
 											;;
 					esac
 				done
@@ -175,7 +175,7 @@ action_do () {
 									if [[ ${#_MARKED} -gt 1 ]];then
 										msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
 										if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-											msg_box -t${PAUSE} -x$(( COORDS[X] +1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+											msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
 										fi
 									fi
 									_DOWNLOADS[${M}]=true
@@ -191,7 +191,11 @@ action_do () {
 
 	for M in ${_MARKED};do
 		_MARKED[${M}]=0
-		list_set_selected ${M} ${_USED_ROW}
+		if [[ ${_DOWNLOADS[${M}]} == 'true' ]];then
+			list_set_selected ${M} ${_GHOST_ROW}
+		else
+			list_set_selected ${M} ${_AVAIL_ROW}
+		fi
 	done
 
 	post_process
@@ -218,6 +222,8 @@ item_decorate () {
 		STR="Downloaded..."
 	elif [[ ${_FAILED[${NDX}]} == 'true' ]];then
 		STR="Failed..."
+	elif [[ ${_FUTURE[${NDX}]} == 'true' ]];then
+		STR="Future..."
 	else
 		STR="$(get_field age ${NDX}) $(get_field time ${NDX})"
 		[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
@@ -226,30 +232,53 @@ item_decorate () {
 	echo -n ${STR[1,${_FIELD_LEN[age]}]}
 }
 
+delete_favorite () {
+	local FAV=${1}
+
+	msg_box -p -PD "Deleting: ${FAV}?"
+	if [[ ${_MSG_KEY} == 'y' ]];then
+		if [[ -s ${_YTS_FAVORITES} ]];then
+			[[ -e /tmp/favlist.new ]] && /bin/rm -f /tmp/favlist.new
+			while read LINE;do
+				[[ ${LINE} =~ ${FAV} ]] && continue
+				echo ${LINE} >> /tmp/favlist.new
+			done < ${_YTS_FAVORITES}
+			mv -f /tmp/favlist.new ${_YTS_FAVORITES}
+		else
+			exit_leave "No favorites have been saved"
+		fi
+	fi
+}
+
 get_favorite () {
 	local -a _DISPLAY_LIST
 	local LINE
 	local F P
 
-	if [[ -s ${_YTS_FAVORITES} ]];then
-		while read LINE;do
-			F=$(cut -d'|' -f1 <<<${LINE})
-			P=$(cut -d'|' -f2 <<<${LINE})
-			if [[ ${g_PLATFORM:l} == 'rumble' ]];then
-				[[ ${P:l} == 'r' ]] && _DISPLAY_LIST+=${F}
-			else
-				[[ ${P:l} == 'y' ]] && _DISPLAY_LIST+=${F}
-			fi
-		done < ${_YTS_FAVORITES}
-	else
-		exit_leave "No favorites have been saved"
-	fi
+	while true;do
+		if [[ -s ${_YTS_FAVORITES} ]];then
+			while read LINE;do
+				F=$(cut -d'|' -f1 <<<${LINE})
+				P=$(cut -d'|' -f2 <<<${LINE})
+				if [[ ${g_PLATFORM:l} == 'rumble' ]];then
+					[[ ${P:l} == 'r' ]] && _DISPLAY_LIST+=${F}
+				else
+					[[ ${P:l} == 'y' ]] && _DISPLAY_LIST+=${F}
+				fi
+			done < ${_YTS_FAVORITES}
+		else
+			exit_leave "No favorites have been saved"
+		fi
 
-	selection_list_set ${(o)_DISPLAY_LIST}
+		selection_list_set ${(o)_DISPLAY_LIST}
 
-	_SELECTION_VALUE=?
-	selection_list "<w>Run ${(C)g_PLATFORM} query  from history or <h>(q)uit<N>"
-	[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+		_SELECTION_VALUE=?
+		clear
+		selection_list "<w>Run ${(C)g_PLATFORM} query  from history or <h>(q)uit<N>"
+		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+		[[ ${_SELECTION_DELETE} == 'true' ]] && delete_favorite ${_SELECTION_VALUE} && _DISPLAY_LIST=() && continue
+		break
+	done
 
 	_FAVORITE=${_SELECTION_VALUE}
 }
@@ -434,6 +463,17 @@ set_favorite () {
 	for H in ${(o)HISTORY};do
 		echo ${H} >> ${_YTS_FAVORITES}
 	done
+}
+
+set_item_color () {
+	local ITEM=${1}
+
+	case ${ITEM:l} in
+		downloaded*) echo ${GREEN_FG};;
+		failed*) echo ${RED_FG};;
+		future*) echo ${CYAN_FG};;
+		*) echo '';;
+	esac
 }
 
 start_job () {
@@ -627,14 +667,15 @@ fi
 [[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"
 
 #set headings
-list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST}) - Platform:${WHITE_FG}%s${RESET} ${_PG}" ${#_LIST} ${g_PLATFORM}'
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST}) Platform:${WHITE_FG}%s${RESET} Selected:${WHITE_FG}%s${RESET} ${_PG}" ${#_LIST} ${g_PLATFORM} $(list_get_selected_count)'
 list_set_header 'printf " "'
 list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_FIELD_LEN[age]} "Age" ${_FIELD_LEN[author]} "Author" ${_FIELD_LEN[title]} "Title"'
 list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %*s %*s${RESET}" 5 "" ${_FIELD_LEN[age]} "$(str_unicode_line ${_FIELD_LEN[age]})" ${_FIELD_LEN[author]} "$(str_unicode_line ${_FIELD_LEN[author]})" ${_FIELD_LEN[title]} "$(str_unicode_line ${_FIELD_LEN[title]})"'
 
 #set line item
 list_set_line_item ' 
-printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-${_FIELD_LEN[age]}s %-${_FIELD_LEN[author]}s %-${_FIELD_LEN[title]}s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"  "$(get_field author ${_LIST_NDX})"  "$(get_field title ${_LIST_NDX})" 
+local ITEM_COLOR=$(set_item_color $(item_decorate ${_LIST_NDX}));
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}${ITEM_COLOR}%-${_FIELD_LEN[age]}s${RESET}${SHADE}${BAR} %-${_FIELD_LEN[author]}s %-${_FIELD_LEN[title]}s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"  "$(get_field author ${_LIST_NDX})"  "$(get_field title ${_LIST_NDX})" 
 '
 
 list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${g_ACTION} ${g_OBJECT}(s) (${ITALIC}or exit if none selected${RESET})"

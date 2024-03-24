@@ -74,14 +74,16 @@ action_do () {
 		*) msg_box -p -PK "You entered:<w>${_MSG_KEY}<N>|Valid options: 1,2,3, or n"
 	esac
 
-	[[ ${_MSG_KEY} -eq 3 ]] && list_set_selected ${M} ${_USED_ROW} # Downloaded
-
 	grep -qi "${TITLE} ${YR}" ${_LOG}
 	[[ ${?} -eq 1 ]] && logit "${TITLE} ${YR}"
 
 	for M in ${_MARKED};do
 		_MARKED[${M}]=0
-		list_set_selected ${M} 0
+		if [[ ${_MSG_KEY} -eq 3 ]];then
+			list_set_selected ${M} ${_GHOST_ROW} # Downloaded
+		else
+			list_set_selected ${M} ${_AVAIL_ROW}
+		fi
 	done
 }
 

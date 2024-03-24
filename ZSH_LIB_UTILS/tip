@@ -58,6 +58,7 @@ sed	"${_EXT_DIR}/StreamEditor-BasicCommands.pdf"
 sed "${_EXT_DIR}/sed.pdf"
 zsh_comp_official "${_EXT_DIR}/zsh-completions-howto.pdf"
 zsh_comp_guide "${_EXT_DIR}/ZshUserGuideCompletion.pdf"
+zsh_cheatsheet "${_EXT_DIR}/zsh-cheatsheet.md"
 )
 
 _SCRIPT_FQFN=${0}
@@ -88,6 +89,7 @@ zsh_comp_guide
 zshdb 
 zsh_params 
 zsh_primitives 
+zsh_cheatsheet 
 )
 
 #Imports
@@ -14768,6 +14770,9 @@ chmod sGid 2755
 DOC
 ) | less
 }
+tip_zsh_cheatsheet () {
+	mdless ${_EXTERNAL_FILES[zsh_cheatsheet]}
+}
 #--MAX_RANGE_MARKER--
 
 #--Begin GetOpts--
@@ -14983,7 +14988,7 @@ else
 	while true;do
 		do_smcup
 		selection_list_set ${_TIPS}
-		selection_list -O ${CYAN_FG} -x11 -y32 "<w>Select Tip or <h>(q)uit<N>"
+		selection_list -O ${CYAN_FG} "<w>Select Tip or <h>(q)uit<N>"
 		TIP=${_SELECTION_VALUE}
 		if [[ ${_EXTERNAL[${TIP}]} -eq 1 ]];then
 			tip_${TIP}
