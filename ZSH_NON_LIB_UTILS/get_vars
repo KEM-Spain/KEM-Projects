@@ -33,12 +33,17 @@ LOG=/tmp/${0:t}_explode
 SCRIPT=${1}
 
 EXPLODE=$(sed -e 's/\$/\n\$/g' -e 's/[(].*[)]//' -e 's/:.*}/}/' -e 's/{[#=]/{/' ${SCRIPT}) # expose nested variables, eliminate modifiers and flags
+#TODO: handle modifiers
+#TODO:   text: selection_list "<w>Run ${(C)g_PLATFORM} query  from history or <h>(q)uit<N>"
+#TODO: result: ${uit<N>"}
+_REFS=("${(f)$(perl -ne '/\${[()_A-Za-z0-9].*/m && print "$&\n"' <<<${EXPLODE} | perl -pe 's/}.*/}/;s/:.*}/}/' | sort -u)}")
+_VARS=("${(f)$(perl -ne '/^[_A-Za-z0-9].*\+?=/m && print "$&\n"' <<<${EXPLODE} | perl -pe 's/\+?=.*//' | perl -pe 's/typeset( \-?[a-zA-Z])? //' | sort -u)}")
+_VARS+=(${_REFS})
 
-_VARS=("${(f)$(perl -ne '/\$\{(.+?)\}/mg && print "$&\n"' <<<${EXPLODE})}")
-#TODO: regex is not correct for read; need to isolate variable after read (options) until terminator (';' or '<' or '||')
 STMT=$(grep --color=never -oP 'read\s.*;' ${SCRIPT})
 GRP=$(perl -p -e 's/read\s+(-.*?)\s(.+?)[ <;|](.*)/\2/' <<<${STMT})
 echo "STMT:${STMT} GRP:${GRP}" >>${LOG}
+ 
 echo "Initial extract of variables" >>${LOG}
 
 echo "Clearing variables of modifiers and tags" >>${LOG}
@@ -58,7 +63,6 @@ done >> ${LOG}
 
 echo "Assigned and Referenced vars" >>${LOG}
 for B in ${(o)_BARE_VARS};do
-	[[ ${B} =~ "_PARTITIONS" ]] && set -xv
 	OUT=$(grep -m1 -io "\b${B}=\|\b${B}+=\|\b${B}\[.*\]=\|\b${B}\[.*\]+=\|for\s.*${B}.*in\|read\s.*${B}" ${SCRIPT})
 	if [[ ${?} -eq 0 ]];then
 		_ASSIGNED+=${B}
@@ -67,7 +71,6 @@ for B in ${(o)_BARE_VARS};do
 		echo "REFERENCED:[${B}]"
 		_REFERENCED+=${B}
 	fi
-	[[ ${B} =~ "_PARTITIONS" ]] && set +xv
 done >> ${LOG}
 
 echo "\n${WHITE_ON_GREY}App:${SCRIPT:t} Assigned Variables${RESET}"
@@ -80,9 +83,16 @@ for R in ${_REFERENCED};do
 	echo "\${${R}}"
 done
 
-echo "\n${WHITE_ON_GREY}App:${SCRIPT:t} Unused Variables${RESET}"
+_UNREF=("${(f)$(
 for U in ${_REFERENCED};do
 	grep -qP "local ${U}" ${SCRIPT}
 	[[ ${?} -eq 0 ]] && echo ${U}
 done
+)}")
 
+if [[ -n ${_UNREF} ]];then
+	echo "\n${WHITE_ON_GREY}App:${SCRIPT:t} Unused Variables${RESET}"
+	for L in ${_UNREF};do
+		echo ${L}
+	done
+fi

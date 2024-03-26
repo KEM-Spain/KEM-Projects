@@ -43,6 +43,7 @@ _LOG=/tmp/yt.log
 _YTS_FAVORITES=~/.yts_history
 _PID=0
 _RUMBLE=''
+_LIVE=''
 
 #Globals
 g_ACTION=action
@@ -76,8 +77,7 @@ action_do () {
 	local DEST_1
 	local DEST_2
 	local DL_CNT=0
-	local ERROR
-	local HAS_ERRORS=false
+	local ERROR_CNT=0
 	local HDRS_OUT=false
 	local LAST_SIZE=0
 	local LOG_ACTIVE=false
@@ -106,7 +106,7 @@ action_do () {
 		[[ -e ${_LOG} ]] && rm -f ${_LOG}
 
 		_PID=$(start_job ${URL})
-		msg_box -x$(( COORDS[X]+4 )) "Download requested..."
+		msg_box -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "Download requested..."
 
 		while true;do
 			((NDX++))
@@ -151,6 +151,13 @@ action_do () {
 			LOG_LINES=("${(f)$(tail -1 ${_LOG} | sed 's// /g' | grep -i 'error')}")
 			if [[ ${?} -eq 0 ]];then
 				for L in ${LOG_LINES};do
+					if [[ ${ERROR_CNT} -ge 10 ]];then
+						TITLE=$(get_field title ${M})	
+						EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>" 
+						msg_box -p -PK "${EMSG}"
+						_FAILED[${M}]=true
+						break 2
+					fi
 					case ${L:l} in
 						*giving\ up*)	TITLE=$(get_field title ${M})	
 											EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>" 
@@ -159,6 +166,7 @@ action_do () {
 											break 2
 											;;
 						*network*|*retry*|*timed\ out*)	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -25)) "<r>Network Errors<N>"
+							((ERROR_CNT++))
 											;;
 					esac
 				done
@@ -179,6 +187,7 @@ action_do () {
 										fi
 									fi
 									_DOWNLOADS[${M}]=true
+									ERROR_CNT=0
 									break
 								fi
 								;;
@@ -400,12 +409,16 @@ rumble () {
 	local CHANNEL
 	local PG
 	local X
+	local LIVE
 
 	msg_box "Requesting video list..."
 
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCH}?page=1")
 
 	if [[ -n ${PG} ]];then # channel search
+		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams")
+		[[ ${_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
+
 		g_RUMBLE_SEARCH_TYPE=channel
 		TITLES=("${(f)$(pup --charset utf8 '.title__link text{}' <<<${PG} | tut blank_lines | html2text -ascii | sed 's/|//g')}")
 		AGES=("${(f)$(pup --charset utf8 '.videostream__data text{}' <<<${PG} | tut blank_lines | tr '[\012|\015]' '[ ]' | sed -e 's/comments /comments\n/g')}")
@@ -548,29 +561,29 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-R${RESET} query RUMBLE"
+	echo -e "${WHITE_FG}-L${RESET} livestreams (RUMBLE only)"
 	echo -e "${WHITE_FG}-a${RESET} filter results by age of video (all,min,hour,day,week,month,year)"
 	echo -e "${WHITE_FG}-f${RESET} display list of recent queries to choose from"
-	echo -e "${WHITE_FG}-h${RESET} do not add query to history"
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 }
 
-OPTSTR=":HDRva:hfs"
+OPTSTR=":HDRLva:fs"
 OPTIND=0
 
 DO_FAV=false
 STRICT=false
-HIST=true
 _RUMBLE=false
+_LIVE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;eval "node ${_JS_SCRIPT} -h";exit_leave;;
      D) dbg_set_level;;
      R) _RUMBLE=true;;
+     L) _LIVE=true;;
      a) AGE=${OPTARG};;
      f) DO_FAV=true;;
-     h) HIST=false;;
      s) STRICT=true;;
     \?) exit_leave "${RED_FG}Error${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
 	  :) exit_leave "${RED_FG}Error${RESET}: option -${OPTARG} requires an argument${RESET}";;
@@ -661,13 +674,16 @@ if ! arr_is_populated "${_LOCAL_LIST}";then
 	exit_leave "No rows satisfied query${WHITE_FG}${E_MSG}${RESET}"
 fi
 
-[[ -n ${1} && ${HIST} == 'true' ]] && set_favorite ${1}
+[[ -n ${1} ]] && set_favorite ${1}
 
 [[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 [[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"
 
+SEARCHTYPE=Default
+[[ ${_RUMBLE} == 'true' && ${_LIVE} == 'true' ]] && SEARCHTYPE=Live
+
 #set headings
-list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST}) Platform:${WHITE_FG}%s${RESET} Selected:${WHITE_FG}%s${RESET} ${_PG}" ${#_LIST} ${g_PLATFORM} $(list_get_selected_count)'
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tType:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${g_PLATFORM} ${SEARCHTYPE} $(list_get_selected_count)'
 list_set_header 'printf " "'
 list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_FIELD_LEN[age]} "Age" ${_FIELD_LEN[author]} "Author" ${_FIELD_LEN[title]} "Title"'
 list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %*s %*s${RESET}" 5 "" ${_FIELD_LEN[age]} "$(str_unicode_line ${_FIELD_LEN[age]})" ${_FIELD_LEN[author]} "$(str_unicode_line ${_FIELD_LEN[author]})" ${_FIELD_LEN[title]} "$(str_unicode_line ${_FIELD_LEN[title]})"'

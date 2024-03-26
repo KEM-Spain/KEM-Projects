@@ -1258,7 +1258,6 @@ list_sort_set_direction () {
 }
 
 list_toggle_all () {
-	#TODO: very slow
 	local _LIST_NDX=${1}
 	local TOP_OFFSET=${2}
 	local MAX_DISPLAY_ROWS=${3}
@@ -1277,16 +1276,18 @@ list_toggle_all () {
 	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  _LIST_NDX:${_LIST_NDX}, TOP_OFFSET:${TOP_OFFSET}, MAX_DISPLAY_ROWS:${MAX_DISPLAY_ROWS}, MAX_ITEM:${MAX_ITEM}, PAGE:${PAGE}, ACTION:${ACTION}, FIRST_ITEM:${FIRST_ITEM}, LAST_ITEM:${LAST_ITEM}"
 
 	[[ ${LAST_ITEM} -gt ${MAX_ITEM} ]] && LAST_ITEM=${MAX_ITEM} # Partial page
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LAST_ITEM:${LAST_ITEM}, MAX_ITEM:${MAX_ITEM}"
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SELECTED:${#SELECTED}, FIRST_ITEM:${FIRST_ITEM}, MAX_ITEM:${MAX_ITEM}"
+	if [[ ${_DEBUG} -ge 3 ]];then
+		dbg "${functrace[1]} called ${0}:${LINENO}:  SELECTED:${#SELECTED}, FIRST_ITEM:${FIRST_ITEM}, LAST_ITEM:${LAST_ITEM}"
+		dbg "${functrace[1]} called ${0}:${LINENO}:  MAX_ITEM:${MAX_ITEM}, MAX_PAGE:${MAX_PAGE}"
+	fi
 
 	if [[ ${ACTION} == 'toggle' ]];then # mark/unmark all
 		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  ACTION:${ACTION}"
 		[[ ${_LIST_SELECTED_PAGE[${PAGE}]} -eq 1 ]] && _LIST_SELECTED_PAGE[${PAGE}]=0 || _LIST_SELECTED_PAGE[${PAGE}]=1 # toggle state
 
-		if [[ ${MAX_PAGE} -gt 1 && ${_LIST_SELECTED_PAGE[${PAGE}]} -eq 1 ]];then # prompt only for setting rows
-			msg_box -p -P"(A)ll, (P)age, or (N)one" "Select Rows"
+		if [[ ${MAX_PAGE} -gt 1 && ${_LIST_SELECTED_PAGE[${PAGE}]} -eq 1 ]];then # prompt only for setting range
+			msg_box -p -P"(A)ll, (P)age, or (N)one" "Select Range"
 			case ${_MSG_KEY:l} in
 				a) SELECTED=($(list_select_range 1 ${MAX_ITEM})); _LIST_SELECTED_PAGE[0]=1;;
 				p) SELECTED=($(list_select_range ${FIRST_ITEM} ${LAST_ITEM})); _LIST_SELECTED_PAGE[0]=0;;
@@ -1302,7 +1303,6 @@ list_toggle_all () {
 				SELECTED=($(list_select_range ${FIRST_ITEM} ${LAST_ITEM}))
 			fi
 		fi
-
 	else
 		_LIST_SELECTED_PAGE[${PAGE}]=0 # clear - unmark page
 		_LIST_SELECTED_PAGE[0]=0 # clear - unmark all
