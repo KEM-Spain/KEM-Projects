@@ -301,25 +301,14 @@ get_field () {
 	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} _LIST[NDX]:${_LIST[${NDX}]}"
 
 	if [[ ${_RUMBLE} == 'true' ]];then
-		if [[ ${g_RUMBLE_SEARCH_TYPE} == 'channel' ]];then
-			case ${FIELD} in
-				author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
-				title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
-				age) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
-				url) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="http://rumble.com${STR}";;
-				time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
-			esac
-			[[ -z ${STR} ]] && STR="Unknown"
-		else
-			case ${FIELD} in
-				author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
-				title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
-				age) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
-				url) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="http://rumble.com${STR}";;
-				time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
-			esac
-			[[ -z ${STR} ]] && STR="Unknown"
-		fi
+		case ${FIELD} in
+			author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
+			title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
+			age) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
+			url) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="http://rumble.com${STR}";;
+			time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
+		esac
+		[[ -z ${STR} ]] && STR="Unknown"
 	else
 		case ${FIELD} in
 			age) STR=$(cut -d'|' -f1 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
@@ -332,7 +321,6 @@ get_field () {
 
 	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
 
-	#STR=$(echo ${STR} | tr -cd '\11\12\15\40-\176')
 	STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) #Scrub non ascii
 	echo -n ${STR[1,65]}
 }
@@ -411,13 +399,14 @@ rumble () {
 	local X
 	local LIVE
 
-	msg_box "Requesting video list..."
+	msg_box "Requesting video list for <B><I>${SEARCH}<N>..."
 
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCH}?page=1")
 
 	if [[ -n ${PG} ]];then # channel search
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams")
 		[[ ${_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
+		[[ ${PG:l} =~ "no videos found" ]] && msg_box "<r>No livestreams<N> for ${SEARCH}|Falling back to defaults..." && PG=$(wget -q -O - "http://rumble.com/c/${SEARCH}?page=1")
 
 		g_RUMBLE_SEARCH_TYPE=channel
 		TITLES=("${(f)$(pup --charset utf8 '.title__link text{}' <<<${PG} | tut blank_lines | html2text -ascii | sed 's/|//g')}")

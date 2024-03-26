@@ -32,7 +32,8 @@ LOG=/tmp/${0:t}_explode
 [[ -z ${1} ]] && echo "Missing argument:<ZSH_SCRIPT>" && exit
 SCRIPT=${1}
 
-EXPLODE=$(sed -e 's/\$/\n\$/g' -e 's/[(].*[)]//' -e 's/:.*}/}/' -e 's/{[#=]/{/' ${SCRIPT}) # expose nested variables, eliminate modifiers and flags
+EXPLODE=$(sed -e 's/\$/\n\$/g' -e 's/{[\(][A-Za-z].*[\)]/{/' -e 's/:.*}/}/' -e 's/{[#=]/{/' ${1}) # expose nested variables, eliminate modifiers and flags
+echo ${EXPLODE} > explode.txt
 #TODO: handle modifiers
 #TODO:   text: selection_list "<w>Run ${(C)g_PLATFORM} query  from history or <h>(q)uit<N>"
 #TODO: result: ${uit<N>"}

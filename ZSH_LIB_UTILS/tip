@@ -9289,6 +9289,182 @@ ${E_BOLD}${E_WHITE_FG}${(C)${0/tip_/}} Tips${E_RESET}
 
 ${E_CYAN_FG}Search headers: ARRAYS PARAM TYPESET READ REDIRECTION BUILTIN VI ${E_RESET}
 
+${E_WHITE_FG}Operators${E_RESET}
+In the native mode of operation, the following operators are supported (listed in decreasing order of precedence):
+
+${E_CYAN_FG}= += -= *= /= %= &= ^= |= <<= >>= &&= ||= ^^= **= ${E_WHITE_FG}assignment${E_RESET}
+${E_CYAN_FG}                                    + - ! ~ ++ -- ${E_WHITE_FG}unary plus/minus, logical NOT, complement, {pre,post}{in,de}crement${E_RESET}
+${E_CYAN_FG}                                               ** ${E_WHITE_FG}exponentiation${E_RESET}
+${E_CYAN_FG}                                            * / % ${E_WHITE_FG}multiplication, division, modulus (remainder)${E_RESET}
+${E_CYAN_FG}                                              + - ${E_WHITE_FG}addition, subtraction${E_RESET}
+${E_CYAN_FG}                                        < > <= >= ${E_WHITE_FG}comparison${E_RESET}
+${E_CYAN_FG}                                            == != ${E_WHITE_FG}equality and inequality${E_RESET}
+${E_CYAN_FG}                                               && ${E_WHITE_FG}logical AND${E_RESET}
+${E_CYAN_FG}                                            || ^^ ${E_WHITE_FG}logical OR, XOR${E_RESET}
+${E_CYAN_FG}                                              ? : ${E_WHITE_FG}ternary operator${E_RESET}
+${E_CYAN_FG}                                                , ${E_WHITE_FG}comma operator${E_RESET}
+${E_CYAN_FG}                                            << >> ${E_WHITE_FG}bitwise shift left, right${E_RESET}
+${E_CYAN_FG}                                                & ${E_WHITE_FG}bitwise AND${E_RESET}
+${E_CYAN_FG}                                                ^ ${E_WHITE_FG}bitwise XOR${E_RESET}
+${E_CYAN_FG}                                                | ${E_WHITE_FG}bitwise OR${E_RESET}
+ The  operators  ‘&&’,  ‘||’,  ‘&&=’, and ‘||=’ are short-circuiting, and only one of the latter two expressions in a ternary operator is evaluated.
+ Note the precedence of the bitwise AND, OR, and XOR operators.
+
+${E_WHITE_FG}CONDITIONAL EXPRESSIONS${E_RESET}
+       A  conditional  expression  is  used  with the [[ compound command to test attributes of files and to compare strings.  Each expression can be con‐
+       structed from one or more of the following unary or binary expressions:
+
+       ${E_WHITE_FG}-a${E_RESET} file
+              true if file exists.
+
+       ${E_WHITE_FG}-b${E_RESET} file
+              true if file exists and is a block special file.
+
+       ${E_WHITE_FG}-c${E_RESET} file
+              true if file exists and is a character special file.
+
+       ${E_WHITE_FG}-d${E_RESET} file
+              true if file exists and is a directory.
+
+       ${E_WHITE_FG}-e${E_RESET} file
+              true if file exists.
+
+       ${E_WHITE_FG}-f${E_RESET} file
+              true if file exists and is a regular file.
+
+       ${E_WHITE_FG}-g${E_RESET} file
+              true if file exists and has its setgid bit set.
+
+       ${E_WHITE_FG}-h${E_RESET} file
+              true if file exists and is a symbolic link.
+
+       ${E_WHITE_FG}-k${E_RESET} file
+              true if file exists and has its sticky bit set.
+
+       ${E_WHITE_FG}-n${E_RESET} string
+              true if length of string is non-zero.
+
+       ${E_WHITE_FG}-o${E_RESET} option
+              true if option named option is on.  option may be a single character, in which case it is a single letter option  name.   (See  the  section
+              ‘Specifying Options’.)
+
+              When no option named option exists, and the POSIX_BUILTINS option hasn’t been set, return 3 with a warning.  If that option is set, return 1
+              with no warning.
+
+       ${E_WHITE_FG}-p${E_RESET} file
+              true if file exists and is a FIFO special file (named pipe).
+
+       ${E_WHITE_FG}-r${E_RESET} file
+              true if file exists and is readable by current process.
+
+       ${E_WHITE_FG}-s${E_RESET} file
+              true if file exists and has size greater than zero.
+
+       ${E_WHITE_FG}-t${E_RESET} fd  true if file descriptor number fd is open and associated with a terminal device.  (note: fd is not optional)
+
+       ${E_WHITE_FG}-u${E_RESET} file
+              true if file exists and has its setuid bit set.
+
+       ${E_WHITE_FG}-v${E_RESET} varname
+              true if shell variable varname is set.
+
+       ${E_WHITE_FG}-w${E_RESET} file
+              true if file exists and is writable by current process.
+
+       ${E_WHITE_FG}-x${E_RESET} file
+              true  if  file  exists  and is executable by current process.  If file exists and is a directory, then the current process has permission to
+              search in the directory.
+
+       ${E_WHITE_FG}-z${E_RESET} string
+              true if length of string is zero.
+
+       ${E_WHITE_FG}-L${E_RESET} file
+              true if file exists and is a symbolic link.
+
+       ${E_WHITE_FG}-O${E_RESET} file
+              true if file exists and is owned by the effective user ID of this process.
+
+       ${E_WHITE_FG}-G${E_RESET} file
+              true if file exists and its group matches the effective group ID of this process.
+
+       ${E_WHITE_FG}-S${E_RESET} file
+              true if file exists and is a socket.
+
+       ${E_WHITE_FG}-N${E_RESET} file
+              true if file exists and its access time is not newer than its modification time.
+
+       file1 ${E_WHITE_FG}-nt${E_RESET} file2
+              true if file1 exists and is newer than file2.
+
+       file1 ${E_WHITE_FG}-ot${E_RESET} file2
+              true if file1 exists and is older than file2.
+
+       file1 ${E_WHITE_FG}-ef${E_RESET} file2
+              true if file1 and file2 exist and refer to the same file.
+
+       string ${E_WHITE_FG}=${E_RESET} pattern
+       string ${E_WHITE_FG}==${E_RESET} pattern
+              true if string matches pattern.  The two forms are exactly equivalent.  The ‘=’ form is the traditional shell syntax (and hence the only one
+              generally used with the test and [ builtins); the ‘==’ form provides compatibility with other sorts of computer language.
+
+       string ${E_WHITE_FG}!=${E_RESET} pattern
+              true if string does not match pattern.
+
+       string ${E_WHITE_FG}=~${E_RESET} regexp
+              true if string matches the regular expression regexp.  If the option RE_MATCH_PCRE is set regexp is tested as a PCRE regular expression  us‐
+              ing  the  zsh/pcre module, else it is tested as a POSIX extended regular expression using the zsh/regex module.  Upon successful match, some
+              variables will be updated; no variables are changed if the matching fails.
+
+              If the option BASH_REMATCH is not set the scalar parameter MATCH is set to the substring that matched the pattern and the integer parameters
+              MBEGIN and MEND to the index of the start and end, respectively, of the match in string, such that if string is contained  in  variable  var
+              the  expression  ‘\${var[\$MBEGIN,\$MEND]}’  is identical to ‘\$MATCH’.  The setting of the option KSH_ARRAYS is respected.  Likewise, the array
+              match is set to the substrings that matched parenthesised subexpressions and the arrays mbegin and mend to the indices of the start and  end
+              positions,  respectively, of the substrings within string.  The arrays are not set if there were no parenthesised subexpressions.  For exam‐
+              ple, if the string ‘a short string’ is matched against the regular expression ‘s(...)t’, then (assuming the option KSH_ARRAYS  is  not  set)
+              MATCH,  MBEGIN  and  MEND  are  ‘short’,  3 and 7, respectively, while match, mbegin and mend are single entry arrays containing the strings
+              ‘hor’, ‘4’ and ‘6’, respectively.
+
+              If the option BASH_REMATCH is set the array BASH_REMATCH is set to the substring that matched the pattern followed by  the  substrings  that
+              matched parenthesised subexpressions within the pattern.
+
+       string1 ${E_WHITE_FG}<${E_RESET} string2
+              true if string1 comes before string2 based on ASCII value of their characters.
+
+       string1 ${E_WHITE_FG}>${E_RESET} string2
+              true if string1 comes after string2 based on ASCII value of their characters.
+
+       exp1 ${E_WHITE_FG}-eq${E_RESET} exp2
+              true  if  exp1  is  numerically equal to exp2.  Note that for purely numeric comparisons use of the ((...)) builtin described in the section
+              ‘ARITHMETIC EVALUATION’ is more convenient than conditional expressions.
+
+       exp1 ${E_WHITE_FG}-ne${E_RESET} exp2
+              true if exp1 is numerically not equal to exp2.
+
+       exp1 ${E_WHITE_FG}-lt${E_RESET} exp2
+              true if exp1 is numerically less than exp2.
+
+       exp1 ${E_WHITE_FG}-gt${E_RESET} exp2
+              true if exp1 is numerically greater than exp2.
+
+       exp1 ${E_WHITE_FG}-le${E_RESET} exp2
+              true if exp1 is numerically less than or equal to exp2.
+
+       exp1 ${E_WHITE_FG}-ge${E_RESET} exp2
+              true if exp1 is numerically greater than or equal to exp2.
+
+       ${E_WHITE_FG}(${E_RESET} exp ${E_WHITE_FG})${E_RESET}
+              true if exp is true.
+
+       ${E_WHITE_FG}!${E_RESET} exp  true if exp is false.
+
+       exp1 ${E_WHITE_FG}&&${E_RESET} exp2
+              true if exp1 and exp2 are both true.
+
+       exp1 ${E_WHITE_FG}||${E_RESET} exp2
+              true if either exp1 or exp2 is true.
+
+ 
+
 ${E_WHITE_FG}Dead Tilde${E_RESET}
 Compose Key:<Right><Alt>
 
@@ -9340,6 +9516,8 @@ while IFS= read -ru3 LINE || [ -n "\$LINE" ]; do
 		fi
 	fi
 done 3< <( dbus-monitor | grep --line-buffered -i "startservicebyname\|desktop\|interfacesadded")
+${E_WHITE_FG}See also ${E_CYAN_FG}REDIRECTION${E_RESET}
+
 
 ${E_WHITE_FG}Find command regex types${E_RESET}
 find: valid -regextype values
