@@ -654,7 +654,7 @@ save_changes () {
 		fi
 		if [[ ! -e ${C} ]];then
 			echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_FILE_IN_LIST[${NDX}]:t} \n  To: ${C:t}" >&2
-			/bin/mv "${_FILE_IN_LIST[${NDX}]:t}" "${C:t}"
+			/bin/mv "${_FILE_IN_LIST[${NDX}]}" "${C}"
 		fi
 	done
 }

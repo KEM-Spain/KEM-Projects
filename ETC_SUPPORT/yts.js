@@ -5,7 +5,7 @@
 	const app = new Command();
 
 	app
-		.description('Search and download from youTube')
+		.description('Search YouTube')
 		.version('1.0')
 		.argument('<searchterm>', 'youtube search term')
 		.option('-s, --strict', 'display only author matching searchterm')

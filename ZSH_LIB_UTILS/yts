@@ -37,17 +37,19 @@ _FAVORITE=''
 _FIELD_LEN[age]=30
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=90
+_FIELD_LEN[agetime]=40
 _JS_SCRIPT=/usr/local/etc/yts.js
 #_JS_SCRIPT=./yts.js
 _LOG=/tmp/yt.log
 _YTS_FAVORITES=~/.yts_history
-_PID=0
+_PID=?
 _RUMBLE=''
 _LIVE=''
+_ERROR_LIMIT=10
+_ACTION=download
+_OBJECT=video
 
 #Globals
-g_ACTION=action
-g_OBJECT=object
 g_PLATFORM=''
 g_RUMBLE_SEARCH_TYPE=''
 
@@ -77,21 +79,24 @@ action_do () {
 	local DEST_1
 	local DEST_2
 	local DL_CNT=0
-	local ERROR_CNT=0
-	local HDRS_OUT=false
-	local LAST_SIZE=0
-	local LOG_ACTIVE=false
-	local L M S 
-	local ETA
 	local EMSG
+	local ERROR_CNT=0
+	local ETA
+	local HDRS_OUT=false
+	local HAD_ERROR=false
+	local L M S 
+	local LAST_SIZE=0
+	local LINE_COLOR='<w>'
+	local LOG_ACTIVE=false
+	local LOG_LINE
 	local NDX=0
 	local PAUSE=2
+	local RESUMED_TAG=''
 	local SCAN_LIMIT=0
 	local SCAN_MAX=10
 	local STALLS=0
 	local TITLE
 	local URL
-	local LOG_LINE
 
 	msg_box_clear
 
@@ -105,7 +110,7 @@ action_do () {
 
 		[[ -e ${_LOG} ]] && rm -f ${_LOG}
 
-		_PID=$(start_job ${URL})
+		start_job ${URL}
 		msg_box -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "Download requested..."
 
 		while true;do
@@ -115,13 +120,17 @@ action_do () {
 				[[ ${NDX} -gt 10 ]] && exit_leave "${_LOG} not detected" # no activity
 			fi
 
+			# Scan for resume
+			LOG_LINE=$(grep -m1 -i "resuming download" ${_LOG})
+			[[ ${?} -eq 0 ]] && RESUMED_TAG='(<w>resumed<N>)' || RESUMED_TAG=''
+
 			# Get headers
 			LOG_LINE=$(grep -m1 -i "destination" ${_LOG})
 			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
 				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>"
+				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N> ${RESUMED_TAG}"
 				msg_box -C -jl "<m>Downloading: <c>${DEST_2[1,60]}<N>"
 				msg_box -C -jl "<m>$(str_unicode_line $((COORDS[W]-4)))<N>"
 				HDRS_OUT=true
@@ -134,7 +143,7 @@ action_do () {
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
 				msg_box -p -PK "${EMSG}"
 				_DOWNLOADS[${M}]=true
-				break
+				break # while loop
 			fi
 
 			# Scan for not yet available
@@ -144,29 +153,30 @@ action_do () {
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
 				msg_box -p -PK "${EMSG}"
 				_FUTURE[${M}]=true
-				break
+				_DOWNLOADS[${M}]=false
+				break # while loop
 			fi
 
 			# Scan for errors
-			LOG_LINES=("${(f)$(tail -1 ${_LOG} | sed 's// /g' | grep -i 'error')}")
+			LOG_LINES=("${(f)$(sed -e 's// /g' -e '/./!d' ${_LOG} | tail -1 | grep -i 'got error:')}")
 			if [[ ${?} -eq 0 ]];then
 				for L in ${LOG_LINES};do
-					if [[ ${ERROR_CNT} -ge 10 ]];then
+					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive:
 						TITLE=$(get_field title ${M})	
 						EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>" 
 						msg_box -p -PK "${EMSG}"
 						_FAILED[${M}]=true
+						_DOWNLOADS[${M}]=false
+						ERROR_CNT=0 # reset
 						break 2
 					fi
 					case ${L:l} in
-						*giving\ up*)	TITLE=$(get_field title ${M})	
-											EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>" 
-											msg_box -p -PK "${EMSG}"
-											_FAILED[${M}]=true
-											break 2
+						*giving\ up*)	ERROR_CNT=${_ERROR_LIMIT}	
+											break # for loop
 											;;
-						*network*|*retry*|*timed\ out*)	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -25)) "<r>Network Errors<N>"
+						*network\ is\ unreachable*|*retrying*|*operation\ timed\ out*)	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -25)) "<r>Network Errors<N>"
 							((ERROR_CNT++))
+							HAD_ERROR=true
 											;;
 					esac
 				done
@@ -178,7 +188,12 @@ action_do () {
 				case ${LOG_LINE:l} in
 					*eta*)	ETAS+=("${(f)$(sed 's//\n/g' <<<${LOG_LINE} | grep -vi 'unknown')}")
 								ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${ETAS[-1]})
-								msg_box -C -jl "<w>${ETA}<N>"
+								msg_box -C -jl "${LINE_COLOR}${ETA}<N>"
+								[[ ${ETA} =~ 'MiB' ]] && LINE_COLOR='<w>'
+								[[ ${ETA} =~ 'KiB' ]] && LINE_COLOR='<B><y>'
+								[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
+								ERROR_CNT=0
+								HAD_ERROR=false
 								if [[ ${ETA} =~ '100%' ]];then
 									if [[ ${#_MARKED} -gt 1 ]];then
 										msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
@@ -187,8 +202,7 @@ action_do () {
 										fi
 									fi
 									_DOWNLOADS[${M}]=true
-									ERROR_CNT=0
-									break
+									break # while loop
 								fi
 								;;
 				esac
@@ -202,18 +216,22 @@ action_do () {
 		_MARKED[${M}]=0
 		if [[ ${_DOWNLOADS[${M}]} == 'true' ]];then
 			list_set_selected ${M} ${_GHOST_ROW}
+			post_process
 		else
 			list_set_selected ${M} ${_AVAIL_ROW}
 		fi
 	done
+	
+	unsetopt localtraps
+	trap - INT #Downloads are finished; nothing to interrupt
 
-	post_process
+	return 0
 }
 
 action_warn () {
 	local M
 	
-	msg_box -p -PG "<I>Please respond|$(str_unicode_line 14)| |${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected"
+	msg_box -p -PG "<I>Please respond|$(str_unicode_line 14)| |${#_MARKED} $(str_pluralize ${_OBJECT} ${#_MARKED}) selected"
 
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${_MARKED};do
@@ -234,11 +252,10 @@ item_decorate () {
 	elif [[ ${_FUTURE[${NDX}]} == 'true' ]];then
 		STR="Future..."
 	else
-		STR="$(get_field age ${NDX}) $(get_field time ${NDX})"
-		[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
+		STR="$(get_field agetime ${NDX})"
 	fi
 
-	echo -n ${STR[1,${_FIELD_LEN[age]}]}
+	echo -n ${STR[1,${_FIELD_LEN[agetime]}]}
 }
 
 delete_favorite () {
@@ -307,6 +324,7 @@ get_field () {
 			age) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
 			url) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="http://rumble.com${STR}";;
 			time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
+			agetime) STR=$(cut -d'|' -f4,6 <<<${_LIST[${NDX}]});STR="(${STR:s/|/ /})";;
 		esac
 		[[ -z ${STR} ]] && STR="Unknown"
 	else
@@ -316,6 +334,7 @@ get_field () {
 			title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
 			url) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});;
 			time) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="(${STR})";;
+			agetime) STR=$(cut -d'|' -f1,5 <<<${_LIST[${NDX}]});STR="(${STR:s/|/ /})";;
 		esac
 	fi
 
@@ -326,21 +345,13 @@ get_field () {
 }
 
 post_process () {
-	local -a KEYWORDS=("judge napolitano" "official")
-	local FN_CLEAN
-	local F K
-	local -a LIST
+	local -a KEYWORDS=("judge_napolitano_-_" "official" "afshin_rattansi_s_")
+	local K
 
-	echo "Post processing..."
-	LIST=("${(f)$(find ${_DOWNLOAD_DIR} -maxdepth 1 -type f ! -path ${_DOWNLOAD_DIR})}")
+	msg_box "Post processing..."
 
-	for F in ${LIST};do
-		for K in ${KEYWORDS};do
-			if [[ ${F:l} =~ ${K:l} ]];then
-				FN_CLEAN=$(sed -e "s/${K}//i" -e 's/^ *-//' -e 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${F:t})
-				mv -f ${F} ${F:h}/${FN_CLEAN}
-			fi
-		done
+	for K in ${KEYWORDS};do
+		fsub -iy ${K} ${_DOWNLOAD_DIR} >/dev/null 2>&1
 	done
 }
 
@@ -480,17 +491,31 @@ set_item_color () {
 
 start_job () {
 	local URL=${@}
-	local PID
 
 	nohup yt -i -o "%(channel)s - %(title)s.%(ext)s" ${URL} >>${_LOG} 2>&1 &
+	_PID=$!
 
 	#nohup ./log_sim ./yt.log.error.data >>${_LOG} 2>&1 &
 	#nohup ./log_sim ./yt.log.noerror.data >>${_LOG} 2>&1 &
 	
-	PID=$(pgrep -n yt)
-	[[ -z ${PID} ]] && exit_leave "${0}:unable to start job"
+}
 
-	echo ${PID}
+kill_job () {
+	local RC
+
+	unsetopt localtraps
+	trap - INT # disable trap
+
+	ps -h ${_PID} 2>/dev/null
+	RC=$?
+	
+	if [[ ${RC} -eq 0 ]];then
+		kill -9 ${_PID}
+		clear
+		msg_box -p -PK "Download job was killed"
+	fi
+
+	exit_leave
 }
 
 total_rejects () {
@@ -583,7 +608,9 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 #Execution
-cursor_off
+trap kill_job INT
+
+#TODO: return to (loop) favorite menu if no args were passed
 if [[ ${_RUMBLE} == 'true' ]];then
 	g_PLATFORM="Rumble"
 	if [[ ${DO_FAV} == 'true' || ${#} -eq 0 ]];then
@@ -629,6 +656,7 @@ else
 		get_favorite
 	fi
 
+	msg_box "Requesting video list for <B><I>${_FAVORITE}<N>..."
 	[[ -z ${_FAVORITE} ]] && PROXY_CMD="node ${_JS_SCRIPT} ${RCL}" || PROXY_CMD="node ${_JS_SCRIPT} ${RCL} ${_FAVORITE:q}"
 
 	#Youtube query log
@@ -672,7 +700,7 @@ SEARCHTYPE=Default
 [[ ${_RUMBLE} == 'true' && ${_LIVE} == 'true' ]] && SEARCHTYPE=Live
 
 #set headings
-list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tType:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${g_PLATFORM} ${SEARCHTYPE} $(list_get_selected_count)'
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tQuery Type:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${g_PLATFORM} ${SEARCHTYPE} $(list_get_selected_count)'
 list_set_header 'printf " "'
 list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_FIELD_LEN[age]} "Age" ${_FIELD_LEN[author]} "Author" ${_FIELD_LEN[title]} "Title"'
 list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %*s %*s${RESET}" 5 "" ${_FIELD_LEN[age]} "$(str_unicode_line ${_FIELD_LEN[age]})" ${_FIELD_LEN[author]} "$(str_unicode_line ${_FIELD_LEN[author]})" ${_FIELD_LEN[title]} "$(str_unicode_line ${_FIELD_LEN[title]})"'
@@ -683,7 +711,8 @@ local ITEM_COLOR=$(set_item_color $(item_decorate ${_LIST_NDX}));
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}${ITEM_COLOR}%-${_FIELD_LEN[age]}s${RESET}${SHADE}${BAR} %-${_FIELD_LEN[author]}s %-${_FIELD_LEN[title]}s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"  "$(get_field author ${_LIST_NDX})"  "$(get_field title ${_LIST_NDX})" 
 '
 
-list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${g_ACTION} ${g_OBJECT}(s) (${ITALIC}or exit if none selected${RESET})"
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${_ACTION} ${_OBJECT}(s) (${ITALIC}or exit if none selected${RESET})"
+list_set_action_msgs video download
 list_set_sortable true
 list_set_max_sort_col 3
 [[ ${g_RUMBLE_SEARCH_TYPE} != 'general' ]] && list_set_sort_default 1
