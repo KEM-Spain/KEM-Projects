@@ -1,6 +1,8 @@
 #LIB Dependencies
 _DEPS_+="MSG.zsh UTILS.zsh"
 
+#LIB vars
+_PRE_EXIT_RAN=false
 
 exit_leave () {
 	local MSGS=(${@})
@@ -31,10 +33,16 @@ exit_leave () {
 
 	tput cnorm >&2
 
+	exit_pre_exit
+
 	kill -SIGINT $$ # Fire the traps
 }
 
 exit_pre_exit () {
+	[[ ${_PRE_EXIT_RAN} == 'true' ]] && return
+	
+	_PRE_EXIT_RAN=true
+
 	[[ ${_DEBUG} -ge 1 ]] && echo "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}, #_EXIT_MSGS:${#_EXIT_MSGS}"
 
 	if [[ ${XDG_SESSION_TYPE:l} == 'x11' ]];then
@@ -56,7 +64,7 @@ exit_pre_exit () {
 
 	[[ ${_DEBUG} -ge 1 ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
 
-	[[ -n ${_EXIT_MSGS} ]] && echo ${_EXIT_MSGS}
+	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}"
 
 	tput cnorm >&2
 }

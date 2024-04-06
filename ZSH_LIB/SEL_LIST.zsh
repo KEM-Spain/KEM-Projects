@@ -66,8 +66,8 @@ selection_list () {
 	local SX SY SW SH SL
 	local TITLE
 	local TOP_SET=false
-	local X_COORD_ARG=?
-	local Y_COORD_ARG=?
+	local X_COORD_ARG=0
+	local Y_COORD_ARG=0
 	local _SORT_KEY=false
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -77,8 +77,6 @@ selection_list () {
 
 	ITEM_PAD=2
 	ROW_ARG=''
-	X_COORD_ARG=?
-	Y_COORD_ARG=?
 	_INNER_BOX_COLOR=${RESET}
 	_OUTER_BOX_COLOR=${RESET}
 	_SL_CATEGORY=false
@@ -109,6 +107,8 @@ selection_list () {
 		_CURSOR_STATE=off
 	fi
 
+	#msg_box "Loading selection list..."
+
 	if [[ ${_SORT_KEY} == 'true' ]];then
 		for L in ${_SELECTION_LIST};do
 			SKEYS+=$(cut -d':' -f1 <<<${L})
@@ -117,7 +117,6 @@ selection_list () {
 		_SELECTION_LIST=(${SLIST})
 	fi
 
-	msg_box "Loading selection list..."
 	if [[ -z ${_SELECTION_LIST} ]];then
 		exit_leave "_SELECTION_LIST is unset"
 	else
@@ -133,8 +132,8 @@ selection_list () {
 
 	[[ ${_SL_MAX_ITEM_LEN} -gt ${#TITLE} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( ${#TITLE}+2 )) # Choose either item or title for box width
 
-	[[ ${X_COORD_ARG} -ne '?' ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $((_MAX_ROWS)) ${BOX_HEIGHT})
-	[[ ${Y_COORD_ARG} -ne '?' ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $((_MAX_COLS)) ${SW})
+	[[ ${X_COORD_ARG} -gt 0 ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $((_MAX_ROWS)) ${BOX_HEIGHT})
+	[[ ${Y_COORD_ARG} -gt 0 ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $((_MAX_COLS)) ${SW})
 
 	SX=$(( BOX_X_COORD-PAD ))
 	SY=$(( BOX_Y_COORD-PAD ))

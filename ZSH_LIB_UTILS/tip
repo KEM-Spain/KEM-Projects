@@ -4899,10 +4899,10 @@ sed ':a; N; \$!ba; s/\n/ /g'
 This command will progess through entire file, removing all newlines while stringing all lines
 together on a single line of output
 
-1) ${E_WHITE_FG}}Create${E_RESET}} label ${E_CYAN_FG}}:a${E_RESET}}
-2) ${E_WHITE_FG}}Append${E_RESET}} the current and next line to the pattern space via ${E_CYAN_FG}}N${E_RESET}}
-3) If we are ${E_WHITE_FG}}NOT LAST LINE${E_RESET}} ${E_CYAN_FG}}\$!${E_RESET}}, branch to the created label ${E_CYAN_FG}}ba${E_RESET}}
-4) Finally, the substitution ${E_WHITE_FG}}replaces every newline with a space${E_RESET}} on the pattern space
+1) ${E_WHITE_FG}Create${E_RESET} label ${E_CYAN_FG}:a${E_RESET}
+2) ${E_WHITE_FG}Append${E_RESET} the current and next line to the pattern space via ${E_CYAN_FG}N${E_RESET}
+3) If we are ${E_WHITE_FG}NOT LAST LINE${E_RESET} ${E_CYAN_FG}\$!${E_RESET}, branch to the created label ${E_CYAN_FG}ba${E_RESET}
+4) Finally, the substitution ${E_WHITE_FG}replaces every newline with a space${E_RESET} on the pattern space
 tip_sed_EOF
 
 local RESPONSE

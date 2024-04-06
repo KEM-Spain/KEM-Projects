@@ -8,7 +8,7 @@
 		.description('Search YouTube')
 		.version('1.0')
 		.argument('<searchterm>', 'youtube search term')
-		.option('-s, --strict', 'display only author matching searchterm')
+		.option('-s, --strict', 'author must match searchterm')
 		.option('-a, --age <keyword>', 'all min hour day week mon year', 'all')
 
 	app.parseAsync(process.argv);
