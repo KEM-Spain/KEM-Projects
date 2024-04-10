@@ -3464,7 +3464,7 @@ a\.c        a.c exactly
 abc\b       abc when followed by a word boundary (e.g. in abc! but not in abcd)
 perl\B      perl when not followed by a word boundary (e.g. in perlert but not in perl stuff)
 
-${E_WHITE_FG}LOOK-AHEAD${E_RESET}
+${E_WHITE_FG}LOOK-AHEAD / LOOK-BEHIND${E_RESET}
 
 (?=foo)     look-ahead: Asserts that what immediately ${E_ITALIC}${E_WHITE_FG}follows the current position${E_RESET} in the string is ${E_WHITE_FG}foo${E_RESET}
 (?<=foo)    look-behind: Asserts that what immediately ${E_ITALIC}${E_WHITE_FG}precedes the current position${E_RESET} in the string is ${E_WHITE_FG}foo${E_RESET}

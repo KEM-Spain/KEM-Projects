@@ -32,11 +32,7 @@ LOG=/tmp/${0:t}_explode
 [[ -z ${1} ]] && echo "Missing argument:<ZSH_SCRIPT>" && exit
 SCRIPT=${1}
 
-EXPLODE=$(sed -e 's/\$/\n\$/g' -e 's/[(][A-Za-z][)]//g' -e 's/:.*}/}/' -e 's/{[#=]/{/' ${1}) # expose nested variables, eliminate modifiers and flags
-#jecho ${EXPLODE} > explode.txt
-#TODO: handle modifiers
-#TODO:   text: selection_list "<w>Run ${(C)g_PLATFORM} query  from history or <h>(q)uit<N>"
-#TODO: result: ${uit<N>"}
+EXPLODE=$(sed -e 's/\$/\n\$/g' -e 's/:.*}/}/' -e 's/{[#=]/{/' ${1}) 
 _REFS=("${(f)$(perl -ne '/\${[()_A-Za-z0-9].*/m && print "$&\n"' <<<${EXPLODE} | perl -pe 's/}.*/}/;s/:.*}/}/' | sort -u)}")
 _VARS=("${(f)$(perl -ne '/^[_A-Za-z0-9].*\+?=/m && print "$&\n"' <<<${EXPLODE} | perl -pe 's/\+?=.*//' | perl -pe 's/typeset( \-?[a-zA-Z])? //' | sort -u)}")
 _VARS+=(${_REFS})
@@ -49,11 +45,12 @@ echo "Initial extract of variables" >>${LOG}
 
 echo "Clearing variables of modifiers and tags" >>${LOG}
 for V in ${(o)_VARS};do
-	[[ ${V} =~ "\[" ]] && VAR=$(cut -d'[' -f1 <<<${VAR}) || VAR=${V} # strip element refs
+	VAR=("${(f)$(perl -pe 's/((?<={))([(][A-Za-z].*[)])(.*)(?=})/\1\3\4/' <<<${V})}") # strip modifiers
+	[[ ${VAR} =~ "\[" ]] && VAR=$(cut -d'[' -f1 <<<${VAR}) || VAR=${V} # strip element refs
 	VAR=$(tr -d '${}' <<<${VAR}) # prefix, braces
 	[[ -z ${VAR} ]] && continue # null
 	[[ ${VAR} =~ "^ *$" ]] && continue # spaces
-	#echo "CLEANED:${VAR}"
+	[[ ${VAR} =~ "^\(" ]] && continue # remnant
 	if $(grep -q "${BLACK_LIST}" <<<${VAR});then # blacklisted
 		echo "BLACKLISTED:${VAR}"
 		continue

@@ -52,16 +52,16 @@ _TARGET_PAGE=1
 
 #LIB Declarations
 typeset -A _CAL_SORT=(year F6 month E5 week D4 day C3 hour B2 minute A1)
-typeset -a _LIST_ACTION_MSGS # Holds text for contextual prompts
+typeset -a _LIST_ACTION_MSGS=() # Holds text for contextual prompts
 typeset -a _LIST_HEADER=() # Holds header lines
-typeset -a _LIST # Holds the list values to be managed by the list menu
+typeset -a _LIST=() # Holds the list values to be managed by the list menu
 typeset -a _LIST_INDEX_RANGE=() # Holds the top and bottom screen row indicies
-typeset -A _LIST_SELECTED_PAGE # Selected rows by page
-typeset -A _LIST_SELECTED # Status of selected list items; can contain 0,1,2, etc.; 0,1 can toggle; -gt 2 cannot toggle - ex: a deleted file
-typeset -a _SELECTION_LIST # Holds indices of selected items in a list
-typeset -A _SORT_TABLE # sort assoc array names
-typeset -A _SORT_DIRECTION # Status of list sort direction
-typeset -a _TARGETS # target indexes
+typeset -A _LIST_SELECTED_PAGE=() # Selected rows by page
+typeset -A _LIST_SELECTED=() # Status of selected list items; can contain 0,1,2, etc.; 0,1 can toggle; -gt 2 cannot toggle - ex: a deleted file
+typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
+typeset -A _SORT_TABLE=() # sort assoc array names
+typeset -A _SORT_DIRECTION=() # Status of list sort direction
+typeset -a _TARGETS=() # target indexes
 
 #LIB Functions
 inline_vi_edit () {
@@ -615,7 +615,7 @@ list_select () {
 	local _LIST_NDX=0
 	local BARLINE BAR SHADE
 	local BOT_OFFSET=3
-	local COLS=$(tput cols)
+	local COLS=0
 	local CURSOR_NDX=0
 	local DIR_KEY
 	local HDR_NDX
@@ -623,14 +623,14 @@ list_select () {
 	local KEY
 	local KEY_LINE=''
 	local L R S 
-	local LAST__LIST_NDX=0
+	local LAST_LIST_NDX=0
 	local LINE_ITEM
 	local LIST_DATA
 	local NEXT
 	local MAX_CURSOR
 	local MAX_DISPLAY_ROWS
+	local MAX_LINE_WIDTH=0
 	local MAX_ITEM
-	local MAX_LINE_WIDTH=$(((COLS - ${#${#_LIST}}) - 10)) # Display-cols minus width-of-line-number plus a 10 space margin
 	local MAX_PAGE
 	local OUT
 	local PAGE=1
@@ -651,6 +651,10 @@ list_select () {
 	_LIST=(${@})
 	MAX_ITEM=${#_LIST}
 	_SELECT_ALL=false
+
+	# Max line
+	COLS=$(tput cols)
+	MAX_LINE_WIDTH=$(((COLS - ${#${#_LIST}}) - 10)) # Display-cols minus width-of-line-number plus a 10 space margin
 
 	# Hide cursor
 	if [[ ${_CURSOR_STATE} == 'on' ]];then
@@ -682,7 +686,7 @@ list_select () {
 	[[ -n ${_LIST_PROMPT} ]] && USER_PROMPT=${_LIST_PROMPT} || USER_PROMPT="Enter to toggle selection"
 	[[ -n ${_LIST_ACTION_MSGS[1]} ]] && ACTION_MSGS[1]=${_LIST_ACTION_MSGS[1]} || ACTION_MSGS[1]="process"
 	[[ -n ${_LIST_ACTION_MSGS[2]} ]] && ACTION_MSGS[2]=${_LIST_ACTION_MSGS[2]} || ACTION_MSGS[2]="item"
-	[[ -n ${_PROMPT_KEYS} ]] && KEY_LINE=$(eval ${_PROMPT_KEYS}) || KEY_LINE=$(printf "Press ${WHITE_FG}%s%s%s%s${RESET} Home End PgUp PgDn <${WHITE_FG}n${RESET}>ext, <${WHITE_FG}p${RESET}>rev, <${WHITE_FG}b${RESET}>ottom, <${WHITE_FG}t${RESET}>op, <${WHITE_FG}c${RESET}>lear, vi[${WHITE_FG}j,k${RESET}], <${WHITE_FG}a${RESET}>ll${RESET}, <${GREEN_FG}Enter${RESET}>${RESET}, <${WHITE_FG}q${RESET}>uit${RESET}" $'\u2190' $'\u2191' $'\u2193' $'\u2192')
+	[[ -n ${_PROMPT_KEYS} ]] && KEY_LINE=$(eval ${_PROMPT_KEYS}) || KEY_LINE=$(printf "Press ${WHITE_FG}%s%s%s%s${RESET} Home End PgUp PgDn <${WHITE_FG}n${RESET}>ext, <${WHITE_FG}p${RESET}>rev, <${WHITE_FG}b${RESET}>ottom, <${WHITE_FG}t${RESET}>op, <${WHITE_FG}c${RESET}>lear, vi[${WHITE_FG}h,j,k,l${RESET}], <${WHITE_FG}a${RESET}>ll${RESET}, <${GREEN_FG}ENTER${RESET}>${RESET}, <${WHITE_FG}q${RESET}>uit${RESET}" $'\u2190' $'\u2191' $'\u2193' $'\u2192')
 	[[ -n ${KEY_LINE} ]] && USER_PROMPT="${KEY_LINE}\n${USER_PROMPT}"
 
 	# Navigation init
@@ -760,7 +764,7 @@ list_select () {
 		fi
 
 		while true;do
-			LAST__LIST_NDX=${_LIST_NDX} # Store current index
+			LAST_LIST_NDX=${_LIST_NDX} # Store current index
 			_CURRENT_CURSOR=${CURSOR_NDX} # Store current cursor position
 
 			# Partial page boundary
@@ -780,9 +784,9 @@ list_select () {
 				7) DIR_KEY=fp;PAGE_BREAK=true;break;; # Home
 				8) DIR_KEY=lp;PAGE_BREAK=true;break;; # End
 				32) [[ ${_SELECTABLE} == 'true' ]] && list_toggle_selected ${_LIST_NDX};; # Space
-				47|62|60)	[[ ${KEY} -eq 47 ]] && NEXT=get_key;
-								[[ ${KEY} -eq 60 ]] && NEXT=rev;
-								[[ ${KEY} -eq 62 ]] && NEXT=fwd;
+				47|62|60)	[[ ${KEY} -eq 47 ]] && NEXT=get_key; # Forward Slash
+								[[ ${KEY} -eq 60 ]] && NEXT=rev; # Less Than
+								[[ ${KEY} -eq 62 ]] && NEXT=fwd; # Greater Than
 								list_search ${PAGE} ${NEXT};
 								if [[ ${_TARGET_PAGE} -eq ${PAGE} ]];then # same page - move cursor
 									CURSOR_NDX=${_TARGET_CURSOR} && _LIST_NDX=${_TARGET_NDX}
@@ -803,7 +807,7 @@ list_select () {
 				115) list_call_sort;_HOLD_PAGE=true;break;; # 's' Sort
 				116) DIR_KEY=fp;PAGE_BREAK=true;break;; # 't' Top row first page
 				122) return -1;; # 'z' Quit loop
-				${_CB_KEY}) ${_KEY_CALLBACK_FUNC};return -2;; # Custom runtime key
+				${_CB_KEY}) ${_KEY_CALLBACK_FUNC};return -2;; # Custom callback key
 				0) SELECTED_COUNT=$(list_get_selected_count); # Enter
 					_HOLD_PAGE=true;
 					_HOLD_CURSOR=true;
@@ -834,7 +838,7 @@ list_select () {
 			[[ ${CURSOR_NDX} -lt 1 ]] && CURSOR_NDX=${MAX_CURSOR}
 
 			# Clear highlight of last line output
-			ITEM=${_LIST_NDX}; _LIST_NDX=${LAST__LIST_NDX} # Save value of _LIST_NDX
+			ITEM=${_LIST_NDX}; _LIST_NDX=${LAST_LIST_NDX} # Save value of _LIST_NDX
 			[[ ${_LIST_SELECTED[${_LIST_NDX}]} -eq 1 ]] && SHADE=${REVERSE} || SHADE='' 
 			list_item_normal ${_LIST_LINE_ITEM} $(( TOP_OFFSET + (_CURRENT_CURSOR-1) )) 0 #_CURRENT_CURSOR is value before nav key
 

@@ -40,13 +40,13 @@ _FIELD_LEN[agetime]=40
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=90
 _JS_SCRIPT=/usr/local/etc/yts.js
-_LOG=/tmp/yt.log
 _OBJECT=video
 _YTSg_FAVORITES=~/.yts_history
 
 #Globals
 g_FAVORITE=''
 g_LIVE=false
+g_LOG=''
 g_PID=?
 g_PLATFORM=''
 g_PROXY_CMD=''
@@ -73,7 +73,6 @@ done
 
 #Functions
 action_do () {
-	local -A LOG_SIZE
 	local -a ETAS
 	local -a LOG_LINES
 	local -a MSGS
@@ -86,11 +85,14 @@ action_do () {
 	local ETA
 	local HDRS_OUT=false
 	local HAD_ERROR=false
+	local JOB_STALL=20
 	local L M S 
-	local LAST_SIZE=0
 	local LINE_COLOR='<w>'
 	local LOG_ACTIVE=false
-	local LOG_LINE
+	local LOG_LINE=''
+	local LOG_SIZE=0
+	local LOG_SIZE_COUNT=0
+	local LAST_LOG_SIZE=0
 	local NDX=0
 	local PAUSE=2
 	local RESUMED_TAG=''
@@ -111,10 +113,13 @@ action_do () {
 		URL=$(get_field url ${M})
 		HDRS_OUT=false
 
-		[[ -e ${_LOG} ]] && rm -f ${_LOG}
-
 		start_job ${URL}
 		msg_box -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "Download requested..."
+
+		# Detect missing log
+		if [[ ! -e ${g_LOG} ]];then
+			[[ ${NDX} -gt 10 ]] && exit_leave "${g_LOG} not detected" # no activity
+		fi
 
 		unsetopt localtraps
 		trap kill_job INT
@@ -123,6 +128,7 @@ action_do () {
 		while true;do
 			((NDX++))
 			
+			# Process job reset
 			KEY=''
 			read -s -t0.1 -k1 KEY
 			if [[ ${KEY} == 'r' ]];then
@@ -130,16 +136,12 @@ action_do () {
 				start_job ${URL}
 			fi
 
-			if [[ ! -e ${_LOG} ]];then
-				[[ ${NDX} -gt 10 ]] && exit_leave "${_LOG} not detected" # no activity
-			fi
-
 			# Scan for resume
-			LOG_LINE=$(grep -m1 -i "resuming download" ${_LOG})
+			LOG_LINE=$(grep -m1 -i "resuming download" ${g_LOG})
 			[[ ${?} -eq 0 ]] && RESUMED_TAG='(<w>resumed<N>)' || RESUMED_TAG=''
 
 			# Get headers
-			LOG_LINE=$(grep -m1 -i "destination" ${_LOG})
+			LOG_LINE=$(grep -m1 -i "destination" ${g_LOG})
 			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
 				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
@@ -151,7 +153,7 @@ action_do () {
 			fi
 
 			# Scan for already downloaded
-			LOG_LINE=$(grep -m1 -i "already been" ${_LOG})
+			LOG_LINE=$(grep -m1 -i "already been" ${g_LOG})
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
@@ -161,7 +163,7 @@ action_do () {
 			fi
 
 			# Scan for not yet available
-			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${_LOG})
+			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${g_LOG})
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
@@ -172,7 +174,7 @@ action_do () {
 			fi
 
 			# Scan for errors
-			LOG_LINES=("${(f)$(sed -e 's// /g' -e '/./!d' ${_LOG} | tail -1 | grep -i 'error:\|transporterror')}")
+			LOG_LINES=("${(f)$(sed -e 's// /g' -e '/./!d' ${g_LOG} | tail -1 | grep -i 'error:\|transporterror')}")
 			if [[ ${?} -eq 0 ]];then
 				for L in ${LOG_LINES};do
 					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive:
@@ -202,7 +204,7 @@ action_do () {
 
 			# Scan for progress
 			if [[ ${HDRS_OUT} == 'true' ]];then
-				LOG_LINE=$(tail -1 ${_LOG})
+				LOG_LINE=$(tail -1 ${g_LOG})
 				case ${LOG_LINE:l} in
 					*eta*)	ETAS+=("${(f)$(sed 's//\n/g' <<<${LOG_LINE} | grep -vi 'unknown')}")
 								ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${ETAS[-1]})
@@ -223,6 +225,13 @@ action_do () {
 								;;
 				esac
 			fi
+
+			LOG_SIZE=$(wc -c < ${g_LOG})
+			[[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]] && LOG_SIZE_COUNT=0 || ((LOG_SIZE_COUNT++))
+			[[ ${LOG_SIZE_COUNT} -ge ${JOB_STALL} ]] && msg_box -t3 "Log is frozen" # && exit_leave "Job stalled"
+			#msg_box -x1 -y1 "LOG_SIZE:${LOG_SIZE} LAST_LOG_SIZE:${LAST_LOG_SIZE} LOG_SIZE_COUNT:${LOG_SIZE_COUNT}"
+			LAST_LOG_SIZE=${LOG_SIZE}
+
 			sleep .1
 		done
 		NDX=0
@@ -281,6 +290,7 @@ get_favorite () {
 	local LINE
 	local F P
 
+	#TODO: provide key to toggle between Rumble and YouTube; use P to call engine
 	while true;do
 		if [[ -s ${_YTSg_FAVORITES} ]];then
 			while read LINE;do
@@ -374,7 +384,8 @@ kill_job () {
 
 	if [[ ! ${functrace[1]} =~ "reset_job" ]];then
 		trap - INT # disable trap
-		exit_leave "${_SCRIPT}:Download Job:${JOB} was killed"
+		[[ ${_DEBUG} -eq 0 ]] && rm -f ${g_LOG}
+		exit_leave "${_SCRIPT}:${WHITE_FG}Download Job${RESET}:${JOB} ${WHITE_FG}was ${RED_FG}killed${RESET}"
 	fi
 }
 
@@ -398,24 +409,24 @@ query_is_valid () {
 	local NDX=0
 	local STABLE=0
 
-	if [[ -e ${_LOG} ]];then
+	if [[ -e ${g_LOG} ]];then
 		while true;do
 			((NDX++))
-			FSIZE_1=$(wc -l < ${_LOG})
+			FSIZE_1=$(wc -l < ${g_LOG})
 			sleep .2
-			FSIZE_2=$(wc -l < ${_LOG})
+			FSIZE_2=$(wc -l < ${g_LOG})
 			[[ ${FSIZE_1} -ne ${FSIZE_2} ]] && continue || ((STABLE++))
 			[[ ${STABLE} -ge 10 ]] && break
-			grep -iq 'error' ${_LOG}
+			grep -iq 'error' ${g_LOG}
 			[[ ${?} -eq 0 ]] && break
 			[[ ${NDX} -ge 100 ]] && break
 		done
 
-		_ERROR_MSG=$(grep -i "error" ${_LOG})
+		_ERROR_MSG=$(grep -i "error" ${g_LOG})
 		RC1=${?}
 
 		if [[ ${RC1} -eq 0 ]];then
-			[[ ${_ERROR_MSG} =~ 'will begin' ]] && _ERROR_MSG=${(C)$(grep -o 'will begin .*' ${_LOG})}
+			[[ ${_ERROR_MSG} =~ 'will begin' ]] && _ERROR_MSG=${(C)$(grep -o 'will begin .*' ${g_LOG})}
 			RC2=${?}
 		else
 			_ERROR_MSG=''
@@ -599,11 +610,13 @@ set_item_color () {
 start_job () {
 	local URL=${@}
 
-	nohup yt -i -o "%(channel)s - %(title)s.%(ext)s" ${URL} >>${_LOG} 2>&1 &
+	g_LOG=$(mktemp /tmp/yt.log.XXXXXX)
+
+	nohup yt -i -o "%(channel)s - %(title)s.%(ext)s" ${URL} >>${g_LOG} 2>&1 &
 	g_PID=$!
 
-	#nohup ./log_sim ./yt.log.error.data >>${_LOG} 2>&1 &
-	#nohup ./log_sim ./yt.log.noerror.data >>${_LOG} 2>&1 &
+	#nohup ./log_sim ./yt.log.error.data >>${g_LOG} 2>&1 &
+	#nohup ./log_sim ./yt.log.noerror.data >>${g_LOG} 2>&1 &
 	
 }
 
@@ -636,7 +649,7 @@ youtube () {
 	[[ -n ${g_FAVORITE} ]] && PROXY_CMD="${g_PROXY_CMD} ${g_FAVORITE:q}" || PROXY_CMD="${g_PROXY_CMD}"
 
 	#Youtube query log
-	[[ -e ${_LOG} ]] && /usr/bin/rm -f ${_LOG} # clear log
+	[[ -e ${g_LOG} ]] && /usr/bin/rm -f ${g_LOG} # clear log
 
 	# Command line processing is in the js script - only proxy the script
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} PROXY COMMAND: ${WHITE_FG}${PROXY_CMD}${RESET}"
@@ -749,6 +762,7 @@ FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
+#TODO: if favorite is used, select engine with title key
 [[ ${g_RUMBLE} == 'true' ]] && QRY_ENGINE="rumble" || QRY_ENGINE="youtube"
 
 # Arg handling for yts.js
@@ -801,5 +815,7 @@ else
 		set_favorite ${@}
 	fi
 fi
+
+[[ ${_DEBUG} -eq 0 ]] && rm -f ${g_LOG}
 
 exit_leave

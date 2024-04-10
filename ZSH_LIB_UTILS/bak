@@ -159,6 +159,8 @@ do_copy () {
 	if [[ ${?} -eq 0 || ${PROMPT} != 'true' ]];then
 		cp ${SOURCE_FN} ${DEST_FN}
 		echo "${OP} ${GREEN_FG}complete${RESET}"
+		[[ ${DEST_FN} =~ "\.bak$" ]] && chmod 666 ${DEST_FN}
+		[[ ${DEST_FN} =~ "\.orig$" ]] && chmod 666 ${DEST_FN}
 		return 0
 	else
 		echo "${RED_FG}${OP} cancelled${RESET}"

@@ -5,7 +5,7 @@ _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 _INNER_BOX_COLOR=${RESET}
 _OUTER_BOX_COLOR=${RESET}
 _SELECTION_VALUE=?
-_SELECTION_DELETE=false
+_SELECTION_KEY=?
 _SL_CATEGORY=false
 _SL_MAX_ITEM_LEN=0
 _TITLE_HL=${WHITE_ON_GREY}
@@ -19,6 +19,7 @@ typeset -A _COL_WIDTHS
 _CUR_PAGE=1
 _MAX_PAGE=0
 _HILITE=${_TITLE_HL}
+_PAGE_OPTION_KEY_HELP=''
 
 #LIB Functions
 selection_list () {
@@ -219,9 +220,9 @@ selection_list () {
 
 		ROWS_OUT=0
 		for (( LIST_NDX=LIST_TOP;LIST_NDX<=MAX_NDX;LIST_NDX++ ));do
-			[[ $((BOX_NDX++)) -gt ${MAX_BOX} ]] && break                       # Increments BOX_NDX, break when page is full
+			[[ $((BOX_NDX++)) -gt ${MAX_BOX} ]] && break # Increments BOX_NDX, break when page is full
 			tput cup ${BOX_ROW} ${BOX_Y}
-			[[ ${BOX_ROW} -eq ${BOX_X} ]] && tput smso || tput rmso                # Highlight first item
+			[[ ${BOX_ROW} -eq ${BOX_X} ]] && tput smso || tput rmso # Highlight first item
 			if [[ ${_SL_CATEGORY} == 'true' ]];then
 				F1=$(cut -d: -f1 <<<${_SELECTION_LIST[${LIST_NDX}]})
 				F2=$(cut -d: -f2 <<<${_SELECTION_LIST[${LIST_NDX}]})
@@ -250,12 +251,21 @@ selection_list () {
 			printf "${CYAN_FG}Page:${WHITE_FG}%-2d ${CYAN_FG}of ${WHITE_FG}%d %s${RESET}\n" ${_CUR_PAGE} ${_MAX_PAGE} "(n)ext (p)rev"
 		fi
 
+		# Option key guide
+		if [[ -n ${_PAGE_OPTION_KEY_HELP} ]];then
+			tput cup ${GUIDE_ROW} $(( SY+(SW/2)-(BOX_WIDTH) ))
+			echo -n ${_PAGE_OPTION_KEY_HELP}
+		fi
+
 		while true;do
 			KEY=$(get_keys)
-			_SELECTION_DELETE=false
+			_SELECTION_VALUE='?'
+			_SELECTION_KEY='?'
 			case ${KEY} in
 				0) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && break 2;;
-				100) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_DELETE=true && break 2;; 
+				100) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='d' && break 2;;
+				114) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='r' && break 2;;
+				121) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='y' && break 2;;
 				110) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				112) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
 				113) exit_request 1 1;;
@@ -418,5 +428,9 @@ selection_list_set () {
 
 	_SELECTION_LIST=(${(on)LIST})
 	[[ ${_DEBUG} -ge 1 ]] && dbg "${0} _SELECTION_LIST:${#_SELECTION_LIST} ITEMS"
+}
+
+selection_list_set_page_key_help () {
+	_PAGE_OPTION_KEY_HELP=${@}
 }
 

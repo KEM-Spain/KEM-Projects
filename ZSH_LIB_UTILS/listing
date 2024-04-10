@@ -341,6 +341,7 @@ _LS_OPTS=$(get_ls_opts ${_CALLER})
 if [[ ${RECURSE} == 'true' ]];then
 	[[ ${_DEBUG} -lt 2 ]] && RAW_CMD=$(sed 's/\-D//' <<<${RAW_CMD})
 	exec tree -C ${RAW_CMD} | mypager
+	exit_leave
 else
 	RAW_CMD=$(sed -E 's/ \-[A-Za-z]*\s+?//g' <<<${RAW_CMD})
 	RAW_CMD=$(sed "s#\~#${HOME}#" <<<${RAW_CMD})
