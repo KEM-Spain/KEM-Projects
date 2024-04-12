@@ -845,14 +845,14 @@ list_select_range () {
 }
 
 list_reset () {
-	_LIST_INDEX_RANGE=()
-	_SELECTION_LIST=()
-	_SORT_TABLE=()
-	_SORT_DIRECTION=()
-	_LIST_NDX=0
 	_CURSOR_ROW=0
 	_HOLD_CURSOR=false
+	_LIST_INDEX_RANGE=()
+	_LIST_SELECTED=()
 	_MARKED=()
+	_SELECTION_LIST=()
+	_SORT_DIRECTION=()
+	_SORT_TABLE=()
 }
 
 list_set_action_msgs () {
