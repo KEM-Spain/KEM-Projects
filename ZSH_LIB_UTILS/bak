@@ -1,4 +1,5 @@
 #!/usr/bin/zsh
+#TODO:back up production when a release is made
 #vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"

@@ -21,6 +21,7 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 #Declarations
 typeset -a _LOCAL_LIST
+typeset -A _FAVORITE_ENGINE
 typeset -A _DOWNLOADS
 typeset -A _FAILED
 typeset -A _FUTURE
@@ -284,7 +285,6 @@ delete_favorite () {
 }
 
 get_favorite () {
-	#TODO: inspect g_LIVE settings; allow cmd line to override; default - obey settings in history file
 	local -a _DISPLAY_LIST=()
 	local LINE
 	local F P
@@ -295,10 +295,9 @@ get_favorite () {
 			while read LINE;do
 				F=$(cut -d'|' -f1 <<<${LINE})
 				P=$(cut -d'|' -f2 <<<${LINE})
-				g_LIVE=false
+				_FAVORITE_ENGINE[${F}]=${P}
 				if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
-					[[ ${P:l} == 'r' ]] && _DISPLAY_LIST+=${F}
-					[[ ${P:l} == 'rl' ]] && _DISPLAY_LIST+=${F} && g_LIVE=true
+					[[ ${P:l} == 'r' || ${P:l} == 'rl' ]] && _DISPLAY_LIST+=${F}
 				else
 					[[ ${P:l} == 'y' ]] && _DISPLAY_LIST+=${F}
 				fi
@@ -432,6 +431,8 @@ rumble () {
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
 
 	if [[ -n ${PG} ]];then # channel search
+		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'r' ]] && g_LIVE=false
+		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams")
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 		[[ ${PG:l} =~ "no videos found" ]] && msg_box "<r>No livestreams<N> for ${SEARCHTERM}|Falling back to defaults..." && PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
