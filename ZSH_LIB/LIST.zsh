@@ -34,7 +34,6 @@ _LIST_SORT_COL_DEFAULT=0
 _LIST_SORT_TYPE=flat
 _LIST_TOGGLE_STATE=off
 _LIST_USER_PROMPT_STYLE=none
-_MARKED=0
 _MSG_KEY=n
 _NO_TOP_OFFSET=false
 _PROMPT_KEYS=''
@@ -58,6 +57,7 @@ typeset -a _LIST=() # Holds the list values to be managed by the list menu
 typeset -a _LIST_INDEX_RANGE=() # Holds the top and bottom screen row indicies
 typeset -A _LIST_SELECTED_PAGE=() # Selected rows by page
 typeset -A _LIST_SELECTED=() # Status of selected list items; contains digit 0,1,2, etc.; 0,1 can toggle; -gt 1 cannot toggle (action completed)
+typeset -a _MARKED=()
 typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
 typeset -A _SORT_TABLE=() # sort assoc array names
 typeset -A _SORT_DIRECTION=() # Status of list sort direction
@@ -852,6 +852,7 @@ list_reset () {
 	_LIST_NDX=0
 	_CURSOR_ROW=0
 	_HOLD_CURSOR=false
+	_MARKED=()
 }
 
 list_set_action_msgs () {
