@@ -1,4 +1,5 @@
 #LIB Dependencies
+TERM=${TERM:=xterm}
 _DEPS_+="DBG.zsh"
 
 #LIB Vars

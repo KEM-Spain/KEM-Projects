@@ -34,24 +34,22 @@ typeset -A COORDS=(X 15 Y 38 H 10 W 86)
 _ACTION=download
 _DOWNLOAD_DIR=~/Downloads
 _ERROR_LIMIT=15
-_ERROR_MSG=''
 _FIELD_LEN[age]=30
 _FIELD_LEN[agetime]=40
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=90
 _JS_SCRIPT=/usr/local/etc/yts.js
 _OBJECT=video
-_YTSg_FAVORITES=~/.yts_history
+_YTS_FAVORITES=~/.yts_history
 
 #Globals
 g_FAVORITE=''
-g_LIVE=false
+g_LIVE=''
 g_LOG=''
 g_PID=?
-g_PLATFORM=''
 g_PROXY_CMD=''
-g_RUMBLE=false
-g_RUMBLE_SEARCH_TYPE=''
+g_QRY_ENGINE=''
+g_SEARCH_TYPE=''
 g_STRICT=false
 g_STRICT_MSG=''
 
@@ -228,7 +226,7 @@ action_do () {
 
 			LOG_SIZE=$(wc -c < ${g_LOG})
 			[[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]] && LOG_SIZE_COUNT=0 || ((LOG_SIZE_COUNT++))
-			[[ ${LOG_SIZE_COUNT} -ge ${JOB_STALL} ]] && msg_box -t3 "Log is frozen" # && exit_leave "Job stalled"
+			[[ ${LOG_SIZE_COUNT} -ge ${JOB_STALL} ]] && msg_box -t1 "Log is frozen" # && exit_leave "Job stalled"
 			#msg_box -x1 -y1 "LOG_SIZE:${LOG_SIZE} LAST_LOG_SIZE:${LAST_LOG_SIZE} LOG_SIZE_COUNT:${LOG_SIZE_COUNT}"
 			LAST_LOG_SIZE=${LOG_SIZE}
 
@@ -262,7 +260,7 @@ action_warn () {
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${_MARKED};do
 			_MARKED[${M}]=0
-			list_set_selected ${M} ${_GHOST_ROW}
+			list_set_selected ${M} ${_AVAIL_ROW}
 		done
 	fi
 }
@@ -272,13 +270,13 @@ delete_favorite () {
 
 	msg_box -p -PD "Deleting: ${FAV}?"
 	if [[ ${_MSG_KEY} == 'y' ]];then
-		if [[ -s ${_YTSg_FAVORITES} ]];then
+		if [[ -s ${_YTS_FAVORITES} ]];then
 			[[ -e /tmp/favlist.new ]] && /bin/rm -f /tmp/favlist.new
 			while read LINE;do
 				[[ ${LINE} =~ ${FAV} ]] && continue
 				echo ${LINE} >> /tmp/favlist.new
-			done < ${_YTSg_FAVORITES}
-			mv -f /tmp/favlist.new ${_YTSg_FAVORITES}
+			done < ${_YTS_FAVORITES}
+			mv -f /tmp/favlist.new ${_YTS_FAVORITES}
 		else
 			exit_leave "No favorites have been saved"
 		fi
@@ -286,33 +284,44 @@ delete_favorite () {
 }
 
 get_favorite () {
-	local -a _DISPLAY_LIST
+	#TODO: inspect g_LIVE settings; allow cmd line to override; default - obey settings in history file
+	local -a _DISPLAY_LIST=()
 	local LINE
 	local F P
 
-	#TODO: provide key to toggle between Rumble and YouTube; use P to call engine
 	while true;do
-		if [[ -s ${_YTSg_FAVORITES} ]];then
+		if [[ -s ${_YTS_FAVORITES} ]];then
+			_DISPLAY_LIST=()
 			while read LINE;do
 				F=$(cut -d'|' -f1 <<<${LINE})
 				P=$(cut -d'|' -f2 <<<${LINE})
-				if [[ ${g_RUMBLE} == 'true' ]];then
+				g_LIVE=false
+				if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
 					[[ ${P:l} == 'r' ]] && _DISPLAY_LIST+=${F}
+					[[ ${P:l} == 'rl' ]] && _DISPLAY_LIST+=${F} && g_LIVE=true
 				else
 					[[ ${P:l} == 'y' ]] && _DISPLAY_LIST+=${F}
 				fi
-			done < ${_YTSg_FAVORITES}
+			done < ${_YTS_FAVORITES}
 		else
 			exit_leave "No favorites have been saved"
 		fi
 
 		selection_list_set ${(o)_DISPLAY_LIST}
+		selection_list_set_page_key_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>d<N>)elete favorite"
+
+		clear
 
 		_SELECTION_VALUE=?
-		clear
-		selection_list "<w>Run ${(C)g_PLATFORM} query  from history or <h>(q)uit<N>"
+		selection_list "<w>Run ${(C)g_QRY_ENGINE} query  from history or <h>(q)uit<N>"
+
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
-		[[ ${_SELECTION_DELETE} == 'true' ]] && delete_favorite ${_SELECTION_VALUE} && _DISPLAY_LIST=() && continue
+
+		case ${_SELECTION_KEY} in
+			d) delete_favorite ${_SELECTION_VALUE} && _DISPLAY_LIST=() && continue;;
+			r) g_QRY_ENGINE='rumble' && continue;;
+			y) g_QRY_ENGINE='youtube' && continue;;
+		esac
 		break
 	done
 
@@ -327,7 +336,7 @@ get_field () {
 	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ARGS:FIELD:${FIELD}, NDX:${NDX}"
 	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} _LIST[NDX]:${_LIST[${NDX}]}"
 
-	if [[ ${g_RUMBLE} == 'true' ]];then
+	if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
 		case ${FIELD} in
 			author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
 			title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
@@ -400,47 +409,6 @@ post_process () {
 	done
 }
 
-query_is_valid () {
-	local RC1=0
-	local RC2=0
-	local RC=0
-	local FSIZE_1=0
-	local FSIZE_2=0
-	local NDX=0
-	local STABLE=0
-
-	if [[ -e ${g_LOG} ]];then
-		while true;do
-			((NDX++))
-			FSIZE_1=$(wc -l < ${g_LOG})
-			sleep .2
-			FSIZE_2=$(wc -l < ${g_LOG})
-			[[ ${FSIZE_1} -ne ${FSIZE_2} ]] && continue || ((STABLE++))
-			[[ ${STABLE} -ge 10 ]] && break
-			grep -iq 'error' ${g_LOG}
-			[[ ${?} -eq 0 ]] && break
-			[[ ${NDX} -ge 100 ]] && break
-		done
-
-		_ERROR_MSG=$(grep -i "error" ${g_LOG})
-		RC1=${?}
-
-		if [[ ${RC1} -eq 0 ]];then
-			[[ ${_ERROR_MSG} =~ 'will begin' ]] && _ERROR_MSG=${(C)$(grep -o 'will begin .*' ${g_LOG})}
-			RC2=${?}
-		else
-			_ERROR_MSG=''
-		fi
-	else
-		return 0
-	fi
-
-	echo ${_ERROR_MSG}
-
-	RC=$((RC1 + RC2))
-	[[ ${RC} -eq 0 ]] && return 1 || return 0
-}
-
 reset_job () {
 	kill_job
 	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -25)) "<m>Job Restarted<N>"
@@ -461,8 +429,6 @@ rumble () {
 	local PG
 	local X
 
-	g_PLATFORM="Rumble"
-
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
 
 	if [[ -n ${PG} ]];then # channel search
@@ -470,7 +436,7 @@ rumble () {
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 		[[ ${PG:l} =~ "no videos found" ]] && msg_box "<r>No livestreams<N> for ${SEARCHTERM}|Falling back to defaults..." && PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
 
-		g_RUMBLE_SEARCH_TYPE=channel
+		g_SEARCH_TYPE=channel
 		TITLES=("${(f)$(pup --charset utf8 '.title__link text{}' <<<${PG} | tut blank_lines | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
 		AGES=("${(f)$(pup --charset utf8 '.videostream__data text{}' <<<${PG} | tut blank_lines | tr '[\012|\015]' '[ ]' | sed -e 's/comments /comments\n/g')}")
 		LINKS=("${(f)$(pup --charset utf8 'a.videostream__link attr{href}' <<<${PG})}")
@@ -482,7 +448,7 @@ rumble () {
 			VID_LIST+="${X}|${SEARCHTERM}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}"
 		done
 	else # general search
-		g_RUMBLE_SEARCH_TYPE=general
+		g_SEARCH_TYPE=general
 		GEN_SEARCH=$(sed 's/ /%20/g' <<<${SEARCHTERM})
 		PG=$(wget -q -O - "https://rumble.com/search/all?q=${GEN_SEARCH}")
 		TITLES=("${(f)$(pup --charset utf8 '.video-item--title text{}' <<<${PG} | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
@@ -499,7 +465,7 @@ rumble () {
 		done
 	fi
 
-	if [[ ${g_RUMBLE_SEARCH_TYPE} == 'general' ]];then
+	if [[ ${g_SEARCH_TYPE} == 'general' ]];then
 		_LOCAL_LIST=("${(f)$(for L in ${VID_LIST};do echo ${L};done | sort -t'|' -k4.1,4.10 -r)}")
 	else
 		_LOCAL_LIST=(${VID_LIST})
@@ -510,7 +476,6 @@ rumble () {
 		return 1
 	fi
 	return 0
-
 }
 
 select_download () {
@@ -520,16 +485,16 @@ select_download () {
 	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 	[[ ${_DEBUG} -gt 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"
 
-	SEARCHTYPE=Default
-	if [[ ${g_PLATFORM:l} == 'rumble' && ${g_LIVE} == 'true' ]];then
+	SEARCHTYPE=Videos
+	if [[ ${g_QRY_ENGINE:l} == 'rumble' && ${g_LIVE} == 'true' ]];then
 		SEARCHTYPE=Live
-	elif [[ ${g_PLATFORM:l} == 'youtube' && ${g_STRICT} == 'true' ]];then
+	elif [[ ${g_QRY_ENGINE:l} == 'youtube' && ${g_STRICT} == 'true' ]];then
 		SEARCHTYPE=${g_STRICT_MSG}
 	fi
 
 	#set headings
 	list_set_header_init
-	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tQuery Key:${WHITE_FG}%s${RESET}\tQuery Type:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${g_PLATFORM} ${SEARCHTERM} ${SEARCHTYPE} $(list_get_selected_count)'
+	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tQuery Key:${WHITE_FG}%s${RESET}\tQuery Type:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${(C)g_QRY_ENGINE} ${SEARCHTERM} ${SEARCHTYPE} $(list_get_selected_count)'
 	list_set_header 'printf " "'
 	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_FIELD_LEN[age]} "Age" ${_FIELD_LEN[author]} "Author" ${_FIELD_LEN[title]} "Title"'
 	list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %*s %*s${RESET}" 5 "" ${_FIELD_LEN[age]} "$(str_unicode_line ${_FIELD_LEN[age]})" ${_FIELD_LEN[author]} "$(str_unicode_line ${_FIELD_LEN[author]})" ${_FIELD_LEN[title]} "$(str_unicode_line ${_FIELD_LEN[title]})"'
@@ -544,11 +509,12 @@ select_download () {
 	list_set_action_msgs video download
 	list_set_sortable true
 	list_set_max_sort_col 3
-	[[ ${g_RUMBLE_SEARCH_TYPE} != 'general' ]] && list_set_sort_default 1
+	[[ ${g_SEARCH_TYPE} != 'general' ]] && list_set_sort_default 1
 	list_set_barlines true
 
 	while true;do
 		#get selection
+		list_reset
 		list_select ${_LOCAL_LIST}
 		[[ ${?} -eq 0 ]] && break
 
@@ -569,30 +535,34 @@ select_download () {
 }
 
 set_favorite () {
-	local ITEM=${1}
+	local FAV=${1}
 	local -aU HISTORY
 	local LINE
 	local H
 
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: ITEM:${ITEM}"
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: FAV:${FAV}"
 
-	ITEM=$(str_trim ${ITEM})
-	[[ -z ${#ITEM} ]] && return
+	FAV=$(str_trim ${FAV})
+	[[ -z ${#FAV} ]] && return
 
-	[[ ${g_PLATFORM:l} == 'rumble' ]] && ITEM="${ITEM}|R" || ITEM="${ITEM}|Y"
+	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
+		[[ ${g_LIVE} == 'true' ]] && FAV="${FAV}|RL" || FAV="${FAV}|R"
+	else
+		FAV="${FAV}|Y"
+	fi
 
-	HISTORY+=${ITEM}
+	HISTORY+=${FAV}
 
-	if [[ -e ${_YTSg_FAVORITES} ]];then
+	if [[ -e ${_YTS_FAVORITES} ]];then
 		while read LINE;do
 			HISTORY+=${LINE}
-		done < ${_YTSg_FAVORITES}
+		done < ${_YTS_FAVORITES}
 
-		/bin/rm -f ${_YTSg_FAVORITES}
+		/bin/rm -f ${_YTS_FAVORITES}
 	fi
 
 	for H in ${(o)HISTORY};do
-		echo ${H} >> ${_YTSg_FAVORITES}
+		echo ${H} >> ${_YTS_FAVORITES}
 	done
 }
 
@@ -644,8 +614,6 @@ youtube () {
 	local PROXY_CMD
 	local NDX
 
-	g_PLATFORM="YouTube"
-
 	[[ -n ${g_FAVORITE} ]] && PROXY_CMD="${g_PROXY_CMD} ${g_FAVORITE:q}" || PROXY_CMD="${g_PROXY_CMD}"
 
 	#Youtube query log
@@ -680,6 +648,7 @@ youtube () {
 	if ! arr_is_populated "${_LOCAL_LIST}";then
 		return 1
 	fi
+
 	return 0
 }
 
@@ -689,7 +658,10 @@ Query either Youtube or Rumble for videos.
 \tyts functions as proxy for yts.js (node yt-search client)
 \tor executes and parses Rumble queries.  Queries provide
 \ta selection list of matching videos. Following selection, 
-\titems are downloaded via yt-dlp
+\titems are downloaded via yt-dlp. By default, Rumble queries
+\tfor livestreams and falls back to videos if no livestreams
+\tare found. The -L option will override this behavior. When
+\tsaving favorites, both query and platform are recorded.
 EOF
 
 opt_type () {
@@ -723,11 +695,11 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-R${RESET} RUMBLE query"
-	echo -e "${WHITE_FG}-L${RESET} RUMBLE no livestreams"
-	echo -e "${WHITE_FG}-a${RESET} YouTube age filter [all,min,hour,day,week,month,year]"
-	echo -e "${WHITE_FG}-s${RESET} YouTube strict filter"
-	echo -e "${WHITE_FG}-v${RESET} YouTube yt-search version"
+	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
+	echo -e "${WHITE_FG}-L${RESET} no livestreams (Rumble)"
+	echo -e "${WHITE_FG}-a${RESET} age filter [all,min,hour,day,week,month,year] (YouTube)"
+	echo -e "${WHITE_FG}-s${RESET} strict filter [author must match query] (YouTube)"
+	echo -e "${WHITE_FG}-v${RESET} yt-search version (YouTube)"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 }
@@ -737,14 +709,14 @@ OPTIND=0
 
 HELP_OPT=false
 g_STRICT=false
-g_RUMBLE=false
+g_QRY_ENGINE=youtube
 g_LIVE=true
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;HELP_OPT=true;;
      D) dbg_set_level;;
-     R) g_RUMBLE=true;;
+     R) g_QRY_ENGINE=rumble;;
      L) g_LIVE=false;;
      a) AGE=${OPTARG};;
      s) g_STRICT=true;;
@@ -762,13 +734,10 @@ FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
-#TODO: if favorite is used, select engine with title key
-[[ ${g_RUMBLE} == 'true' ]] && QRY_ENGINE="rumble" || QRY_ENGINE="youtube"
-
 # Arg handling for yts.js
-if [[ ${QRY_ENGINE} == 'youtube' ]];then
+if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
    if [[ ${HELP_OPT} == 'true' ]];then
-		echo "\tYouTube backend (yts.js) help follows...\n"
+		echo "\n${WHITE_ON_GREY}YouTube backend help${RESET}\n"
 		eval "node ${_JS_SCRIPT} -h"
 		exit_leave
 	fi
@@ -783,10 +752,6 @@ if [[ ${QRY_ENGINE} == 'youtube' ]];then
 		node ${_JS_SCRIPT} --version
 		echo ${RESET}
 		exit_leave
-	fi
-
-	if [[ ${RCL:l} =~ '-a' ]];then
-		echo ${RCL} | grep -q "\-a all\|min\|hour\|day\|week\|month\|year"
 		[[ ${?} -ne 0 ]] && exit_leave "${RED_FG}Invalid argument${RESET} - valid age arguments: ${WHITE_FG}all,min,day,week,month,year${RESET}"
 	fi
 
@@ -802,14 +767,14 @@ if [[ ${#} -eq 0 ]];then
 		get_favorite
 		if [[ -n ${g_FAVORITE} ]];then
 			msg_box "Requesting videos for <B><I>${g_FAVORITE}<N>..."
-			${QRY_ENGINE} ${g_FAVORITE}
+			${g_QRY_ENGINE} ${g_FAVORITE}
 			if [[ ${?} -eq 0 ]];then
 				select_download ${g_FAVORITE}
 			fi
 		fi
 	done
 else
-	${QRY_ENGINE} ${@}
+	${g_QRY_ENGINE} ${@}
 	if [[ ${?} -eq 0 ]];then
 		select_download ${@}
 		set_favorite ${@}

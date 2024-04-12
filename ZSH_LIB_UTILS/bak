@@ -400,6 +400,7 @@ opt_type () {
 	esac
 }
 
+#TODO: rename option flags: 'c' to 'r' release
 usage () {
 	local OPTS=$(parse_opts ${OPTSTR})
 	local -a PENDING_MSGS=(${@})

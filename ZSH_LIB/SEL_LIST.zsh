@@ -39,13 +39,15 @@ selection_list () {
 	local BOX_Y=0
 	local BOX_Y_COORD=0
 	local CENTER_Y
-	local CLEAN_TITLE
+	local CLEAN_TEXT
 	local CURSOR_NDX=0
 	local CURSOR_ROW=0
 	local DIR
 	local F1 F2
 	local GUIDE=false
 	local GUIDE_ROW=0
+	local GUIDE_ROWS=1
+	local GUIDE_OFFSET=2
 	local ITEM_PAD=0
 	local KEY
 	local L P Q 
@@ -70,6 +72,8 @@ selection_list () {
 	local X_COORD_ARG=0
 	local Y_COORD_ARG=0
 	local _SORT_KEY=false
+	local BOUNDARY_SET=false
+	local OPT_KEY_ROW=0
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -154,21 +158,44 @@ selection_list () {
 		tput cup ${L} ${SY};tput ech ${SW}
 	done
 
-	# Outer box w/ title
-	echo -n ${_OUTER_BOX_COLOR}
-	msg_unicode_box ${SX} ${SY} ${SW} ${SH} # OUTER box
-	echo -n ${RESET}
-	CLEAN_TITLE=$(msg_nomarkup ${TITLE})
-	tput cup $((SX+1)) $(( SY+(SW/2)-(${#CLEAN_TITLE}/2) ));echo $(msg_markup ${TITLE})
+	# Set boundaries
+	if [[ ${BOUNDARY_SET} == 'false' ]];then
+		[[ ${BOX_HEIGHT} -lt ${MAX_NDX} ]] && MAX_BOX=$((BOX_HEIGHT-PAD)) || MAX_BOX=${MAX_NDX} # Set box boundary
+		_MAX_PAGE=$(( ${#_SELECTION_LIST} / MAX_BOX ))
+		REM=$(( ${#_SELECTION_LIST} % MAX_BOX ))
+		[[ ${REM} -ne 0 ]] && (( _MAX_PAGE++ )) && BOX_PARTIAL=${REM}
+		for ((P=1; P<=_MAX_PAGE; P++));do
+			[[ ${P} -eq 1 ]] && PG_TOP=1 || PG_TOP=$(( _PAGE_TOPS[$(( P-1 ))] + MAX_BOX ))
+			_PAGE_TOPS[${P}]=${PG_TOP}
+		done
 
-	GUIDE_ROW=$(( ${SX}+${SH} - 2 ))
+		# Extend box height if 2 guide info rows are needed
+		[[ ${_MAX_PAGE} -gt 1 && -n ${_PAGE_OPTION_KEY_HELP} ]] && (( SH++ )) && GUIDE_ROWS=2 && GUIDE_OFFSET=3
+
+		# Outer box w/ title
+		echo -n ${_OUTER_BOX_COLOR}
+		msg_unicode_box ${SX} ${SY} ${SW} ${SH} # OUTER box
+
+		#echo -n ${RESET}
+		CLEAN_TEXT=$(msg_nomarkup ${TITLE})
+		tput cup $((SX+1)) $(( SY+(SW/2)-(${#CLEAN_TEXT}/2) ));echo $(msg_markup ${TITLE})
+
+		GUIDE_ROW=$(( ${SX}+${SH} - ${GUIDE_OFFSET} ))
+
+		# Option key guide
+		if [[ -n ${_PAGE_OPTION_KEY_HELP} ]];then
+			CLEAN_TEXT=$(msg_nomarkup ${_PAGE_OPTION_KEY_HELP})
+			[[ ${GUIDE_ROWS} -eq 2 ]] && OPT_KEY_ROW=$(( GUIDE_ROW+1 )) || OPT_KEY_ROW=${GUIDE_ROW}
+			tput cup ${OPT_KEY_ROW} $(( SY+(SW/2)-(${#CLEAN_TEXT}/2) ));echo $(msg_markup ${_PAGE_OPTION_KEY_HELP})
+		fi
+
+		BOUNDARY_SET=true
+	fi
 
 	# Save box coords
 	_MSG_BOX_COORDS=(X ${SX} Y ${SY} W ${SW} H ${SH})
 
 	# Initialize
-	[[ ${BOX_HEIGHT} -lt ${MAX_NDX} ]] && MAX_BOX=$((BOX_HEIGHT-PAD)) || MAX_BOX=${MAX_NDX} # Set box boundary
-
 	CENTER_Y=$(( SY+(SW/2)-(BOX_WIDTH/2) )) # New Y to center list
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  CENTER_Y to center:${CENTER_Y}"
 
@@ -183,14 +210,6 @@ selection_list () {
 	LAST_ROW=0
 
 	#Record page tops
-	_MAX_PAGE=$(( ${#_SELECTION_LIST} / MAX_BOX ))
-	REM=$(( ${#_SELECTION_LIST} % MAX_BOX ))
-	[[ ${REM} -ne 0 ]] && (( _MAX_PAGE++ )) && BOX_PARTIAL=${REM}
-	for ((P=1; P<=_MAX_PAGE; P++));do
-		[[ ${P} -eq 1 ]] && PG_TOP=1 || PG_TOP=$(( _PAGE_TOPS[$(( P-1 ))] + MAX_BOX ))
-		_PAGE_TOPS[${P}]=${PG_TOP}
-	done
-
 	for P in ${(onk)_PAGE_TOPS};do
 		Q=$((P+1))
 		[[ -n ${_PAGE_TOPS[${Q}]} ]] && PG_BOT=${_PAGE_TOPS[${Q}]} || PG_BOT=${MAX_NDX}
@@ -218,6 +237,12 @@ selection_list () {
 			done
 		fi
 
+		# Paging key guide
+		if [[ ${_MAX_PAGE} -gt 1 ]];then
+			tput cup ${GUIDE_ROW} ${BOX_Y}
+			printf "${CYAN_FG}Page:${WHITE_FG}%-2d ${CYAN_FG}of ${WHITE_FG}%d %s${RESET}\n" ${_CUR_PAGE} ${_MAX_PAGE} "(n)ext (p)rev"
+		fi
+
 		ROWS_OUT=0
 		for (( LIST_NDX=LIST_TOP;LIST_NDX<=MAX_NDX;LIST_NDX++ ));do
 			[[ $((BOX_NDX++)) -gt ${MAX_BOX} ]] && break # Increments BOX_NDX, break when page is full
@@ -237,25 +262,12 @@ selection_list () {
 		done
 		_HILITE=${_TITLE_HL}
 
-
 		LIST_BOT=$((LIST_NDX-1))
 		[[ ${ROWS_OUT} -lt ${MAX_BOX} ]] && BOX_BOT=$((BOX_ROW-1)) || BOX_BOT=$((BOX_X+MAX_BOX-1))
 
 		# Initialize list cursors
 		CURSOR_NDX=${LIST_TOP}
 		CURSOR_ROW=${BOX_TOP}
-
-		# Paging key guide
-		if [[ ${_MAX_PAGE} -gt 1 ]];then
-			tput cup ${GUIDE_ROW} ${BOX_Y}
-			printf "${CYAN_FG}Page:${WHITE_FG}%-2d ${CYAN_FG}of ${WHITE_FG}%d %s${RESET}\n" ${_CUR_PAGE} ${_MAX_PAGE} "(n)ext (p)rev"
-		fi
-
-		# Option key guide
-		if [[ -n ${_PAGE_OPTION_KEY_HELP} ]];then
-			tput cup ${GUIDE_ROW} $(( SY+(SW/2)-(BOX_WIDTH) ))
-			echo -n ${_PAGE_OPTION_KEY_HELP}
-		fi
 
 		while true;do
 			KEY=$(get_keys)
@@ -268,7 +280,7 @@ selection_list () {
 				121) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='y' && break 2;;
 				110) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				112) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
-				113) exit_request 1 1;;
+				113) exit_request;;
 				1|107) ((CURSOR_ROW--));((CURSOR_NDX--));DIR='U';;
 				2|106) ((CURSOR_ROW++));((CURSOR_NDX++));DIR='D';;
 				3|116) DIR='T';;
@@ -276,7 +288,7 @@ selection_list () {
 				27) msg_box_clear; return 2;;
 			esac
 
-			#Ensure sane index boundaries
+			# Ensure sane index boundaries
 			if [[ ${CURSOR_NDX} -lt ${LIST_TOP} ]];then
 				CURSOR_NDX=${LIST_BOT}
 				CURSOR_ROW=${BOX_BOT}
@@ -285,7 +297,7 @@ selection_list () {
 				CURSOR_ROW=${BOX_TOP}
 			fi
 
-			#Roll arounds
+			# Roll arounds
 			case ${DIR} in
 				D)	if [[ ${CURSOR_NDX} -eq ${LIST_TOP} ]];then
 						LAST_NDX=${LIST_BOT}
@@ -305,7 +317,7 @@ selection_list () {
 					;;
 			esac
 
-			#Row and Page changes
+			# Row and Page changes
 			case ${DIR} in
 				D|U)	selection_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SELECTION_LIST[${CURSOR_NDX}]}
 						selection_list_norm ${LAST_ROW} ${BOX_Y} ${_SELECTION_LIST[${LAST_NDX}]}

@@ -13,7 +13,7 @@ _CURSOR_COL=${CURSOR_COL:=0}
 _CURSOR_ROW=${CURSOR_ROW:=0}
 _AVAIL_ROW=0
 _HELD_ROW=1
-_GHOST_ROW=2 # any value above 1 is not selectable
+_GHOST_ROW=2 # not selectable
 _HEADER_CALLBACK_FUNC=''
 _HOLD_CURSOR=false
 _HOLD_PAGE=false
@@ -57,36 +57,13 @@ typeset -a _LIST_HEADER=() # Holds header lines
 typeset -a _LIST=() # Holds the list values to be managed by the list menu
 typeset -a _LIST_INDEX_RANGE=() # Holds the top and bottom screen row indicies
 typeset -A _LIST_SELECTED_PAGE=() # Selected rows by page
-typeset -A _LIST_SELECTED=() # Status of selected list items; can contain 0,1,2, etc.; 0,1 can toggle; -gt 2 cannot toggle - ex: a deleted file
+typeset -A _LIST_SELECTED=() # Status of selected list items; contains digit 0,1,2, etc.; 0,1 can toggle; -gt 1 cannot toggle (action completed)
 typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
 typeset -A _SORT_TABLE=() # sort assoc array names
 typeset -A _SORT_DIRECTION=() # Status of list sort direction
 typeset -a _TARGETS=() # target indexes
 
 #LIB Functions
-inline_vi_edit () {
-	local PROMPT=${1}
-	local CUR_VALUE=${2}
-	local PERL_SCRIPT
-	
-	read -r -d '' PERL_SCRIPT <<'___EOF'
-	use warnings;
-	use strict;
-	use Term::ReadLine;
-
-	my $term = new Term::ReadLine 'list_search';
-	$term->parse_and_bind("set editing-mode vi");
-
-	system('sleep .1;xdotool key Home &');
-	while ( defined ($_ = $term->readline($ARGV[0],$ARGV[1])) ) {
-		print $_;
-		exit;
-	}
-___EOF
-
-perl -e "$PERL_SCRIPT" ${PROMPT} ${CUR_VALUE}
-}
-
 list_add_header_break () {
 	_LIST_HEADER_BREAK=true
 }
@@ -609,43 +586,40 @@ list_search () {
 }
 
 list_select () {
-	local -a ACTION_MSGS
-	local -a LIST_RANGE
+	local -a ACTION_MSGS=()
+	local -a LIST_RANGE=()
 	local -a LIST_SELECTION=()
 	local _LIST_NDX=0
 	local BARLINE BAR SHADE
 	local BOT_OFFSET=3
 	local COLS=0
 	local CURSOR_NDX=0
-	local DIR_KEY
-	local HDR_NDX
-	local ITEM
-	local KEY
+	local DIR_KEY=''
+	local HDR_NDX=0
+	local ITEM=''
+	local KEY=''
 	local KEY_LINE=''
 	local L R S 
 	local LAST_LIST_NDX=0
-	local LINE_ITEM
-	local LIST_DATA
-	local NEXT
-	local MAX_CURSOR
-	local MAX_DISPLAY_ROWS
+	local LINE_ITEM=''
+	local LIST_DATA=''
+	local NEXT=''
+	local MAX_CURSOR=0
+	local MAX_DISPLAY_ROWS=0
 	local MAX_LINE_WIDTH=0
-	local MAX_ITEM
-	local MAX_PAGE
-	local OUT
+	local MAX_ITEM=0
+	local MAX_PAGE=0
+	local OUT=0
 	local PAGE=1
-	local PAGE_BREAK
-	local PAGE_RANGE_BOT
-	local PAGE_RANGE_TOP
-	local PARTIAL
-	local RANGE_CHECK_OPTION
-	local REM
+	local PAGE_BREAK=false
+	local PAGE_RANGE_BOT=0
+	local PAGE_RANGE_TOP=0
+	local REM=0
 	local ROWS=$(tput lines)
 	local SELECTED_COUNT=0
-	local SELECTION
 	local SELECTION_LIMIT=$(list_get_selection_limit)
-	local TOP_OFFSET
-	local USER_PROMPT
+	local TOP_OFFSET=0
+	local USER_PROMPT=''
 
 	# Initialization
 	_LIST=(${@})
@@ -868,6 +842,16 @@ list_select_range () {
 	done
 
 	echo ${SELECTED}
+}
+
+list_reset () {
+	_LIST_INDEX_RANGE=()
+	_SELECTION_LIST=()
+	_SORT_TABLE=()
+	_SORT_DIRECTION=()
+	_LIST_NDX=0
+	_CURSOR_ROW=0
+	_HOLD_CURSOR=false
 }
 
 list_set_action_msgs () {

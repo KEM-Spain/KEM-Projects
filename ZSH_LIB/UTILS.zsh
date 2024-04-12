@@ -196,6 +196,29 @@ get_key_trans () {
 	echo ${KEY_OUT}
 }
 
+inline_vi_edit () {
+	local PROMPT=${1}
+	local CUR_VALUE=${2}
+	local PERL_SCRIPT
+	
+	read -r -d '' PERL_SCRIPT <<'___EOF'
+	use warnings;
+	use strict;
+	use Term::ReadLine;
+
+	my $term = new Term::ReadLine 'list_search';
+	$term->parse_and_bind("set editing-mode vi");
+
+	system('sleep .1;xdotool key Home &');
+	while ( defined ($_ = $term->readline($ARGV[0],$ARGV[1])) ) {
+		print $_;
+		exit;
+	}
+___EOF
+
+perl -e "$PERL_SCRIPT" ${PROMPT} ${CUR_VALUE}
+}
+
 is_bare_word () {
 	local TEXT="${@}"
 
