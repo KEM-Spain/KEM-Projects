@@ -47,6 +47,7 @@ _YTS_FAVORITES=~/.yts_history
 #Globals
 g_FAVORITE=''
 g_LIVE=''
+g_LIVE_OPT=''
 g_LOG=''
 g_PID=?
 g_PROXY_CMD=''
@@ -434,6 +435,7 @@ rumble () {
 	if [[ -n ${PG} ]];then # channel search
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'r' ]] && g_LIVE=false
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
+		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams")
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 		[[ ${PG:l} =~ "no videos found" ]] && msg_box "<r>No livestreams<N> for ${SEARCHTERM}|Falling back to defaults..." && PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
@@ -698,7 +700,7 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
-	echo -e "${WHITE_FG}-L${RESET} no livestreams (Rumble)"
+	echo -e "${WHITE_FG}-L${RESET} toggle livestreams (Rumble)"
 	echo -e "${WHITE_FG}-a${RESET} age filter [all,min,hour,day,week,month,year] (YouTube)"
 	echo -e "${WHITE_FG}-s${RESET} strict filter [author must match query] (YouTube)"
 	echo -e "${WHITE_FG}-v${RESET} yt-search version (YouTube)"
@@ -712,14 +714,14 @@ OPTIND=0
 HELP_OPT=false
 g_STRICT=false
 g_QRY_ENGINE=youtube
-g_LIVE=true
+g_LIVE_OPT=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;HELP_OPT=true;;
      D) dbg_set_level;;
      R) g_QRY_ENGINE=rumble;;
-     L) g_LIVE=false;;
+     L) g_LIVE_OPT=true;;
      a) AGE=${OPTARG};;
      s) g_STRICT=true;;
     \?) exit_leave "${RED_FG}Error${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
