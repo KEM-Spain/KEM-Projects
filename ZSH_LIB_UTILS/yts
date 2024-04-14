@@ -175,7 +175,7 @@ action_do () {
 			fi
 
 			# Scan for errors
-			LOG_LINES=("${(f)$(sed -e 's// /g' -e '/./!d' ${g_LOG} | tail -1 | grep -i 'error:\|transporterror')}")
+			LOG_LINES=("${(f)$(sed -e 's// /g' -e '/./!d' ${g_LOG} | tail -1 | grep -i 'error:\|transporterror\|opening')}")
 			if [[ ${?} -eq 0 ]];then
 				for L in ${LOG_LINES};do
 					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive:
@@ -191,11 +191,16 @@ action_do () {
 						*giving\ up*)	ERROR_CNT=${_ERROR_LIMIT}	
 											break # for loop
 											;;
-						*network\ is\ unreachable*|*retrying*|*operation\ timed\ out*)	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -25)) "<r>Network Errors <w>${ERROR_CNT}<N>"
+						*network\ is\ unreachable*|*retrying*|*operation\ timed\ out*)	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors <w>${ERROR_CNT}<N>"
 							((ERROR_CNT++))
 							HAD_ERROR=true
 											;;
-						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -25)) "<r>Network Errors <w>${ERROR_CNT}<N>"
+						*for\ reading*)
+							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Download Stalled <w>${ERROR_CNT}<N>"
+							((ERROR_CNT++))
+							HAD_ERROR=true
+											;;
+						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors <w>${ERROR_CNT}<N>"
 							((ERROR_CNT++))
 							HAD_ERROR=true
 											;;
@@ -428,6 +433,7 @@ rumble () {
 	local GEN_SEARCH
 	local LIVE
 	local PG
+	local MSG
 	local X
 
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
@@ -436,6 +442,8 @@ rumble () {
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'r' ]] && g_LIVE=false
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
+		[[ ${g_LIVE} == 'true' ]] && MSG="Searching for livestreams" || MSG="Searching for videos"
+		msg_box ${MSG}
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams")
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 		[[ ${PG:l} =~ "no videos found" ]] && msg_box "<r>No livestreams<N> for ${SEARCHTERM}|Falling back to defaults..." && PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
@@ -452,6 +460,7 @@ rumble () {
 			VID_LIST+="${X}|${SEARCHTERM}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}"
 		done
 	else # general search
+		msg_box "Channel name: \"${SEARCHTERM}\" not found.  Performing general search..."
 		g_SEARCH_TYPE=general
 		GEN_SEARCH=$(sed 's/ /%20/g' <<<${SEARCHTERM})
 		PG=$(wget -q -O - "https://rumble.com/search/all?q=${GEN_SEARCH}")
@@ -544,9 +553,13 @@ set_favorite () {
 	local LINE
 	local H
 
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: FAV:${FAV}"
+
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: FAV:${FAV} g_QRY_ENGINE:${g_QRY_ENGINE} g_LIVE:${g_LIVE}"
 
 	FAV=$(str_trim ${FAV})
+
+	msg_box "Saving favorite: ${FAV}"
+
 	[[ -z ${#FAV} ]] && return
 
 	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
@@ -700,7 +713,8 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
-	echo -e "${WHITE_FG}-L${RESET} toggle livestreams (Rumble)"
+	echo -e "${WHITE_FG}-L${RESET} toggle stored livestream option (Rumble)"
+	echo -e "${WHITE_FG}-l${RESET} search for livestreams (Rumble)"
 	echo -e "${WHITE_FG}-a${RESET} age filter [all,min,hour,day,week,month,year] (YouTube)"
 	echo -e "${WHITE_FG}-s${RESET} strict filter [author must match query] (YouTube)"
 	echo -e "${WHITE_FG}-v${RESET} yt-search version (YouTube)"
@@ -708,13 +722,14 @@ usage () {
 	) >&2
 }
 
-OPTSTR=":HDRLva:s"
+OPTSTR=":HDRLlva:s"
 OPTIND=0
 
 HELP_OPT=false
 g_STRICT=false
 g_QRY_ENGINE=youtube
 g_LIVE_OPT=false
+g_LIVE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
@@ -722,6 +737,7 @@ while getopts ${OPTSTR} OPTION;do
      D) dbg_set_level;;
      R) g_QRY_ENGINE=rumble;;
      L) g_LIVE_OPT=true;;
+     l) g_LIVE=true;;
      a) AGE=${OPTARG};;
      s) g_STRICT=true;;
     \?) exit_leave "${RED_FG}Error${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
@@ -738,6 +754,8 @@ FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
+clear
+
 # Arg handling for yts.js
 if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
    if [[ ${HELP_OPT} == 'true' ]];then
@@ -748,6 +766,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 
 	RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
 	RCL=$(sed 's/\-h//' <<<${RCL}) # front end option only
+	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
 
 	[[ ${_DEBUG} -gt 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # front end option only
 
@@ -770,6 +789,7 @@ if [[ ${#} -eq 0 ]];then
 		do_smcup
 		get_favorite
 		if [[ -n ${g_FAVORITE} ]];then
+			[[ ${g_LIVE_OPT} == 'true' ]] && msg_box -x0 -y0 "INFO:<w>LIVE_OPT is active<N> (stored options are toggled)"
 			msg_box "Requesting videos for <B><I>${g_FAVORITE}<N>..."
 			${g_QRY_ENGINE} ${g_FAVORITE}
 			if [[ ${?} -eq 0 ]];then
