@@ -42,4 +42,3 @@ done
 
 # Initialize debugging
 [[ -e ${_DEBUG_FILE} ]] && /bin/rm ${_DEBUG_FILE}
-

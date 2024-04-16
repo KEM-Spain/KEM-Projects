@@ -3,6 +3,7 @@ _DEPS_+="MSG.zsh UTILS.zsh"
 
 #LIB vars
 _PRE_EXIT_RAN=false
+_EXIT_CALLBACK=''
 
 exit_leave () {
 	local MSGS=(${@})
@@ -35,7 +36,8 @@ exit_leave () {
 
 	exit_pre_exit
 
-	kill -SIGINT $$ # Fire the traps
+	#kill -SIGINT $$ # Fire the traps
+	exit ${_EXIT_VALUE}
 }
 
 exit_pre_exit () {
@@ -66,6 +68,8 @@ exit_pre_exit () {
 
 	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}"
 
+	[[ -n ${_EXIT_CALLBACK} ]] && ${_EXIT_CALLBACK}
+
 	tput cnorm >&2
 }
 
@@ -92,19 +96,18 @@ exit_request () {
 
 exit_sigexit () {
 	local SIG=${1}
-	local SIGNAME
+	local SIGNAME=$(kill -l ${SIG})
 	local -A SIGNAMES=(\
 		1 "Terminal vanished" 2 "Control-C" 3 "Core Dump" 4 "Illegal Instruction" 5 "Conditional Exit (DEBUG)" 6 "Emergency Abort"\
 		7 "Memory Error" 8 "FLoating Point Exception" 9 "Termination Called from kill"
 	)
 
 	# Traps arrive here
-	SIGNAME=$(kill -l ${SIG})
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${RED_FG}${0}${RESET}: Exited via interrupt: ${SIG} (${SIGNAME}) ${SIGNAMES[${SIG}]}" # Announce the interrupt
+	[[ ${_DEBUG} -ne 0 ]] && echo "\n${RED_FG}${0}${RESET}: Exited via interrupt: ${SIG} (${SIGNAME}) ${SIGNAMES[${SIG}]}" # Announce the interrupt
 
 	exit_pre_exit # Pre-exit housekeeping
 
-	exit ${_EXIT_VALUE} # Leave the app
+	exit ${SIG} # Leave the app
 }
 
 set_exit_value () {
@@ -115,3 +118,6 @@ get_exit_value () {
 	echo ${_EXIT_VALUE}
 }
 
+set_exit_callback () {
+	_EXIT_CALLBACK=${1}
+}

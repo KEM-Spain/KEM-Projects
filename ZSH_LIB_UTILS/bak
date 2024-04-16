@@ -1,5 +1,4 @@
 #!/usr/bin/zsh
-#TODO:back up production when a release is made
 #vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
@@ -17,7 +16,6 @@ WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
 #Constants
-_SRC_DIR=/usr/local/src
 _LIB_DIR=/usr/local/lib
 _BIN=/usr/local/bin
 _PRODUCTION_DIR=${_BIN}
@@ -73,7 +71,7 @@ get_prod_dir () {
 		CANDIDATE="$(fut findexe ${FN})"
 		echo "CANDIDATE:${CANDIDATE}" >&2
 		if [[ -f ${CANDIDATE} ]];then # a regular file 
-			if [[ ${CANDIDATE:l} =~ "code|etc|system|src" ]];then
+			if [[ ${CANDIDATE:l} =~ "etc|system" ]];then
 				echo ${CANDIDATE:h}
 			else
 				echo ${_PRODUCTION_DIR}
@@ -160,8 +158,6 @@ do_copy () {
 	if [[ ${?} -eq 0 || ${PROMPT} != 'true' ]];then
 		cp ${SOURCE_FN} ${DEST_FN}
 		echo "${OP} ${GREEN_FG}complete${RESET}"
-		[[ ${DEST_FN} =~ "\.bak$" ]] && chmod 666 ${DEST_FN}
-		[[ ${DEST_FN} =~ "\.orig$" ]] && chmod 666 ${DEST_FN}
 		return 0
 	else
 		echo "${RED_FG}${OP} cancelled${RESET}"
@@ -200,14 +196,14 @@ get_response () {
 	local MSG=${1}
 	local RESPONSE
 
-	echo -n "${MSG}${RESET}\n(y/n)${RESET}:"
+	echo -n "${MSG}${RESET}?\n(y/n)${RESET}:"
 
 	read -sq RESPONSE;echo
 	[[ ${RESPONSE} == 'y' ]] && return 0 || return 1
 }
 
 make_backup () {
-	echo "\n${GREEN_FG}BACKUP${RESET} DEVELOPMENT"
+	echo "\nBACKUP"
 	if [[ -e ${g_LOCAL_VERSION} && ! -e ${g_BACKUP_VERSION} ]];then
 		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup NOT found; making initial backup"
 		echo ${g_BACKUP_VERSION_MSG}
@@ -228,7 +224,9 @@ make_backup () {
 }
 
 prod_to_backup () {
-	echo "\n${MAGENTA_FG}BACKUP${RESET} PRODUCTION"
+	local NO_PROMPT=${1:=false}
+
+	echo "\nBACKUP"
 	if [[ -e ${g_LOCAL_VERSION} && ! -e ${g_BACKUP_VERSION} ]];then
 		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup NOT found; making initial backup"
 		echo ${g_BACKUP_VERSION_MSG}
@@ -243,31 +241,32 @@ prod_to_backup () {
 			[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Backup is NOT current"
 			echo ${g_EXISTING_BACKUP_FOUND}
 			echo ${g_PROD_WILL_OVERWRITE_BACKUP}
-			do_copy ${g_PROD_VERSION} ${g_BACKUP_VERSION}
+			do_copy ${g_PROD_VERSION} ${g_BACKUP_VERSION} ${NO_PROMPT}
 		fi
 	fi
 }
 
 local_to_prod () {
-	echo "\n${RED_FG}RELEASE${RESET} TO PRODUCTION"
 	if [[ ${g_IS_INITIAL_PRODUCTION} == 'false' ]];then
 		#existing production copy
 		get_response "Overwrite the ${_EM}production${RESET} version: ${WHITE_FG}${g_PROD_NAME}${RESET}\nwith the ${_EM}local${RESET} version: ${WHITE_FG}${g_LOCAL_NAME}${RESET}"
 		if [[ ${?} -eq 0 ]];then
+			prod_to_backup no_prompt
 			cp ${g_LOCAL_VERSION} ${g_PROD_VERSION}
 			echo "${WHITE_FG}${g_LOCAL_NAME}${RESET} was copied to ${WHITE_FG}${g_PROD_NAME}${RESET}"
 		else
-			exit_leave $(msg_warn "Release cancelled")
+			exit_leave $(msg_warn "Operation cancelled")
 		fi
 	else
 		#no existing production copy
 		echo "Creating an initial production copy:${_PRODUCTION_DIR}/${FILE_ARG}"
 		get_response "Create ${_EM}production${RESET} version: ${WHITE_FG}${_PRODUCTION_DIR}/${FILE_ARG}${RESET} with the ${_EM}local${RESET} version ${WHITE_FG}${g_LOCAL_NAME}${RESET}"
 		if [[ ${?} -eq 0 ]];then
+			prod_to_backup no_prompt
 			cp ${g_LOCAL_VERSION} ${_PRODUCTION_DIR}/${FILE_ARG}
 			echo "${WHITE_FG}${g_LOCAL_NAME}${RESET} was copied to ${WHITE_FG}${_PRODUCTION_DIR}/${FILE_ARG}${RESET}"
 		else
-			exit_leave $(msg_warn "Release cancelled")
+			exit_leave $(msg_warn "Operation cancelled")
 		fi
 	fi
 	[[ -e "_${FILE_ARG}" ]] && install_comp ${FILE_ARG}
@@ -401,7 +400,6 @@ opt_type () {
 	esac
 }
 
-#TODO: rename option flags: 'c' to 'r' release
 usage () {
 	local OPTS=$(parse_opts ${OPTSTR})
 	local -a PENDING_MSGS=(${@})
@@ -414,25 +412,25 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-b${RESET} backup <DEVELOPMENT>"
-	echo -e "${WHITE_FG}-c${RESET} copy <DEVELOPMENT> -> <PRODUCTION>"
+	echo -e "${WHITE_FG}-r${RESET} release <DEVELOPMENT> -> <PRODUCTION>"
 	echo -e "${WHITE_FG}-s${RESET} copy <PRODUCTION> -> <BACKUP>"
 	echo -e "${WHITE_FG}-B${RESET} diff <DEVELOPMENT> <> <BACKUP>"
 	echo -e "${WHITE_FG}-C${RESET} diff <DEVELOPMENT> <> <PRODUCTION>"
 	echo -e "${WHITE_FG}-S${RESET} diff <PRODUCTION> <> <BACKUP>"
-	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
+	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
 	) >&2
 
 	exit_leave $(msg_err ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
-OPTSTR=":HDBCSbcs"
+OPTSTR=":HDBCSbrs"
 BACKUP_LOCAL=false
 SYNC_PROD_BAK=false
 SHOW_B_DIFF=false
 SHOW_C_DIFF=false
 SHOW_S_DIFF=false
-PROD_COPY=false
+DEV_RELEASE=false
 OPTIND=0
 
 while getopts ${OPTSTR} OPTION;do
@@ -440,7 +438,7 @@ while getopts ${OPTSTR} OPTION;do
      H) usage;;
      D) dbg_set_level;;
      b) BACKUP_LOCAL=true;;
-     c) PROD_COPY=true;;
+     r) DEV_RELEASE=true;;
      s) SYNC_PROD_BAK=true;;
      B) SHOW_B_DIFF=true;;
      C) SHOW_C_DIFF=true;;
@@ -468,8 +466,8 @@ if [[ ${BACKUP_LOCAL} == 'true' ]];then
 else
 	_PRODUCTION_DIR=$(get_prod_dir ${FILE_ARG}) # need a production dir
 	if [[ ${_PRODUCTION_DIR} == "NOT_FOUND" ]];then
-		if [[ ${PROD_COPY} == 'true' ]];then
-			LIST=('1) Normal Production' '2) Library Module' '3) Source File' '4) System Utility')
+		if [[ ${DEV_RELEASE} == 'true' ]];then
+			LIST=('1) Normal Production' '2) Library Module' '3) System Utility')
 			tput sc
 			msg_box -p  -P"Select Type" "<r>No production copy exists<N>|$(str_unicode_line 25)| |<w>What type of module is this?<N>| |$(msg_list ${LIST})"
 			msg_box_clear
@@ -477,8 +475,7 @@ else
 			case ${_MSG_KEY} in
 				1) _PRODUCTION_DIR=${_BIN};;
 				2) _PRODUCTION_DIR=${_LIB_DIR};;
-				3) _PRODUCTION_DIR=${_SRC_DIR};;
-				4) _PRODUCTION_DIR=${_BIN}/system;;
+				3) _PRODUCTION_DIR=${_BIN}/system;;
 				*) echo; exit_leave $(msg_warn "Operation Cancelled");;
 			esac
 		else
@@ -528,8 +525,8 @@ elif [[ ${SHOW_C_DIFF} == 'true' ]];then #compare production to local version
 elif [[ ${SHOW_S_DIFF} == 'true' ]];then #compare production to local backup
 	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} SHOW_S_DIFF:true"
 	show_diff prod_2_local_bak
-elif [[ ${PROD_COPY} == 'true' ]];then #copy local version out to production
-	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} PROD_COPY:true g_IS_INITIAL_PRODUCTION:${g_IS_INITIAL_PRODUCTION}"
+elif [[ ${DEV_RELEASE} == 'true' ]];then #copy local version out to production
+	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} DEV_RELEASE:true g_IS_INITIAL_PRODUCTION:${g_IS_INITIAL_PRODUCTION}"
 	local_to_prod
 elif [[ ${SYNC_PROD_BAK} == 'true' ]];then #copy production to local backup
 	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} SYNC_PROD_BAK:true"
