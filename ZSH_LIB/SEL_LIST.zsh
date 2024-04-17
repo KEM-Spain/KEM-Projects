@@ -131,6 +131,7 @@ selection_list () {
 		fi
 		BOX_WIDTH=$(( _SL_MAX_ITEM_LEN+2 ))
 	fi
+
 	msg_box_clear
 
 	[[ ${MAX_X_COORD} -lt ${BOX_HEIGHT} ]] && BOX_HEIGHT=$((MAX_X_COORD-10 )) # Long list
@@ -276,6 +277,7 @@ selection_list () {
 			case ${KEY} in
 				0) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && break 2;;
 				100) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='d' && break 2;;
+				108) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='l' && break 2;;
 				114) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='r' && break 2;;
 				121) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='y' && break 2;;
 				110) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;

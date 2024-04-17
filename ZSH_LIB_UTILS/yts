@@ -212,23 +212,24 @@ action_do () {
 			if [[ ${HDRS_OUT} == 'true' ]];then
 				LOG_LINE=$(tail -1 ${g_LOG})
 				case ${LOG_LINE:l} in
-					*eta*)	ETAS+=("${(f)$(sed 's//\n/g' <<<${LOG_LINE} | grep -vi 'unknown')}")
-								ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${ETAS[-1]})
-								[[ ${ETA} =~ 'MiB' ]] && LINE_COLOR='<w>'
-								[[ ${ETA} =~ 'KiB' ]] && LINE_COLOR='<B><y>'
-								[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' && HAD_ERROR=false && ERROR_CNT=0
-								msg_box -C -jl "${LINE_COLOR}${ETA}<N>"
-								if [[ ${ETA} =~ '100%' ]];then
-									if [[ ${#_MARKED} -gt 1 ]];then
-										msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
-										if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-											msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
-										fi
-									fi
-									_DOWNLOADS[${M}]=true
-									break # while loop
+					*eta*|*remuxing*)
+						ETAS+=("${(f)$(sed 's//\n/g' <<<${LOG_LINE} | grep -vi 'unknown')}")
+						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${ETAS[-1]})
+						[[ ${ETA} =~ 'MiB' ]] && LINE_COLOR='<w>'
+						[[ ${ETA} =~ 'KiB' ]] && LINE_COLOR='<B><y>'
+						[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' && HAD_ERROR=false && ERROR_CNT=0
+						msg_box -C -jl "${LINE_COLOR}${ETA}<N>"
+						if [[ ${ETA:l} =~ '100%|remuxing|to keep' ]];then
+							if [[ ${#_MARKED} -gt 1 ]];then
+								msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
+								if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+									msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
 								fi
-								;;
+							fi
+							_DOWNLOADS[${M}]=true
+							break # while loop
+						fi
+						;;
 				esac
 			fi
 
@@ -297,6 +298,7 @@ get_favorite () {
 	local -a _DISPLAY_LIST=()
 	local LINE
 	local F P
+	local MSG
 
 	while true;do
 		if [[ -s ${_YTS_FAVORITES} ]];then
@@ -320,16 +322,20 @@ get_favorite () {
 
 		clear
 
+		[[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && MSG=' (<c>livestreams toggled<w>)' || MSG=''
+
 		_SELECTION_VALUE=?
-		selection_list "<w>Run ${(C)g_QRY_ENGINE} query  from history or <h>(q)uit<N>"
+		selection_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>"
 
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 
 		case ${_SELECTION_KEY} in
 			d) delete_favorite ${_SELECTION_VALUE} && _DISPLAY_LIST=() && continue;;
+			l) { [[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && g_LIVE_OPT=false || g_LIVE_OPT=true } && continue;;
 			r) g_QRY_ENGINE='rumble' && continue;;
 			y) g_QRY_ENGINE='youtube' && continue;;
 		esac
+
 		break
 	done
 
@@ -397,11 +403,13 @@ kill_job () {
 	
 	if [[ ${RC} -eq 0 ]];then
 		kill -9 ${g_PID} >/dev/null 2>&1
+	else
+		echo "No process found for PID:${g_PID}" >> ${g_LOG}
 	fi
 
 	if [[ ! ${functrace[1]} =~ "reset_job" ]];then
 		trap - INT # disable trap
-		[[ ${_DEBUG} -eq 0 ]] && rm -f ${g_LOG}
+		clear_log
 		exit_leave "${_SCRIPT}:${WHITE_FG}Download Job${RESET}:${JOB} ${WHITE_FG}was ${RED_FG}killed${RESET}"
 	fi
 }
@@ -509,7 +517,7 @@ select_download () {
 
 	#set headings
 	list_set_header_init
-	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tQuery Key:${WHITE_FG}%s${RESET}\tQuery Type:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${(C)g_QRY_ENGINE} ${SEARCHTERM} ${SEARCHTYPE} $(list_get_selected_count)'
+	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tQuery Key:${WHITE_FG}%s${RESET}\tQuery Type:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${(C)g_QRY_ENGINE} ${(C)SEARCHTERM} ${(C)SEARCHTYPE} $(list_get_selected_count)'
 	list_set_header 'printf " "'
 	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_FIELD_LEN[age]} "Age" ${_FIELD_LEN[author]} "Author" ${_FIELD_LEN[title]} "Title"'
 	list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %*s %*s${RESET}" 5 "" ${_FIELD_LEN[age]} "$(str_unicode_line ${_FIELD_LEN[age]})" ${_FIELD_LEN[author]} "$(str_unicode_line ${_FIELD_LEN[author]})" ${_FIELD_LEN[title]} "$(str_unicode_line ${_FIELD_LEN[title]})"'
@@ -604,6 +612,8 @@ start_job () {
 	nohup yt -i -o "%(channel)s - %(title)s.%(ext)s" ${URL} >>${g_LOG} 2>&1 &
 	g_PID=$!
 
+	echo "g_LOG:${g_LOG} g_PID:${g_PID}" >> ${g_LOG}
+
 	#nohup ./log_sim ./yt.log.error.data >>${g_LOG} 2>&1 &
 	#nohup ./log_sim ./yt.log.noerror.data >>${g_LOG} 2>&1 &
 	
@@ -634,9 +644,6 @@ youtube () {
 	local NDX
 
 	[[ -n ${g_FAVORITE} ]] && PROXY_CMD="${g_PROXY_CMD} ${g_FAVORITE:q}" || PROXY_CMD="${g_PROXY_CMD}"
-
-	#Youtube query log
-	[[ -e ${g_LOG} ]] && /usr/bin/rm -f ${g_LOG} # clear log
 
 	# Command line processing is in the js script - only proxy the script
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} PROXY COMMAND: ${WHITE_FG}${PROXY_CMD}${RESET}"
@@ -720,19 +727,20 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
+	echo -e "${WHITE_FG}-V${RESET} yt-search version (YouTube)"
 	echo -e "${WHITE_FG}-L${RESET} toggle stored livestream option (Rumble)"
 	echo -e "${WHITE_FG}-l${RESET} search for livestreams (Rumble)"
 	echo -e "${WHITE_FG}-a${RESET} age filter [all,min,hour,day,week,month,year] (YouTube)"
 	echo -e "${WHITE_FG}-s${RESET} strict filter [author must match query] (YouTube)"
-	echo -e "${WHITE_FG}-v${RESET} yt-search version (YouTube)"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 }
 
-OPTSTR=":HDRLlva:s"
+OPTSTR=":HDRVLla:s"
 OPTIND=0
 
 HELP_OPT=false
+VERSION_OPT=false
 g_STRICT=false
 g_QRY_ENGINE=youtube
 g_LIVE_OPT=false
@@ -740,10 +748,10 @@ g_LIVE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
-     H) usage;HELP_OPT=true;;
+     H) HELP_OPT=true;;
      D) dbg_set_level;;
+     V) VERSION_OPT=true;;
      R) g_QRY_ENGINE=rumble;;
-     L) g_LIVE_OPT=true;;
      l) g_LIVE=true;;
      a) AGE=${OPTARG};;
      s) g_STRICT=true;;
@@ -768,18 +776,20 @@ clear
 # Arg handling for yts.js
 if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
    if [[ ${HELP_OPT} == 'true' ]];then
+		usage
 		echo "\n${WHITE_ON_GREY}YouTube backend help${RESET}\n"
-		eval "node ${_JS_SCRIPT} -h"
+		eval "node ${_JS_SCRIPT} -h" >&2
 		exit_leave
 	fi
 
 	RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
 	RCL=$(sed 's/\-h//' <<<${RCL}) # front end option only
+	RCL=$(sed 's/\-D//' <<<${RCL}) # front end option only
 	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
 
 	[[ ${_DEBUG} -gt 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # front end option only
 
-	if [[ ${RCL:l} =~ '-v' ]];then
+	if [[ ${VERSION_OPT} == 'true'  ]];then
 		echo -n "yt-search version:${WHITE_FG}"
 		node ${_JS_SCRIPT} --version
 		echo ${RESET}
@@ -788,8 +798,6 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 	fi
 
 	g_PROXY_CMD="node ${_JS_SCRIPT} ${RCL}"
-else
-   [[ ${HELP_OPT} == 'true' ]] && exit_leave
 fi
 
 # Query site for video list 
@@ -798,7 +806,6 @@ if [[ ${#} -eq 0 ]];then
 		do_smcup
 		get_favorite
 		if [[ -n ${g_FAVORITE} ]];then
-			[[ ${g_LIVE_OPT} == 'true' ]] && msg_box -x0 -y0 "INFO:<w>LIVE_OPT is active<N> (stored options are toggled)"
 			msg_box "Requesting videos for <B><I>${g_FAVORITE}<N>..."
 			${g_QRY_ENGINE} ${g_FAVORITE}
 			if [[ ${?} -eq 0 ]];then
