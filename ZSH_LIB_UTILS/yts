@@ -693,6 +693,8 @@ Query either Youtube or Rumble for videos.
 \tfor livestreams and falls back to videos if no livestreams
 \tare found. The -L option will override this behavior. When
 \tsaving favorites, both query and platform are recorded.
+\tHidden keys: 'l' during menu selection will toggle livestreams.
+\t             'r' during download will reset the connection.
 EOF
 
 opt_type () {
@@ -726,9 +728,9 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-L${RESET} toggle stored livestream option (Rumble)"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
 	echo -e "${WHITE_FG}-V${RESET} yt-search version (YouTube)"
-	echo -e "${WHITE_FG}-L${RESET} toggle stored livestream option (Rumble)"
 	echo -e "${WHITE_FG}-l${RESET} search for livestreams (Rumble)"
 	echo -e "${WHITE_FG}-a${RESET} age filter [all,min,hour,day,week,month,year] (YouTube)"
 	echo -e "${WHITE_FG}-s${RESET} strict filter [author must match query] (YouTube)"
@@ -786,6 +788,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 	RCL=$(sed 's/\-h//' <<<${RCL}) # front end option only
 	RCL=$(sed 's/\-D//' <<<${RCL}) # front end option only
 	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
+	RCL=$(sed 's/\-l//' <<<${RCL}) # Rumble only option
 
 	[[ ${_DEBUG} -gt 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # front end option only
 

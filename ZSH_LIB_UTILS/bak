@@ -411,12 +411,12 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-b${RESET} backup <DEVELOPMENT>"
-	echo -e "${WHITE_FG}-r${RESET} release <DEVELOPMENT> -> <PRODUCTION>"
-	echo -e "${WHITE_FG}-s${RESET} copy <PRODUCTION> -> <BACKUP>"
 	echo -e "${WHITE_FG}-B${RESET} diff <DEVELOPMENT> <> <BACKUP>"
 	echo -e "${WHITE_FG}-C${RESET} diff <DEVELOPMENT> <> <PRODUCTION>"
 	echo -e "${WHITE_FG}-S${RESET} diff <PRODUCTION> <> <BACKUP>"
+	echo -e "${WHITE_FG}-b${RESET} backup <DEVELOPMENT>"
+	echo -e "${WHITE_FG}-r${RESET} release <DEVELOPMENT> -> <PRODUCTION>"
+	echo -e "${WHITE_FG}-s${RESET} copy <PRODUCTION> -> <BACKUP>"
 	echo -e "${WHITE_FG}\nDESC${RESET}:${DESC}"
 	) >&2
 

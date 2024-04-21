@@ -1,0 +1,193 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+#Constants
+_REPO=./REPO
+_USER_DIR=${_REPO}/USER_DIR
+_ETC_SUPPORT=${_REPO}/ETC_SUPPORT
+_PYTHON=${_REPO}/PYTHON
+_SYSTEM=${_REPO}/SYSTEM
+_VIM_CFG=${_REPO}/VIM_CFG
+_ZSH_CFG=${_REPO}/ZSH_CFG
+_ZSH_CFG_COMP=${_REPO}/ZSH_CFG/COMP
+_ZSH_LIB=${_REPO}/ZSH_LIB
+_ZSH_LIB_UTILS=${_REPO}/ZSH_LIB_UTILS
+_ZSH_NON_LIB_UTILS=${_REPO}/ZSH_NON_LIB_UTILS
+
+_PYTHON_DIR=/home/kmiller/Code/LANG/Python/PROJECTS
+_UL_BIN_DIR=/usr/local/bin
+_UL_BIN_SYS_DIR=/usr/local/bin/system
+_UL_ETC_DIR=/usr/local/etc
+_UL_LIB_DIR=/usr/local/lib
+_VIM_DIR=/home/kmiller/.vim
+_ZSH_CFG_DIR=/etc/zsh
+_ZSH_COMP_DIR=/home/kmiller/.zsh/completions
+
+#Declarations
+typeset -a _UL_BIN_ZSH_FILES
+typeset -a _UL_LIB_ZSH_FILES
+typeset -a _UL_ETC_FILES
+typeset -a _ZSH_CFG_FILES
+typeset -a _ZSH_COMP_FILES
+typeset -a _PYTHON_FILES
+typeset -a _USER_FILES
+
+#Functions
+copy_zsh_lib_utils () {
+	echo "${WHITE_FG}ZSH LIB UTILS${RESET}" >&2
+	for L in ${_UL_BIN_ZSH_FILES};do
+		grep -q LIB_INIT ${L}
+		[[ ${?} -eq 0 ]] && cp "${L}" ${_ZSH_LIB_UTILS}
+	done
+}
+
+copy_non_lib_utils () {
+	echo "${WHITE_FG}ZSH NON LIB UTILS${RESET}" >&2
+	for L in ${_UL_BIN_ZSH_FILES};do
+		grep -q LIB_INIT ${L}
+		[[ ${?} -ne 0 ]] && cp "${L}" ${_ZSH_NON_LIB_UTILS}
+	done
+}
+
+copy_zsh_libs () {
+	echo "${WHITE_FG}ZSH LIBS${RESET}" >&2
+	LIBS=("${(f)$(find ${_UL_LIB_DIR} -maxdepth 1 -type f)}")
+	for L in ${LIBS};do
+		cp "${L}" ${_ZSH_LIB}
+	done
+}
+
+copy_sys_files () {
+	echo "${WHITE_FG}SYSTEM FILES${RESET}" >&2
+	rsync -a ${_UL_BIN_SYS_DIR} ${_SYSTEM}
+}
+
+copy_etc_files () {
+	echo "${WHITE_FG}ETC SUPPORT FILES${RESET}" >&2
+	for L in ${_UL_ETC_FILES};do
+		cp "${L}" ${_ETC_SUPPORT}
+	done
+}
+
+copy_zsh_cfg_files () {
+	echo "${WHITE_FG}ZSH CONFIG FILES${RESET}" >&2
+	for L in ${_ZSH_CFG_FILES};do
+		cp "${L}" ${_ZSH_CFG}
+	done
+	for L in ${_ZSH_COMP_FILES};do
+		cp -rp "${L}" ${_ZSH_CFG_COMP}
+	done
+}
+
+copy_vim_cfg_files () {
+	echo "${WHITE_FG}VIM CONFIG FILES${RESET}" >&2
+	sudo rsync -a ${_VIM_DIR} ${_VIM_CFG}
+	cp ~/.vimrc ${_VIM_CFG}
+}
+
+copy_python_files () {
+	echo "${WHITE_FG}PYTHON PROJECT FILES${RESET}" >&2
+	rsync -a ${_PYTHON_DIR} ${_PYTHON}
+	/bin/rm -f ${_PYTHON}/PROJECTS/ts/venv/.gitignore
+	/bin/rm -f ${_PYTHON}/PROJECTS/ts/.idea/.gitignore
+	/bin/rm -f ${_PYTHON}/PROJECTS/st/venv/.gitignore
+	/bin/rm -f ${_PYTHON}/PROJECTS/st/.idea/.gitignore
+}
+
+copy_user_files () {
+	echo "${WHITE_FG}USER FILES${RESET}" >&2
+	cp /home/kmiller/.zshrc ${_USER_DIR}
+	cp -R /home/kmiller/.openvpn3 ${_USER_DIR}
+	cp -R /home/kmiller/.yts_history ${_USER_DIR}
+	cp -R /home/kmiller/.zsh ${_USER_DIR}
+	cp -R /home/kmiller/Code/LOCAL/ovpn/ovpn ${_USER_DIR}
+}
+
+#Execution
+
+pushd ~/Code
+
+#Build tree
+#[[ -e ${_REPO} ]] && /bin/rm -rf ${_REPO}
+#[[ ! -e ${_REPO} ]] && mkdir -p ${_REPO}
+[[ ! -e ${_USER_DIR} ]] && mkdir -p ${_USER_DIR}
+[[ ! -e ${_ETC_SUPPORT} ]] && mkdir -p ${_ETC_SUPPORT}
+[[ ! -e ${_PYTHON} ]] && mkdir -p ${_PYTHON}
+[[ ! -e ${_SYSTEM} ]] && mkdir -p ${_SYSTEM}
+[[ ! -e ${_VIM_CFG} ]] && mkdir -p ${_VIM_CFG}
+[[ ! -e ${_ZSH_CFG_COMP} ]] && mkdir -p ${_ZSH_CFG_COMP}
+[[ ! -e ${_ZSH_LIB} ]] && mkdir -p ${_ZSH_LIB}
+[[ ! -e ${_ZSH_LIB_UTILS} ]] && mkdir -p ${_ZSH_LIB_UTILS}
+[[ ! -e ${_ZSH_NON_LIB_UTILS} ]] && mkdir -p ${_ZSH_NON_LIB_UTILS}
+
+#readme
+cp ./README.md ${_REPO}
+
+#updater
+cp ./do_commit ${_REPO}
+
+# zsh scripts
+LIST=("${(f)$(find ${_UL_BIN_DIR} -maxdepth 1 -type f)}")
+for L in ${LIST};do
+	if [[ $(file ${L}) =~ 'zsh' ]];then
+		_UL_BIN_ZSH_FILES+=${L}
+	else
+		continue
+	fi
+done
+echo "Total zsh scripts:${#_UL_BIN_ZSH_FILES}"
+
+# zsh libs
+LIST=("${(f)$(find ${_UL_LIB_DIR} -maxdepth 1 -type f)}")
+for L in ${LIST};do
+	[[ $(file ${L}) =~ 'zsh' ]] && _UL_LIB_ZSH_FILES+=${L} || continue
+done
+echo "Total library files:${#_UL_LIB_ZSH_FILES}"
+copy_zsh_lib_utils
+copy_non_lib_utils
+copy_zsh_libs
+
+# system
+copy_sys_files #clone /usr/local/bin/system
+copy_user_files #clone /home/kmiller
+
+# etc
+_UL_ETC_FILES=("${(f)$(find ${_UL_ETC_DIR} -maxdepth 1 -type f)}")
+echo "Total etc support files:${#_UL_ETC_FILES}"
+copy_etc_files
+
+# zsh
+_ZSH_CFG_FILES=("${(f)$(find ${_ZSH_CFG_DIR} -maxdepth 1 -type f)}")
+_ZSH_CFG_FILES+=~/.zshrc
+echo "Total zsh config files:${#_ZSH_CFG_FILES}"
+
+_ZSH_COMP_FILES+=("${(f)$(find ${_ZSH_COMP_DIR} ! -path ${_ZSH_COMP_DIR})}")
+echo "Total zsh completion files:${#_ZSH_COMP_FILES}"
+copy_zsh_cfg_files
+
+# vim
+copy_vim_cfg_files
+
+# python project files
+_PYTHON_FILES=("${(f)$(find ${_PYTHON_DIR} -maxdepth 3 -type f -name '*py')}")
+echo "Total python projects:${#_PYTHON_FILES}"
+copy_python_files
+
+pushd ~/Code/REPO
+./do_commit
