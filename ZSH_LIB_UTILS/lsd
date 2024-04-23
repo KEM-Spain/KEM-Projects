@@ -185,7 +185,6 @@ RAWPATH=$(path_get_raw)
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FPATH=${FPATH:q}
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
-#TODO: PATHLBL seems to break - try lsd *srt - got *srt/*srt - s/b dir/glob
 PATHLBL=$(path_get_label 40)
 
 if [[ ${DIRS} == 'true' ]];then
@@ -198,8 +197,6 @@ fi
 
 for R in ${(on)RAWLIST};do
 	[[ ${R:h} == ${PWD} ]] && FN=${R:t} || FN=${R}
-	#TODO: not sure what this was intending - monitor until understood
-	#TODO: [[ -n ${SEARCHTERM} && (! ${FN} =~ ^${SEARCHTERM}) ]] && continue
 	[[ ${NOEXEC} == 'true' && -x ${FN} ]] && continue
 	_LOCAL_LIST+=${FN}
 done
@@ -216,12 +213,8 @@ if [[ ${DIRS} == 'true' ]];then
 	_FILTER+='Dirs Only'
 elif [[ ${NOEXEC} == 'true' ]];then
 	_FILTER+='No Exec'
-fi
-
-if [[ -n ${SEARCHTERM} ]];then
-	[[ -n ${_FILTER} ]] && _FILTER="${_FILTER}:${SEARCHTERM}" || _FILTER="${SEARCHTERM}"
 else
-	[[ -z ${_FILTER} ]] && _FILTER='None'
+	_FILTER='None'
 fi
 
 #set headings

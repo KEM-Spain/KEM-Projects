@@ -126,7 +126,7 @@ path_get_label () {
 	[[ ! -d ${RAW_PATH:h} ]] && return 1
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0} calling path_expand with: ${RAW_PATH}"
-	PATH_EXPANDED=$(path_expand ${RAW_PATH})
+	PATH_EXPANDED=$(path_expand ${RAW_PATH:h})
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0} path_expand returned: ${PATH_EXPANDED}"
 
 	[[ -n ${MAX_LEN} ]] && MAX_LEN="-l ${MAX_LEN}" || MAX_LEN=''

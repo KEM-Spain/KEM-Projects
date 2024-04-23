@@ -189,57 +189,65 @@ action_do () {
 					fi
 					case ${L:l} in
 						*giving\ up*)	ERROR_CNT=${_ERROR_LIMIT}	
-											break # for loop
-											;;
+											break 2 # while loop
+						;;
 						*network\ is\ unreachable*|*retrying*|*operation\ timed\ out*)	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors <w>${ERROR_CNT}<N>"
 							((ERROR_CNT++))
 							HAD_ERROR=true
-											;;
+						;;
 						*for\ reading*)
 							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Download Stalled <w>${ERROR_CNT}<N>"
 							((ERROR_CNT++))
 							HAD_ERROR=true
-											;;
+						;;
 						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors <w>${ERROR_CNT}<N>"
 							((ERROR_CNT++))
 							HAD_ERROR=true
-											;;
+						;;
 					esac
 				done
 			fi
 
 			# Scan for progress
-			if [[ ${HDRS_OUT} == 'true' ]];then
+			if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
 				LOG_LINE=$(tail -1 ${g_LOG})
 				case ${LOG_LINE:l} in
-					*eta*|*remuxing*)
+					*eta*)
 						ETAS+=("${(f)$(sed 's//\n/g' <<<${LOG_LINE} | grep -vi 'unknown')}")
 						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${ETAS[-1]})
-						[[ ${ETA} =~ 'MiB' ]] && LINE_COLOR='<w>'
-						[[ ${ETA} =~ 'KiB' ]] && LINE_COLOR='<B><y>'
-						[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' && HAD_ERROR=false && ERROR_CNT=0
-						msg_box -C -jl "${LINE_COLOR}${ETA}<N>"
-						if [[ ${ETA:l} =~ '100%|remuxing|to keep' ]];then
-							if [[ ${#_MARKED} -gt 1 ]];then
-								msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
-								if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-									msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # not blank
+							[[ ${ETA} =~ 'MiB' ]] && LINE_COLOR='<w>'
+							[[ ${ETA} =~ 'KiB' ]] && LINE_COLOR='<B><y>'
+							[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' && HAD_ERROR=false && ERROR_CNT=0
+							msg_box -C -jl "${LINE_COLOR}${ETA}<N>"
+							if [[ ${ETA:l} =~ '100%' ]];then
+								if [[ ${#_MARKED} -gt 1 ]];then
+									msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
+									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+										msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+									fi
 								fi
+								_DOWNLOADS[${M}]=true
+								break # while loop
 							fi
-							_DOWNLOADS[${M}]=true
-							break # while loop
+						else
+							echo "LAST ETA:${ETAS[-1]}\nNEXT TO LAST ETA:${ETAS[-2]}" >> /tmp/${g_LOG:h}-ETA.dbg
 						fi
 						;;
 				esac
 			fi
 
 			LOG_SIZE=$(wc -c < ${g_LOG})
-			[[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]] && LOG_SIZE_COUNT=0 || ((LOG_SIZE_COUNT++))
-			[[ ${LOG_SIZE_COUNT} -ge ${JOB_STALL} ]] && msg_box -t1 "Log is frozen" # && exit_leave "Job stalled"
-			#msg_box -x1 -y1 "LOG_SIZE:${LOG_SIZE} LAST_LOG_SIZE:${LAST_LOG_SIZE} LOG_SIZE_COUNT:${LOG_SIZE_COUNT}"
-			LAST_LOG_SIZE=${LOG_SIZE}
+			if [[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]];then
+				LOG_SIZE_COUNT=0 # log is growing
+			else
+				((LOG_SIZE_COUNT++))
+				[[ ${LOG_SIZE_COUNT} -ge ${JOB_STALL} ]] && msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Stalled<N>"
+				LAST_LOG_SIZE=${LOG_SIZE}
+			fi
 
 			sleep .1
+
 		done
 		NDX=0
 	done
@@ -532,7 +540,10 @@ select_download () {
 	list_set_action_msgs video download
 	list_set_sortable true
 	list_set_max_sort_col 3
-	[[ ${g_SEARCH_TYPE} != 'general' ]] && list_set_sort_default 1
+	list_set_sort_col_default 1
+	if [[ ${g_SEARCH_TYPE} == 'general' ]];then
+		list_set_sort_col_default 0
+	fi
 	list_set_barlines true
 
 	while true;do
@@ -679,7 +690,7 @@ youtube () {
 }
 
 clear_log () {
-	[[ ${_DEBUG} -eq 0 && -e ${g_LOG} ]] && rm -f ${g_LOG}
+	[[ ${_DEBUG} -eq 0 && -e ${g_LOG} ]] && rm -f ${g_LOG} && echo "log ${g_LOG} was cleared for:${g_FAVORITE}" >> /tmp/yt.log.dbg
 }
 
 #Imports

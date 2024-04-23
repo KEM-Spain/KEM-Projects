@@ -1016,7 +1016,7 @@ list_set_sortable () {
 	_LIST_IS_SORTABLE=${1}
 }
 
-list_set_sort_default () {
+list_set_sort_col_default () {
 	_LIST_SORT_COL_DEFAULT=${1}
 	if validate_is_integer ${_LIST_SORT_COL_DEFAULT};then
 		return
@@ -1185,11 +1185,13 @@ list_sort_flat () {
 	local RANK_COL
 	local S L
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGS:DELIM:${DELIM}, SORT_COL:${SORT_COL}, DIRECTION:${DIRECTION}, ARR_NAME:${ARR_NAME}"
+	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGS:DELIM:${DELIM}, SORT_COL:${SORT_COL}, DIRECTION:${DIRECTION}, ARR_NAME:${ARR_NAME}"
 
 	for L in ${(P)ARR_NAME};do
 		RANK_COL=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L})
+		[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LINE:${L} DELIM:${DELIM} SORT_COL:${SORT_COL}"
+		[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RANK_COL:${RANK_COL}"
 		[[ ${RANK_COL} =~ 'year' ]] && RANKED+="${_CAL_SORT[year]}|${L}" && continue
 		[[ ${RANK_COL} =~ 'month' ]] && RANKED+="${_CAL_SORT[month]}|${L}" && continue
 		[[ ${RANK_COL} =~ 'week' ]] && RANKED+="${_CAL_SORT[week]}|${L}" && continue
@@ -1207,9 +1209,13 @@ list_sort_flat () {
 	done
 
 # Debugging ranked data
-#	/bin/rm -f /tmp/list_sorted
-#	for S in ${RANKED};do
-#		echo ${S} >> /tmp/list_sorted
+#	/bin/rm -f /tmp/list_sorted.asc
+#	/bin/rm -f /tmp/list_sorted.dsc
+#	for S in ${(on)RANKED};do
+#		echo ${S} >> /tmp/list_sorted.asc
+#	done
+#	for S in ${(On)RANKED};do
+#		echo ${S} >> /tmp/list_sorted.dsc
 #	done
 
 	if [[ ${DIRECTION} == 'd' ]];then # Descending
