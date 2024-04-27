@@ -56,6 +56,7 @@ g_SEARCH_TYPE=''
 g_STRICT=false
 g_STRICT_MSG=''
 
+
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
@@ -84,16 +85,17 @@ action_do () {
 	local EMSG
 	local ERROR_CNT=0
 	local ETA
-	local HDRS_OUT=false
 	local HAD_ERROR=false
+	local HDRS_OUT=false
 	local JOB_STALL=20
+	local KEY=''
 	local L M S 
-	local LINE_COLOR='<w>'
+	local LAST_LOG_SIZE=0
+	local LINE_COLOR=''
 	local LOG_ACTIVE=false
 	local LOG_LINE=''
 	local LOG_SIZE=0
 	local LOG_SIZE_COUNT=0
-	local LAST_LOG_SIZE=0
 	local NDX=0
 	local PAUSE=2
 	local RESUMED_TAG=''
@@ -102,7 +104,6 @@ action_do () {
 	local STALLS=0
 	local TITLE
 	local URL
-	local KEY=''
 
 	msg_box_clear
 
@@ -135,6 +136,7 @@ action_do () {
 			if [[ ${KEY} == 'r' ]];then
 				reset_job
 				start_job ${URL}
+				HAD_ERROR=false
 			fi
 
 			# Scan for resume
@@ -175,7 +177,7 @@ action_do () {
 			fi
 
 			# Scan for errors
-			LOG_LINES=("${(f)$(sed -e 's// /g' -e '/./!d' ${g_LOG} | tail -1 | grep -i 'error:\|transporterror\|opening')}")
+			LOG_LINES=("${(f)$(sed -e 's// /g' -e '/./!d' ${g_LOG} | tail -1 | grep -i 'error:\|transporterror')}")
 			if [[ ${?} -eq 0 ]];then
 				for L in ${LOG_LINES};do
 					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive:
@@ -196,12 +198,12 @@ action_do () {
 							HAD_ERROR=true
 						;;
 						*for\ reading*)
-							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Download Stalled <w>${ERROR_CNT}<N>"
 							((ERROR_CNT++))
+							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Download Stalled <w>${ERROR_CNT}<N>"
 							HAD_ERROR=true
 						;;
-						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors <w>${ERROR_CNT}<N>"
-							((ERROR_CNT++))
+						*) ((ERROR_CNT++))
+							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors <w>${ERROR_CNT}<N>"
 							HAD_ERROR=true
 						;;
 					esac
@@ -216,11 +218,15 @@ action_do () {
 						ETAS+=("${(f)$(sed 's//\n/g' <<<${LOG_LINE} | grep -vi 'unknown')}")
 						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${ETAS[-1]})
 						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # not blank
-							[[ ${ETA} =~ 'MiB' ]] && LINE_COLOR='<w>'
-							[[ ${ETA} =~ 'KiB' ]] && LINE_COLOR='<B><y>'
+							case ${ETA:l} in
+								*rumbleembed*) continue;;
+								*mib*eta*) LINE_COLOR='<w>';;
+								*kib*eta*) LINE_COLOR='<B><y>';;
+								*) LINE_COLOR='';;
+							esac
 							[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' && HAD_ERROR=false && ERROR_CNT=0
 							msg_box -C -jl "${LINE_COLOR}${ETA}<N>"
-							if [[ ${ETA:l} =~ '100%' ]];then
+							if [[ ${ETA} =~ '100.*%' ]];then
 								if [[ ${#_MARKED} -gt 1 ]];then
 									msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
 									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
@@ -266,7 +272,7 @@ action_do () {
 	
 	trap - INT #Downloads are finished; nothing to interrupt
 
-	clear_log
+	clear_log "action_do"
 
 	return 0
 }
@@ -417,7 +423,7 @@ kill_job () {
 
 	if [[ ! ${functrace[1]} =~ "reset_job" ]];then
 		trap - INT # disable trap
-		clear_log
+		clear_log "kill_job"
 		exit_leave "${_SCRIPT}:${WHITE_FG}Download Job${RESET}:${JOB} ${WHITE_FG}was ${RED_FG}killed${RESET}"
 	fi
 }
@@ -489,6 +495,7 @@ rumble () {
 		CHANNELS=("${(f)$(pup --charset utf8 '.video-item--by-a attr{href}' <<<${PG})}")
 
 		for ((X=1; X<=${#TITLES}; X++));do
+			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # experimental to avoid dups by users
 			AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
 			CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
 			CHANNEL="${(C)SEARCHTERM} (${CHANNEL})"
@@ -690,7 +697,9 @@ youtube () {
 }
 
 clear_log () {
-	[[ ${_DEBUG} -eq 0 && -e ${g_LOG} ]] && rm -f ${g_LOG} && echo "log ${g_LOG} was cleared for:${g_FAVORITE}" >> /tmp/yt.log.dbg
+	local FROM=${1}
+
+	[[ ${_DEBUG} -eq 0 && -e ${g_LOG} ]] && rm -f ${g_LOG} && echo "log ${g_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg
 }
 
 #Imports
@@ -782,8 +791,6 @@ FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
-set_exit_callback clear_log
-
 clear
 
 # Arg handling for yts.js
@@ -830,11 +837,11 @@ if [[ ${#} -eq 0 ]];then
 else
 	${g_QRY_ENGINE} ${@}
 	if [[ ${?} -eq 0 ]];then
-		select_download ${@}
 		set_favorite ${@}
+		select_download ${@}
 	fi
 fi
 
-clear_log
+clear_log "bottom exit"
 
 exit_leave

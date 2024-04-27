@@ -81,7 +81,7 @@ alias mcpan='perl -MCPAN -e shell'
 # permissions
 alias me='chmod 755'
 alias meg='chmod 775'
-alias mro="chmod 644"
+alias mro="chmod 664"
 
 # enable default color support of grep
 alias grep='grep --color=always'
