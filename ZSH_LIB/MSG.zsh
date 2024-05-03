@@ -207,7 +207,7 @@ msg_box () {
 	MSG_STR=$(arr_long_elem ${MSGS}) # returns trimmed/no markup
 	MSG_COLS=${#MSG_STR}; ((MSG_COLS++)) # 1 char pad
 
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_COLS:${WHITE_FG}${MSG_COLS}${RESET}"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_COLS:${WHITE_FG}${MSG_COLS}${RESET}"
 
 	# Expand MSG container to aoccomodate NAV line if needed
 	if [[ ${#MSGS} -gt $((DISPLAY_ROWS)) ]];then
@@ -483,13 +483,13 @@ msg_box_clear () {
 	[[ -z ${BOX_HEIGHT} || ${BOX_HEIGHT} == 'H' ]] && BOX_HEIGHT=${_MSG_BOX_COORDS[H]}
 	[[ -z ${BOX_WIDTH} || ${BOX_WIDTH} == 'W' ]] && BOX_WIDTH=${_MSG_BOX_COORDS[W]}
 
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  _MSG_BOX_COORDS:${_MSG_BOX_COORDS}"
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD}  BOX_Y_COORD:${BOX_Y_COORD} BOX_HEIGHT:${BOX_HEIGHT} BOX_WIDTH:${BOX_WIDTH}"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  _MSG_BOX_COORDS:${_MSG_BOX_COORDS}"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD}  BOX_Y_COORD:${BOX_Y_COORD} BOX_HEIGHT:${BOX_HEIGHT} BOX_WIDTH:${BOX_WIDTH}"
 
 	[[ ${BOX_HEIGHT} -eq 0 ]] && return # Ignore
 
 	for ((X=BOX_X_COORD; X<=BOX_X_COORD+BOX_HEIGHT-1; X++));do
-		[[ ${_DEBUG} -ge 1 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X:${X}, BOX_X_COORD:${BOX_X_COORD}, BOX_WIDTH:${BOX_WIDTH}"
+		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X:${X}, BOX_X_COORD:${BOX_X_COORD}, BOX_WIDTH:${BOX_WIDTH}"
 		tput cup ${X} ${BOX_Y_COORD}
 		tput ech ${BOX_WIDTH}
 	done

@@ -60,6 +60,7 @@ typeset -A _LIST_SELECTED=() # Status of selected list items; contains digit 0,1
 typeset -a _MARKED=()
 typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
 typeset -A _SORT_TABLE=() # sort assoc array names
+typeset -A _SORT_COLS=() # sort column mapping
 typeset -A _SORT_DIRECTION=() # Status of list sort direction
 typeset -a _TARGETS=() # target indexes
 
@@ -1016,6 +1017,10 @@ list_set_sortable () {
 	_LIST_IS_SORTABLE=${1}
 }
 
+list_set_sort_cols () {
+	_SORT_COLS=(${@})
+}
+
 list_set_sort_col_default () {
 	_LIST_SORT_COL_DEFAULT=${1}
 	if validate_is_integer ${_LIST_SORT_COL_DEFAULT};then
@@ -1189,15 +1194,20 @@ list_sort_flat () {
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGS:DELIM:${DELIM}, SORT_COL:${SORT_COL}, DIRECTION:${DIRECTION}, ARR_NAME:${ARR_NAME}"
 
 	for L in ${(P)ARR_NAME};do
-		RANK_COL=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L})
+		if [[ -n ${_SORT_COLS} ]];then
+			RANK_COL=$(cut -d "${DELIM}" -f ${_SORT_COLS[${SORT_COL}]} <<<${L}) # mapped columns
+		else
+			RANK_COL=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L}) # natural order
+		fi
 		[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LINE:${L} DELIM:${DELIM} SORT_COL:${SORT_COL}"
 		[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RANK_COL:${RANK_COL}"
-		[[ ${RANK_COL} =~ 'year' ]] && RANKED+="${_CAL_SORT[year]}|${L}" && continue
-		[[ ${RANK_COL} =~ 'month' ]] && RANKED+="${_CAL_SORT[month]}|${L}" && continue
-		[[ ${RANK_COL} =~ 'week' ]] && RANKED+="${_CAL_SORT[week]}|${L}" && continue
-		[[ ${RANK_COL} =~ 'day' ]] && RANKED+="${_CAL_SORT[day]}|${L}" && continue
-		[[ ${RANK_COL} =~ 'hour' ]] && RANKED+="${_CAL_SORT[hour]}|${L}" && continue
-		[[ ${RANK_COL} =~ 'minute' ]] && RANKED+="${_CAL_SORT[minute]}|${L}" && continue
+		
+		[[ ${RANK_COL} =~ 'year' ]] && RANKED+="${_CAL_SORT[year]}${RANK_COL}|${L}" && continue
+		[[ ${RANK_COL} =~ 'month' ]] && RANKED+="${_CAL_SORT[month]}${RANK_COL}|${L}" && continue
+		[[ ${RANK_COL} =~ 'week' ]] && RANKED+="${_CAL_SORT[week]}${RANK_COL}}|${L}" && continue
+		[[ ${RANK_COL} =~ 'day' ]] && RANKED+="${_CAL_SORT[day]}${RANK_COL}|${L}" && continue
+		[[ ${RANK_COL} =~ 'hour' ]] && RANKED+="${_CAL_SORT[hour]}${RANK_COL}|${L}" && continue
+		[[ ${RANK_COL} =~ 'minute' ]] && RANKED+="${_CAL_SORT[minute]}${RANK_COL}|${L}" && continue
 		[[ ${RANK_COL} =~ ':' ]] && RANKED+="B999|${L}" && continue
 		[[ ${RANK_COL} =~ '-' ]] && RANKED+="A888|${L}" && continue
 		[[ ${RANK_COL} =~ '^\d{4}-\d{2}-\d{2}' ]] && RANKED+="${L[1-10]}|${L}" && continue
@@ -1209,8 +1219,12 @@ list_sort_flat () {
 	done
 
 # Debugging ranked data
+#	/bin/rm -f /tmp/ranked.srt
 #	/bin/rm -f /tmp/list_sorted.asc
 #	/bin/rm -f /tmp/list_sorted.dsc
+#	for L in ${RANKED};do
+#		printf "L:%s\n" ${L}
+#	done >> /tmp/ranked.srt
 #	for S in ${(on)RANKED};do
 #		echo ${S} >> /tmp/list_sorted.asc
 #	done

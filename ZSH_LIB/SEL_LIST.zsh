@@ -151,8 +151,8 @@ selection_list () {
 
 	SL=$(( SX+BOX_HEIGHT + (PAD * 2) - 1 )) # Loop limit
 
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD} BOX_WIDTH:${BOX_WIDTH} BOX_HEIGHT:${BOX_HEIGHT} PAD:${PAD}=PAD"
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SX:${SX}->SL:${SL}, SY:${SY}->SW:${SW}"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD} BOX_WIDTH:${BOX_WIDTH} BOX_HEIGHT:${BOX_HEIGHT} PAD:${PAD}=PAD"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SX:${SX}->SL:${SL}, SY:${SY}->SW:${SW}"
 
 	# Space around list
 	for ((L=SX;L<=SL;L++));do
@@ -198,7 +198,7 @@ selection_list () {
 
 	# Initialize
 	CENTER_Y=$(( SY+(SW/2)-(BOX_WIDTH/2) )) # New Y to center list
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  CENTER_Y to center:${CENTER_Y}"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  CENTER_Y to center:${CENTER_Y}"
 
 	BOX_X=$((BOX_X_COORD+1))
 	BOX_Y=$((CENTER_Y+1))
@@ -404,7 +404,7 @@ selection_list_hilite () {
 	local TEXT=${3}
 	local F1 F2
 
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
 
 	tput cup ${X} ${Y}
 	tput smso
@@ -424,7 +424,7 @@ selection_list_norm () {
 	local TEXT=${3}
 	local F1 F2
 
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
 
 	tput cup ${X} ${Y}
 	tput rmso
@@ -441,7 +441,7 @@ selection_list_set () {
 	local -a LIST=(${@})
 
 	_SELECTION_LIST=(${(on)LIST})
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${0} _SELECTION_LIST:${#_SELECTION_LIST} ITEMS"
+	[[ ${_DEBUG} -ge 3 ]] && dbg "${0} _SELECTION_LIST:${#_SELECTION_LIST} ITEMS"
 }
 
 selection_list_set_page_key_help () {

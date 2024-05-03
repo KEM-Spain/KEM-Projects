@@ -69,15 +69,13 @@ get_prod_dir () {
 		echo ${_LIB_DIR}
 	else
 		CANDIDATE="$(fut findexe ${FN})"
-		echo "CANDIDATE:${CANDIDATE}" >&2
+		#echo "CANDIDATE:${CANDIDATE}" >&2
 		if [[ -f ${CANDIDATE} ]];then # a regular file 
-			if [[ ${CANDIDATE:l} =~ "etc|system" ]];then
+			if [[ ${CANDIDATE:l} =~ "/usr/local" ]];then
 				echo ${CANDIDATE:h}
 			else
-				echo ${_PRODUCTION_DIR}
+				echo "NOT_FOUND"
 			fi
-		else
-			echo "NOT_FOUND"
 		fi
 	fi
 }
@@ -479,7 +477,7 @@ else
 				*) echo; exit_leave $(msg_warn "Operation Cancelled");;
 			esac
 		else
-			exit_leave $(msg_err "Production file not found:${FILE_ARG}")
+			exit_leave $(msg_err "No production version of file:${FILE_ARG} was found")
 		fi
 	fi
 

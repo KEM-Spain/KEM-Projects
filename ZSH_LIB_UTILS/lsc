@@ -23,7 +23,6 @@ typeset -A _SORT_TABLE
 typeset -A _STATES
 typeset -A _STATE_TABLE=(a alias d disabled e enabled g generated i indirect m masked s static t transient)
 typeset -A _UNIT_FILES
-typeset -a _ACTION_TABLE=(enable disable view stop restart)
 typeset -a _LOCAL_LIST
 typeset -a _MARKED
 typeset -a _RAWLIST
@@ -52,22 +51,43 @@ done
 action_do () {
 	local M
 	local NDX
-
-	selection_list_set ${_ACTION_TABLE}
-	selection_list -x11 -y32 "<w>Select action<N>"
+	local -a ACTION_TABLE
+	local MSG
 
 	if [[ ${?} -ne 2 ]];then
 		for M in ${_MARKED};do
 			NDX=${_LIST[${M}]}
+			MSG=''
+
+			case ${_RUN_STATES[${NDX}]:l} in
+				active) ACTION_TABLE=(view restart stop);;
+				inactive) ACTION_TABLE=(view start);;
+				n/a) ACTION_TABLE=(view start);;
+			esac
+
+			case ${_STATES[${NDX}]:l} in
+				linked) ACTION_TABLE+="disable";MSG="<w>(<r>disable removes link<w>)";;
+				enabled) ACTION_TABLE+="disable";;
+				disabled) ACTION_TABLE+="enable";;
+			esac
+
+			selection_list_set ${ACTION_TABLE}
+			selection_list -x11 -y32 "<w>Select action for: <c>$(cut -d. -f1 <<<${_UNIT_FILES[${M}]}) ${MSG}<N>"
+
+			if [[ ${_SELECTION_VALUE} == '?' ]];then
+				list_set_selected ${M} 0
+				continue
+			fi
+
 			if [[ ${_SELECTION_VALUE} == 'view' ]];then
 				msg_stream "sudo systemctl show ${_UNIT_FILES[${NDX}]}"
 			else
 				action_warn ${_SELECTION_VALUE}
 				[[ ${?} -ne 0 ]] && msg_box -p -PK "Operation Cancelled" && return
 				sudo systemctl ${_SELECTION_VALUE} ${_UNIT_FILES[${NDX}]} 2>/dev/null
+				upd_unit ${M}
 			fi
 		done
-		upd_unit ${M}
 	fi
 
 	for M in ${_MARKED};do

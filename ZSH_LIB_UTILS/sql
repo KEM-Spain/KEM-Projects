@@ -13,6 +13,7 @@ BOLD="\033[1m"
 LIB=/usr/local/lib
 typeset -a _DB_LIST
 typeset -a _TB_LIST
+typeset -a TABLES
 
 #Globals
 _DELIM=' '
@@ -145,20 +146,20 @@ typeset -a OPTIONS
 OPTSTR=":HDld:pst"
 OPTIND=0
 
-LIST_DB=false
-LIST_TB=false
-LIST_SC=false
+SHOW_DBS=false
+SHOW_TABS=false
+SHOW_SCHEMA=false
 PRINT_TAB=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
-     l) LIST_DB=true;;
+     l) SHOW_DBS=true;;
      d) _DELIM=${OPTARG};;
      p) PRINT_TAB=true;;
-     s) LIST_SC=true;;
-     t) LIST_TB=true;;
+     s) SHOW_SCHEMA=true;;
+     t) SHOW_TABS=true;;
      :) print -u2 "${RED_FG}${SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
 	esac
@@ -168,17 +169,13 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 #Execution
-clear
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
+if [[ ${SHOW_SCHEMA} == 'true' ]];then
+	SHOW_DBS=("${(f)$(find . -maxdepth 1 -type f)}")
 
-
-typeset -a TABLES
-
-if [[ ${LIST_SC} == 'true' ]];then
-	LIST_DB=("${(f)$(find . -maxdepth 1 -type f)}")
-
-	if arr_is_populated "${LIST_DB}";then
-		selection_list_set ${(o)LIST_DB}
+	if arr_is_populated "${SHOW_DBS}";then
+		selection_list_set ${(o)SHOW_DBS}
 
 		_SELECTION_VALUE=?
 		selection_list "<w>Select database or <h>(q)uit<N>"
@@ -189,9 +186,9 @@ if [[ ${LIST_SC} == 'true' ]];then
 
 	msg_box_clear
 
-	LIST_TB=($(query .tables))
-	if arr_is_populated "${LIST_TB}";then
-		selection_list_set ${(o)LIST_TB}
+	SHOW_TABS=($(query .tables))
+	if arr_is_populated "${SHOW_TABS}";then
+		selection_list_set ${(o)SHOW_TABS}
 
 		_SELECTION_VALUE=?
 		selection_list "<w>Select table or <h>(q)uit<N>"
@@ -205,10 +202,10 @@ if [[ ${LIST_SC} == 'true' ]];then
 fi
 
 if [[ ${PRINT_TAB} == 'true' ]];then
-	LIST_DB=("${(f)$(find . -maxdepth 1 -type f)}")
+	SHOW_DBS=("${(f)$(find . -maxdepth 1 -type f)}")
 
-	if arr_is_populated "${LIST_DB}";then
-		selection_list_set ${(o)LIST_DB}
+	if arr_is_populated "${SHOW_DBS}";then
+		selection_list_set ${(o)SHOW_DBS}
 
 		_SELECTION_VALUE=?
 		selection_list "<w>Select database or <h>(q)uit<N>"
@@ -219,9 +216,9 @@ if [[ ${PRINT_TAB} == 'true' ]];then
 
 	msg_box_clear
 
-	LIST_TB=($(query .tables))
-	if arr_is_populated "${LIST_TB}";then
-		selection_list_set ${(o)LIST_TB}
+	SHOW_TABS=($(query .tables))
+	if arr_is_populated "${SHOW_TABS}";then
+		selection_list_set ${(o)SHOW_TABS}
 
 		_SELECTION_VALUE=?
 		selection_list "<w>Select table or <h>(q)uit<N>"
