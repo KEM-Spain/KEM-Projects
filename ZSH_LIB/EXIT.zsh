@@ -4,20 +4,20 @@ _DEPS_+="MSG.zsh UTILS.zsh"
 #LIB vars
 _PRE_EXIT_RAN=false
 _EXIT_CALLBACK=''
+_EXIT_LIB_DBG=1
 
 exit_leave () {
 	local MSGS=(${@})
 
-	if [[ ${_DEBUG} -ge 1 ]];then
+	if [[ ${_DEBUG} -ne 0 ]];then
 		dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
 		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
 		dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
 		dbg "${RED_FG}${0}${RESET}: _SMCUP:${_SMCUP}"
+		dbg_msg | mypager wait
 	fi
 
 	[[ -n ${MSGS} ]] && _EXIT_MSGS=${MSGS}
-
-	[[ ${_DEBUG} -ge 1 ]] && dbg_msg | mypager && /bin/rm -f ${_DEBUG_FILE}
 	
 	if [[ ${_APP_IS_SOURCED} == 'true' ]];then
 		_SOURCED_APP_EXIT=true
@@ -45,26 +45,26 @@ exit_pre_exit () {
 	
 	_PRE_EXIT_RAN=true
 
-	[[ ${_DEBUG} -ge 1 ]] && echo "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}, #_EXIT_MSGS:${#_EXIT_MSGS}"
+	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}, #_EXIT_MSGS:${#_EXIT_MSGS}"
 
 	if [[ ${XDG_SESSION_TYPE:l} == 'x11' ]];then
 		xset r on # Reset key repeat
 		eval "xset ${_XSET_DEFAULT_RATE}" # Reset key rate
-		[[ ${_DEBUG} -ge 1 ]] && echo "${0}: reset key rate:${_XSET_DEFAULT_RATE}"
+		[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: reset key rate:${_XSET_DEFAULT_RATE}"
 	fi
 
 	kbd_activate
-	[[ ${_DEBUG} -ge 1 ]] && echo "${0}: activated keyboard"
+	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: activated keyboard"
 
 	[[ ${$(tabs -d | grep --color=never -o "tabs 8")} != 'tabs 8' ]] && tabs 8
-	[[ ${_DEBUG} -ge 1 ]] && echo "${0}: reset tabstops"
+	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: reset tabstops"
 
 	if typeset -f _cleanup > /dev/null; then
-		[[ ${_DEBUG} -ge 1 ]] && echo "${0}: cleaning up"
+		[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: cleaning up"
 		_cleanup
 	fi
 
-	[[ ${_DEBUG} -ge 1 ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
+	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
 
 	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}"
 
@@ -86,6 +86,15 @@ exit_request () {
 		if [[ ${_FUNC_TRAP} == 'true' ]];then
 			exit_pre_exit
 			[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+#			if [[ ${_DEBUG} -ne 0 ]];then
+#				dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
+#				dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
+#				dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
+#				dbg "${RED_FG}${0}${RESET}: _SMCUP:${_SMCUP}"
+#				dbg_msg | mypager wait
+#			fi
+
 			exit 0
 		else
 			exit_leave

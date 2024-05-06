@@ -4,6 +4,9 @@ _DEPS_+="STR.zsh"
 #LIB Declarations
 typeset -a _DEBUG_LINES # Store debugging output 
 
+#LIB Vars
+_DBG_LIB_DBG=5
+
 if [[ ${_DEBUG_INIT} == 'true' ]];then
 	sudo /bin/rm -f ${_DEBUG_FILE} # _DEBUG_FILE declared in LIB_INIT
 	_DEBUG_INIT=false # _DBG_INIT declared in LIB_INIT
@@ -14,7 +17,7 @@ dbg () {
 	local LINE
 	local A
 
-	[[ ${_DEBUG} -ge 5 ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
+	[[ ${_DEBUG} -ge ${_DBG_LIB_DBG} ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
 
 	if [[ ${#} -ne 0 ]];then
 		dbg_to_file ${ARGS} # With arguments
@@ -29,6 +32,8 @@ dbg () {
 dbg_msg () {
 	local D
 	local LINE
+
+	[[ ${_DEBUG} -ge ${_DBG_LIB_DBG} ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
 
 	echo 
 
@@ -49,6 +54,8 @@ dbg_parse () {
 	local FN=$(cut -d: -f1 <<<${@})
 	local LN=$(cut -d: -f2 <<<${@})
 
+	[[ ${_DEBUG} -ge ${_DBG_LIB_DBG} ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
+
 	(
 	sed -n ${LN}p ${FN} | tr -d '[(){}]' | tr -s '[:space:]' | str_trim
 	) 2>/dev/null
@@ -62,6 +69,8 @@ dbg_to_file () {
 	local -a ARGS=(${@})
 	local A
 
+	[[ ${_DEBUG} -ge ${_DBG_LIB_DBG} ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
+
 	[[ -n ${ARGS} ]] && echo "-- msgs --" >>${_DEBUG_FILE}
 	for A in ${ARGS};do
 		echo ${A} >>${_DEBUG_FILE}
@@ -70,6 +79,8 @@ dbg_to_file () {
 
 dbg_record () {
 	local LINE
+
+	[[ ${_DEBUG} -ge ${_DBG_LIB_DBG} ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
 
 	_DEBUG_LINES+="-- msgs --"
 
@@ -87,6 +98,8 @@ dbg_trace () {
 	local L
 	local FIRST_TIME=true
 	local DD=false
+
+	[[ ${_DEBUG} -ge ${_DBG_LIB_DBG} ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
 
 	for L in ${(on)funcfiletrace};do
 		[[ ${L} =~ "dbg" ]] && continue # Omit calls to any dbg func

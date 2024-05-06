@@ -8,6 +8,7 @@ typeset -a _DELIMS=('#' '|' ':' ',' '	') # Recognized field delimiters
 _EXIT_VALUE=0
 _FUNC_TRAP=false
 _BAREWORD_IS_FILE=false
+_UTILS_LIB_DBG=5
 
 boolean_color () {
 	local STATE=${1}
@@ -105,7 +106,7 @@ get_keys () {
 	local -a NUM
 	local K1 K2 K3 KEY
 		
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	PROMPT=${@}
 
@@ -155,7 +156,7 @@ get_key_trans () {
 	local KEY_IN=${1}
 	local KEY_OUT
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	case ${KEY_IN} in
 		32) KEY_OUT=32;; # Space
@@ -222,7 +223,7 @@ perl -e "$PERL_SCRIPT" ${PROMPT} ${CUR_VALUE}
 is_bare_word () {
 	local TEXT="${@}"
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${TEXT} =~ '\*' || ${TEXT} =~ '\~' || ${TEXT} =~ '^/.*' ]] && return 1
 
@@ -234,7 +235,7 @@ is_bare_word () {
 is_dir () {
 	local TEXT="${@}"
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	TEXT=$(eval "echo ${TEXT}")
 	[[ -d ${TEXT} ]] && return 0 || return 1
@@ -243,7 +244,7 @@ is_dir () {
 is_empty_dir () {
 	local DIR=${1}
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ -d ${DIR} ]] && return $(ls -A ${DIR} | wc -l)
 }
@@ -251,7 +252,7 @@ is_empty_dir () {
 is_file () {
 	local TEXT="${@}"
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ -f ${TEXT:Q} ]] && return 0 || return 1
 }
@@ -259,7 +260,7 @@ is_file () {
 is_glob () {
 	local TEXT="${@}"
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${TEXT:Q} =~ '\*' ]] && return 0 || return 1
 }
@@ -274,7 +275,7 @@ is_singleton () {
 is_symbol_dir () {
 	local ARG=${1}
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${ARG} =~ '^[\.~]$' ]] && return 0 || return 1
 }
@@ -318,7 +319,7 @@ parse_find_valid_delim () {
 	local DELIM=''
 	local D
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	for D in ${_DELIMS};do
 		grep -q ${D} <<<${LINE}
@@ -340,7 +341,7 @@ num_byte_conv () {
 	local BYTES=${1}
 	local WANTED=${2}
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	case ${WANTED} in
 		KB) echo $((${BYTES} / 1024 ));;
@@ -355,7 +356,7 @@ num_human () {
 	local MEG_D=1048576
 	local KIL_D=1024
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	(
 	if [[ ${BYTES} -gt ${GIG_D} ]];then printf "%10.2fGB" $((${BYTES}.0/${GIG_D}.0))

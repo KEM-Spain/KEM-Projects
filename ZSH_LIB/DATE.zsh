@@ -1,13 +1,16 @@
 #LIB Dependencies
 _DEPS_+="DBG.zsh UTILS.zsh"
 
+#LIB Vars
+_DATE_LIB_DBG=5
+
 date_diff () {
 	local D1=$(date -d "$1" +%s)
 	local D2=$(date -d "$2" +%s)
 	local DIFF=$(( (D1 - D2) / 86400 ))
 
 	# Expects: date +'%Y-%m-%d'
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_DATE_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	echo ${DIFF} # Return the difference in days
 }
@@ -18,7 +21,7 @@ file_date_diff () {
 	local F1_EPOCH
 	local F2_EPOCH
 	
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_DATE_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ! -e ${F1} ]] && return 1 # file not found
 	[[ ! -e ${F2} ]] && return 1 # file not found
@@ -35,7 +38,7 @@ date_text () {
 	local DATE_ARG=$1
 	local TODAY YESTERDAY TEXT
 
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_DATE_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	TODAY=$(date +'%m/%d/%y')
 	YESTERDAY=$(date --date="${TODAY} -1 day" +'%m/%d/%y')
@@ -58,7 +61,7 @@ time_diff_mins_fmod () {
 	local MOD_TM
 	local TIME_DIFF
 
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_DATE_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ! -e ${FN} ]] && echo "${0}: File:${FN} not found" >&2 && return 1
 

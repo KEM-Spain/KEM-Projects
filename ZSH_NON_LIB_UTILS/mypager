@@ -1,5 +1,28 @@
 #!/usr/bin/zsh
 
+_SCRIPT=${0:t}
+
+read -r -d '' DESC<<EOF
+Filter to display screen buffer content as pages
+\tBy default, no pause for keypress will occur
+\tif content does not fill the available screen.
+\tThe [wait] option overrides this behavior and
+\twill force a wait for keypress to continue.
+\n
+EOF
+
+usage () {
+	tabs 5
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} [wait]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
+	) >&2
+
+	exit 0
+}
+
 page () {
 	read -r -d '' PERL_SCRIPT <<'___EOF'
 	use strict;
@@ -39,6 +62,8 @@ ___EOF
 
 perl -e "$PERL_SCRIPT" ${1}
 }
+
+[[ ${1} == '-H' ]] && usage
 
 page ${1}
 RC=${?}

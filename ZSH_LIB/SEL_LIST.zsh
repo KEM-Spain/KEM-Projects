@@ -9,6 +9,7 @@ _SELECTION_KEY=?
 _SL_CATEGORY=false
 _SL_MAX_ITEM_LEN=0
 _TITLE_HL=${WHITE_ON_GREY}
+_SEL_LIST_LIB_DBG=5
 
 #LIB Declarations
 typeset -a _SELECTION_LIST # Holds indices of selected items in a list
@@ -75,7 +76,7 @@ selection_list () {
 	local BOUNDARY_SET=false
 	local OPT_KEY_ROW=0
 
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	OPTSTR=":x:y:cr:w:O:I:s"
 	OPTIND=0
@@ -151,8 +152,8 @@ selection_list () {
 
 	SL=$(( SX+BOX_HEIGHT + (PAD * 2) - 1 )) # Loop limit
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD} BOX_WIDTH:${BOX_WIDTH} BOX_HEIGHT:${BOX_HEIGHT} PAD:${PAD}=PAD"
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SX:${SX}->SL:${SL}, SY:${SY}->SW:${SW}"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD} BOX_WIDTH:${BOX_WIDTH} BOX_HEIGHT:${BOX_HEIGHT} PAD:${PAD}=PAD"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SX:${SX}->SL:${SL}, SY:${SY}->SW:${SW}"
 
 	# Space around list
 	for ((L=SX;L<=SL;L++));do
@@ -198,7 +199,7 @@ selection_list () {
 
 	# Initialize
 	CENTER_Y=$(( SY+(SW/2)-(BOX_WIDTH/2) )) # New Y to center list
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  CENTER_Y to center:${CENTER_Y}"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  CENTER_Y to center:${CENTER_Y}"
 
 	BOX_X=$((BOX_X_COORD+1))
 	BOX_Y=$((CENTER_Y+1))
@@ -373,6 +374,8 @@ selection_list_set_pg() {
 	local NDX=${2}
 	local P
 
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	for P in ${(onk)_PAGE_TOPS};do
 		[[ ${NDX} -ge ${_PAGE_TOPS[${P}]} ]] && _CUR_PAGE=${P}
 	done
@@ -404,7 +407,7 @@ selection_list_hilite () {
 	local TEXT=${3}
 	local F1 F2
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
 
 	tput cup ${X} ${Y}
 	tput smso
@@ -424,7 +427,7 @@ selection_list_norm () {
 	local TEXT=${3}
 	local F1 F2
 
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
 
 	tput cup ${X} ${Y}
 	tput rmso
@@ -440,11 +443,15 @@ selection_list_norm () {
 selection_list_set () {
 	local -a LIST=(${@})
 
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	_SELECTION_LIST=(${(on)LIST})
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${0} _SELECTION_LIST:${#_SELECTION_LIST} ITEMS"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${0} _SELECTION_LIST:${#_SELECTION_LIST} ITEMS"
 }
 
 selection_list_set_page_key_help () {
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	_PAGE_OPTION_KEY_HELP=${@}
 }
 

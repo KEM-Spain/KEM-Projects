@@ -75,9 +75,11 @@ for F in ${PWD}/*;do
 done
 
 for F in ${LOCAL_FILES};do
-	if [[ -e ${F} ]];then
+	if [[ -e ${F} && -f ${F} ]];then
 		PROD=$(fut findexe ${F})
-		if [[ ! ${PROD} =~ 'LOCAL' ]];then
+		[[ -z ${PROD} ]] && PROD="NOT FOUND"
+		#[[ -e ${PROD} && -f ${PROD} ]] && continue
+		if [[ ! ${PROD:l} =~ 'code/local' ]];then
 			diff -b ${F} ${PROD} >/dev/null 2>&1
 			if [[ ${?} -ne 0 ]];then
 				printf "Development:${WHITE_FG}%*s${RESET} ${BOLD}${RED_FG}%-15s${RESET} Production:${WHITE_FG}%s${RESET}\n" ${LONGEST} ${F}   'does not match' ${PROD}

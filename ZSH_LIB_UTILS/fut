@@ -155,6 +155,7 @@ ______EOF
 
 	if [[ ${#LIST} -gt 1 ]];then
 		for L in ${LIST};do
+			[[ ! -f ${L} ]] && continue
 			if [[ ${LOCAL} == 'true' ]];then
 				if [[ ${L:h} == ${PWD} ]];then
 					echo ${L}

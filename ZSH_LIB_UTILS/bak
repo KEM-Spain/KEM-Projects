@@ -69,13 +69,15 @@ get_prod_dir () {
 		echo ${_LIB_DIR}
 	else
 		CANDIDATE="$(fut findexe ${FN})"
-		#echo "CANDIDATE:${CANDIDATE}" >&2
 		if [[ -f ${CANDIDATE} ]];then # a regular file 
+			echo "CANDIDATE:${CANDIDATE}" >&2
 			if [[ ${CANDIDATE:l} =~ "/usr/local" ]];then
 				echo ${CANDIDATE:h}
 			else
 				echo "NOT_FOUND"
 			fi
+		else
+			echo "NOT_FOUND"
 		fi
 	fi
 }

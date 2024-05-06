@@ -1,6 +1,9 @@
 #LIB Dependencies
 _DEPS_+="TPUT.zsh DBG.zsh"
 
+#LIB Vars
+_STR_LIB_DBG=5
+
 str_array_to_num () {
 	local -a STR=(${@})
 	local MAX=${#STR}
@@ -8,7 +11,7 @@ str_array_to_num () {
 	local MAG=0
 	local S
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	((MAX--))
 	for S in ${STR};do
@@ -33,7 +36,7 @@ str_center () {
 	TEXT="${@}"
 	TEXT_WIDTH=${#TEXT}
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: WIDTH:${WIDTH} TEXT:${TEXT} TEXT_WIDTH:${TEXT_WIDTH}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: WIDTH:${WIDTH} TEXT:${TEXT} TEXT_WIDTH:${TEXT_WIDTH}"
 
 	REM=$(( WIDTH-${TEXT_WIDTH} ))
 	BORDER=' ' # Minimum border
@@ -47,7 +50,7 @@ str_center () {
 	[[ ${#MSG} -lt ${WIDTH} ]] && MSG=$(str_pad_string ${WIDTH} ${MSG})
 	[[ ${#MSG} -gt ${WIDTH} ]] && MSG=${MSG[1,${WIDTH}]} # Do not exceed width
 
-	[[ ${_DEBUG} -ge 4 ]] && echo "${WHITE_FG}\nLeaving${RESET}:${0} with [${MSG}] Length:${#MSG}" >&2 
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && echo "${WHITE_FG}\nLeaving${RESET}:${0} with [${MSG}] Length:${#MSG}" >&2 
 
 	echo "${MSG}"
 }
@@ -64,18 +67,18 @@ str_center_pad () {
 	WIDTH=${1};shift
 	TEXT=${@}
 	TEXT_WIDTH=${#TEXT}
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: WIDTH:${WIDTH} TEXT_WIDTH:${TEXT_WIDTH} TEXT:${TEXT}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: WIDTH:${WIDTH} TEXT_WIDTH:${TEXT_WIDTH} TEXT:${TEXT}"
 
 	REM=$((WIDTH-TEXT_WIDTH))
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: WIDTH-TEXT_WIDTH:$((WIDTH-TEXT_WIDTH)) REM:${REM}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: WIDTH-TEXT_WIDTH:$((WIDTH-TEXT_WIDTH)) REM:${REM}"
 
 	if [[ ${REM} -ne 0 ]];then
-		[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: REM:${REM}"
+		[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: REM:${REM}"
 		PAD=$(( REM/2 ))
 		BORDER=$(printf ' %.0s' {1..${PAD}})
-		[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: PAD:${PAD}"
+		[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: PAD:${PAD}"
 	fi
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BORDER:${#BORDER}:[${BORDER}] WIDTH-(PAD+TEXT_WIDTH+2):$(( WIDTH - (PAD+TEXT_WIDTH+2) ))"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BORDER:${#BORDER}:[${BORDER}] WIDTH-(PAD+TEXT_WIDTH+2):$(( WIDTH - (PAD+TEXT_WIDTH+2) ))"
 
 	echo "${BORDER}"
 }
@@ -84,7 +87,7 @@ str_clean_line_len () {
 	local STR_IN=${@}
 	local LENGTH
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	LENGTH=$(echo ${STR_IN} | sed -e 's/\x1b\[[0-9;]*m//g' -e 's/ *$//g' | tr -d '\011\012\015') # Ansi/trailing sp/newlines/etc
 	echo ${#LENGTH}
@@ -93,7 +96,7 @@ str_clean_line_len () {
 str_clean_path () {
 	local DIR=${1}
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	echo "${DIR}" | perl -pe 's#/+#/# G'
 }
@@ -102,7 +105,7 @@ str_expanded_length () {
 	local STR=${@}
 	local LEN
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	LEN=$(expand <<<${STR} | wc -m)
 	echo $((--LEN))
@@ -111,7 +114,7 @@ str_expanded_length () {
 str_from_hex () {
 	local HEX=${@}
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ -n ${HEX} ]] && printf $HEX
 }
@@ -119,7 +122,7 @@ str_from_hex () {
 str_pad_digit () {
 	local NDX=${1}
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${NDX} -lt 10 ]] && echo "  ${NDX}" && return
 	[[ ${NDX} -lt 100 ]] && echo " ${NDX}" && return
@@ -130,13 +133,13 @@ str_pad_string () {
 	local WIDTH
 	local STR
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	WIDTH=${1};shift
 	STR=${@}
 	STR="${STR}$(str_rep_char ' ' $((WIDTH-${#STR})))"
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Returning with:${WHITE_FG}[${STR}]${RESET}" >&2 
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Returning with:${WHITE_FG}[${STR}]${RESET}" >&2 
 
 	echo ${STR}
 }
@@ -147,7 +150,7 @@ str_pluralize () {
 	local RETURN_BOTH=${3:=false} # Any 3rd arg triggers 
 	local RETURN_WORD
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} WORD:${WORD}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} WORD:${WORD}"
 
 	if [[ ${CNT} -eq 1 ]];then
 		[[ ${RETURN_BOTH} == 'false' ]] && echo "${WORD}" || echo "${CNT} ${WORD}"
@@ -205,7 +208,7 @@ str_rep_char () {
 	local LINE
 	local X
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	LINE=''
 	for ((X=0;X < ${LENGTH};X++));do
@@ -239,9 +242,9 @@ str_strip_ansi () {
 	IFS='' #preserve white space
 	while read -r LINE_IN;do
 		# Strip ansi escape chars
-		[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LINE_IN:\"${LINE_IN}\""
+		[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LINE_IN:\"${LINE_IN}\""
 		LINE_OUT+=$(perl -pe 's/\x1B\[+[\d;]*[mK]//g' <<<${LINE_IN})
-		[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LINE_OUT:\"${LINE_OUT}\""
+		[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LINE_OUT:\"${LINE_OUT}\""
 	done
 
 	LEN=${#LINE_OUT}
@@ -256,7 +259,7 @@ str_strip_ansi () {
 str_to_hex () {
 	local TXT=${@}
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	echo $TXT | od -An -tx1 | tr -d '[\n]' | sed 's/ /\\x/g' 
 }
@@ -265,22 +268,22 @@ str_trim () {
 	local TEXT_IN=${@}
 	local TEXT
 
-		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-		[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TEXT_IN:\"${TEXT_IN}\""
+		[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+		[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TEXT_IN:\"${TEXT_IN}\""
 
 		if [[ -z ${TEXT_IN} && ! -t 0 ]];then
 			read TEXT
-			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_IN:\"${TEXT}\""
+			[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_IN:\"${TEXT}\""
 			TEXT=$(sed 's/\t/ /g' <<<${TEXT}) # tabs distort output
 			TEXT=$(sed 's/^ *//' <<<${TEXT}) # leading spaces
 			TEXT=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT})
-			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT}\""
+			[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT}\""
 			echo ${TEXT}
 		else
 			TEXT_IN=$(sed 's/\t/ /g' <<<${TEXT_IN}) # tabs distort output
 			TEXT_IN=$(sed 's/^ *//' <<<${TEXT_IN}) # leading spaces
 			TEXT_IN=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT_IN})
-			[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT_IN}\""
+			[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT_IN}\""
 		echo ${TEXT_IN}
 	fi
 }
@@ -289,7 +292,7 @@ str_truncate () {
 	local LENGTH=${1} && shift
 	local TEXT=${@}
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
 
 	echo ${TEXT[1,${LENGTH}]}
 }
@@ -298,7 +301,7 @@ str_unicode_line () {
 	local LENGTH=${1}
 	local HORIZ_BAR="\\u2500%.0s"
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
 
 	printf "\\u2500%.0s" {1..$((${LENGTH}))}
 }
@@ -308,7 +311,7 @@ str_unpipe () {
 	local CUT_PARAM
 	local PIPE_DATA
 
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${#} -gt 1 ]] && FIELD=${1} && shift
 	PIPE_DATA=${@}

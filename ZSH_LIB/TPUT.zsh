@@ -5,6 +5,7 @@ _DEPS_+="DBG.zsh"
 #LIB Vars
 _CURSOR=''
 _SMCUP=''
+_TPUT_LIB_DBG=5
 
 coord_center () {
 	local AREA=${1}
@@ -14,7 +15,7 @@ coord_center () {
 	local AC
 	local OC
 
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	CTR=$((AREA / 2))
 	REM=$((CTR % 2))
@@ -28,16 +29,22 @@ coord_center () {
 }
 
 cursor_off () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	tput civis >&2 # Hide cursor
 	_CURSOR=off
 }
 
 cursor_on () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	tput cnorm >&2 # Normal cursor
 	_CURSOR=on
 }
 
 cursor_row () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
   echo -ne "\033[6n" > /dev/tty
   read -t 1 -s -d 'R' line < /dev/tty
   line="${line##*\[}"
@@ -46,18 +53,26 @@ cursor_row () {
 }
 
 cursor_home () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	tput cup $(tput lines) 0
 }
 
 cursor_save () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	tput sc # Save cursor
 }
 
 cursor_restore () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	tput rc # Save cursor
 }
 
 do_rmcup () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	[[ ${_SMCUP} == 'false' ]] && return
 	tput rmcup
 	# Echo "called rmcup"
@@ -65,6 +80,8 @@ do_rmcup () {
 }
 
 do_smcup () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	[[ ${_SMCUP} == 'true' ]] && return
 	# Echo "calling smcup"
 	tput smcup
