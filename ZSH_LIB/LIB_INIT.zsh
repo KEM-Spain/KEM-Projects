@@ -39,6 +39,7 @@ unsetopt localtraps
 for SIG in {1..9}; do
 	trap 'exit_sigexit '${SIG}'' ${SIG}
 done
+_FUNC_TRAP=true
 
 # Initialize debugging
 [[ -e ${_DEBUG_FILE} ]] && /bin/rm ${_DEBUG_FILE}

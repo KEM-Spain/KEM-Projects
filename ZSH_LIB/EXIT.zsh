@@ -86,15 +86,6 @@ exit_request () {
 		if [[ ${_FUNC_TRAP} == 'true' ]];then
 			exit_pre_exit
 			[[ ${_SMCUP} == 'true' ]] && do_rmcup
-
-#			if [[ ${_DEBUG} -ne 0 ]];then
-#				dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
-#				dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
-#				dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
-#				dbg "${RED_FG}${0}${RESET}: _SMCUP:${_SMCUP}"
-#				dbg_msg | mypager wait
-#			fi
-
 			exit 0
 		else
 			exit_leave

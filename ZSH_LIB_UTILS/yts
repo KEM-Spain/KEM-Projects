@@ -44,7 +44,7 @@ _FIELD_LEN[title]=90
 _JS_SCRIPT=/usr/local/etc/yts.js
 _OBJECT=video
 _YTS_FAVORITES=~/.yts_history
-_YTS_DBG=3
+_YTS_DBG=2
 
 #Globals
 g_FAVORITE=''
