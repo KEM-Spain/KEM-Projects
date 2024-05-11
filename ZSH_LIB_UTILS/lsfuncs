@@ -23,15 +23,7 @@ typeset -aU _FUNC_MATCH
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
-
-for D in ${=_DEPS_};do
-	if [[ -e ${_LIB_DIR}/${D} ]];then
-		source ${_LIB_DIR}/${D}
-	else
-		echo "Cannot source:${_LIB_DIR}/${D} - not found"
-		exit 1
-	fi
-done
+source ${_LIB_DIR}/GET_DEPS.zsh
 
 # Functions
 action_do () {
@@ -335,13 +327,14 @@ list_set_clear_ghosts true
 list_set_client_warn true
 
 while true;do
-	# get selection
+	# input selections
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	# get selections
+	# store selections
 	MARKED=($(list_get_selected))
 	
+	# process selections
 	[[ ${#MARKED} -ne 0 ]] && action_do ${MARKED}
 done
 

@@ -1,5 +1,4 @@
 #!/usr/bin/zsh
-#TODO: eztv is broken
 (
 exec python3 /usr/local/bin/__pyscripts__/pyts/pyts $@ && echo &
 ) 2>/dev/null

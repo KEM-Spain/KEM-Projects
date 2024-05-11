@@ -440,6 +440,49 @@ selection_list_norm () {
 	fi
 }
 
+selection_list_repaint_section () {
+	#TODO modify to accomodate selection list
+	local -A MC=($(msg_get_box_coords kv))
+	local ROWS=${1}
+	local PAGE=${2}
+	local START_ROW=${MC[X]}
+	local END_ROW=0
+	local HDR_OFFSET=${#_LIST_HEADER}
+	local SAVED_NDX=${_LIST_NDX}
+	local CURSOR=0
+	local DISPLAY_ROWS=0
+	local START_COL=${MC[Y]}
+	local END_COL=$((START_COL+${MC[W]}))
+	local LINE_SNIP=''
+	local R
+
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	DISPLAY_ROWS=$(( ${_LIST_INDEX_RANGE[2]} - ${_LIST_INDEX_RANGE[1]} +1 ))
+	CURSOR=$(( START_ROW - 1 ))
+
+	[[ ${_LIST_HEADER_BREAK} == 'true' ]] && ((HDR_OFFSET++))
+	((HDR_OFFSET--))
+
+	START_ROW=$(( ${_LIST_INDEX_RANGE[1]} + START_ROW - HDR_OFFSET - 1))
+	END_ROW=$((START_ROW + ROWS - 1))
+	_LIST_NDX=$(( START_ROW - 1 ))
+
+	for ((R=START_ROW; R<=END_ROW; R++));do
+		((CURSOR++))
+		((_LIST_NDX++))
+		if [[ ${_BARLINES} == 'true' ]];then
+			BARLINE=$((_LIST_NDX % 2)) # Barlining 
+			[[ ${BARLINE} -ne 0 ]] && BAR=${BLACK_BG} || BAR="" # Barlining
+		fi
+		if [[ ${_LIST_NDX} -le ${#_LIST} ]];then
+			tput cup ${CURSOR} 0
+			eval ${_LIST_LINE_ITEM} # line item printf
+		fi
+	done
+	_LIST_NDX=${SAVED_NDX}
+}
+
 selection_list_set () {
 	local -a LIST=(${@})
 
@@ -454,4 +497,3 @@ selection_list_set_page_key_help () {
 
 	_PAGE_OPTION_KEY_HELP=${@}
 }
-

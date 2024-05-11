@@ -31,15 +31,7 @@ _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/VALIDATE.zsh
-
-for D in ${=_DEPS_};do
-	if [[ -e ${_LIB_DIR}/${D} ]];then
-		source ${_LIB_DIR}/${D}
-	else
-		echo "Cannot source:${_LIB_DIR}/${D} - not found"
-		exit 1
-	fi
-done
+source ${_LIB_DIR}/GET_DEPS.zsh
 
 #Defaults
 NUM_COLS=7
@@ -124,7 +116,7 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 #Execution
-echo "THIS IS BROKEN - WORK IN PROGRESS"
+#echo "$0 is broken - Work In Progress"
 if ! validate_is_integer ${NUM_COLS};then
 	usage "Invalid $(opt_type i) Number of Columns:${NUM_COLS}"
 elif ! validate_is_integer ${COL_WIDTH};then

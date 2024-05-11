@@ -90,8 +90,10 @@ exit_request () {
 		else
 			exit_leave
 		fi
+	else
+		set > vars
+		list_repaint_section 3 ${_CURRENT_PAGE}
 	fi
-	msg_box_clear
 }
 
 exit_sigexit () {

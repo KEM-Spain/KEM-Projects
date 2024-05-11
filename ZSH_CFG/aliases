@@ -15,7 +15,7 @@ alias pdf2txt='/usr/bin/pdftotext -layout -nopgbrk >/dev/null 2>&1 &'
 alias sc='sudo systemctl'
 alias spot='/usr/local/bin/system/launchers/run_spotify >/dev/null 2>&1 &'
 alias templates='ls /usr/local/etc/*template'
-alias viber='/opt/viber/Viber >/dev/null 2>&1 &'
+#alias viber='/opt/viber/Viber >/dev/null 2>&1 &'
 #alias vlc='/usr/bin/vlc 2>/dev/null'
 alias wim='mono /usr/local/src/RemoteMouse/RemoteMouse.exe >/dev/null 2>&1 &'
 

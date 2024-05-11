@@ -10,6 +10,11 @@ match=''
 mbegin=''
 mend=''
 
+# Shared Functions
+list_set_type () {
+	_LIST_TYPE=${1}
+}
+
 # Constants
 _GEO_KEY="key=uMibiyDeEGlYxeK3jx6J"
 _GEO_PROVIDER="https://extreme-ip-lookup.com"
@@ -19,7 +24,6 @@ _SCRIPT=${$(cut -d: -f1 <<<${funcfiletrace}):t}
 _DEBUG_FILE=/tmp/${_SCRIPT}_debug.out
 _XSET_DEFAULT_RATE="r rate 500 33" # Default rate
 _XSET_LOW_RATE="r rate 500 8" # Menu rate
-[[ -n ${LIB_TESTING} ]] && _LIB=/home/kmiller/Code/LOCAL/LIBS || _LIB=/usr/local/lib
 
 # LIB declarations
 typeset -aU _DEPS_
@@ -29,10 +33,28 @@ _CURSOR_STATE=on
 _DEBUG_INIT=true
 _DEBUG=0
 _EXIT_MSGS=''
+_LIST_TYPE=''
 
 # Import default LIBS
-source ${_LIB}/ANSI.zsh
-source ${_LIB}/EXIT.zsh
+if [[ -e ./LIB_INIT.zsh && ${LIB_TESTING} == 'true' ]];then
+	_LIB_DIR=${PWD}
+	source ${_LIB_DIR}/MSG.zsh
+	for D in ${=_DEPS_};do
+		if [[ -e ${_LIB_DIR}/${D} ]];then
+			source ${_LIB_DIR}/${D}
+		else
+			echo "Cannot source:${_LIB_DIR}/${D} - not found"
+			exit 1
+		fi
+	done
+	clear
+	msg_box "TESTMODE is on"
+else
+	_LIB_DIR=/usr/local/lib
+fi
+
+source ${_LIB_DIR}/ANSI.zsh
+source ${_LIB_DIR}/EXIT.zsh
 
 # Initialize traps
 unsetopt localtraps
@@ -43,3 +65,4 @@ _FUNC_TRAP=true
 
 # Initialize debugging
 [[ -e ${_DEBUG_FILE} ]] && /bin/rm ${_DEBUG_FILE}
+

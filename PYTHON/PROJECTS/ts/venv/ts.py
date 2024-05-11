@@ -773,7 +773,7 @@ class ListingWin(Gtk.Window):
 
 
 class EztvModel:
-    */ Broken */
+    # Broken 
     myUrl = ENGINE_URLS["eztv"]
 
     def filter_sz_age(tag):
@@ -1064,7 +1064,7 @@ class TorrentRequest:
                     for selected_title in listing_win.selected_titles:  # Pass selected magnets to torrent client
                         subprocess.Popen([TORRENT_CLIENT, listing_win.magnet_dict[selected_title]],
                                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        time.sleep(0.5)
+                        time.sleep(1.2)
 
                     app_exit()
 

@@ -83,13 +83,14 @@ msg_box () {
 	local PROC_MSG=false
 	local PROMPT_TEXT=''
 	local PROMPT_USER=false
+	local QUIET=false
 	local SAFE=true
 	local SO=false
 	local TEXT_STYLE=c # default to center
 	local TIMEOUT=0
 	local CONTINUOUS=false
 
-	local OPTSTR=":DH:P:O:CRch:inpruj:s:t:w:x:y:"
+	local OPTSTR=":DH:P:O:CRch:inpqruj:s:t:w:x:y:"
 	OPTIND=0
 
 	while getopts ${OPTSTR} OPTION;do
@@ -105,6 +106,7 @@ msg_box () {
 			j) TEXT_STYLE=${OPTARG};;
 			p) PROMPT_USER=true;;
 			P) PROMPT_TEXT=${OPTARG};;
+			q) QUIET=true;;
 			r) SO=true;;
 			s) DELIM_ARG="${OPTARG}";;
 			t) TIMEOUT="${OPTARG}";;
@@ -135,7 +137,7 @@ msg_box () {
 
 	# Long messages display feedback while parsing
 	MSG_LEN=${*}
-	if [[ ${#MSG_LEN} -gt 250 ]];then
+	if [[ ${#MSG_LEN} -gt 250 && ${QUIET} == 'false' ]];then
 		local -a PROC_MSG_BOX=(18 80 20 3)
 		echo -n ${_OUTLINE_COLOR}
 		msg_unicode_box ${PROC_MSG_BOX}

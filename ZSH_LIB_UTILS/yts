@@ -64,15 +64,7 @@ source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
-
-for D in ${=_DEPS_};do
-	if [[ -e ${_LIB_DIR}/${D} ]];then
-		source ${_LIB_DIR}/${D}
-	else
-		echo "Cannot source:${_LIB_DIR}/${D} - not found"
-		exit 1
-	fi
-done
+source ${_LIB_DIR}/GET_DEPS.zsh
 
 #Functions
 
@@ -257,9 +249,7 @@ action_do () {
 				[[ ${LOG_SIZE_COUNT} -ge ${JOB_STALL} ]] && msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Stalled<N>"
 				LAST_LOG_SIZE=${LOG_SIZE}
 			fi
-
 			sleep .1
-
 		done
 		NDX=0
 		clear_log "action_do"

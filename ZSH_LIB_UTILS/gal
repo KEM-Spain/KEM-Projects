@@ -62,15 +62,8 @@ source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/VALIDATE.zsh
 source ${_LIB_DIR}/DURABLE.zsh
+source ${_LIB_DIR}/GET_DEPS.zsh
 
-for D in ${=_DEPS_};do
-	if [[ -e ${_LIB_DIR}/${D} ]];then
-		source ${_LIB_DIR}/${D}
-	else
-		echo "Cannot source:${_LIB_DIR}/${D} - not found"
-		exit 1
-	fi
-done
 #Declarations
 typeset -A ALIAS_LIST
 typeset -a _SEARCH_MSGS
