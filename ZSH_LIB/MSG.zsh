@@ -452,31 +452,32 @@ msg_box_frame () {
 	echo -n ${_OUTLINE_COLOR}
 	msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
 	echo -n ${RESET}
+	_OUTLINE_COLOR=${RESET}
 }
 
 msg_box_clear () {
-	local BOX_X_COORD=${1}
-	local BOX_Y_COORD=${2}
-	local BOX_HEIGHT=${3}
-	local BOX_WIDTH=${4}
+	local X_COORD_ARG=${1}
+	local Y_COORD_ARG=${2}
+	local H_COORD_ARG=${3}
+	local W_COORD_ARG=${4}
 	local -A MBOX_COORDS=($(box_coords_get MSG))
 	local X
 
-	# Pass a coord or 'X,Y,H,W' to use value from history or use all history values if nothing passed
-	[[ -z ${BOX_X_COORD} || ${BOX_X_COORD} == 'X' ]] && BOX_X_COORD=${MBOX_COORDS[X]}
-	[[ -z ${BOX_Y_COORD} || ${BOX_Y_COORD} == 'Y' ]] && BOX_Y_COORD=${MBOX_COORDS[Y]}
-	[[ -z ${BOX_HEIGHT} || ${BOX_HEIGHT} == 'H' ]] && BOX_HEIGHT=${MBOX_COORDS[H]}
-	[[ -z ${BOX_WIDTH} || ${BOX_WIDTH} == 'W' ]] && BOX_WIDTH=${MBOX_COORDS[W]}
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  MBOX_COORDS:${(kv)MBOX_COORDS}"
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X_COORD_ARG:${X_COORD_ARG}  Y_COORD_ARG:${Y_COORD_ARG} H_COORD_ARG:${H_COORD_ARG} W_COORD_ARG:${W_COORD_ARG}"
 
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  MBOX_COORDS:${MBOX_COORDS}"
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD}  BOX_Y_COORD:${BOX_Y_COORD} BOX_HEIGHT:${BOX_HEIGHT} BOX_WIDTH:${BOX_WIDTH}"
+	#  Substitute value from arg or use history value if nothing passed
+	[[ -z ${X_COORD_ARG} || ${X_COORD_ARG} == 'X' ]] && X_COORD_ARG=${MBOX_COORDS[X]}
+	[[ -z ${Y_COORD_ARG} || ${Y_COORD_ARG} == 'Y' ]] && Y_COORD_ARG=${MBOX_COORDS[Y]}
+	[[ -z ${H_COORD_ARG} || ${H_COORD_ARG} == 'H' ]] && H_COORD_ARG=${MBOX_COORDS[H]}
+	[[ -z ${W_COORD_ARG} || ${W_COORD_ARG} == 'W' ]] && W_COORD_ARG=${MBOX_COORDS[W]}
 
-	[[ ${BOX_HEIGHT} -eq 0 ]] && return # Ignore
+	[[ ${H_COORD_ARG} -eq 0 ]] && return # Ignore
 
-	for ((X=BOX_X_COORD; X<=BOX_X_COORD+BOX_HEIGHT-1; X++));do
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X:${X}, BOX_X_COORD:${BOX_X_COORD}, BOX_WIDTH:${BOX_WIDTH}"
-		tput cup ${X} ${BOX_Y_COORD}
-		tput ech ${BOX_WIDTH}
+	for ((X=X_COORD_ARG; X<=X_COORD_ARG+H_COORD_ARG-1; X++));do
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X:${X}, X_COORD_ARG:${X_COORD_ARG}, W_COORD_ARG:${W_COORD_ARG}"
+		tput cup ${X} ${Y_COORD_ARG}
+		tput ech ${W_COORD_ARG}
 	done
 }
 

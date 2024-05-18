@@ -186,7 +186,7 @@ for L in ${(o)_RAWLIST};do
 done
 LONGEST=$(( LONGEST+4 )) # allow for directory markup ' (d)'
 
-_LOCAL_LIST=("${(f)$(list_sort_perl ${_LIST_DELIM} 4 a _SORT_LIST)}") && _SORT_DIRECTION[3]=d # default sort mod_date desc
+_LOCAL_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} 4 a _SORT_LIST)}") && _SORT_DIRECTION[3]=d # default sort mod_date desc
 
 if [[ ${_DEBUG} -ge 4 ]];then
 	dbg "${0}:${LINENO} $(for L in ${_LOCAL_LIST};do echo "${L}";done)"

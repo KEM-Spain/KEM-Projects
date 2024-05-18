@@ -20,6 +20,8 @@ arg_parse () {
 	local NDX
 	local KEY
 
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	NDX=0
 	for A in ${@};do
 		if [[ ${KWD} == 'true' ]];then
@@ -43,6 +45,8 @@ box_coords_set () {
 	local TAG=${ARGS[1]}
 	local COORDS=${ARGS[2,-1]}
 
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	_COORD_TAB[${TAG}_${NDX}]=${COORDS}
 	_BOX_COORDS[${TAG}]=${TAG}_${NDX}
 }
@@ -50,6 +54,8 @@ box_coords_set () {
 box_coords_get () {
 	local TAG=${1}
 	local KEY=${_BOX_COORDS[${TAG}]}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ -z ${KEY} ]] && return 1
 
@@ -59,6 +65,8 @@ box_coords_get () {
 
 boolean_color () {
 	local STATE=${1}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	case ${STATE} in
 		0) echo ${GREEN_FG};;
@@ -76,6 +84,8 @@ boolean_color_word () {
 	local STATE=${1}
 	local ANSI_ECHO=false
 
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	[[ ${#} -eq 2 ]] && ANSI_ECHO=true
 	
 	case ${STATE} in
@@ -90,6 +100,8 @@ boolean_color_word () {
 
 cmd_get_raw () {
 	local CMD_LINE
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	fc -R
 	CMD_LINE=("${(f)$(fc -lnr | head -1)}") # Parse raw cmdline
@@ -107,6 +119,8 @@ format_pct () {
 	local -F7 P7
 	local -F8 P8
 	local PCT
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	# Decrease decimal places based on intensity
 	P8=${ARG}
@@ -137,6 +151,8 @@ get_delim_field_cnt () {
 	local DELIM_ROW=${@}
 	local FCNT=0
 	local DELIM=$(parse_find_valid_delim ${DELIM_ROW})
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	if [[ -n ${DELIM} ]];then
 		FCNT=$(echo ${DELIM_ROW} | grep -o ${DELIM} | wc -l)
@@ -249,6 +265,8 @@ inline_vi_edit () {
 	local CUR_VALUE=${2}
 	local PERL_SCRIPT
 	
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	read -r -d '' PERL_SCRIPT <<'___EOF'
 	use warnings;
 	use strict;
@@ -316,6 +334,8 @@ is_singleton () {
 	local EXEC_NAME=${1}
 	local INSTANCES=$(pgrep -fc ${EXEC_NAME})
 
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	[[ ${INSTANCES} -eq 0 ]] && return 0 || return 1
 }
 
@@ -328,6 +348,8 @@ is_symbol_dir () {
 }
 
 kbd_activate () {
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	[[ ${XDG_SESSION_TYPE:l} != 'x11' ]] && return 0
 
 	local KEYBOARD_DEV=$(kbd_get_keyboard_id)
@@ -336,6 +358,8 @@ kbd_activate () {
 }
 
 kbd_get_keyboard_id () {
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	[[ ${XDG_SESSION_TYPE:l} != 'x11' ]] && return 0
 
 	local KEYBOARD_DEV=$(xinput list | grep  "AT Translated" | cut -f2 | cut -d= -f2)
@@ -344,6 +368,8 @@ kbd_get_keyboard_id () {
 }
 
 kbd_suspend () {
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	[[ ${XDG_SESSION_TYPE:l} != 'x11' ]] && return 0
 
 	local KEYBOARD_DEV=$(kbd_get_keyboard_id)
@@ -352,12 +378,17 @@ kbd_suspend () {
 }
 
 key_wait () {
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	echo -n "Press any key..." && read -sk1
 }
 
 logit () {
 	local MSG=${@}
 	local STAMP=$(date +'%Y-%m-%d:%T')
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	echo "${STAMP} ${MSG}" >> ${_LOG:=/tmp/${0}.log}
 }
 
@@ -380,6 +411,8 @@ parse_find_valid_delim () {
 parse_get_last_field () {
 	local DELIM=${1};shift
 	local LINE=${@}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	echo -n ${LINE} | rev | cut -d"${DELIM}" -f1 | rev
 }

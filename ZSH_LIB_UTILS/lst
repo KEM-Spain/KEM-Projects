@@ -43,6 +43,7 @@ typeset -a _RAWLIST
 typeset -a _LOCAL_LIST
 typeset -a _MARKED=()
 typeset -A _KNOWN_TYPES=(\
+bak backup \
 mscz musescore \
 mscz, musescore-backup \
 zip archive \
@@ -57,6 +58,7 @@ tar package \
 json data \
 xml data \
 swp vim-lock \
+zsh zsh \
 )
 
 #Functions
@@ -162,6 +164,7 @@ type_color () {
 
 	case ${TYPE} in
 		*application*) COLOR=CYAN;;
+		*backup*) COLOR=RED;;
 		*binary*) COLOR=RED;;
 		*directory*) COLOR=CYAN;;
 		*empty*) COLOR=WHITE;;
@@ -323,7 +326,7 @@ if [[ ${_DEBUG} -ge 4 ]];then
 	done | dbg
 fi
 
-_LOCAL_LIST=("${(f)$(list_sort_perl ${_LIST_DELIM} 2 a _LOCAL_LIST)}") # Forward sort default type asc
+_LOCAL_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} 2 a _LOCAL_LIST)}") # Forward sort default type asc
 
 #Verify existence of data
 if ! arr_is_populated "${_LOCAL_LIST}";then

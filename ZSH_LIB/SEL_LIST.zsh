@@ -136,7 +136,7 @@ selection_list () {
 		BOX_WIDTH=$(( _SL_MAX_ITEM_LEN+2 ))
 	fi
 
-	msg_box_clear
+	#msg_box_clear
 
 	[[ ${MAX_X_COORD} -lt ${BOX_HEIGHT} ]] && BOX_HEIGHT=$((MAX_X_COORD-10 )) # Long list
 
