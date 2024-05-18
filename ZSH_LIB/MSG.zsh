@@ -3,23 +3,10 @@ _DEPS_+="ARRAY.zsh DBG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 
 #LIB Declarations
 typeset -a _LIST # Holds the list values to be managed by the list menu
-typeset -A _MSG_BOX_COORDS=(X 0 Y 0 H 0 W 0) # Holds the coordinates (X,Y,H,W) of the last displayed msg_box
-typeset -A _CONT_BOX_COORDS=(X 0 Y 0 H 0 W 0) # Holds the coordinates (X,Y,H,W) of the last displayed msg_box
 typeset -a _CONT_BUFFER=()
-typeset -A _CONT_COORDS=()
+typeset -A _CONT_DATA=(BOX false COLS 0 HDRS 0 MAX 0 OUT 0 SCR 0 TOP 0 Y 0 W 0)
+
 _OUTLINE_COLOR=${RESET}
-_CONT_BOX=false
-_CONT_COLS=0
-_CONT_HDRS=0
-_CONT_MAX=0
-_CONT_NDX=0
-_CONT_OUT=0
-_CONT_SCR=0
-_CONT_TOP=0
-_CONT_X=0
-_CONT_Y=0
-_CONT_H=0
-_CONT_W=0
 
 #LIB Vars
 _MSG_KEY=''
@@ -28,7 +15,8 @@ _MSG_LIB_DBG=4
 msg_box () {
 	local -a MSGS=()
 	local -a HDR=()
-	local -a MFOLD
+	local -a MSG_FOLD
+	local -A CONT_COORDS
 	local MAX_X_COORD=$((_MAX_ROWS-5)) # Not including frame 5 up from bottom, 4 with frame
 	local MAX_Y_COORD=$((_MAX_COLS-10)) # Not including frame 10 from sides, 9 with frame
 	local MIN_X_COORD=$(( (_MAX_ROWS-MAX_X_COORD)-1 )) # vertical limit
@@ -41,35 +29,27 @@ msg_box () {
 	local BOX_Y_COORD=0
 	local BREAK_POINT=0
 	local DELIM='|'
-	local DELIM_ARG=?
 	local DISPLAY_ROWS=0
 	local DTL_NDX=0
-	local FRAME
 	local GAP=0
 	local GAP_NDX=0
-	local HAVE_TOKEN=false
-	local IN_TOKEN=false
-	local KEY
-	local LAST_LINE
-	local MSG_CLEAN
+	local KEY=''
+	local LAST_LINE=''
 	local MSG_COLS=0
 	local MSG_COUNT=0
-	local MSG_LEN
+	local MSG_LEN=0
 	local MSG_NDX=0
-	local MSG_OUT
-	local MSG_STR
+	local MSG_OUT=0
+	local MSG_STR=''
 	local MSG_X_COORD=0
 	local MSG_Y_COORD=0
-	local OPTION
-	local PADDED
+	local OPTION=''
 	local PAGING=false
 	local SCR_NDX=0
-	local STYLE
-	local TOKEN
 	local X M K T
 
 	# OPTIONS
-	local -a MSG
+	local -a MSG=()
 	local BOX_HEIGHT=0
 	local BOX_WIDTH=0
 	local CLEAR_MSG=false
@@ -97,15 +77,15 @@ msg_box () {
 		case ${OPTION} in
 			D) MSG_DEBUG=true;;
 			H) HEADER_LINES=${OPTARG};;
-			O) _OUTLINE_COLOR=${OPTARG};;
 			C) CONTINUOUS=true;;
-			R) _CONT_BOX=false;;
+			O) _OUTLINE_COLOR=${OPTARG};;
+			P) PROMPT_TEXT=${OPTARG};;
+			R) _CONT_DATA[BOX]=false;;
 			c) CLEAR_MSG=true;;
 			h) BOX_HEIGHT=${OPTARG};;
 			i) IGNORE_MARKUP=true;;
 			j) TEXT_STYLE=${OPTARG};;
 			p) PROMPT_USER=true;;
-			P) PROMPT_TEXT=${OPTARG};;
 			q) QUIET=true;;
 			r) SO=true;;
 			s) DELIM_ARG="${OPTARG}";;
@@ -182,8 +162,8 @@ msg_box () {
 		K=$(tr -d '[:space:]' <<<${M})
 		[[ -z ${K} ]] && continue
 		if [[ ${#M} -gt ${MAX_LINE_WIDTH} ]];then
-			MFOLD=("${(f)$(fold -s -w${MAX_LINE_WIDTH} <<<${M})}")
-			for T in ${MFOLD};do
+			MSG_FOLD=("${(f)$(fold -s -w${MAX_LINE_WIDTH} <<<${M})}")
+			for T in ${MSG_FOLD};do
 				MSGS+=${T}
 				((DISPLAY_ROWS++))
 			done
@@ -251,7 +231,7 @@ msg_box () {
 	fi
 
 	# Save box coords
-	_MSG_BOX_COORDS=(X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH})
+	box_coords_set MSG X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH}
 
 	# Prepare display
 	[[ ${SO} == 'true' ]] && tput smso # Standout mode
@@ -269,20 +249,20 @@ msg_box () {
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}MESSAGE PAGING PREDICTED; ADDING NAV BAR${RESET}"
 		MSGS=("${NAV_BAR}" ${MSGS[@]})
 		[[ ${BOX_WIDTH} -lt 60 ]] && BOX_WIDTH=60 # Wide enough to display nav
-		_MSG_BOX_COORDS=(X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH})
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  _MSG_BOX_COORDS: ${(kv)_MSG_BOX_COORDS}"
+		box_coords_set MSG X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH}
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  MSG_BOX_COORDS: $(box_coords_get MSG)"
 	fi
 
 	#call once for CONTINUOUS
 	if [[ ${CONTINUOUS} == 'true' ]];then
-		if [[ ${_CONT_BOX} == 'false' ]];then
+		if [[ ${_CONT_DATA[BOX]} == 'false' ]];then
 			msg_box_frame ${_OUTLINE_COLOR} ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
-			_CONT_BOX_COORDS=(X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH})
-			_CONT_W=${BOX_WIDTH}
-			_CONT_HDRS=${HEADER_LINES}
-			_CONT_OUT=0
+			box_coords_set CONT X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} 
+			_CONT_DATA[W]=${BOX_WIDTH}
+			_CONT_DATA[HDRS]=${HEADER_LINES}
+			_CONT_DATA[OUT]=0
 			_CONT_BUFFER=()
-			_CONT_BOX=true
+			_CONT_DATA[BOX]=true
 		fi
 	else
 		msg_box_frame ${_OUTLINE_COLOR} ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
@@ -325,37 +305,37 @@ msg_box () {
 	# Output MSG lines
 
 	if [[ ${CONTINUOUS} == 'true' ]];then
-		_CONT_COORDS=($(msg_get_cbox_coords kv))
-		_CONT_TOP=${_CONT_COORDS[X]} && ((_CONT_TOP++))
-		_CONT_Y=${_CONT_COORDS[Y]} && ((_CONT_Y++))
-		_CONT_MAX=${_CONT_COORDS[H]} && ((_CONT_MAX-=2))
-		_CONT_COLS=${_CONT_COORDS[W]} && ((_CONT_COLS-=4))
+		CONT_COORDS=($(box_coords_get CONT))
+		_CONT_DATA[TOP]=${CONT_COORDS[X]} && ((_CONT_DATA[TOP]++))
+		_CONT_DATA[Y]=${CONT_COORDS[Y]} && ((_CONT_DATA[Y]++))
+		_CONT_DATA[MAX]=${CONT_COORDS[H]} && ((_CONT_DATA[MAX]-=2))
+		_CONT_DATA[COLS]=${CONT_COORDS[W]} && ((_CONT_DATA[COLS]-=4))
 
-		[[ ${_CONT_OUT} -eq 0 ]] && _CONT_SCR=${_CONT_TOP}
-		[[ ${_CONT_HDRS} -gt 0 ]] && (( _CONT_TOP += _CONT_HDRS ))
+		[[ ${_CONT_DATA[OUT]} -eq 0 ]] && _CONT_DATA[SCR]=${_CONT_DATA[TOP]}
+		[[ ${_CONT_DATA[HDRS]} -gt 0 ]] && (( _CONT_DATA[TOP] += _CONT_DATA[HDRS] ))
 
-		if [[ ${_CONT_OUT} -ge $((_CONT_MAX)) ]];then
+		if [[ ${_CONT_DATA[OUT]} -ge ${_CONT_DATA[MAX]} ]];then
 			shift _CONT_BUFFER
-			_CONT_SCR=${_CONT_TOP}
+			_CONT_DATA[SCR]=${_CONT_DATA[TOP]}
 			for M in ${_CONT_BUFFER};do
-				tput cup ${_CONT_SCR} ${_CONT_Y} # Place cursor
-				tput ech ${_CONT_COLS} # Clear line
+				tput cup ${_CONT_DATA[SCR]} ${_CONT_DATA[Y]} # Place cursor
+				tput ech ${_CONT_DATA[COLS]} # Clear line
 				echo -n "${M}" #Output buffer
-				((_CONT_SCR++))
-				((_CONT_OUT++))
+				((_CONT_DATA[SCR]++))
+				((_CONT_DATA[OUT]++))
 			done
 		fi
 		 
-		MSG_OUT=$(msg_box_align ${_CONT_W} ${MSGS[1]}) # Apply padding to both sides of msg
+		MSG_OUT=$(msg_box_align ${_CONT_DATA[W]} ${TEXT_STYLE} ${MSGS[1]}) # Apply padding to both sides of msg
 		MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
 
-		tput cup ${_CONT_SCR} ${_CONT_Y} # Place cursor
-		tput ech ${_CONT_COLS} # Clear line
+		tput cup ${_CONT_DATA[SCR]} ${_CONT_DATA[Y]} # Place cursor
+		tput ech ${_CONT_DATA[COLS]} # Clear line
 		echo -n "${MSG_OUT}" # Output line
 
-		[[ ${_CONT_OUT} -ge ${_CONT_HDRS} ]] && _CONT_BUFFER+=${MSG_OUT}
-		((_CONT_SCR++))
-		((_CONT_OUT++))
+		[[ ${_CONT_DATA[OUT]} -ge ${_CONT_DATA[HDRS]} ]] && _CONT_BUFFER+=${MSG_OUT}
+		((_CONT_DATA[SCR]++))
+		((_CONT_DATA[OUT]++))
 	else
 		# Initialize indexes
 		BREAK_POINT=${DISPLAY_ROWS}
@@ -368,7 +348,7 @@ msg_box () {
 			((SCR_NDX++))
 			((DTL_NDX++))
 
-			MSG_OUT=$(msg_box_align ${BOX_WIDTH} ${MSGS[${MSG_NDX}]}) # Apply padding to both sides of msg
+			MSG_OUT=$(msg_box_align ${BOX_WIDTH} ${TEXT_STYLE} ${MSGS[${MSG_NDX}]}) # Apply padding to both sides of msg
 			MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
@@ -422,7 +402,8 @@ msg_box () {
 }
 
 msg_box_align () {
-	local BOX_WIDTH=${1}; shift
+	local BOX_WIDTH=${1}
+	local STYLE=${2}; shift 2
 	local MSG=${@}
 	local MSG_OUT
 	local MSG_PAD_L
@@ -440,15 +421,15 @@ msg_box_align () {
 		MSG_OUT=$(sed 's/^/\\u2022 /g' <<<${MSG_OUT})
 		MSG_PAD_L=' '
 		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
-	elif [[ ${TEXT_STYLE} == 'l' ]];then # Left
+	elif [[ ${STYLE} == 'l' ]];then # Left
 		MSG_OUT=$(str_trim ${MSG})
 		MSG_PAD_L=' '
 		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
-	elif [[ ${TEXT_STYLE} == 'c' ]];then # Center
+	elif [[ ${STYLE} == 'c' ]];then # Center
 		MSG_OUT=$(str_trim ${MSG})
 		MSG_PAD_L=$(str_center_pad $((BOX_WIDTH-2)) $(msg_nomarkup ${MSG_OUT}))
 		MSG_PAD_R=$(str_rep_char ' ' $(( ${#MSG_PAD_L}-1 )) )
-	elif [[ ${TEXT_STYLE} == 'n' ]];then # Normal
+	elif [[ ${STYLE} == 'n' ]];then # Normal
 		MSG_OUT=${MSG}
 		MSG_PAD_L=' '
 		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
@@ -478,15 +459,16 @@ msg_box_clear () {
 	local BOX_Y_COORD=${2}
 	local BOX_HEIGHT=${3}
 	local BOX_WIDTH=${4}
+	local -A MBOX_COORDS=($(box_coords_get MSG))
 	local X
 
 	# Pass a coord or 'X,Y,H,W' to use value from history or use all history values if nothing passed
-	[[ -z ${BOX_X_COORD} || ${BOX_X_COORD} == 'X' ]] && BOX_X_COORD=${_MSG_BOX_COORDS[X]}
-	[[ -z ${BOX_Y_COORD} || ${BOX_Y_COORD} == 'Y' ]] && BOX_Y_COORD=${_MSG_BOX_COORDS[Y]}
-	[[ -z ${BOX_HEIGHT} || ${BOX_HEIGHT} == 'H' ]] && BOX_HEIGHT=${_MSG_BOX_COORDS[H]}
-	[[ -z ${BOX_WIDTH} || ${BOX_WIDTH} == 'W' ]] && BOX_WIDTH=${_MSG_BOX_COORDS[W]}
+	[[ -z ${BOX_X_COORD} || ${BOX_X_COORD} == 'X' ]] && BOX_X_COORD=${MBOX_COORDS[X]}
+	[[ -z ${BOX_Y_COORD} || ${BOX_Y_COORD} == 'Y' ]] && BOX_Y_COORD=${MBOX_COORDS[Y]}
+	[[ -z ${BOX_HEIGHT} || ${BOX_HEIGHT} == 'H' ]] && BOX_HEIGHT=${MBOX_COORDS[H]}
+	[[ -z ${BOX_WIDTH} || ${BOX_WIDTH} == 'W' ]] && BOX_WIDTH=${MBOX_COORDS[W]}
 
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  _MSG_BOX_COORDS:${_MSG_BOX_COORDS}"
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  MBOX_COORDS:${MBOX_COORDS}"
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD}  BOX_Y_COORD:${BOX_Y_COORD} BOX_HEIGHT:${BOX_HEIGHT} BOX_WIDTH:${BOX_WIDTH}"
 
 	[[ ${BOX_HEIGHT} -eq 0 ]] && return # Ignore
@@ -622,7 +604,7 @@ msg_stream () {
 	local -a CMD
 	local -a MSG_LINES
 	local DELIM='|'
-	local TEXT_STYLE=l
+	local STYLE=l
 	local FOLD_WIDTH=120
 	local FOLD
 	local MSG
@@ -637,9 +619,9 @@ msg_stream () {
 	while getopts ${OPTSTR} OPTION;do
 		case ${OPTION} in
 			f) FOLD_WIDTH=${OPTARG};;
-			l) TEXT_STYLE=l;;
-			c) TEXT_STYLE=c;;
-			n) TEXT_STYLE=n;;
+			l) STYLE=l;;
+			c) STYLE=c;;
+			n) STYLE=n;;
 			:) print -u2 " ${_SCRIPT}: ${0}: option: -${OPTARG} requires an argument" >&2;read ;;
 			\?) print -u2 " ${_SCRIPT}: ${0}: unknown option -${OPTARG}" >&2; read;;
 		esac
@@ -650,7 +632,7 @@ msg_stream () {
 
 	FOLD="| fold -s -w ${FOLD_WIDTH}"
 
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: OPTIONS:FOLD:${FOLD} TEXT_STYLE:${TEXT_STYLE}"
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: OPTIONS:FOLD:${FOLD} STYLE:${STYLE}"
 
 	CMD=(${@})
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: CMD:${CMD}"
@@ -676,7 +658,7 @@ msg_stream () {
 	
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG COUNT with BLANK LINES REMOVED:${#MSG_LINES}"
 
-	msg_box -H0 -P"<m>Last Page<N>" -pc -s${DELIM} -j${TEXT_STYLE} ${MSG_LINES} # Display window
+	msg_box -H0 -P"<m>Last Page<N>" -pc -s${DELIM} -j${STYLE} ${MSG_LINES} # Display window
 }
 
 msg_unicode_box () {
@@ -688,11 +670,13 @@ msg_unicode_box () {
 	local TOP_RIGHT
 	local BOT_LEFT 
 	local BOT_RIGHT
-	local LEFT_SIDE
-	local RIGHT_SIDE
 	local HORIZ_BAR 
 	local VERT_BAR
 	local HEAVY
+	local L_SPAN=$(( BOX_Y_COORD+1 ))
+	local R_SPAN=$(( BOX_Y_COORD+BOX_WIDTH-2 ))
+	local T_SPAN=$(( BOX_X_COORD+1 ))
+	local B_SPAN=$(( BOX_X_COORD+BOX_HEIGHT-2 ))
 	local X Y
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -723,7 +707,7 @@ msg_unicode_box () {
 	printf ${TOP_LEFT}
 
 	# Top border
-	for (( Y=BOX_Y_COORD+1; Y<=BOX_Y_COORD+BOX_WIDTH-2; Y++ ));do
+	for (( Y=${L_SPAN}; Y<=${R_SPAN}; Y++ ));do
 		tput cup ${BOX_X_COORD} ${Y}
 		printf ${HORIZ_BAR}
 	done
@@ -732,11 +716,11 @@ msg_unicode_box () {
 	printf ${TOP_RIGHT}
 
 	# Sides
-	for (( X=BOX_X_COORD+1; X<=BOX_X_COORD+BOX_HEIGHT-2; X++ ));do
+	for (( X=${T_SPAN}; X<=${B_SPAN}; X++ ));do
 		tput cup ${X} ${BOX_Y_COORD}
 		printf ${VERT_BAR}
 		tput ech ${BOX_WIDTH} # Clear box area
-		tput cup ${X} $((BOX_Y_COORD+1+BOX_WIDTH-2))
+		tput cup ${X} $(( R_SPAN + 1 ))
 		printf ${VERT_BAR}
 	done
 
@@ -745,7 +729,7 @@ msg_unicode_box () {
 	printf ${BOT_LEFT}
 
 	# Bottom border
-	for (( Y=BOX_Y_COORD+1; Y<=BOX_Y_COORD+BOX_WIDTH-2; Y++ ));do
+	for (( Y=${L_SPAN}; Y<=${R_SPAN}; Y++ ));do
 		tput cup ${X} ${Y}
 		printf ${HORIZ_BAR}
 	done
@@ -773,23 +757,5 @@ msg_warn () {
 	if [[ -n ${MSG} ]];then
 		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
 		echo "\\\n[${_SCRIPT}]:${BOLD}${RED_FG}${MSG}${RESET}\\\n"
-	fi
-}
-
-msg_get_box_coords () {
-	local TYPE=${1:=null}
-	if [[ ${TYPE} == 'kv' ]];then
-		echo ${(kv)_MSG_BOX_COORDS}
-	else
-		echo "${_MSG_BOX_COORDS[X]} ${_MSG_BOX_COORDS[Y]} ${_MSG_BOX_COORDS[H]} ${_MSG_BOX_COORDS[W]}"
-	fi
-}
-
-msg_get_cbox_coords () {
-	local TYPE=${1:=null}
-	if [[ ${TYPE} == 'kv' ]];then
-		echo ${(kv)_CONT_BOX_COORDS}
-	else
-		echo "${_CONT_BOX_COORDS[X]} ${_CONT_BOX_COORDS[Y]} ${_CONT_BOX_COORDS[H]} ${_CONT_BOX_COORDS[W]}"
 	fi
 }

@@ -78,6 +78,9 @@ if !has("gui_running")
 	"find left anchored
 	nnoremap <c-f> :/^
 
+	"use range
+	nnoremap <c-n> :'a,'b
+
 	"not sure: nnoremap <c-f> :s/.*:/\L&/g<CR>
 	
 	"wrap long text

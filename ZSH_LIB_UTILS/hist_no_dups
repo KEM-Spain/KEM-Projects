@@ -97,19 +97,29 @@ sort -u -o ${_HIST_FILE} < ${_HIST_FILE}
 
 local -a LIST=("${(f)$(find ${_LOCAL_EXE_PATH} -executable)}")
 
+NDX=0
+tput sc
 for L in ${LIST};do
+	((NDX++))
+	#tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX}. ${#LIST}. $(( NDX * 100. / ${#LIST}. ))
 	if [[ $(file ${L}) =~ 'zsh script' ]];then
 		LOCAL_EXES[${L:t}]=1
 	fi
 done
+tput el1
+tput rc
 
 HIST_CNT=0
 VALID_CNT=0
 INVALID_CNT=0
 DUPLICATE_CNT=0
 NDX=0
+
+NDX=0
+HF_LINES=$(wc -l ${_HIST_FILE})
 while read LINE;do
 	((NDX++))
+	#tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX}. ${HF_LINES}. $(( NDX * 100. / ${HF_LINES}. ))
 	TIME=$(cut -d':' -f2 <<<${LINE} | sed 's/^ *//')
 	CMD=$(cut -d':' -f3- <<<${LINE} | sed 's/0;//' | cut -d' ' -f1)
 	ARG=$(cut -d':' -f3- <<<${LINE} | sed 's/0;//' | cut -s -d' ' -f2-)
@@ -127,8 +137,11 @@ done < ${_HIST_FILE}
 HIST_NEW=()
 typeset -A SEEN
 
+NDX=0
 for C in ${(o)CMD_UNIQ};do
 	[[ ${C} =~ '^\[' ]] && continue #skip bracket commands
+	((NDX++))
+	#tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#CMD_UNIQ} $(( NDX * 100. / ${#CMD_UNIQ} ))
 	TS=$(get_last_cmd ${C})
 	CA=$(tr -d '[:space:]' <<<${C}${TIME_ARG[${TS}]}) # cmd + args
 	[[ -n ${CA} && ${SEEN[${CA:q}]} -ge 1 ]] && continue

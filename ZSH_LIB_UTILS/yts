@@ -34,7 +34,7 @@ typeset -a _LOCAL_LIST
 #Constants
 #_JS_SCRIPT=./yts.js
 _ACTION=download
-_DOWNLOAD_DIR=~/Downloads
+_DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
 _ERROR_LIMIT=15
 _ERROR_LOG=/tmp/yts.err
 _FIELD_LEN[age]=30
@@ -69,19 +69,17 @@ source ${_LIB_DIR}/GET_DEPS.zsh
 #Functions
 
 action_do () {
-	local -a ETAS
-	local -a LOG_LINES
 	local -a MSGS
-	local DEST
-	local DEST_1
-	local DEST_2
+	local DEST=''
+	local DEST_1=''
+	local DEST_2=''
 	local DL_CNT=0
-	local EMSG
+	local EMSG=''
 	local ERROR_CNT=0
-	local ETA
+	local ETA=''
 	local HAD_ERROR=false
 	local HDRS_OUT=false
-	local JOB_STALL=20
+	local JOB_STALL=10
 	local KEY=''
 	local L M S 
 	local LAST_LOG_SIZE=0
@@ -89,16 +87,13 @@ action_do () {
 	local LOG_ACTIVE=false
 	local LOG_LINE=''
 	local LOG_SIZE=0
-	local LOG_SIZE_COUNT=0
+	local LOG_STALLS=0
 	local NDX=0
 	local PAUSE=2
 	local RESUMED_TAG=''
 	local SCAN_LIMIT=0
-	local SCAN_MAX=10
-	local STALLS=0
-	local TITLE
-	local AUTHOR
-	local URL
+	local TITLE=''
+	local URL=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -136,6 +131,17 @@ action_do () {
 				HAD_ERROR=false
 			fi
 
+			LOG_SIZE=$(wc -c < ${g_LOG})
+			if [[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]];then
+				LOG_STALLS=0 # log is growing
+			else
+				((LOG_STALLS++))
+				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Job Stalled<N>"
+				LAST_LOG_SIZE=${LOG_SIZE}
+				sleep 1 # extra sleep 
+				continue
+			fi
+
 			# Scan for resume
 			LOG_LINE=$(grep -m1 -i "resuming download" ${g_LOG})
 			[[ ${?} -eq 0 ]] && RESUMED_TAG='(<w>resumed<N>)' || RESUMED_TAG=''
@@ -143,7 +149,7 @@ action_do () {
 			# Get headers
 			LOG_LINE=$(grep -m1 -i "destination" ${g_LOG})
 			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
-				DEST=("${(f)$(sed -e 's#Downloads/#Downloads|#g' -e 's/ \[.*//g' <<<${LOG_LINE})}")
+				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
 				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N> ${RESUMED_TAG}"
@@ -173,10 +179,12 @@ action_do () {
 				break # while loop
 			fi
 
-			# Scan for errors
-			LOG_LINES=("${(f)$(sed -e 's// /g' -e '/./!d' ${g_LOG} | tail -1 | grep -i 'error:\|transporterror')}")
-			if [[ ${?} -eq 0 ]];then
-				for L in ${LOG_LINES};do
+			if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
+				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_LOG} | tail -1) 
+				
+				# Scan for errors
+				grep -q -i 'error:\|transporterror' <<<${LOG_LINE}
+				if [[ ${?} -eq 0 ]];then
 					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive:
 						TITLE=$(get_field title ${M})	
 						EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>" 
@@ -184,72 +192,61 @@ action_do () {
 						_FAILED[${M}]=true
 						_DOWNLOADS[${M}]=false
 						ERROR_CNT=0 # reset
-						break 2
+						break 2 # exit log scan
 					fi
-					AUTHOR=$(get_field author ${M})	
-					case ${L:l} in
+					case ${LOG_LINE:l} in
 						*giving\ up*)	ERROR_CNT=${_ERROR_LIMIT}	
 											break 2 # while loop
 						;;
-						*network\ is\ unreachable*|*retrying*|*operation\ timed\ out*)	
+						*unreachable*|*retrying*|*timed\ out*)	
 							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<w>${ERROR_CNT}<N>"
-							echo "${AUTHOR} - Caught:"${L: -65} >> ${_ERROR_LOG}
+							echo "$(get_field author ${M}) - Caught:"${L: -65} >> ${_ERROR_LOG}
 							((ERROR_CNT++))
 							HAD_ERROR=true
-							break
 						;;
 						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<w>${ERROR_CNT}<N>"
-							echo "${AUTHOR} - Uncaught:"${L: -65} >> ${_ERROR_LOG}
+							echo "$(get_field author ${M}) - Uncaught:"${L: -65} >> ${_ERROR_LOG}
 							((ERROR_CNT++))
 							HAD_ERROR=true
-							break
 						;;
 					esac
-				done
-			fi
+				else
+					HAD_ERROR=false
+					ERROR_CNT=0
+				fi
 
-			# Scan for progress
-			if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
-				LOG_LINE=$(tail -1 ${g_LOG})
-				case ${LOG_LINE:l} in
-					*eta*)
-						ETAS+=("${(f)$(sed 's//\n/g' <<<${LOG_LINE} | grep -vi 'unknown')}")
-						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${ETAS[-1]})
-						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # not blank
-							case ${ETA:l} in
-								*rumbleembed*) continue;;
-								*mib/s*) LINE_COLOR='<w>';;
-								*kib/s*) LINE_COLOR='<B><y>';;
-								*) LINE_COLOR='';;
-							esac
-							[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' && HAD_ERROR=false && ERROR_CNT=0
-							msg_box -C -jl "${LINE_COLOR}${ETA}<N>"
-							if [[ ${ETA} =~ '100.*%' ]];then
-								if [[ ${#_MARKED} -gt 1 ]];then
-									msg_box -C -jc "<g><b>$(str_unicode_line 10)<N>"
-									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-										msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
-									fi
+				# Scan for progress
+				grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE}
+				if [[ ${?} -eq 0 ]];then
+					ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
+					if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # not blank
+						case ${ETA:l} in
+							*rumbleembed*) continue;;
+							*mib/s*) LINE_COLOR='<w>';;
+							*kib/s*) LINE_COLOR='<B><y>';;
+							*100%*) LINE_COLOR='<B><g>';;
+							*) LINE_COLOR='';;
+						esac
+						[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
+
+						msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # show progress
+
+						if [[ ${ETA} =~ '100%' ]];then
+							if [[ ${#_MARKED} -gt 1 ]];then
+								msg_box -C -jc "<w>$(str_unicode_line 10)<N>"
+								if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+									msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
 								fi
-								_DOWNLOADS[${M}]=true
-								break # while loop
 							fi
-						else
-							echo "LAST ETA:${ETAS[-1]}\nNEXT TO LAST ETA:${ETAS[-2]}" >> /tmp/${g_LOG:h}-ETA.dbg
+							_DOWNLOADS[${M}]=true
+							break # exit log scan
 						fi
-						;;
-				esac
+					else
+						echo "LOG_LINE:${LOG_LINE}" >> /tmp/${g_LOG:h}-ETA.dbg
+					fi
+				fi
 			fi
-
-			LOG_SIZE=$(wc -c < ${g_LOG})
-			if [[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]];then
-				LOG_SIZE_COUNT=0 # log is growing
-			else
-				((LOG_SIZE_COUNT++))
-				[[ ${LOG_SIZE_COUNT} -ge ${JOB_STALL} ]] && msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Stalled<N>"
-				LAST_LOG_SIZE=${LOG_SIZE}
-			fi
-			sleep .1
+			sleep 1
 		done
 		NDX=0
 		clear_log "action_do"
@@ -314,6 +311,8 @@ get_favorite () {
 	local MSG
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	list_set_type select
 
 	while true;do
 		if [[ -s ${_YTS_FAVORITES} ]];then
@@ -463,7 +462,7 @@ reset_job () {
 }
 
 rumble () {
-	local SEARCHTERM=${@}
+	local SEARCHTERM=${1}
 	local -a AGES
 	local -a CHANNELS
 	local -a DURATIONS
@@ -551,6 +550,8 @@ select_download () {
 	local SEARCHTERM=${1:=Unknown}
 	local SEARCHTYPE
 
+	list_set_type classic
+	
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"
@@ -620,9 +621,9 @@ set_favorite () {
 
 	FAV=$(str_trim ${FAV})
 
-	msg_box "Saving favorite: ${FAV}"
-
 	[[ -z ${#FAV} ]] && return
+
+	msg_box "Saving favorite: ${FAV}"
 
 	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
 		[[ ${g_LIVE} == 'true' ]] && FAV="${FAV}|RL" || FAV="${FAV}|R"
@@ -732,6 +733,7 @@ youtube () {
 
 	# Display search results
 	if ! arr_is_populated "${_LOCAL_LIST}";then
+		msg_box -p "No data for query:${g_PROXY_CMD}|${g_STRICT_MSG}"
 		return 1
 	fi
 
@@ -861,11 +863,17 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 		[[ ${?} -ne 0 ]] && exit_leave "${RED_FG}Invalid argument${RESET} - valid age arguments: ${WHITE_FG}all,min,day,week,month,year${RESET}"
 	fi
 
+	ARG="${@}"
+	if [[ -n ${ARG} ]];then
+		RCL=$(sed "s/${ARG}//" <<<${RCL})
+		RCL="${RCL} ${ARG:q}" # quote any multi-word searches
+	fi
+
 	g_PROXY_CMD="node ${_JS_SCRIPT} ${RCL}"
 fi
 
-# Query site for video list 
-if [[ ${#} -eq 0 ]];then
+# Run Query
+if [[ ${#} -eq 0 ]];then # NO args passed
 	while true;do
 		do_smcup
 		get_favorite
@@ -877,11 +885,12 @@ if [[ ${#} -eq 0 ]];then
 			fi
 		fi
 	done
-else
-	${g_QRY_ENGINE} ${@}
+else # args passed
+	ARG="${@}"
+	${g_QRY_ENGINE} ${ARG}
 	if [[ ${?} -eq 0 ]];then
-		set_favorite ${@}
-		select_download ${@}
+		set_favorite ${ARG}
+		select_download ${ARG}
 	fi
 fi
 

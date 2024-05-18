@@ -565,7 +565,8 @@ else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 	selection_list_set ${(v)_UTILS_DESC}
-	selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
+	#selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
+	selection_list -O ${CYAN_FG} -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
 	echo #clear read

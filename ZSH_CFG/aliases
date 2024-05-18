@@ -106,6 +106,7 @@ alias I='cd ~/Downloads/Torrents/Incomplete'
 alias L='cd ~/Downloads/Torrents/Library'
 alias Lm='cd ~/Downloads/Torrents/Library/movies'
 alias Ls='cd ~/Downloads/Torrents/Library/series'
+alias Lw='cd ~/Downloads/Torrents/Library/web'
 alias M="cd /media/kmiller/KEM_Misc/Music/KEM-B9"
 alias O='cd /opt'
 alias P='cd ~/Pictures'

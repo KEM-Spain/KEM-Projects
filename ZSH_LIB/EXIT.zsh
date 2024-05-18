@@ -76,12 +76,14 @@ exit_pre_exit () {
 exit_request () {
 	local BOX_X=${1}
 	local BOX_Y=${2}
+	local MSG="Quit application (y/n)"
 
 	if [[ -n ${BOX_X} && -n ${BOX_Y} ]];then
-		msg_box -u -O ${RED_FG} -x ${BOX_X} -y ${BOX_Y} -p "Quit application (y/n)"
+		msg_box -u -O ${RED_FG} -x ${BOX_X} -y ${BOX_Y} -p ${MSG}
 	else
-		msg_box -O ${RED_FG} -p "Quit application (y/n)"
+		msg_box -O ${RED_FG} -p ${MSG}
 	fi
+
 	if [[ ${_MSG_KEY} == 'y' ]];then
 		if [[ ${_FUNC_TRAP} == 'true' ]];then
 			exit_pre_exit
@@ -91,8 +93,13 @@ exit_request () {
 			exit_leave
 		fi
 	else
-		set > vars
-		list_repaint_section 3 ${_CURRENT_PAGE}
+		if [[ ${_LIST_TYPE} == 'classic' ]];then
+			list_repaint_section 3 ${_CURRENT_PAGE}
+		elif [[ ${_LIST_TYPE} == 'select' ]];then
+			selection_list_repaint_section 3 ${_CURRENT_PAGE}
+		else
+			msg_box_clear
+		fi
 	fi
 }
 

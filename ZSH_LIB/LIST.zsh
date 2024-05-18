@@ -458,7 +458,7 @@ list_repaint () {
 }
 
 list_repaint_section () {
-	local -A MC=($(msg_get_box_coords kv))
+	local -A MC=($(box_coords_get MSG))
 	local ROWS=${1}
 	local PAGE=${2}
 	local START_ROW=${MC[X]}
@@ -652,6 +652,8 @@ list_select () {
 	fi
 	 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _LIST:${#_LIST}"
+
+	[[ -z ${_LIST_TYPE} ]] && _LIST_TYPE='classic'
 	
 	# Calculate display rows based on number of header lines
 	[[ -z ${_LIST_HEADER} ]] && _LIST_HEADER+='printf "List of %-d items\tPage %-d of %-d \tSelected:%-d" ${MAX_ITEM} ${PAGE} ${MAX_PAGE} ${SELECTED_COUNT}' # Default header

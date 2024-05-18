@@ -9,7 +9,7 @@ _SELECTION_KEY=?
 _SL_CATEGORY=false
 _SL_MAX_ITEM_LEN=0
 _TITLE_HL=${WHITE_ON_GREY}
-_SEL_LIST_LIB_DBG=5
+_SEL_LIST_LIB_DBG=3
 
 #LIB Declarations
 typeset -a _SELECTION_LIST # Holds indices of selected items in a list
@@ -20,6 +20,7 @@ typeset -A _COL_WIDTHS
 _CUR_PAGE=1
 _MAX_PAGE=0
 _HILITE=${_TITLE_HL}
+_HILITE_X=0
 _PAGE_OPTION_KEY_HELP=''
 
 #LIB Functions
@@ -77,6 +78,8 @@ selection_list () {
 	local OPT_KEY_ROW=0
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	[[ -z ${_LIST_TYPE} ]] && _LIST_TYPE='select'
 
 	OPTSTR=":x:y:cr:w:O:I:s"
 	OPTIND=0
@@ -177,6 +180,7 @@ selection_list () {
 		# Outer box w/ title
 		echo -n ${_OUTER_BOX_COLOR}
 		msg_unicode_box ${SX} ${SY} ${SW} ${SH} # OUTER box
+		box_coords_set OUTER X ${SX} Y ${SY} W ${SW} H ${SH}
 
 		#echo -n ${RESET}
 		CLEAN_TEXT=$(msg_nomarkup ${TITLE})
@@ -195,7 +199,7 @@ selection_list () {
 	fi
 
 	# Save box coords
-	_MSG_BOX_COORDS=(X ${SX} Y ${SY} W ${SW} H ${SH})
+	box_coords_set MSG X ${SX} Y ${SY} W ${SW} H ${SH}
 
 	# Initialize
 	CENTER_Y=$(( SY+(SW/2)-(BOX_WIDTH/2) )) # New Y to center list
@@ -228,8 +232,10 @@ selection_list () {
 		BOX_NDX=1
 		echo -n ${_INNER_BOX_COLOR}
 		msg_unicode_box ${BOX_X_COORD} ${CENTER_Y} ${BOX_WIDTH} ${BOX_HEIGHT} # Display INNER box for list
+		box_coords_set INNER X ${BOX_X_COORD} Y ${CENTER_Y} W ${BOX_WIDTH} H ${BOX_HEIGHT}
 		echo -n ${RESET}
 
+		# set column widths for lists having categories
 		if [[ ${_SL_CATEGORY} == 'true' ]];then
 			for L in ${_SELECTION_LIST};do
 				F1=$(cut -d: -f1 <<<${L})
@@ -249,10 +255,10 @@ selection_list () {
 		for (( LIST_NDX=LIST_TOP;LIST_NDX<=MAX_NDX;LIST_NDX++ ));do
 			[[ $((BOX_NDX++)) -gt ${MAX_BOX} ]] && break # Increments BOX_NDX, break when page is full
 			tput cup ${BOX_ROW} ${BOX_Y}
-			[[ ${BOX_ROW} -eq ${BOX_X} ]] && tput smso || tput rmso # Highlight first item
+			[[ ${BOX_ROW} -eq ${BOX_X} ]] && { tput smso && _HILITE_X=${BOX_X} } || tput rmso # Highlight first item
 			if [[ ${_SL_CATEGORY} == 'true' ]];then
-				F1=$(cut -d: -f1 <<<${_SELECTION_LIST[${LIST_NDX}]})
-				F2=$(cut -d: -f2 <<<${_SELECTION_LIST[${LIST_NDX}]})
+				F1=$(selection_list_get_cat ${LIST_NDX})
+				F2=$(selection_list_get_label ${LIST_NDX})
 				[[ ${LIST_NDX} -eq 1 ]] && _HILITE=${_TITLE_HL} || _HILITE=''
 				printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
 			else
@@ -271,6 +277,7 @@ selection_list () {
 		CURSOR_NDX=${LIST_TOP}
 		CURSOR_ROW=${BOX_TOP}
 
+		# Get keypress
 		while true;do
 			KEY=$(get_keys)
 			_SELECTION_VALUE='?'
@@ -283,7 +290,7 @@ selection_list () {
 				121) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='y' && break 2;;
 				110) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				112) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
-				113) exit_request;;
+				113) exit_request $(selection_list_pos_exitbox);;
 				1|107) ((CURSOR_ROW--));((CURSOR_NDX--));DIR='U';;
 				2|106) ((CURSOR_ROW++));((CURSOR_NDX++));DIR='D';;
 				3|116) DIR='T';;
@@ -369,6 +376,22 @@ selection_list () {
 	return 0
 }
 
+selection_list_get_cat () {
+	local NDX=${1}
+
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	cut -d: -f1 <<<${_SELECTION_LIST[${NDX}]}
+}
+
+selection_list_get_label () {
+	local NDX=${1}
+
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	cut -d: -f2 <<<${_SELECTION_LIST[${NDX}]}
+}
+
 selection_list_set_pg() {
 	local DIR=${1}
 	local NDX=${2}
@@ -419,6 +442,7 @@ selection_list_hilite () {
 		echo ${TEXT}
 	fi
 	tput rmso
+	_HILITE_X=${X}
 }
 
 selection_list_norm () {
@@ -440,47 +464,73 @@ selection_list_norm () {
 	fi
 }
 
+selection_list_pos_exitbox () {
+	local -A O_COORDS
+	local -A I_COORDS
+
+	O_COORDS=($(box_coords_get OUTER))
+	I_COORDS=($(box_coords_get INNER))
+
+	echo $((I_COORDS[X] + 2)) $(((O_COORDS[Y] + O_COORDS[W] / 2) - 14))
+}
+
 selection_list_repaint_section () {
-	#TODO modify to accomodate selection list
-	local -A MC=($(msg_get_box_coords kv))
-	local ROWS=${1}
-	local PAGE=${2}
-	local START_ROW=${MC[X]}
+	#TODO allow for PAGES
+	local -A I_COORDS
+	local -A MB_C=($(box_coords_get MSG))
+	local START_ROW=$((MB_C[X] - 1))
+	local CURSOR=${START_ROW}
 	local END_ROW=0
-	local HDR_OFFSET=${#_LIST_HEADER}
-	local SAVED_NDX=${_LIST_NDX}
-	local CURSOR=0
-	local DISPLAY_ROWS=0
-	local START_COL=${MC[Y]}
-	local END_COL=$((START_COL+${MC[W]}))
+	local F1 F2
 	local LINE_SNIP=''
+	local L_NDX=0
+	local PAGE=${2}
 	local R
+	local ROWS=${1}
+	local VERT_BAR="\\u2502%.0s"
+	local TOP_LEFT="\\u250F%.0s"
+	local TOP_RIGHT="\\u2513%.0s"
+	local HILITE=''
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	DISPLAY_ROWS=$(( ${_LIST_INDEX_RANGE[2]} - ${_LIST_INDEX_RANGE[1]} +1 ))
-	CURSOR=$(( START_ROW - 1 ))
-
-	[[ ${_LIST_HEADER_BREAK} == 'true' ]] && ((HDR_OFFSET++))
-	((HDR_OFFSET--))
-
-	START_ROW=$(( ${_LIST_INDEX_RANGE[1]} + START_ROW - HDR_OFFSET - 1))
-	END_ROW=$((START_ROW + ROWS - 1))
-	_LIST_NDX=$(( START_ROW - 1 ))
+	I_COORDS=($(box_coords_get INNER))
+	END_ROW=$(( START_ROW + ${MB_C[H]} - 1 ))
+	L_NDX=$(( START_ROW - I_COORDS[X] ))
 
 	for ((R=START_ROW; R<=END_ROW; R++));do
 		((CURSOR++))
-		((_LIST_NDX++))
-		if [[ ${_BARLINES} == 'true' ]];then
-			BARLINE=$((_LIST_NDX % 2)) # Barlining 
-			[[ ${BARLINE} -ne 0 ]] && BAR=${BLACK_BG} || BAR="" # Barlining
-		fi
-		if [[ ${_LIST_NDX} -le ${#_LIST} ]];then
-			tput cup ${CURSOR} 0
-			eval ${_LIST_LINE_ITEM} # line item printf
+		((L_NDX++))
+		if [[ ${_SL_CATEGORY} == 'true' ]];then
+			if [[ ${L_NDX} -le ${#_SELECTION_LIST} ]];then
+				F1=$(selection_list_get_cat ${L_NDX})
+				F2=$(selection_list_get_label ${L_NDX})
+				tput cup ${CURSOR} ${MB_C[Y]}
+				printf "%*s" ${MB_C[W]} ' ' # space over msg_box 
+				tput cup ${CURSOR} ${I_COORDS[Y]}
+				printf "${VERT_BAR}" # left inner border and menu item
+				if [[ ${CURSOR} -eq ${_HILITE_X} ]];then
+					tput smso
+					HILITE=${_TITLE_HL}
+				else
+					tput rmso
+					HILITE=''
+				fi
+				printf "${WHITE_FG}%-*s${RESET} ${HILITE}%-*s${RESET}" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
+				tput cup ${CURSOR} $(( I_COORDS[Y] + I_COORDS[W] - 1 ))
+				printf "${VERT_BAR}" # right inner border
+			fi
+		else
+			if [[ ${L_NDX} -le ${#_SELECTION_LIST} ]];then
+				tput cup ${CURSOR} ${MB_C[Y]}
+				printf "%*s" ${MB_C[W]} ' ' # space over msg_box 
+				tput cup ${CURSOR} ${I_COORDS[Y]}
+				printf "${VERT_BAR}${_SELECTION_LIST[${L_NDX}]}" # left inner border and menu item
+				tput cup ${CURSOR} $(( I_COORDS[Y] + I_COORDS[W] - 1 ))
+				printf "${VERT_BAR}" # right inner border
+			fi
 		fi
 	done
-	_LIST_NDX=${SAVED_NDX}
 }
 
 selection_list_set () {

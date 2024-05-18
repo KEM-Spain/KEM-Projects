@@ -3,12 +3,59 @@ _DEPS_+="DBG.zsh MSG.zsh TPUT.zsh"
 
 #LIB Declarations
 typeset -a _DELIMS=('#' '|' ':' ',' '	') # Recognized field delimiters
+typeset -a _POS_ARGS
+typeset -A _KWD_ARGS
+typeset -A _BOX_COORDS
+typeset -A _COORD_TAB
 
 #LIB Vars
 _EXIT_VALUE=0
 _FUNC_TRAP=false
 _BAREWORD_IS_FILE=false
 _UTILS_LIB_DBG=5
+
+arg_parse () {
+	local KWD=false
+	local A
+	local NDX
+	local KEY
+
+	NDX=0
+	for A in ${@};do
+		if [[ ${KWD} == 'true' ]];then
+			_KWD_ARGS[${KEY}]=${A}
+			KWD=false
+			continue
+		fi
+		if [[ ${A} =~ ^(-|--) ]];then
+			KEY=$(sed -e 's/^-*//' <<<${A})
+			KWD=true
+			continue
+		fi
+		((NDX++))
+		_POS_ARGS[${NDX}]=${A}
+	done
+}
+
+box_coords_set () {
+	local -a ARGS=(${@})
+	local NDX=$((RANDOM%100))
+	local TAG=${ARGS[1]}
+	local COORDS=${ARGS[2,-1]}
+
+	_COORD_TAB[${TAG}_${NDX}]=${COORDS}
+	_BOX_COORDS[${TAG}]=${TAG}_${NDX}
+}
+
+box_coords_get () {
+	local TAG=${1}
+	local KEY=${_BOX_COORDS[${TAG}]}
+
+	[[ -z ${KEY} ]] && return 1
+
+	echo ${_COORD_TAB[${KEY}]}
+	return 0
+}
 
 boolean_color () {
 	local STATE=${1}

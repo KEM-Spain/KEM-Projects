@@ -446,6 +446,7 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 #Execution
+[[ ${LIB_TESTING} == 'true' ]] && exit_leave $(msg_err "Set LIB_TESTING off")
 [[ -n ${TESTING} ]] && exit_leave $(msg_err "TESTING is set - unset before continuing")
 
 FILE_ARG=${1}
