@@ -28,32 +28,32 @@ E_CYAN_FG=$(echo "\033[36m")
 E_WHITE_FG=$(echo "\033[37m")
 E_STRIKE=$(echo "\033[9m")
 
-#Constants
+# Constants
 [[ -e /usr/bin/flatpak ]] && _FLATPAK_INSTALLED=true || _FLATPAK_INSTALLED=false
 [[ -e /usr/bin/snap ]] && _SNAP_INSTALLED=true || _SNAP_INSTALLED=false
-_HDR_BAR=$'\u2501' #header character
+_HDR_BAR=$'\u2501' # Header character
 _LAST_APT_UPD=~/.last_apt_upd
 _LIB_DIR=/usr/local/lib
 _SOURCES=/etc/apt/sources.list.d
 
-#Imports
+# Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Declarations
+# Declarations
 typeset -A _LONGEST=(DESC 0 NAME 0 STATE 0)
 typeset -a _LOCAL_LIST
 typeset -a _MARKED
 
-#Globals
+# Globals
 g_INFO_OPTION=false
 g_INSTALL_OPTION=false
 g_PURGE_OPTION=false
 g_UNINSTALL_OPTION=false
 g_MAX_DESC_LEN=55
 
-#Functions
+# Functions
 action_do () {
 	local _MARKED=${1}
 	local PKG RC 
@@ -63,7 +63,7 @@ action_do () {
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARGS:${@}"
 
-	#Initialize
+ # Initialize
 	PKG=${_LIST[${_MARKED}]}
 	PKG_NAME=$(get_package_name ${PKG})
 	PKG_STATE=$(get_package_state ${PKG})
@@ -85,7 +85,7 @@ action_do () {
 	fi
 
 	if [[ ${g_INFO_OPTION} == 'true' && ${PKG_STATE:l} =~ "^uninstalled*" ]];then
-		msg_box -p -PI "Package: ${PKG_NAME}" #Option to install after view
+		msg_box -p -PI "Package: ${PKG_NAME}" # Option to install after view
 		[[ ${_MSG_KEY} == 'y' ]] && g_INSTALL_OPTION=true
 	fi
 
@@ -205,14 +205,14 @@ set_package_list () {
 	_LOCAL_LIST=()
 	_MARKED=()
 
-	#handle non distribution list
+ # Handle non distribution list
 	if [[ ${SHOW_NOND} == "true" ]];then
 		local PKGS=()
 		local ARGLIST=()
 
 		# DISTRIBUTION PACKAGES: A list of original packages is kept in: /usr/local/etc/orig_installed 
 		# INSTALLED PACKAGES: <(aptitude search '~i !~M' -F '%p' | sed "s/ *$//" | sort -u) 
-		# comm column1 produces a list of items not in both sets
+		# Comm column1 produces a list of items not in both sets
 
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARGS:${@}"
 
@@ -222,7 +222,7 @@ set_package_list () {
 
 		PKGS=(${=PKGS})
 
-		# pass each list item to aptitude to optain package description info
+		# Pass each list item to aptitude to optain package description info
 		tput cup 2 0; echo -n "Building aptitude query..."
 		NDX=0
 		for P in ${PKGS};do
@@ -245,7 +245,7 @@ set_package_list () {
 		return
 	fi
 
-	#retrieve data from aptitude
+	# Retrieve data from aptitude
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} aptitude search ${PATTERN}"
 
 	msg_box -x10 "Retrieving data from aptitude..."
@@ -266,7 +266,7 @@ set_package_list () {
 	fi
 	
 	if [[ ${SKIP_SNAPFLAT} == 'false' ]];then
-		#snap and flatpak support
+		# Snap and flatpak support
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Adding packages from snap and flatpak..."
 
 		if [[ ${SHOW_ALL_PKGS} == "true" || ${SHOW_INST} == "true" ]];then
@@ -286,7 +286,7 @@ set_package_list () {
 		
 			if [[ ${_FLATPAK_INSTALLED} == 'true' ]];then
 				SHOW_FLAT=true
-				( FLATLIST=("${(f)$(flatpak list | tail +1)}") ) 2>/dev/null #flatpak warnings supressed
+				( FLATLIST=("${(f)$(flatpak list | tail +1)}") ) 2>/dev/null # Flatpak warnings supressed
 
 				[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} flatpak returned ${#FLATLIST} rows"
 
@@ -481,26 +481,26 @@ done
 shift $((${OPTIND} - 1))
 #--End GetOpts--
  
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
-#handle exact matches/set SEARCHTERM
+# Handle exact matches/set SEARCHTERM
 if [[ -n ${1} ]];then
 	SEARCHTERM=${1}
 	[[ ${FUZZY} == "false" ]] && ARG_PATTERN="^${1}" || ARG_PATTERN="${1}"
 fi
 
-#show all as default?
+# Show all as default?
 if [[ ${SHOW_ALL_PKGS} == "true" ]];then
 	SHOW_INST=true
 	SHOW_UNIN=true
 	SHOW_CONF=true
 fi
 
-#handle architecture
+# Handle architecture
 [[ ${I386} == "true" ]] && ARCH_PATTERN="(?architecture(i386) | ?architecture(all))" || ARCH_PATTERN="(?architecture(amd64) | ?architecture(all))"
 
-#set filter pattern
+# Set filter pattern
 if [[ ${SHOW_ALL_PKGS} == "true" ]];then
 	FILTER_PATTERN=''
 elif [[ ${SHOW_CONF} == "true" ]];then
@@ -516,10 +516,10 @@ elif [[ ${SHOW_VIRT} == "true" ]];then
 	ARCH_PATTERN=''
 fi
 
-[[ ${MATCH_DESC} == "true" ]] && ARG_PATTERN='' #SEARCHTERM handles match
+[[ ${MATCH_DESC} == "true" ]] && ARG_PATTERN='' # SEARCHTERM handles match
 PATTERN=${ARCH_PATTERN}' '${FILTER_PATTERN}' '${ARG_PATTERN}
 
-#newly added ppa's?
+# Newly added ppa's?
 DO_APT_UPDATE=false
 
 if [[ -e ${_LAST_APT_UPD} ]];then
@@ -541,7 +541,7 @@ fi
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} PATTERN:${PATTERN}"
 
-#get data
+# Get data
 set_package_list ${PATTERN}
 [[ -z ${_LOCAL_LIST} ]] && exit_leave $(msg_warn "No package:${SEARCHTERM} found...")
 
@@ -553,13 +553,13 @@ if [[ ${PRINT} == 'true' ]];then
 	exit_leave
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize package ${#_LIST})  Filter:${WHITE_FG}%s${RESET}  Fuzzy match:${WHITE_FG}%s${RESET}  Desc match:${WHITE_FG}%s${RESET}  ${_PG}" ${#_LIST} "${PATTERN}" ${FUZZY} ${MATCH_DESC}'
 list_set_header 'printf " "'
 list_set_header 'printf "%6s${CYAN_FG}%-12s %-*s %-*s${RESET}" "" "State" ${_LONGEST[NAME]} "Name" ${_LONGEST[DESC]} "Description"'
 list_set_header 'printf "%6s${WHITE_FG}%-12s %-*s %-*s${RESET}" "" "$(str_unicode_line 12)" ${_LONGEST[NAME]} "$(str_unicode_line ${_LONGEST[NAME]})" ${_LONGEST[DESC]}  "$(str_unicode_line ${_LONGEST[DESC]})"'
 
-#set line item
+# Set line item
 list_set_line_item ' 
 local PKG_STATE=$(get_package_state ${_LIST[${_LIST_NDX}]});
 local PKG_NAME=$(get_package_name ${_LIST[${_LIST_NDX}]});
@@ -569,15 +569,15 @@ printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}${ST_COLOR}%-12s${RESET}${B
 '
 list_set_action_msgs 'install-uninstall app / view app info:'  app
 list_user_prompt_style msg_box
-list_set_no_top_offset #place the first detail line immediately after heading
+list_set_no_top_offset # Place the first detail line immediately after heading
 list_set_barlines true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 
 	if [[ $(list_get_selected_count) -ne 0 ]];then

@@ -1,14 +1,14 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="DBG.zsh MSG.zsh TPUT.zsh"
 
-#LIB Declarations
+# LIB Declarations
 typeset -a _DELIMS=('#' '|' ':' ',' '	') # Recognized field delimiters
 typeset -a _POS_ARGS
 typeset -A _KWD_ARGS
 typeset -A _BOX_COORDS
 typeset -A _COORD_TAB
 
-#LIB Vars
+# LIB Vars
 _EXIT_VALUE=0
 _FUNC_TRAP=false
 _BAREWORD_IS_FILE=false
@@ -229,9 +229,9 @@ get_key_trans () {
 		65) KEY_OUT=65;; # A
 		68) KEY_OUT=68;; # D
 		69) KEY_OUT=69;; # E
-		97) KEY_OUT=97;; # a
-		98) KEY_OUT=98;; # b
-		99) KEY_OUT=99;; # c
+		97) KEY_OUT=97;; # A
+		98) KEY_OUT=98;; # B
+		99) KEY_OUT=99;; # C
 		100) KEY_OUT=100;; # d
 		101) KEY_OUT=101;; # e
 		102) KEY_OUT=102;; # f
@@ -247,7 +247,7 @@ get_key_trans () {
 		112) KEY_OUT=112;; # p
 		113) KEY_OUT=113;; # q
 		114) KEY_OUT=114;; # r
-		115) KEY_OUT=115;; # S
+		115) KEY_OUT=115;; # s
 		116) KEY_OUT=116;; # t
 		117) KEY_OUT=117;; # u
 		118) KEY_OUT=118;; # v

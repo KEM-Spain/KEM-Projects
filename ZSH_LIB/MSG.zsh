@@ -1,14 +1,14 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="ARRAY.zsh DBG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 
-#LIB Declarations
+# LIB Declarations
 typeset -a _LIST # Holds the list values to be managed by the list menu
 typeset -a _CONT_BUFFER=()
 typeset -A _CONT_DATA=(BOX false COLS 0 HDRS 0 MAX 0 OUT 0 SCR 0 TOP 0 Y 0 W 0)
 
 _OUTLINE_COLOR=${RESET}
 
-#LIB Vars
+# LIB Vars
 _MSG_KEY=''
 _MSG_LIB_DBG=4
 
@@ -17,13 +17,15 @@ msg_box () {
 	local -a HDR=()
 	local -a MSG_FOLD
 	local -A CONT_COORDS
+
 	local MAX_X_COORD=$((_MAX_ROWS-5)) # Not including frame 5 up from bottom, 4 with frame
 	local MAX_Y_COORD=$((_MAX_COLS-10)) # Not including frame 10 from sides, 9 with frame
-	local MIN_X_COORD=$(( (_MAX_ROWS-MAX_X_COORD)-1 )) # vertical limit
-	local MIN_Y_COORD=$((_MAX_COLS-MAX_Y_COORD)) # horiz limit
+	local MIN_X_COORD=$(( (_MAX_ROWS-MAX_X_COORD)-1 )) # Vertical limit
+	local MIN_Y_COORD=$((_MAX_COLS-MAX_Y_COORD)) # Horiz limit
 	local USABLE_COLS=$((MAX_Y_COORD-MIN_Y_COORD)) # Horizontal space boundary
 	local USABLE_ROWS=$((MAX_X_COORD-MIN_X_COORD)) # Vertical space boundary
 	local MAX_LINE_WIDTH=$((USABLE_COLS-20))
+
 	local NAV_BAR="<c>Navigation keys<N>: (<w>t<N>,<w>h<N>=top <w>b<N>,<w>l<N>=bottom <w>u<N>,<w>k<N>=up <w>d<N>,<w>j<N>=down, <w>Esc<N>=close)"
 	local BOX_X_COORD=0
 	local BOX_Y_COORD=0
@@ -53,6 +55,7 @@ msg_box () {
 	local BOX_HEIGHT=0
 	local BOX_WIDTH=0
 	local CLEAR_MSG=false
+	local CONTINUOUS=false
 	local DELIM_ARG=false
 	local HEADER_LINES=0
 	local IGNORE_MARKUP=false
@@ -66,9 +69,8 @@ msg_box () {
 	local QUIET=false
 	local SAFE=true
 	local SO=false
-	local TEXT_STYLE=c # default to center
+	local TEXT_STYLE=c # Default to center
 	local TIMEOUT=0
-	local CONTINUOUS=false
 
 	local OPTSTR=":DH:P:O:CRch:inpqruj:s:t:w:x:y:"
 	OPTIND=0
@@ -108,8 +110,7 @@ msg_box () {
 		_CURSOR_STATE=off
 	fi
 
-	# Clear last MSG?
-	[[ ${CLEAR_MSG} == 'true' ]] && msg_box_clear # Clear last msg ?
+	[[ ${CLEAR_MSG} == 'true' ]] && msg_box_clear # Clear last msg?
 
 	# Process MSG arguments
 	MSG=(${@}) # MSG ARGS
@@ -187,7 +188,7 @@ msg_box () {
 		dbg "${functrace[1]} called ${0}:${LINENO}: TEXT_STYLE:${WHITE_FG}${TEXT_STYLE}${RESET}"
 	fi
 
-	MSG_STR=$(arr_long_elem ${MSGS}) # returns trimmed/no markup
+	MSG_STR=$(arr_long_elem ${MSGS}) # Returns trimmed/no markup
 	MSG_COLS=${#MSG_STR}; ((MSG_COLS++)) # 1 char pad
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_COLS:${WHITE_FG}${MSG_COLS}${RESET}"
@@ -320,7 +321,7 @@ msg_box () {
 			for M in ${_CONT_BUFFER};do
 				tput cup ${_CONT_DATA[SCR]} ${_CONT_DATA[Y]} # Place cursor
 				tput ech ${_CONT_DATA[COLS]} # Clear line
-				echo -n "${M}" #Output buffer
+				echo -n "${M}" # Output buffer
 				((_CONT_DATA[SCR]++))
 				((_CONT_DATA[OUT]++))
 			done
@@ -373,7 +374,7 @@ msg_box () {
 					case ${KEY} in
 						[A-Za-z0-9]) K=${KEY};;
 						esc) K=${KEY};;
-						*) K=n;; # default to no
+						*) K=n;; # Default to no
 					esac 
 					[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
 					_MSG_KEY=${K} # Set global key

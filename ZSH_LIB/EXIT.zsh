@@ -1,7 +1,7 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="MSG.zsh UTILS.zsh"
 
-#LIB vars
+# LIB vars
 _PRE_EXIT_RAN=false
 _EXIT_CALLBACK=''
 _EXIT_LIB_DBG=1
@@ -36,7 +36,7 @@ exit_leave () {
 
 	exit_pre_exit
 
-	#kill -SIGINT $$ # Fire the traps
+ # Kill -SIGINT $$ # Fire the traps
 	exit ${_EXIT_VALUE}
 }
 

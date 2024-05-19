@@ -1,10 +1,10 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="DBG.zsh"
 
-#LIB Declarations
+# LIB Declarations
 typeset -A _DURABLE # Holds variable values that can survive a subshell
 
-#LIB Vars
+# LIB Vars
 _DURABLE_LIB_DBG=5
 
 durable_array () {
@@ -22,7 +22,7 @@ durable_array () {
 			_DURABLE[${KEY}]=${VAL}
 		done < /tmp/${NAME}
 	else
-		#echo "${0}: durable name:${NAME} not found" >&2
+	 # Echo "${0}: durable name:${NAME} not found" >&2
 		return 1
 	fi
 }
@@ -38,7 +38,7 @@ durable_get () {
 		VAL=$(grep --color=never "${KEY}:" < /tmp/${NAME} | cut -d: -f2)
 		rm -f /tmp/${NAME}
 	else
-		#echo "${0}: durable name:${NAME} not found" >&2
+	 # Echo "${0}: durable name:${NAME} not found" >&2
 		return 1
 	fi
 

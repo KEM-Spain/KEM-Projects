@@ -1,7 +1,7 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="DBG.zsh UTILS.zsh"
 
-#LIB Vars
+# LIB Vars
 _DATE_LIB_DBG=5
 
 date_diff () {
@@ -23,8 +23,8 @@ file_date_diff () {
 	
 	[[ ${_DEBUG} -ge ${_DATE_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	[[ ! -e ${F1} ]] && return 1 # file not found
-	[[ ! -e ${F2} ]] && return 1 # file not found
+	[[ ! -e ${F1} ]] && return 1 # File not found
+	[[ ! -e ${F2} ]] && return 1 # File not found
 
 	F1_EPOCH=$(stat -c"%Y" ${F1})
 	F2_EPOCH=$(stat -c"%Y" ${F2})

@@ -1,8 +1,8 @@
-#LIB Dependencies
+# LIB Dependencies
 TERM=${TERM:=xterm}
 _DEPS_+="DBG.zsh"
 
-#LIB Vars
+# LIB Vars
 _CURSOR=''
 _SMCUP=''
 _TPUT_LIB_DBG=5

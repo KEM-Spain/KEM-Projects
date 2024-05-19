@@ -1,7 +1,7 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="TPUT.zsh DBG.zsh"
 
-#LIB Vars
+# LIB Vars
 _STR_LIB_DBG=5
 
 str_array_to_num () {
@@ -239,7 +239,7 @@ str_strip_ansi () {
 	done
 	shift $((OPTIND -1))
 
-	IFS='' #preserve white space
+	IFS='' # Preserve white space
 	while read -r LINE_IN;do
 		# Strip ansi escape chars
 		[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LINE_IN:\"${LINE_IN}\""
@@ -274,14 +274,14 @@ str_trim () {
 		if [[ -z ${TEXT_IN} && ! -t 0 ]];then
 			read TEXT
 			[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_IN:\"${TEXT}\""
-			TEXT=$(sed 's/\t/ /g' <<<${TEXT}) # tabs distort output
-			TEXT=$(sed 's/^ *//' <<<${TEXT}) # leading spaces
+			TEXT=$(sed 's/\t/ /g' <<<${TEXT}) # Tabs distort output
+			TEXT=$(sed 's/^ *//' <<<${TEXT}) # Leading spaces
 			TEXT=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT})
 			[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT}\""
 			echo ${TEXT}
 		else
-			TEXT_IN=$(sed 's/\t/ /g' <<<${TEXT_IN}) # tabs distort output
-			TEXT_IN=$(sed 's/^ *//' <<<${TEXT_IN}) # leading spaces
+			TEXT_IN=$(sed 's/\t/ /g' <<<${TEXT_IN}) # Tabs distort output
+			TEXT_IN=$(sed 's/^ *//' <<<${TEXT_IN}) # Leading spaces
 			TEXT_IN=$(sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' <<<${TEXT_IN})
 			[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  TEXT_OUT:\"${TEXT_IN}\""
 		echo ${TEXT_IN}

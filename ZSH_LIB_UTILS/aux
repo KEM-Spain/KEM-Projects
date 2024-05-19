@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,7 +15,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _CMD
 typeset -A _HDR_LBL
 typeset -A _LBL_WIDTH=(o 12 p 12 c 12)
@@ -24,16 +24,16 @@ typeset -A _PID
 typeset -a _LOCAL_LIST=()
 typeset -a _MARKED=()
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _HDR_LBL=(o "Owner" p "Process ID" c "Command")
 
-#Imports
+# Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 	local M_PID
@@ -154,13 +154,13 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ ${#} -ne 0 ]] && KEYWORD=${1} || KEYWORD=?
 
 USER=$(id -un)
 
-#Set content
+# Set content
 if [[ ${ALL_USERS} == 'true' ]];then
 	RAWLIST=("${(@f)$(ps --no-headers -Ao user,pid,command)}")
 else
@@ -180,7 +180,7 @@ for R in ${RAWLIST};do
 	_PID[${NDX}]=$(str_trim $(cut -d' ' -f2 <<<$(squeeze ${R})))
 	_CMD[${NDX}]=$(str_trim $(cut -d' ' -f3- <<<$(squeeze ${R})))
 
-	[[ ${#_CMD[${NDX}]} -ge $((_MAX_COLS - 40)) ]] && _CMD[${NDX}]=${${_CMD[${NDX}][1,$((_MAX_COLS - 60))]}} # truncate lines too long
+	[[ ${#_CMD[${NDX}]} -ge $((_MAX_COLS - 40)) ]] && _CMD[${NDX}]=${${_CMD[${NDX}][1,$((_MAX_COLS - 60))]}} # Truncate lines too long
 
 	[[ ${#_OWNER[${NDX}]} -gt ${_LBL_WIDTH[o]} ]] && _LBL_WIDTH[o]=${#_OWNER[${NDX}]}
 	[[ ${#_PID[${NDX}]} -gt ${_LBL_WIDTH[p]} ]] && _LBL_WIDTH[p]=${#_PID[${NDX}]}
@@ -196,20 +196,20 @@ if ! arr_is_populated "${_LOCAL_LIST}";then
 	fi
 fi
 
-if [[ ${#_LOCAL_LIST} -eq 1 ]];then # process a single pid directly
+if [[ ${#_LOCAL_LIST} -eq 1 ]];then # Process a single pid directly
 	_LIST=(${_LOCAL_LIST})
 	_MARKED=(1)
 	action_do
 	exit_leave
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize process ${#_LIST})  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
 list_set_header ' '
 list_set_header 'printf "%-5s %-${_LBL_WIDTH[p]}s %-${_LBL_WIDTH[o]}s %-${_LBL_WIDTH[o]}s" "" ${_HDR_LBL[p]} ${_HDR_LBL[o]} ${_HDR_LBL[c]}'
 list_set_header 'printf "%-5s ${MAGENTA_FG}%${_LBL_WIDTH[p]}s %${_LBL_WIDTH[o]}s %${_LBL_WIDTH[c]}s${RESET}" "" "$(str_unicode_line ${_LBL_WIDTH[p]})" "$(str_unicode_line ${_LBL_WIDTH[o]})" "$(str_unicode_line ${_LBL_WIDTH[c]})"'
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%${_LBL_WIDTH[p]}s %${_LBL_WIDTH[o]}s %-${_LBL_WIDTH[c]}s${RESET}\n" ${_LIST_NDX} "$(get_pid ${_LIST_NDX})"  "$(get_owner ${_LIST_NDX})"  "$(item_decorate ${_LIST_NDX})" 
 '
@@ -218,11 +218,11 @@ list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select process then <${GREEN_
 list_set_action_msgs kill process
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -ne 0 ]];then

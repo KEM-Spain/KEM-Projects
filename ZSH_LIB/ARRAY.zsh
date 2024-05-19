@@ -1,7 +1,7 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="DBG.zsh MSG.zsh STR.zsh"
 
-#LIB Vars
+# LIB Vars
 _ARRAY_LIB_DBG=5
 
 in_array () {
@@ -80,7 +80,7 @@ arr_long_elem_len () {
 
 	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LONGEST ELEMENT LEN:${LONGEST}"
 
-	echo ${LONGEST} # trimmed/no markup
+	echo ${LONGEST} # Trimmed/no markup
 }
 
 arr_long_elem () {
@@ -101,6 +101,6 @@ arr_long_elem () {
 
 	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LONGEST ELEMENT:${LONGEST} STR:${STR}"
 
-	echo ${LONGEST_STR} # trimmed/no markup
+	echo ${LONGEST_STR} # Trimmed/no markup
 }
 

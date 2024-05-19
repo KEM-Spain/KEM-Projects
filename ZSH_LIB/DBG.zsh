@@ -1,10 +1,10 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="STR.zsh"
 
-#LIB Declarations
+# LIB Declarations
 typeset -a _DEBUG_LINES # Store debugging output 
 
-#LIB Vars
+# LIB Vars
 _DBG_LIB_DBG=5
 
 if [[ ${_DEBUG_INIT} == 'true' ]];then

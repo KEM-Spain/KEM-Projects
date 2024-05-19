@@ -1,6 +1,6 @@
 #!/usr/bin/zsh
 
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -20,7 +20,7 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Declarations
+# Declarations
 typeset -A COORDS=(X 15 Y 38 H 10 W 86)
 typeset -A _DOWNLOADS
 typeset -A _FAILED
@@ -31,7 +31,7 @@ typeset -A _REJECTS
 typeset -A _STATUS_MSGS
 typeset -a _LOCAL_LIST
 
-#Constants
+# Constants
 #_JS_SCRIPT=./yts.js
 _ACTION=download
 _DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
@@ -46,7 +46,7 @@ _OBJECT=video
 _YTS_FAVORITES=~/.yts_history
 _YTS_DBG=2
 
-#Globals
+# Globals
 g_FAVORITE=''
 g_LIVE=''
 g_LIVE_OPT=''
@@ -66,7 +66,7 @@ source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 
 action_do () {
 	local -a MSGS
@@ -112,7 +112,7 @@ action_do () {
 
 		# Detect missing log
 		if [[ ! -e ${g_LOG} ]];then
-			[[ ${NDX} -gt 10 ]] && exit_leave "${g_LOG} not detected" # no activity
+			[[ ${NDX} -gt 10 ]] && exit_leave "${g_LOG} not detected" # No activity
 		fi
 
 		unsetopt localtraps
@@ -133,12 +133,12 @@ action_do () {
 
 			LOG_SIZE=$(wc -c < ${g_LOG})
 			if [[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]];then
-				LOG_STALLS=0 # log is growing
+				LOG_STALLS=0 # Log is growing
 			else
 				((LOG_STALLS++))
 				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Job Stalled<N>"
 				LAST_LOG_SIZE=${LOG_SIZE}
-				sleep 1 # extra sleep 
+				sleep 1 # Extra sleep 
 				continue
 			fi
 
@@ -165,7 +165,7 @@ action_do () {
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
 				msg_box -t3 "${EMSG}"
 				_DOWNLOADS[${M}]=true
-				break # while loop
+				break # While loop
 			fi
 
 			# Scan for not yet available
@@ -176,7 +176,7 @@ action_do () {
 				msg_box -t3 "${EMSG}"
 				_FUTURE[${M}]=true
 				_DOWNLOADS[${M}]=false
-				break # while loop
+				break # While loop
 			fi
 
 			if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
@@ -191,12 +191,12 @@ action_do () {
 						msg_box -p -PK "${EMSG}"
 						_FAILED[${M}]=true
 						_DOWNLOADS[${M}]=false
-						ERROR_CNT=0 # reset
-						break 2 # exit log scan
+						ERROR_CNT=0 # Reset
+						break 2 # Exit log scan
 					fi
 					case ${LOG_LINE:l} in
 						*giving\ up*)	ERROR_CNT=${_ERROR_LIMIT}	
-											break 2 # while loop
+											break 2 # While loop
 						;;
 						*unreachable*|*retrying*|*timed\ out*)	
 							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<w>${ERROR_CNT}<N>"
@@ -219,7 +219,7 @@ action_do () {
 				grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE}
 				if [[ ${?} -eq 0 ]];then
 					ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
-					if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # not blank
+					if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
 						case ${ETA:l} in
 							*rumbleembed*) continue;;
 							*mib/s*) LINE_COLOR='<w>';;
@@ -229,7 +229,7 @@ action_do () {
 						esac
 						[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
 
-						msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # show progress
+						msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
 
 						if [[ ${ETA} =~ '100%' ]];then
 							if [[ ${#_MARKED} -gt 1 ]];then
@@ -239,7 +239,7 @@ action_do () {
 								fi
 							fi
 							_DOWNLOADS[${M}]=true
-							break # exit log scan
+							break # Exit log scan
 						fi
 					else
 						echo "LOG_LINE:${LOG_LINE}" >> /tmp/${g_LOG:h}-ETA.dbg
@@ -264,7 +264,7 @@ action_do () {
 
 	_MARKED=()
 	
-	trap - INT #Downloads are finished; nothing to interrupt
+	trap - INT # Downloads are finished; nothing to interrupt
 
 	return 0
 }
@@ -395,7 +395,7 @@ get_field () {
 
 		[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
 
-		STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) #Scrub non ascii
+		STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) # Scrub non ascii
 		echo -n ${STR[1,65]}
 	}
 
@@ -434,7 +434,7 @@ kill_job () {
 	fi
 
 	if [[ ! ${functrace[1]} =~ "reset_job" ]];then
-		trap - INT # disable trap
+		trap - INT # Disable trap
 		clear_log "kill_job"
 		exit_leave "${_SCRIPT}:${WHITE_FG}Download Job${RESET}:${JOB} ${WHITE_FG}was ${RED_FG}killed${RESET}"
 	fi
@@ -482,7 +482,7 @@ rumble () {
 
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
 
-	if [[ -n ${PG} ]];then # channel search
+	if [[ -n ${PG} ]];then # Channel search
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'r' ]] && g_LIVE=false
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
@@ -501,9 +501,9 @@ rumble () {
 		for ((X=1; X<=${#TITLES}; X++));do
 			AGE=$(sed 's/ago .*/ago/' <<<${AGES[${X}]})
 			[[ -z ${AGE} ]] && continue
-			VID_LIST+="${SEARCHTERM}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # unique rows
+			VID_LIST+="${SEARCHTERM}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
-	else # general search
+	else # General search
 		msg_box "Channel name: \"${SEARCHTERM}\" not found.  Performing general search..."
 		g_SEARCH_TYPE=general
 		GEN_SEARCH=$(sed 's/ /%20/g' <<<${SEARCHTERM})
@@ -515,11 +515,11 @@ rumble () {
 		CHANNELS=("${(f)$(pup --charset utf8 '.video-item--by-a attr{href}' <<<${PG})}")
 
 		for ((X=1; X<=${#TITLES}; X++));do
-			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # experimental to avoid dups by users
+			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # Experimental to avoid dups by users
 			AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
 			CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
 			CHANNEL="${(C)SEARCHTERM} (${CHANNEL})"
-			VID_LIST+="${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # unique rows
+			VID_LIST+="${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	fi
 
@@ -559,20 +559,20 @@ select_download () {
 	SEARCHTYPE=Videos
 	if [[ ${g_QRY_ENGINE:l} == 'rumble' && ${g_LIVE} == 'true' ]];then
 		SEARCHTYPE=Live
-		list_set_sort_cols 1 4 2 2 3 3 # age, author, title
+		list_set_sort_cols 1 4 2 2 3 3 # Age, author, title
 	elif [[ ${g_QRY_ENGINE:l} == 'youtube' && ${g_STRICT} == 'true' ]];then
 		SEARCHTYPE=${g_STRICT_MSG}
-		list_set_sort_cols '' # age, author, title
+		list_set_sort_cols '' # Age, author, title
 	fi
 
-	#set headings
+ # Set headings
 	list_set_header_init
 	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tQuery Key:${WHITE_FG}%s${RESET}\tQuery Type:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${(C)g_QRY_ENGINE} ${(C)SEARCHTERM} ${(C)SEARCHTYPE} $(list_get_selected_count)'
 	list_set_header 'printf " "'
 	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_FIELD_LEN[age]} "Age" ${_FIELD_LEN[author]} "Author" ${_FIELD_LEN[title]} "Title"'
 	list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %*s %*s${RESET}" 5 "" ${_FIELD_LEN[age]} "$(str_unicode_line ${_FIELD_LEN[age]})" ${_FIELD_LEN[author]} "$(str_unicode_line ${_FIELD_LEN[author]})" ${_FIELD_LEN[title]} "$(str_unicode_line ${_FIELD_LEN[title]})"'
 
-	#set line item
+ # Set line item
 	list_set_line_item ' 
 	local ITEM_COLOR=$(set_item_color $(item_decorate ${_LIST_NDX}));
 	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}${ITEM_COLOR}%-${_FIELD_LEN[age]}s${RESET}${SHADE}${BAR} %-${_FIELD_LEN[author]}s %-${_FIELD_LEN[title]}s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"  "$(get_field author ${_LIST_NDX})"  "$(get_field title ${_LIST_NDX})" 
@@ -589,12 +589,11 @@ select_download () {
 	list_set_barlines true
 
 	while true;do
-		#get selection
-		list_reset
+	 # Get selection
 		list_select ${_LOCAL_LIST}
 		[[ ${?} -eq 0 ]] && break
 
-		#get selections
+	 # Get selections
 		_MARKED=($(list_get_selected))
 		
 		if [[ $(list_get_selected_count) -ne 0 ]];then
@@ -671,8 +670,8 @@ start_job () {
 
 	echo "g_LOG:${g_LOG} g_PID:${g_PID}" >> ${g_LOG}
 
-	#nohup ./log_sim ./yt.log.error.data >>${g_LOG} 2>&1 &
-	#nohup ./log_sim ./yt.log.noerror.data >>${g_LOG} 2>&1 &
+ # Nohup ./log_sim ./yt.log.error.data >>${g_LOG} 2>&1 &
+ # Nohup ./log_sim ./yt.log.noerror.data >>${g_LOG} 2>&1 &
 	
 }
 
@@ -747,7 +746,7 @@ clear_log () {
 	[[ ${_DEBUG} -eq 0 && -e ${g_LOG} ]] && rm -f ${g_LOG} && echo "log ${g_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg
 }
 
-#Imports
+# Imports
 #--GetOpts--
 read -r -d '' DESC<<EOF
 Query either Youtube or Rumble for videos.
@@ -830,7 +829,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 RAWPATH=$(path_get_raw)
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
@@ -848,12 +847,12 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 	fi
 
 	RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
-	RCL=$(sed 's/\-h//' <<<${RCL}) # front end option only
-	RCL=$(sed 's/\-D//' <<<${RCL}) # front end option only
+	RCL=$(sed 's/\-h//' <<<${RCL}) # Front end option only
+	RCL=$(sed 's/\-D//' <<<${RCL}) # Front end option only
 	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
 	RCL=$(sed 's/\-l//' <<<${RCL}) # Rumble only option
 
-	[[ ${_DEBUG} -ne 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # front end option only
+	[[ ${_DEBUG} -ne 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # Front end option only
 
 	if [[ ${VERSION_OPT} == 'true'  ]];then
 		echo -n "yt-search version:${WHITE_FG}"
@@ -866,7 +865,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 	ARG="${@}"
 	if [[ -n ${ARG} ]];then
 		RCL=$(sed "s/${ARG}//" <<<${RCL})
-		RCL="${RCL} ${ARG:q}" # quote any multi-word searches
+		RCL="${RCL} ${ARG:q}" # Quote any multi-word searches
 	fi
 
 	g_PROXY_CMD="node ${_JS_SCRIPT} ${RCL}"
@@ -885,7 +884,7 @@ if [[ ${#} -eq 0 ]];then # NO args passed
 			fi
 		fi
 	done
-else # args passed
+else # Args passed
 	ARG="${@}"
 	${g_QRY_ENGINE} ${ARG}
 	if [[ ${?} -eq 0 ]];then

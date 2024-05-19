@@ -1,18 +1,30 @@
 #!/usr/bin/zsh
-# Declarations
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
 
-# Constants
+BLACK_BG="\033[40m"
 
-# Globals
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
-source ${_LIB_DIR}/UTILS.zsh
-source ${_LIB_DIR}/GET_DEPS.zsh # Must be last LIB sourced
+source ${_LIB_DIR}/LIST.zsh
 
-
-# Functions
+source ${_LIB_DIR}/GET_DEPS.zsh
 
 #--Begin GetOpts--
 local -a OPTIONS
@@ -20,7 +32,12 @@ local OPTION
 local DESC
 
 read -r -d '' DESC<<EOF
-This script does...
+Fix comments: 
+\tEnsure space after #
+\tEnsure uppercase first letter after #
+
+\t* File is edited inplace
+\t* Backup is <FILE>.CMT
 EOF
 
 parse_opts () {
@@ -60,7 +77,7 @@ usage () {
 
 	tabs 5
 	(
-	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
@@ -85,5 +102,6 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
+[[ -z ${1} ]] && usage "Missing arg $(opt_type f)"
 
-exit_leave
+sed -i.CMT -e 's/^#\([A-Za-z]\)/# \U\1/g' -e 's/\([ \t]\)#\([A-Za-z]\)/\1# \U\2/g' -e 's/\([ \t]\)# \([a-z]\)/\1# \U\2/g' ${1}

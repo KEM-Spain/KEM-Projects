@@ -1,7 +1,7 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="DBG.zsh"
 
-#LIB Vars
+# LIB Vars
 _WIN_LIB_DBG=5
 
 win_close () {

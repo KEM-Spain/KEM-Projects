@@ -1,10 +1,10 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="DBG.zsh UTILS.zsh"
 
-#LIB Declarations
+# LIB Declarations
 typeset -A _ARGS # Holds command line arguments for raw path parsing
 
-#LIB Vars
+# LIB Vars
 _RAW_CMD_LINE=false # For testing
 _PATH_LIB_DBG=5
 
@@ -39,10 +39,10 @@ path_abbv () {
 
 	echo ${LINE} | perl -wane'
 		foreach $w (@F) {
-			$w =~ s#/$(?=^/.*)##g;             #kill if trailing slash if preceded by any chars
-			$w =~ s#([^/])([^/]*(?=.*/))#$1#g; #for every word btwn slashes kill all after first char
-			$w =~ s/%//g;                      #kill any percent signs (not sure why)
-			push (@line,$w);                   #build line
+			$w =~ s#/$(?=^/.*)##g;             # Kill if trailing slash if preceded by any chars
+			$w =~ s#([^/])([^/]*(?=.*/))#$1#g; # For every word btwn slashes kill all after first char
+			$w =~ s/%//g;                      # Kill any percent signs (not sure why)
+			push (@line,$w);                   # Build line
 		}
 		printf("%-s\n", "@line");
 	;' 
@@ -55,7 +55,7 @@ path_expand () {
 
 	[[ ${_DEBUG} -ge ${_PATH_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARG:${ARG}"
 
-	if [[ ${ARG} =~ "^[\.\~]" ]];then #something to expand
+	if [[ ${ARG} =~ "^[\.\~]" ]];then # Something to expand
 		[[ ${_DEBUG} -ge ${_PATH_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Expanding tilde or dot"
 		ARG_TST=${ARG}
 
@@ -194,11 +194,11 @@ path_get_raw () {
 	RAW_PATH=$(path_strip_options ${RAW_CMD_LINE}) # Strip options
 	[[ ${_DEBUG} -ge ${_PATH_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Stripped options: RAW_CMD_LINE:${RAW_CMD_LINE}"
 
-	[[ -z ${RAW_PATH} ]] && PATH_HEAD=. # empty path resolves to PWD
+	[[ -z ${RAW_PATH} ]] && PATH_HEAD=. # Empty path resolves to PWD
 
 	if [[ ${PATH_HEAD} == '?' ]];then
 		if is_glob ${RAW_PATH};then
-			TOKENIZED=("${(f)$(eval ls ${RAW_PATH})}") # expand glob - a clean file list will resolve PATH_HEAD
+			TOKENIZED=("${(f)$(eval ls ${RAW_PATH})}") # Expand glob - a clean file list will resolve PATH_HEAD
 
 			for T in ${TOKENIZED};do
 				[[ ! -f ${T} ]] && break
@@ -229,7 +229,7 @@ path_get_raw () {
 			dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG}${#TOKENS}${RESET} remaining tokens"
 		fi
 
-		RAW_PATH=${TOKENS:=.} # default to PWD
+		RAW_PATH=${TOKENS:=.} # Default to PWD
 		[[ ${_DEBUG} -ge ${_PATH_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}RAW_PATH STRIPPED${RESET}:[${WHITE_FG}${RAW_PATH}${RESET}]"
 
 		PATH_EXPANDED=$(path_expand ${RAW_PATH})

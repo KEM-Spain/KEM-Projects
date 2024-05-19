@@ -1,7 +1,7 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh PATH.zsh STR.zsh TPUT.zsh UTILS.zsh VALIDATE.zsh"
 
-#LIB Vars
+# LIB Vars
 _BARLINES=false
 _CB_KEY=''
 _CLEAR_GHOSTS=false
@@ -13,7 +13,7 @@ _CURSOR_COL=${CURSOR_COL:=0}
 _CURSOR_ROW=${CURSOR_ROW:=0}
 _AVAIL_ROW=0
 _HELD_ROW=1
-_GHOST_ROW=2 # not selectable
+_GHOST_ROW=2 # Not selectable
 _HEADER_CALLBACK_FUNC=''
 _HOLD_CURSOR=false
 _HOLD_PAGE=false
@@ -51,7 +51,7 @@ _TARGET_MIN=''
 _TARGET_NDX=1
 _TARGET_PAGE=1
 
-#LIB Declarations
+# LIB Declarations
 typeset -A _CAL_SORT=(year F6 month E5 week D4 day C3 hour B2 minute A1)
 typeset -a _LIST_ACTION_MSGS=() # Holds text for contextual prompts
 typeset -a _LIST_HEADER=() # Holds header lines
@@ -61,12 +61,12 @@ typeset -A _LIST_SELECTED_PAGE=() # Selected rows by page
 typeset -A _LIST_SELECTED=() # Status of selected list items; contains digit 0,1,2, etc.; 0,1 can toggle; -gt 1 cannot toggle (action completed)
 typeset -a _MARKED=()
 typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
-typeset -A _SORT_TABLE=() # sort assoc array names
-typeset -A _SORT_COLS=() # sort column mapping
+typeset -A _SORT_TABLE=() # Sort assoc array names
+typeset -A _SORT_COLS=() # Sort column mapping
 typeset -A _SORT_DIRECTION=() # Status of list sort direction
-typeset -a _TARGETS=() # target indexes
+typeset -a _TARGETS=() # Target indexes
 
-#LIB Functions
+# LIB Functions
 list_add_header_break () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 	_LIST_HEADER_BREAK=true
@@ -127,15 +127,15 @@ list_do_header () {
 			[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: (eval) HEADER LINE:${L} -> ${HDR_LINE}"
 
 
-			if [[ ${L} -eq 1 ]];then # top line
-				#prepend script name
+			if [[ ${L} -eq 1 ]];then # Top line
+			 # Prepend script name
 				SCRIPT_TAG=$(eval ${SCRIPT_TAG}) && HDR_LINE="${SCRIPT_TAG} ${HDR_LINE}" && CLEAN_HDR=$(str_strip_ansi <<<${HDR_LINE})
 				[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Added header name tag:${HDR_LINE}"
 			fi
 
-			[[ ${_LIST_HEADER[${L}]} =~ '_PG' ]] && HDR_PG=true # do page numbering
+			[[ ${_LIST_HEADER[${L}]} =~ '_PG' ]] && HDR_PG=true # Do page numbering
 
-				if [[ ${HDR_PG} == 'true' ]];then #append page number
+				if [[ ${HDR_PG} == 'true' ]];then # Append page number
 					PG_TAG=$(eval "printf 'Page:${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET}' ${PAGE} ${MAX_PAGE}") && CLEAN_TAG=$(str_strip_ansi <<<${PG_TAG})
 					HDR_LEN=$(( ${#CLEAN_HDR} + ${#CLEAN_TAG} ))
 					[[ ${LONGEST_HDR} -gt ${HDR_LEN} ]] && PAD_LEN=$(( LONGEST_HDR-HDR_LEN )) || PAD_LEN=1
@@ -144,7 +144,7 @@ list_do_header () {
 
 					HDR_LINE="${HDR_LINE}${PG_TAG}"
 					CLEAN_HDR=$(str_strip_ansi <<<${HDR_LINE})
-					LONGEST_HDR=${#CLEAN_HDR} # this header will now be the longest
+					LONGEST_HDR=${#CLEAN_HDR} # This header will now be the longest
 					[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Added header page tag:${HDR_LINE}, LONGEST_HDR:${LONGEST_HDR}"
 
 					HDR_PG=false
@@ -207,9 +207,9 @@ list_get_page_target () {
 		rev) N=${_TARGETS[(i)*last_target]}; [[ -z ${_TARGETS[$((N-1))]} ]] && NDX=${#_TARGETS} || NDX=$((N-1));;
 	esac
 
-	IFS=":" read R C P T <<<${_TARGETS[${NDX}]} # target text ignored; not used in key
+	IFS=":" read R C P T <<<${_TARGETS[${NDX}]} # Target text ignored; not used in key
 
-	echo "${R}:${C}:${P}:${NDX}" # pass the current index
+	echo "${R}:${C}:${P}:${NDX}" # Pass the current index
 }
 
 list_get_selected () {
@@ -409,7 +409,7 @@ list_quote_marked_elements () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	for M in ${MARKED};do
-		#STR+=${(qqq)_LIST[${M}]}
+	 # STR+=${(qqq)_LIST[${M}]}
 		STR+=${(q)_LIST[${M}]}
 	done
 
@@ -472,7 +472,7 @@ list_repaint_section () {
 	local LINE_SNIP=''
 	local R
 
-	#TODO: if list does not reach MC[X] do msg_box_clear instead
+ # TODO: if list does not reach MC[X] do msg_box_clear instead
 	 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -495,7 +495,7 @@ list_repaint_section () {
 		fi
 		if [[ ${_LIST_NDX} -le ${#_LIST} ]];then
 			tput cup ${CURSOR} 0
-			eval ${_LIST_LINE_ITEM} # line item printf
+			eval ${_LIST_LINE_ITEM} # Line item printf
 		fi
 	done
 	_LIST_NDX=${SAVED_NDX}
@@ -521,42 +521,42 @@ list_search () {
 
 	[[ ${_LIST_IS_SEARCHABLE} == 'false' ]] && return
 
-	#/bin/rm -f /tmp/list_get_page_target.out # debug trace
+	#/bin/rm -f /tmp/list_get_page_target.out # Debug trace
 
-	#Initialize scan loop
-	if [[ ${NEXT} == 'get_key' ]];then # start new search
+ # Initialize scan loop
+	if [[ ${NEXT} == 'get_key' ]];then # Start new search
 		kbd_suspend
 		HDR="<m>$(str_unicode_line 12) List Search (Next:<w>><m>, Prev:<w><<m>) $(str_unicode_line 12)<N>"
 
-		V_CTR=$(( _MAX_ROWS/2 - 4 )) # vertical center
- 		H_CTR=$(coord_center $((_MAX_COLS-3)) ${#HDR}) # horiz center
+		V_CTR=$(( _MAX_ROWS/2 - 4 )) # Vertical center
+ 		H_CTR=$(coord_center $((_MAX_COLS-3)) ${#HDR}) # Horiz center
  
- 		for ((ROW=1;ROW<=${H_POS};ROW++));do # clear a space to place the UI
+ 		for ((ROW=1;ROW<=${H_POS};ROW++));do # Clear a space to place the UI
  			tput cup $(( V_CTR + ROW )) ${H_CTR}
  			tput ech ${#HDR}
  		done
  
- 		msg_box -x${V_CTR} -y${H_CTR} "${HDR}" # display header
+ 		msg_box -x${V_CTR} -y${H_CTR} "${HDR}" # Display header
  
  		tput cup $((V_CTR+4)) $((H_CTR+2))
  		PROMPT="${E_RESET}${E_BOLD}Find${E_RESET}:"
  
 		kbd_activate
- 		TARGET=$(inline_vi_edit ${PROMPT} "") # call line editor
-		msg_box_clear X Y ${H_POS} W  # clear box containing inline edit 
+ 		TARGET=$(inline_vi_edit ${PROMPT} "") # Call line editor
+		msg_box_clear X Y ${H_POS} W  # Clear box containing inline edit 
 
- 		if [[ -z ${TARGET} ]];then # user entered nothing
+ 		if [[ -z ${TARGET} ]];then # User entered nothing
 			list_repaint_section ${H_POS} ${PAGE}
 			_TARGET_NDX=${_LIST_NDX}
 			_TARGET_CURSOR=${CURSOR_NDX}
 			_TARGET_PAGE=${PAGE}
 			_TARGET_KEY=''
 			TARGET=''
-			return # early return
+			return # Early return
 		fi
 
 		if ! list_set_targets ${TARGET};then
-			for ((ROW=0;ROW<=${H_POS};ROW++));do # clear a space to place the MSG
+			for ((ROW=0;ROW<=${H_POS};ROW++));do # Clear a space to place the MSG
 				tput cup $(( V_CTR + ROW )) ${H_CTR}
 				tput ech ${#HDR}
 			done
@@ -568,7 +568,7 @@ list_search () {
 			_TARGET_PAGE=${PAGE}
 			_TARGET_KEY=''
 			TARGET=''
-			return # early return
+			return # Early return
 		fi
 
 		list_repaint_section $((H_POS+1)) ${PAGE}
@@ -773,9 +773,9 @@ list_select () {
 								[[ ${KEY} -eq 60 ]] && NEXT=rev; # Less Than
 								[[ ${KEY} -eq 62 ]] && NEXT=fwd; # Greater Than
 								list_search ${PAGE} ${NEXT};
-								if [[ ${_TARGET_PAGE} -eq ${PAGE} ]];then # same page - move cursor
+								if [[ ${_TARGET_PAGE} -eq ${PAGE} ]];then # Same page - move cursor
 									CURSOR_NDX=${_TARGET_CURSOR} && _LIST_NDX=${_TARGET_NDX}
-								else # different page - navigate
+								else # Different page - navigate
 									DIR_KEY=${_TARGET_PAGE}; _CURRENT_ARRAY=${_TARGET_NDX}; _CURRENT_CURSOR=${_TARGET_CURSOR}; _HOLD_CURSOR=true; PAGE_BREAK=true; break
 								fi
 								;;
@@ -1010,7 +1010,7 @@ list_set_pages () {
 		fi
 	done
 
-	# last page
+ # Last page
 	BOT=$(cut -d: -f2 <<<${PAGES[${P}]})
 	TOP=$(( BOT+1 ))
 	BOT=$(( L-1 ))
@@ -1116,7 +1116,7 @@ list_set_targets () {
 			C=$((R-TOP+1))
 			echo "${C}:${P}:${_LIST[${R}]:t}"
 		done
-	done | grep --color=never -ni -P ":.*${TARGET}.*$" | perl -p -e "s/^(\d+:\d+:\d+)(.*)$/\1/" # return key:NDX/CURSOR/PAGE
+	done | grep --color=never -ni -P ":.*${TARGET}.*$" | perl -p -e "s/^(\d+:\d+:\d+)(.*)$/\1/" # Return key:NDX/CURSOR/PAGE
 	)}")
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${0}:${LINENO} Set search targets for ${#_TARGETS} targets"
@@ -1188,7 +1188,7 @@ list_sort () {
 }
 
 list_sort_assoc () {
-	local COLUMN=${1:=null} # direct call - no prompts
+	local COLUMN=${1:=null} # Direct call - no prompts
 	local ARRAY
 	local -a SLIST
 	local SORT_COL
@@ -1259,9 +1259,9 @@ list_sort_flat () {
 
 	for L in ${(P)ARR_NAME};do
 		if [[ -n ${_SORT_COLS} ]];then
-			RANK_COL=$(cut -d "${DELIM}" -f ${_SORT_COLS[${SORT_COL}]} <<<${L}) # mapped columns
+			RANK_COL=$(cut -d "${DELIM}" -f ${_SORT_COLS[${SORT_COL}]} <<<${L}) # Mapped columns
 		else
-			RANK_COL=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L}) # natural order
+			RANK_COL=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L}) # Natural order
 		fi
 		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LINE:${L} DELIM:${DELIM} SORT_COL:${SORT_COL}"
 		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RANK_COL:${RANK_COL}"
@@ -1357,11 +1357,11 @@ list_toggle_all () {
 		dbg "${functrace[1]} called ${0}:${LINENO}:  MAX_ITEM:${MAX_ITEM}, MAX_PAGE:${MAX_PAGE}"
 	fi
 
-	if [[ ${ACTION} == 'toggle' ]];then # mark/unmark all
+	if [[ ${ACTION} == 'toggle' ]];then # Mark/unmark all
 		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  ACTION:${ACTION}"
-		[[ ${_LIST_SELECTED_PAGE[${PAGE}]} -eq 1 ]] && _LIST_SELECTED_PAGE[${PAGE}]=0 || _LIST_SELECTED_PAGE[${PAGE}]=1 # toggle state
+		[[ ${_LIST_SELECTED_PAGE[${PAGE}]} -eq 1 ]] && _LIST_SELECTED_PAGE[${PAGE}]=0 || _LIST_SELECTED_PAGE[${PAGE}]=1 # Toggle state
 
-		if [[ ${MAX_PAGE} -gt 1 && ${_LIST_SELECTED_PAGE[${PAGE}]} -eq 1 ]];then # prompt only for setting range
+		if [[ ${MAX_PAGE} -gt 1 && ${_LIST_SELECTED_PAGE[${PAGE}]} -eq 1 ]];then # Prompt only for setting range
 			msg_box -p -P"(A)ll, (P)age, or (N)one" "Select Range"
 			case ${_MSG_KEY:l} in
 				a) SELECTED=($(list_select_range 1 ${MAX_ITEM})); _LIST_SELECTED_PAGE[0]=1;;
@@ -1371,16 +1371,16 @@ list_toggle_all () {
 			msg_box_clear
 
 			[[ -z ${SELECTED} ]] && return
-		else # set clearing scope - all or page
-			if [[ ${_LIST_SELECTED_PAGE[0]} -eq 1 ]];then # all was set
+		else # Set clearing scope - all or page
+			if [[ ${_LIST_SELECTED_PAGE[0]} -eq 1 ]];then # All was set
 				SELECTED=($(list_select_range 1 ${MAX_ITEM})) && _LIST_SELECTED_PAGE[0]=0
 			else
 				SELECTED=($(list_select_range ${FIRST_ITEM} ${LAST_ITEM}))
 			fi
 		fi
 	else
-		_LIST_SELECTED_PAGE[${PAGE}]=0 # clear - unmark page
-		_LIST_SELECTED_PAGE[0]=0 # clear - unmark all
+		_LIST_SELECTED_PAGE[${PAGE}]=0 # Clear - unmark page
+		_LIST_SELECTED_PAGE[0]=0 # Clear - unmark all
 		SELECTED=($(list_select_range 1 ${MAX_ITEM}))
 	fi
 
@@ -1443,10 +1443,10 @@ list_toggle_selected () {
 			return # Ignore over limit
 		fi
 		list_set_selected ${ROW_NDX} 1 
-		[[ -n ${_HEADER_CALLBACK_FUNC} ]] && ${_HEADER_CALLBACK_FUNC} ${ROW_NDX} "${0}|1" #all on
+		[[ -n ${_HEADER_CALLBACK_FUNC} ]] && ${_HEADER_CALLBACK_FUNC} ${ROW_NDX} "${0}|1" # All on
 	else
 		list_set_selected ${ROW_NDX} 0
-		[[ -n ${_HEADER_CALLBACK_FUNC} ]] && ${_HEADER_CALLBACK_FUNC} ${ROW_NDX} "${0}|0" #all off
+		[[ -n ${_HEADER_CALLBACK_FUNC} ]] && ${_HEADER_CALLBACK_FUNC} ${ROW_NDX} "${0}|0" # All off
 	fi
 
 	list_do_header ${PAGE} ${MAX_PAGE}

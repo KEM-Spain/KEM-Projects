@@ -1,7 +1,7 @@
-#LIB Dependencies
+# LIB Dependencies
 _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 
-#LIB Vars
+# LIB Vars
 _INNER_BOX_COLOR=${RESET}
 _OUTER_BOX_COLOR=${RESET}
 _SELECTION_VALUE=?
@@ -11,7 +11,7 @@ _SL_MAX_ITEM_LEN=0
 _TITLE_HL=${WHITE_ON_GREY}
 _SEL_LIST_LIB_DBG=3
 
-#LIB Declarations
+# LIB Declarations
 typeset -a _SELECTION_LIST # Holds indices of selected items in a list
 typeset -A _PAGE_TOPS
 typeset -a _CENTER_COORDS
@@ -23,7 +23,7 @@ _HILITE=${_TITLE_HL}
 _HILITE_X=0
 _PAGE_OPTION_KEY_HELP=''
 
-#LIB Functions
+# LIB Functions
 selection_list () {
 	local -A SKEYS
 	local -a SLIST
@@ -116,8 +116,6 @@ selection_list () {
 		_CURSOR_STATE=off
 	fi
 
-	#msg_box "Loading selection list..."
-
 	if [[ ${_SORT_KEY} == 'true' ]];then
 		for L in ${_SELECTION_LIST};do
 			SKEYS+=$(cut -d':' -f1 <<<${L})
@@ -135,8 +133,6 @@ selection_list () {
 		fi
 		BOX_WIDTH=$(( _SL_MAX_ITEM_LEN+2 ))
 	fi
-
-	#msg_box_clear
 
 	[[ ${MAX_X_COORD} -lt ${BOX_HEIGHT} ]] && BOX_HEIGHT=$((MAX_X_COORD-10 )) # Long list
 
@@ -182,7 +178,6 @@ selection_list () {
 		msg_unicode_box ${SX} ${SY} ${SW} ${SH} # OUTER box
 		box_coords_set OUTER X ${SX} Y ${SY} W ${SW} H ${SH}
 
-		#echo -n ${RESET}
 		CLEAN_TEXT=$(msg_nomarkup ${TITLE})
 		tput cup $((SX+1)) $(( SY+(SW/2)-(${#CLEAN_TEXT}/2) ));echo $(msg_markup ${TITLE})
 
@@ -215,7 +210,7 @@ selection_list () {
 	LAST_NDX=0
 	LAST_ROW=0
 
-	#Record page tops
+ # Record page tops
 	for P in ${(onk)_PAGE_TOPS};do
 		Q=$((P+1))
 		[[ -n ${_PAGE_TOPS[${Q}]} ]] && PG_BOT=${_PAGE_TOPS[${Q}]} || PG_BOT=${MAX_NDX}
@@ -235,7 +230,7 @@ selection_list () {
 		box_coords_set INNER X ${BOX_X_COORD} Y ${CENTER_Y} W ${BOX_WIDTH} H ${BOX_HEIGHT}
 		echo -n ${RESET}
 
-		# set column widths for lists having categories
+	 # Set column widths for lists having categories
 		if [[ ${_SL_CATEGORY} == 'true' ]];then
 			for L in ${_SELECTION_LIST};do
 				F1=$(cut -d: -f1 <<<${L})
@@ -475,7 +470,7 @@ selection_list_pos_exitbox () {
 }
 
 selection_list_repaint_section () {
-	#TODO allow for PAGES
+ # TODO allow for PAGES
 	local -A I_COORDS
 	local -A MB_C=($(box_coords_get MSG))
 	local START_ROW=$((MB_C[X] - 1))
@@ -506,9 +501,9 @@ selection_list_repaint_section () {
 				F1=$(selection_list_get_cat ${L_NDX})
 				F2=$(selection_list_get_label ${L_NDX})
 				tput cup ${CURSOR} ${MB_C[Y]}
-				printf "%*s" ${MB_C[W]} ' ' # space over msg_box 
+				printf "%*s" ${MB_C[W]} ' ' # Space over msg_box 
 				tput cup ${CURSOR} ${I_COORDS[Y]}
-				printf "${VERT_BAR}" # left inner border and menu item
+				printf "${VERT_BAR}" # Left inner border and menu item
 				if [[ ${CURSOR} -eq ${_HILITE_X} ]];then
 					tput smso
 					HILITE=${_TITLE_HL}
@@ -518,16 +513,16 @@ selection_list_repaint_section () {
 				fi
 				printf "${WHITE_FG}%-*s${RESET} ${HILITE}%-*s${RESET}" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
 				tput cup ${CURSOR} $(( I_COORDS[Y] + I_COORDS[W] - 1 ))
-				printf "${VERT_BAR}" # right inner border
+				printf "${VERT_BAR}" # Right inner border
 			fi
 		else
 			if [[ ${L_NDX} -le ${#_SELECTION_LIST} ]];then
 				tput cup ${CURSOR} ${MB_C[Y]}
-				printf "%*s" ${MB_C[W]} ' ' # space over msg_box 
+				printf "%*s" ${MB_C[W]} ' ' # Space over msg_box 
 				tput cup ${CURSOR} ${I_COORDS[Y]}
-				printf "${VERT_BAR}${_SELECTION_LIST[${L_NDX}]}" # left inner border and menu item
+				printf "${VERT_BAR}${_SELECTION_LIST[${L_NDX}]}" # Left inner border and menu item
 				tput cup ${CURSOR} $(( I_COORDS[Y] + I_COORDS[W] - 1 ))
-				printf "${VERT_BAR}" # right inner border
+				printf "${VERT_BAR}" # Right inner border
 			fi
 		fi
 	done
