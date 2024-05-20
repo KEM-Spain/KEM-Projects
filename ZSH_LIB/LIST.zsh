@@ -1,6 +1,21 @@
 # LIB Dependencies
 _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh PATH.zsh STR.zsh TPUT.zsh UTILS.zsh VALIDATE.zsh"
 
+# LIB Declarations
+typeset -A _CAL_SORT=(year F6 month E5 week D4 day C3 hour B2 minute A1)
+typeset -a _LIST_ACTION_MSGS=() # Holds text for contextual prompts
+typeset -a _LIST_HEADER=() # Holds header lines
+typeset -a _LIST=() # Holds the values to be managed by the menu
+typeset -a _LIST_INDEX_RANGE=() # Holds the top and bottom screen row indicies
+typeset -A _LIST_SELECTED_PAGE=() # Selected rows by page
+typeset -A _LIST_SELECTED=() # Status of selected list items; contains digit 0,1,2, etc.; 0,1 can toggle; -gt 1 cannot toggle (action completed)
+typeset -a _MARKED=()
+typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
+typeset -A _SORT_TABLE=() # Sort assoc array names
+typeset -A _SORT_COLS=() # Sort column mapping
+typeset -A _SORT_DIRECTION=() # Status of list sort direction
+typeset -a _TARGETS=() # Target indexes
+
 # LIB Vars
 _BARLINES=false
 _CB_KEY=''
@@ -11,9 +26,6 @@ _CURRENT_CURSOR=0
 _CURRENT_PAGE=1
 _CURSOR_COL=${CURSOR_COL:=0}
 _CURSOR_ROW=${CURSOR_ROW:=0}
-_AVAIL_ROW=0
-_HELD_ROW=1
-_GHOST_ROW=2 # Not selectable
 _HEADER_CALLBACK_FUNC=''
 _HOLD_CURSOR=false
 _HOLD_PAGE=false
@@ -25,7 +37,6 @@ _LIST_HEADER_BREAK_COLOR=${WHITE_FG}
 _LIST_HEADER_BREAK_LEN=0
 _LIST_IS_SEARCHABLE=true
 _LIST_IS_SORTABLE=false
-_LIST_LIB_DBG=3
 _LIST_LINE_ITEM=''
 _LIST_NDX=0
 _LIST_PROMPT=''
@@ -51,29 +62,22 @@ _TARGET_MIN=''
 _TARGET_NDX=1
 _TARGET_PAGE=1
 
-# LIB Declarations
-typeset -A _CAL_SORT=(year F6 month E5 week D4 day C3 hour B2 minute A1)
-typeset -a _LIST_ACTION_MSGS=() # Holds text for contextual prompts
-typeset -a _LIST_HEADER=() # Holds header lines
-typeset -a _LIST=() # Holds the list values to be managed by the list menu
-typeset -a _LIST_INDEX_RANGE=() # Holds the top and bottom screen row indicies
-typeset -A _LIST_SELECTED_PAGE=() # Selected rows by page
-typeset -A _LIST_SELECTED=() # Status of selected list items; contains digit 0,1,2, etc.; 0,1 can toggle; -gt 1 cannot toggle (action completed)
-typeset -a _MARKED=()
-typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
-typeset -A _SORT_TABLE=() # Sort assoc array names
-typeset -A _SORT_COLS=() # Sort column mapping
-typeset -A _SORT_DIRECTION=() # Status of list sort direction
-typeset -a _TARGETS=() # Target indexes
-
+# Constants
+_AVAIL_ROW=0
+_HELD_ROW=1
+_GHOST_ROW=2 # Not selectable
+_LIST_LIB_DBG=3
+ 
 # LIB Functions
 list_add_header_break () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	_LIST_HEADER_BREAK=true
 }
 
 list_call_sort () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	case ${_LIST_SORT_TYPE} in
 		assoc) list_sort_assoc;;
 		flat) list_sort;;

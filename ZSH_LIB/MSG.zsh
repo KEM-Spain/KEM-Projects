@@ -2,7 +2,6 @@
 _DEPS_+="ARRAY.zsh DBG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 
 # LIB Declarations
-typeset -a _LIST # Holds the list values to be managed by the list menu
 typeset -a _CONT_BUFFER=()
 typeset -A _CONT_DATA=(BOX false COLS 0 HDRS 0 MAX 0 OUT 0 SCR 0 TOP 0 Y 0 W 0)
 

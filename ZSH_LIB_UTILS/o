@@ -60,7 +60,7 @@ _APP_TYPE["HARUNA"]="GUI"
 _APP_TYPE["VIM"]="TERM"
 
 EBOOK="/usr/bin/python2.7 /usr/bin/ebook-viewer"
-OKULAR=/usr/bin/okular
+OKULAR="/usr/bin/okular --presentation"
 MDLESS=/usr/local/bin/mdless
 MUSE="/usr/local/bin/system/launchers/run_musescore"
 OFFICE=/usr/bin/libreoffice

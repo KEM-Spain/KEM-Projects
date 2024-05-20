@@ -37,6 +37,7 @@ _LS_FORMAT+='--group-directories-first'
 _LS_FORMAT+='-h'
 _LS_FORMAT+='-v'
 _LS_FORMAT+='-N'
+_LS_FORMAT+='-X'
 
 
 #Imports
