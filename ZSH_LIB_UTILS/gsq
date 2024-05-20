@@ -31,6 +31,7 @@ action_do () {
 	local ROW
 	local LONG_VAL
 	local HDR
+	local -A M_COORDS
 
 	for M in ${_MARKED};do
 		CUR_VALUE=$(get_val ${M})
@@ -38,6 +39,8 @@ action_do () {
 		KEY=$(get_key ${M})
 
 		msg_box -p -P"Change value (y/n)" "Current value for:<y>${KEY}<N>|is:<g>${CUR_VALUE}<N>"
+		M_COORDS=($(box_coords_get MSG))
+
 		if [[ ${_MSG_KEY} == 'y' ]];then
 			LONG_VAL=false
 			if [[ ${#CUR_VALUE} -gt 80 ]];then
@@ -48,19 +51,19 @@ action_do () {
 			else
 				HDR="<m>$(str_unicode_line 12)<N> New Value for:<w> ${KEY} <m>$(str_unicode_line 12) (vi editor) $(str_unicode_line 12)<N>"
 				for ((ROW=-1;ROW<=7;ROW++));do
-					tput cup $((_MSG_BOX_COORDS[X]+ROW)) $(coord_center $((_MAX_COLS-5)) ${#HDR})
+					tput cup $((M_COORDS[X]+ROW)) $(coord_center $((_MAX_COLS-5)) ${#HDR})
 					tput ech ${#HDR}
 				done
 
 				msg_box "${HDR}"
 
 				#tput smso
-				tput cup $((_MSG_BOX_COORDS[X]+4)) $((_MSG_BOX_COORDS[Y]+2))
+				tput cup $((M_COORDS[X]+4)) $((M_COORDS[Y]+2))
 				PROMPT="${E_RESET}${E_BOLD}Enter value${E_RESET}:"
 				cursor_on
 				NEW_VALUE=$(inline_edit ${PROMPT} ${CUR_VALUE}) #launch line editor
 				cursor_off
-				_MSG_BOX_COORDS[H]=$((_MSG_BOX_COORDS[H]+2))
+				M_COORDS[H]=$((M_COORDS[H]+2))
 
 				tput rmso
 				msg_box_clear
@@ -87,7 +90,6 @@ action_do () {
 		_MARKED[${M}]=0
 		list_set_selected ${M} ${_GHOST_ROW}
 	done
-
 }
 
 action_warn () {

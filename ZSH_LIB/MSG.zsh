@@ -6,8 +6,6 @@ typeset -a _LIST # Holds the list values to be managed by the list menu
 typeset -a _CONT_BUFFER=()
 typeset -A _CONT_DATA=(BOX false COLS 0 HDRS 0 MAX 0 OUT 0 SCR 0 TOP 0 Y 0 W 0)
 
-_OUTLINE_COLOR=${RESET}
-
 # LIB Vars
 _MSG_KEY=''
 _MSG_LIB_DBG=4
@@ -53,6 +51,7 @@ msg_box () {
 	# OPTIONS
 	local -a MSG=()
 	local BOX_HEIGHT=0
+	local FRAME_COLOR=''
 	local BOX_WIDTH=0
 	local CLEAR_MSG=false
 	local CONTINUOUS=false
@@ -80,7 +79,7 @@ msg_box () {
 			D) MSG_DEBUG=true;;
 			H) HEADER_LINES=${OPTARG};;
 			C) CONTINUOUS=true;;
-			O) _OUTLINE_COLOR=${OPTARG};;
+			O) FRAME_COLOR=${OPTARG};;
 			P) PROMPT_TEXT=${OPTARG};;
 			R) _CONT_DATA[BOX]=false;;
 			c) CLEAR_MSG=true;;
@@ -120,7 +119,6 @@ msg_box () {
 	MSG_LEN=${*}
 	if [[ ${#MSG_LEN} -gt 250 && ${QUIET} == 'false' ]];then
 		local -a PROC_MSG_BOX=(18 80 20 3)
-		echo -n ${_OUTLINE_COLOR}
 		msg_unicode_box ${PROC_MSG_BOX}
 		echo -n ${RESET}
 		tput cup $((PROC_MSG_BOX[1]+1)) $((PROC_MSG_BOX[2]+3))
@@ -257,8 +255,8 @@ msg_box () {
 	#call once for CONTINUOUS
 	if [[ ${CONTINUOUS} == 'true' ]];then
 		if [[ ${_CONT_DATA[BOX]} == 'false' ]];then
-			msg_box_frame ${_OUTLINE_COLOR} ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
-			box_coords_set CONT X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} 
+			msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT} ${FRAME_COLOR}
+			box_coords_set CONT X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH}
 			_CONT_DATA[W]=${BOX_WIDTH}
 			_CONT_DATA[HDRS]=${HEADER_LINES}
 			_CONT_DATA[OUT]=0
@@ -266,7 +264,7 @@ msg_box () {
 			_CONT_DATA[BOX]=true
 		fi
 	else
-		msg_box_frame ${_OUTLINE_COLOR} ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
+		msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT} ${FRAME_COLOR}
 
 		[[ ${HEADER_LINES} -ne 0 ]] && HDR=(${MSGS[1,${HEADER_LINES}]})
 
@@ -442,20 +440,6 @@ msg_box_align () {
 	echo "${MSG_PAD_L}${MSG_OUT}${MSG_PAD_R}"
 }
 
-msg_box_frame () {
-	local OUTLINE_COLOR=${1}
-	local BOX_X_COORD=${2}
-	local BOX_Y_COORD=${3}
-	local BOX_WIDTH=${4}
-	local BOX_HEIGHT=${5}
-
-	echo -n ${RESET}
-	echo -n ${_OUTLINE_COLOR}
-	msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT}
-	echo -n ${RESET}
-	_OUTLINE_COLOR=${RESET}
-}
-
 msg_box_clear () {
 	local X_COORD_ARG=${1}
 	local Y_COORD_ARG=${2}
@@ -467,13 +451,13 @@ msg_box_clear () {
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  MBOX_COORDS:${(kv)MBOX_COORDS}"
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X_COORD_ARG:${X_COORD_ARG}  Y_COORD_ARG:${Y_COORD_ARG} H_COORD_ARG:${H_COORD_ARG} W_COORD_ARG:${W_COORD_ARG}"
 
+	[[ -z ${MBOX_COORDS} ]] && return # No previously displayed window found
+
 	#  Substitute value from arg or use history value if nothing passed
 	[[ -z ${X_COORD_ARG} || ${X_COORD_ARG} == 'X' ]] && X_COORD_ARG=${MBOX_COORDS[X]}
 	[[ -z ${Y_COORD_ARG} || ${Y_COORD_ARG} == 'Y' ]] && Y_COORD_ARG=${MBOX_COORDS[Y]}
 	[[ -z ${H_COORD_ARG} || ${H_COORD_ARG} == 'H' ]] && H_COORD_ARG=${MBOX_COORDS[H]}
 	[[ -z ${W_COORD_ARG} || ${W_COORD_ARG} == 'W' ]] && W_COORD_ARG=${MBOX_COORDS[W]}
-
-	[[ ${H_COORD_ARG} -eq 0 ]] && return # Ignore
 
 	for ((X=X_COORD_ARG; X<=X_COORD_ARG+H_COORD_ARG-1; X++));do
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X:${X}, X_COORD_ARG:${X_COORD_ARG}, W_COORD_ARG:${W_COORD_ARG}"
@@ -668,6 +652,7 @@ msg_unicode_box () {
 	local BOX_Y_COORD=${2}
 	local BOX_WIDTH=${3}
 	local BOX_HEIGHT=${4}
+	local BOX_COLOR=${5:=${RESET}}
 	local TOP_LEFT 
 	local TOP_RIGHT
 	local BOT_LEFT 
@@ -704,6 +689,9 @@ msg_unicode_box () {
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TOP LEFT: BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD}"
 
+	# Color
+	echo -n ${BOX_COLOR}
+
 	# Top left corner
 	tput cup ${BOX_X_COORD} ${BOX_Y_COORD}
 	printf ${TOP_LEFT}
@@ -739,6 +727,8 @@ msg_unicode_box () {
 	# Bottom right corner
 	tput cup ${X} ${Y}
 	printf ${BOT_RIGHT}
+
+	echo -n ${RESET}
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOTTOM RIGHT: BOX_X_COORD:${X} BOX_Y_COORD:${Y}"
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOX DIMENSIONS:$((X-BOX_X_COORD+1)) x $((Y-BOX_Y_COORD+1))"

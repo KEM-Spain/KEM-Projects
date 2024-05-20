@@ -2,8 +2,6 @@
 _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 
 # LIB Vars
-_INNER_BOX_COLOR=${RESET}
-_OUTER_BOX_COLOR=${RESET}
 _SELECTION_VALUE=?
 _SELECTION_KEY=?
 _SL_CATEGORY=false
@@ -29,8 +27,9 @@ selection_list () {
 	local -a SLIST
 	local MAX_X_COORD=$((_MAX_ROWS-5)) # Up from bottom 
 	local MAX_NDX=${#_SELECTION_LIST}
-	local BOX_BOT=0
 	local BOX_HEIGHT=$(( MAX_NDX+2 ))
+	local BOUNDARY_SET=false
+	local BOX_BOT=0
 	local BOX_NDX=0
 	local BOX_PARTIAL=0
 	local BOX_ROW=0
@@ -47,10 +46,9 @@ selection_list () {
 	local DIR
 	local F1 F2
 	local GUIDE=false
+	local GUIDE_OFFSET=2
 	local GUIDE_ROW=0
 	local GUIDE_ROWS=1
-	local GUIDE_OFFSET=2
-	local ITEM_PAD=0
 	local KEY
 	local L P Q 
 	local LAST_NDX
@@ -62,20 +60,16 @@ selection_list () {
 	local MAX_BOX=0
 	local OPTION
 	local OPTSTR
+	local OPT_KEY_ROW=0
 	local PAD=2
 	local PG_BOT=0
 	local PG_TOP=0
 	local REM 
 	local ROWS_OUT=0
-	local ROW_ARG=?
 	local SX SY SW SH SL
 	local TITLE
 	local TOP_SET=false
-	local X_COORD_ARG=0
-	local Y_COORD_ARG=0
 	local _SORT_KEY=false
-	local BOUNDARY_SET=false
-	local OPT_KEY_ROW=0
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -84,21 +78,24 @@ selection_list () {
 	OPTSTR=":x:y:cr:w:O:I:s"
 	OPTIND=0
 
-	ITEM_PAD=2
-	ROW_ARG=''
-	_INNER_BOX_COLOR=${RESET}
-	_OUTER_BOX_COLOR=${RESET}
+	local ITEM_PAD=2
+	local ROW_ARG=0
+	local INNER_BOX_COLOR=${RESET}
+	local OUTER_BOX_COLOR=${RESET}
+	local X_COORD_ARG=0
+	local Y_COORD_ARG=0
+
 	_SL_CATEGORY=false
 	_SORT_KEY=false
 
 	while getopts ${OPTSTR} OPTION;do
 		case $OPTION in
+	   O) OUTER_BOX_COLOR=${OPTARG};;
+	   I) INNER_BOX_COLOR=${OPTARG};;
 	   c) _SL_CATEGORY=true;;
-	   O) _OUTER_BOX_COLOR=${OPTARG};;
-	   I) _INNER_BOX_COLOR=${OPTARG};;
-	   w) ITEM_PAD=${OPTARG};;
 	   r) ROW_ARG=${OPTARG};;
 	   s) _SORT_KEY=true;;
+	   w) ITEM_PAD=${OPTARG};;
 	   x) X_COORD_ARG=${OPTARG};;
 	   y) Y_COORD_ARG=${OPTARG};;
 	   :) exit_leave "${RED_FG}${0}${RESET}: option: -${OPTARG} requires an argument";;
@@ -174,8 +171,7 @@ selection_list () {
 		[[ ${_MAX_PAGE} -gt 1 && -n ${_PAGE_OPTION_KEY_HELP} ]] && (( SH++ )) && GUIDE_ROWS=2 && GUIDE_OFFSET=3
 
 		# Outer box w/ title
-		echo -n ${_OUTER_BOX_COLOR}
-		msg_unicode_box ${SX} ${SY} ${SW} ${SH} # OUTER box
+		msg_unicode_box ${SX} ${SY} ${SW} ${SH} ${OUTER_BOX_COLOR} # OUTER box
 		box_coords_set OUTER X ${SX} Y ${SY} W ${SW} H ${SH}
 
 		CLEAN_TEXT=$(msg_nomarkup ${TITLE})
@@ -225,10 +221,8 @@ selection_list () {
 	while true;do
 		BOX_ROW=${BOX_X}
 		BOX_NDX=1
-		echo -n ${_INNER_BOX_COLOR}
-		msg_unicode_box ${BOX_X_COORD} ${CENTER_Y} ${BOX_WIDTH} ${BOX_HEIGHT} # Display INNER box for list
+		msg_unicode_box ${BOX_X_COORD} ${CENTER_Y} ${BOX_WIDTH} ${BOX_HEIGHT} ${INNER_BOX_COLOR} # Display INNER box for list
 		box_coords_set INNER X ${BOX_X_COORD} Y ${CENTER_Y} W ${BOX_WIDTH} H ${BOX_HEIGHT}
-		echo -n ${RESET}
 
 	 # Set column widths for lists having categories
 		if [[ ${_SL_CATEGORY} == 'true' ]];then
