@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,18 +17,18 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _COL_MAX=150
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/DURABLE.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Declarations
+# Declarations
 typeset -a LIST
 typeset -a RAWLIST
 typeset LINE_LIMIT=100
@@ -132,21 +132,21 @@ shift $((OPTIND -1))
 #--End GetOpts--
 SEARCHTERM=${@} 
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 && FILELIST == 'false' ]] && do_smcup
 #[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ -z ${SEARCHTERM} ]] && usage "Missing argument:<SEARCHTERM>"
 [[ ! -t 0 ]] && exit_leave $(msg_warn "Unable to accept piped input")
 
-if [[ -n ${MY_FILE} ]];then # if file was passed
-	if [[ ! -e ${MY_PATH}/${MY_FILE} ]];then # and not found
-		exit_leave $(msg_warn "file not found:${MY_PATH}/${MY_FILE}") # exit not found
+if [[ -n ${MY_FILE} ]];then # If file was passed
+	if [[ ! -e ${MY_PATH}/${MY_FILE} ]];then # And not found
+		exit_leave $(msg_warn "file not found:${MY_PATH}/${MY_FILE}") # Exit not found
 	else
-		MY_GREP_ARG="${MY_PATH}/${MY_FILE}" # limit to file name
+		MY_GREP_ARG="${MY_PATH}/${MY_FILE}" # Limit to file name
 	fi
 else
-	MY_GREP_ARG="${MY_PATH}/*" # no file name was passed - all files in path
+	MY_GREP_ARG="${MY_PATH}/*" # No file name was passed - all files in path
 fi
 
 CMD=$(echo "grep -H -r -P -I -d skip -D skip ${MAX_MATCHES} --color=never ${RECURSE_OPT} ${LINENUM_OPT} ${EXCLUDE_OPT} ${ONLY_OPT} ${WORD_OPT} ${CASE_OPT} '"${SEARCHTERM}"' ${MY_GREP_ARG} 2>/dev/null")
@@ -170,8 +170,8 @@ for L in ${RAWLIST};do
 	[[ ${_DEBUG} -gt 0 && (! ${FTYPE} =~ 'text') ]] && dbg "${0}:${LINENO} File:${FN} rejected - not text:${FTYPE}" 
 	[[ ! ${FTYPE} =~ 'text' ]] && continue
 	LN=$(cut -d: -f2- <<<${L})
-	[[ ${COLORS} == 'always' ]] && LN=$(echo ${LN} | grep --color=${COLORS} ${CASE_OPT} ${SEARCHTERM}) # colorize
-	LN=${LN[1,${_COL_MAX}]} #limit usable line length; some files have no line breaks
+	[[ ${COLORS} == 'always' ]] && LN=$(echo ${LN} | grep --color=${COLORS} ${CASE_OPT} ${SEARCHTERM}) # Colorize
+	LN=${LN[1,${_COL_MAX}]} # Limit usable line length; some files have no line breaks
 	LN=$(tr -d '\012\015' <<<${LN})
 	LN=$(tr -s '[:space:]' <<<${LN})
 	LN=$(sed 's/[\t\n]/ /' <<<${LN})

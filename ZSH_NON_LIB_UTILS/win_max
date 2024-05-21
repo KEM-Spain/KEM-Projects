@@ -8,10 +8,10 @@ typeset -A _WIN_KEYS
 # Constants
 _LOG=/tmp/${_SCRIPT}.log
 _SCRIPT=${0:t}
-_MAX_CYCLE=100 # max wmctrl requests
+_MAX_CYCLE=100 # Max wmctrl requests
 _MAX_ITER=500
 _MAX_WMCTRL_CALLS=10
-_STABLE_ID=10 # iterations without a change of id should indicate a stable id
+_STABLE_ID=10 # Iterations without a change of id should indicate a stable id
 
 # Globals
 g_CYCLE=0
@@ -59,7 +59,7 @@ while true;do
 	while true;do
 		((g_WMCTRL_CALL++))
 		[[ ${g_WMCTRL_CALL} -ge ${_MAX_WMCTRL_CALLS} ]] && log_it "Unable to fetch window list (wmctrl) - exiting" && exit 1
-		APP_WDWS=("${(f)$(wmctrl -plx 2>/dev/null | grep -i ${APP})}") # all app windows
+		APP_WDWS=("${(f)$(wmctrl -plx 2>/dev/null | grep -i ${APP})}") # All app windows
 		if [[ -z ${APP_WDWS} ]];then
 			sleep 2
 		else
@@ -75,9 +75,9 @@ while true;do
 	done
 
 	for W in ${APP_WDWS};do
-		#log_it "APP_WINDOW:${W}"
-		W_ID=$(echo ${W} | grep -i ${W} | tr -s '[:space:]' | cut -d' ' -f1) # app window id
-		W_PID=$(echo ${W} | grep -i ${W} | tr -s '[:space:]' | cut -d' ' -f3) # app window pid
+		# Log_it "APP_WINDOW:${W}"
+		W_ID=$(echo ${W} | grep -i ${W} | tr -s '[:space:]' | cut -d' ' -f1) # App window id
+		W_PID=$(echo ${W} | grep -i ${W} | tr -s '[:space:]' | cut -d' ' -f3) # App window pid
 		KEY=${APP}:${W_PID}:${W_ID}
 		_CUR_KEYS[${KEY}]=1
 		log_it "${KEY} is CURRENT"

@@ -14,18 +14,18 @@ STRIKE="\033[9m"
 ITALIC="\033[3m"
 UNDER="\033[4m"
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _DEPTH=1
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/STR.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 depth_set_level () {
 	((_DEPTH++))
 }
@@ -121,7 +121,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 MAXDEPTH=${_DEPTH}
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LISTING:${LISTING}\nMAXDEPTH:${MAXDEPTH}\nREGEX:${REGEX}\nOBJ_TYPE:${OBJ_TYPE:-both}"
@@ -129,9 +129,9 @@ MAXDEPTH=${_DEPTH}
 if [[ ${IS_REGEX} == 'true' ]];then
 	[[ ${OPTIONS[(i)d]} -le ${#OPTIONS} ]] && usage "-d is incompatible with -r (pwd only)"
 
-#	fc -R #read history
-#	RAW_CMD_LINE=("${(f)$(fc -lnr | head -1 | str_trim)}") #parse raw cmdline
-#	RAW_ARGS=$(echo ${RAW_CMD_LINE} | rev | cut -d' ' -f1 | rev) #grab the args
+#	fc -R # Read history
+#	RAW_CMD_LINE=("${(f)$(fc -lnr | head -1 | str_trim)}") # Parse raw cmdline
+#	RAW_ARGS=$(echo ${RAW_CMD_LINE} | rev | cut -d' ' -f1 | rev) # Grab the args
 
 	[[ ${PWD_REGEX} == 'true' ]] && REGEX_PATTERN="\\\.\\\/${REGEX}.*" || REGEX_PATTERN="${REGEX}" 
 
@@ -140,11 +140,11 @@ if [[ ${IS_REGEX} == 'true' ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} REGEX_PATTERN:${(Q)REGEX_PATTERN}"
 
 	CMD="sudo find -L . -maxdepth ${MAXDEPTH} -regextype posix-extended -regex '${REGEX_PATTERN}' ${OBJ_TYPE}"
-	#LIST=("${(f)$(eval "sudo find -L . -maxdepth ${MAXDEPTH} -regextype posix-extended -regex '${REGEX_PATTERN}' ${OBJ_TYPE}")}")
+	# LIST=("${(f)$(eval "sudo find -L . -maxdepth ${MAXDEPTH} -regextype posix-extended -regex '${REGEX_PATTERN}' ${OBJ_TYPE}")}")
 else
 	[[ ${#} -eq 0 ]] && usage "Missing argument:$(opt_type s)"
 	CMD="sudo find -L . -maxdepth ${MAXDEPTH} -iname '*${(q)1}*' ${OBJ_TYPE}"
-	#LIST=("${(f)$(eval "sudo find -L . -maxdepth ${MAXDEPTH} -iname '*${(q)1}*' ${OBJ_TYPE}")}")
+	# LIST=("${(f)$(eval "sudo find -L . -maxdepth ${MAXDEPTH} -iname '*${(q)1}*' ${OBJ_TYPE}")}")
 fi
 
 LIST=("${(f)$(eval ${CMD})}")

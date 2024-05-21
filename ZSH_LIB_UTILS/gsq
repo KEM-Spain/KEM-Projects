@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Declarations
+# Declarations
 typeset -A _TYPE_LABELS
 typeset -a _KEYS
 typeset -a _LOCAL_LIST
@@ -7,19 +7,19 @@ typeset -a _MARKED
 typeset -a _URLS
 typeset -a _VALUES
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _MAX_DISPLAY_LEN=40
 _TYPE_LABELS=(u "URL" k "Key" v "Value")
-_MAX_FIELD=40 #max field width
+_MAX_FIELD=40 # Max field width
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 	local VALUE
@@ -46,7 +46,7 @@ action_do () {
 			if [[ ${#CUR_VALUE} -gt 80 ]];then
 				LONG_VAL=true
 				echo ${CUR_VALUE} >/tmp/gsq | tee >/tmp/gsq.orig
-				vim /tmp/gsq #value is too long - go to vim
+				vim /tmp/gsq # Value is too long - go to vim
 				NEW_VALUE=$(</tmp/gsq)
 			else
 				HDR="<m>$(str_unicode_line 12)<N> New Value for:<w> ${KEY} <m>$(str_unicode_line 12) (vi editor) $(str_unicode_line 12)<N>"
@@ -57,11 +57,11 @@ action_do () {
 
 				msg_box "${HDR}"
 
-				#tput smso
+				# Tput smso
 				tput cup $((M_COORDS[X]+4)) $((M_COORDS[Y]+2))
 				PROMPT="${E_RESET}${E_BOLD}Enter value${E_RESET}:"
 				cursor_on
-				NEW_VALUE=$(inline_edit ${PROMPT} ${CUR_VALUE}) #launch line editor
+				NEW_VALUE=$(inline_edit ${PROMPT} ${CUR_VALUE}) # Launch line editor
 				cursor_off
 				M_COORDS[H]=$((M_COORDS[H]+2))
 
@@ -70,10 +70,10 @@ action_do () {
 			fi
 
 			if [[ ${LONG_VAL} == 'true' ]];then
-				diff -q /tmp/gsq /tmp/gsq.orig 2>/dev/null #verify value has changed in vim
+				diff -q /tmp/gsq /tmp/gsq.orig 2>/dev/null # Verify value has changed in vim
 				[[ ${?} -ne 0 ]] && UPDATE=true || UPDATE=false
 			else
-				[[ ${CUR_VALUE} != ${NEW_VALUE} ]] && UPDATE=true || UPDATE=false #verify value changed in line editor
+				[[ ${CUR_VALUE} != ${NEW_VALUE} ]] && UPDATE=true || UPDATE=false # Verify value changed in line editor
 			fi
 
 			if [[ ${UPDATE} == 'true' ]];then
@@ -219,7 +219,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ -z ${1} ]] && usage "Argument:missing search string for a gsettings url"
@@ -241,13 +241,13 @@ if [[ ${DUMPLIST} == 'true' ]];then
 	exit_leave
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET}  ${WHITE_FG}matching values in gsettings database${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
 list_set_header 'printf " "'
 list_set_header 'printf "%5s %-${_MAX_FIELD}s %-${_MAX_FIELD}s %-${_MAX_FIELD}s" " " ${_TYPE_LABELS[u]} ${_TYPE_LABELS[k]} ${_TYPE_LABELS[v]}'
 list_set_header 'printf "%5s %-${_MAX_FIELD}s %-${_MAX_FIELD}s %-${_MAX_FIELD}s" " " "$(str_unicode_line ${_MAX_FIELD})" "$(str_unicode_line ${_MAX_FIELD})" "$(str_unicode_line ${_MAX_FIELD})"'
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4d${RESET}) ${SHADE}${BAR}${MAGENTA_FG}%-${_MAX_FIELD}s${RESET} ${SHADE}${BAR}${YELLOW_FG}%-${_MAX_FIELD}s${RESET} ${SHADE}${BAR}${GREEN_FG}%-${_MAX_FIELD}s${RESET}\n" ${_LIST_NDX} "${$(get_url ${_LIST_NDX})[1,40]}" "${$(get_key ${_LIST_NDX})[1,40]}" "${$(get_val ${_LIST_NDX})[1,40]}"
 '
@@ -257,18 +257,18 @@ list_set_barlines true
 list_set_clear_ghosts true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -ne 0 ]];then
-		#action_warn
-		#if [[ ${_MSG_KEY} == "y" ]];then
+		# Action_warn
+		# If [[ ${_MSG_KEY} == "y" ]];then
 			action_do
-		#fi
+		# Fi
 	fi
 done
 

@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,16 +15,16 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a LIST
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 
 #--Begin GetOpts--
 RESET="\033[m"
@@ -105,7 +105,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 MDIR=${@}
 [[ -z ${MDIR} ]] && usage "Missing required argument:$(opt_type d)"
 [[ ! -e ${MDIR} ]] && usage "Directory not found:${MDIR}"

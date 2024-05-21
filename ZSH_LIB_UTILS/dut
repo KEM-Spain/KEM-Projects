@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -19,7 +19,7 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Declarations
+# Declarations
 typeset -A _UTILS=(
 external 1
 fstab_info 1
@@ -36,24 +36,24 @@ unplug "DETACH:safely detach device"
 usbdisks "USB:display usb disk details"
 )
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _WRAPPER=${0:t}
 
-#Globals
+# Globals
 g_USAGE=false
 g_UTIL=''
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 external () {
-	#Constants
+	# Constants
 	local	PARTITION
 	local ACTION
 	local DEVICES=0
@@ -63,7 +63,7 @@ external () {
 	local -a MSG_OUT
 	local UNMOUNTED=0
 
-	#Declarations
+	# Declarations
 	local -A _SORT_TABLE=(1 _PARTITIONS 2 _TYPES 3 _MOUNT_POINTS 4 _LABELS)
 	local -A _LABELS
 	local -A _MOUNT_POINTS
@@ -88,7 +88,7 @@ external () {
 	64 "64 - some mount succeeded"
 	)
 
-	#Globals
+	# Globals
 	local	g_FORCE_ALL_MOUNT=false
 	local	g_FORCE_ALL_UNMOUNT=false
 	local	g_SHOW_LIST=false
@@ -98,7 +98,7 @@ external () {
 	local g_VERBOSE=false
 	local g_FCNT=0
 
-	#Functions
+	# Functions
 	action_do () {
 		local ACTION
 		local M
@@ -148,10 +148,10 @@ external () {
 
 		is_mounted ${PART}
 		RC=${?}
-		[[ ${RC} -eq 0 && ${g_VERBOSE} == 'true' ]] && g_MOUNT_ERROR=35 && set_exit_value 35 && return 35 # already mounted
+		[[ ${RC} -eq 0 && ${g_VERBOSE} == 'true' ]] && g_MOUNT_ERROR=35 && set_exit_value 35 && return 35 # Already mounted
 
 		[[ ${g_VERBOSE} == 'true' ]] && msg_box -x16 -t.3 "Mounting..."
-		if [[ ${RC} -ne 0 ]];then # not mounted
+		if [[ ${RC} -ne 0 ]];then # Not mounted
 			grep -q ${MOUNT_ROOT}/${_LABELS[${PART}]} <<<$(fut comments /etc/fstab)
 			if [[ ${?} -eq 0 ]];then
 				sudo mount /dev/${PART} 2>/dev/null
@@ -182,7 +182,7 @@ external () {
 
 		is_mounted ${PART}
 		RC=${?}
-		[[ ${RC} -ne 0 ]] && g_MOUNT_ERROR=25 && set_exit_value 25 && return 25 # not mounted
+		[[ ${RC} -ne 0 ]] && g_MOUNT_ERROR=25 && set_exit_value 25 && return 25 # Not mounted
 
 		[[ ${g_VERBOSE} == 'true' ]] && msg_box -x16 -t.3 "Unmounting..."
 		if [[ ${RC} -eq 0 ]];then
@@ -392,10 +392,10 @@ ___EOF
 	done
 	shift $((OPTIND -1))
 	#--End GetOpts--
-	#Execution
+	# Execution
 
 	[[ -n ${1} ]] && PARTITION=${1} || PARTITION=''
-	[[ ${#OPTIONS} -eq 0 ]] && g_BRIEF=true # default
+	[[ ${#OPTIONS} -eq 0 ]] && g_BRIEF=true # Default
 
 	get_disk_info
 	if ! arr_is_populated "${_LOCAL_LIST}";then
@@ -403,7 +403,7 @@ ___EOF
 		exit_leave "\nNo external disks found"
 	fi
 
-	if [[ -n ${PARTITION} ]];then # arg was passed
+	if [[ -n ${PARTITION} ]];then # Arg was passed
 		if [[ ${_MOUNT_POINTS[${PARTITION:t}]} == 'unmounted' ]];then
 			do_mount ${PARTITION:t}
 		else
@@ -445,13 +445,13 @@ ___EOF
 			echo ${L}
 		done
 	elif [[ ${g_SHOW_LIST} == 'true' ]];then # -l option
-		#set headings
+		# Set headings
 		list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} Partitions\tSelected:${WHITE_FG}%-d${RESET}" ${#_LIST} ${SELECTED_COUNT}'
 		list_set_header 'printf " "'
 		list_set_header 'printf "%*s %12s %12s %30s %15s" 5 "" "Partition" "Type" "Mount Point" "Label"'
 		list_set_header 'printf "%*s ${MAGENTA_FG}%12s %12s %30s %15s${RESET}" 5 "" $(str_unicode_line 12) $(str_unicode_line 12) $(str_unicode_line 30)  $(str_unicode_line 15)'
 
-		#set line item
+		# Set line item
 		list_set_line_item ' 
 		local PNDX=${_LIST[${_LIST_NDX}]};
 		[[ ${_MOUNT_POINTS[${PNDX}]} == 'unmounted' ]] && local MOUNT_COLOR=${RED_FG} || local MOUNT_COLOR=${GREEN_FG};
@@ -469,11 +469,11 @@ ___EOF
 		list_set_sort_type assoc
 
 		while true;do
-			#get selection
+			# Get selection
 			list_select ${_LOCAL_LIST}
 			[[ ${?} -eq 0 ]] && break
 
-			#get selections
+			# Get selections
 			MARKED=($(list_get_selected))
 			
 			if [[ $(list_get_selected_count) -ne 0 ]];then
@@ -499,14 +499,14 @@ space () {
 	local -aU PARTITIONS
 	local DIRCNT
 
-	#Declarations
+	# Declarations
 	local -a PART_DATA
 	local -a PART_DETAIL
 
-	#Globals
+	# Globals
 	local g_SYSTEM_TOTAL=0
 
-	#Functions
+	# Functions
 	convert_GMK () {
 		local ARG=${1}
 		local NUM=${ARG[1,-2]}
@@ -594,10 +594,10 @@ ___EOF
 	shift $((OPTIND -1))
 	#--End GetOpts--
 
-	#Execution
+	# Execution
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
-	#PARTITIONS=("${(f)$(lsblk -Anif | grep -v "truecrypt\|loop" | sed '1d' | cut -c3- | tr -s '[:blank:]' | cut -d' ' -f1)}") 
+	# PARTITIONS=("${(f)$(lsblk -Anif | grep -v "truecrypt\|loop" | sed '1d' | cut -c3- | tr -s '[:blank:]' | cut -d' ' -f1)}") 
 	PARTITIONS=("${(f)$(mount -t ext3,ext4,vfat,ntfs,fuseblk | sed 's/ on.*//' | cut -d'/' -f3)}") 
 
 	DIRCNT=$(find . ! -path . -type d 2>/dev/null | wc -l)
@@ -692,7 +692,7 @@ ___EOF
 			printf "\n"
 		fi
 
-		#Percentage of total
+		# Percentage of total
 		D=$(convert_GMK ${HU})
 		S=$(convert_GMK ${g_SYSTEM_TOTAL})
 		PCT=$(format_pct $(( D*1.0/S*1.0 * 100 )))
@@ -723,11 +723,11 @@ ___EOF
 		exit_leave
 	fi
 
-	LIST=("${(f)$(mount | grep ${PART_REGEX} 2>/dev/null | cut -d' '  -f1-3 | sed 's/ on /|/')}") # all sdX
+	LIST=("${(f)$(mount | grep ${PART_REGEX} 2>/dev/null | cut -d' '  -f1-3 | sed 's/ on /|/')}") # All sdX
 
 	for L in ${LIST};do
-		MD=$(cut -d'|' -f1 <<<${L}) #device
-		MP=$(cut -d'|' -f2 <<<${L}) #mountpoint
+		MD=$(cut -d'|' -f1 <<<${L}) # Device
+		MP=$(cut -d'|' -f2 <<<${L}) # Mountpoint
 		[[ ${#MD} -gt ${STRLEN[DEV]} ]] && STRLEN[DEV]=${#MD}
 		[[ ${#MP} -gt ${STRLEN[DIR]} ]] && STRLEN[DIR]=${#MP}
 		MOUNTS[${MD}]=${MP}
@@ -816,7 +816,7 @@ ___EOF
 }
 
 fstab_info () {
-	#Declarations
+	# Declarations
 	local -A UUID2DEV
 	local -a DEVS=($(ls -la /dev/disk/by-uuid | cut -d \  -f12 | sed s^../..^/dev^))
 	local -a UUIDS=($(ls -la /dev/disk/by-uuid | cut -d \  -f10))
@@ -828,7 +828,7 @@ fstab_info () {
 	local WAS_PARSED
 	local U
 
-	#Execution
+	# Execution
 	read -r -d '' DESC<<___EOF
 Display fstab info
 ___EOF
@@ -856,7 +856,7 @@ ___EOF
 	local DUMPS=($(cut -d' ' -f5 < /tmp/fst))
 	local PASSES=($(cut -d' ' -f6 < /tmp/fst))
 
-	WAS_PARSED=true #ensure all fields parsed
+	WAS_PARSED=true # Ensure all fields parsed
 	[[ ${#MOUNTS} != ${#POINTS} ]] && WAS_PARSED=false
 	[[ ${#MOUNTS} != ${#TYPES} ]] && WAS_PARSED=false
 	[[ ${#MOUNTS} != ${#OPTIONS} ]] && WAS_PARSED=false
@@ -961,7 +961,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ${#} -ne 0 ]] && UTIL=${1}
 
 [[ ${UTIL} != 'none' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
@@ -974,12 +974,12 @@ else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 	selection_list_set ${(v)_UTILS_DESC}
-	#selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Disk Utilities usage or <h>(q)uit<N>"
+	# Selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Disk Utilities usage or <h>(q)uit<N>"
 	selection_list -O ${CYAN_FG} -c -w10 "<w>Show Disk Utilities usage or <h>(q)uit<N>"
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
-	echo #clear read
-	${_SCRIPT} -H # call function help
+	echo # Clear read
+	${_SCRIPT} -H # Call function help
 
 	exit_leave
 fi

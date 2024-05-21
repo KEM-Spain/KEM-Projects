@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,22 +15,22 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a LOCATE_OPTS
 
 #--Option settings for locate--
-LOCATE_OPTS+=('--prunepaths=/media/kmiller/KEM_Backup') # no external drives
+LOCATE_OPTS+=('--prunepaths=/media/kmiller/KEM_Backup') # No external drives
 
-#Constants
+# Constants
 _TAG=$(hostname)_LOCATE
 _MARKER=~/.${_TAG}.lastrun
 _LOGFILE=/home/kmiller/.${_TAG}.log
 _TODAY=$(date +'%Y-%m-%d') 
 
-#Globals
+# Globals
 g_LAST_RUN=?
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
@@ -38,7 +38,7 @@ source ${_LIB_DIR}/TPUT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 datediff () {
 	local D1=$(date -d "$1" +%s)
 	local D2=$(date -d "$2" +%s)
@@ -141,11 +141,11 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 g_LAST_RUN=$(last_locate ${_MARKER})
 
-#Info option
+# Info option
 [[ ${INFO} == 'true' ]] && msg_box -p -PK "Last locate update was ${WHITE_FG}${g_LAST_RUN}${RESET}" && exit_leave
 
 if [[ (${INTERACTIVE} == 'true' && -f ${_MARKER}) && (${FORCE} == "false") && (${g_LAST_RUN:l} =~ 'today') ]];then

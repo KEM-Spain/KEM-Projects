@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -19,7 +19,7 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Declarations
+# Declarations
 typeset -A _TAG_INFO
 typeset -A _FILE_INFO
 
@@ -27,14 +27,14 @@ read -r -d '' DESC<<EOF
 Show tag info for flac files in the current directory
 EOF
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/STR.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 usage () {
 	[[ ${_SMCUP} == 'true' ]] && do_rmcup
 	tabs 5
@@ -43,10 +43,10 @@ usage () {
 	exit_leave
 }
 
-#Execution
+# Execution
 [[ ${1} == '-H' ]] && usage
 
-set -G # supress error for no match
+set -G # Supress error for no match
 [[ -z $(echo *.flac) ]] && echo "No flac files found" && exit_leave
 
 LONGEST=0

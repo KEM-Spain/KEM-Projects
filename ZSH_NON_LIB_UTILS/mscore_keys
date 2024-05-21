@@ -8,14 +8,14 @@ MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
-#Constants
+# Constants
 KEYS_FILE=/usr/local/etc/MuseScore-ShortcutKeys.txt
 
-#Declarations
+# Declarations
 typeset -A KEY_DEF
 typeset -A KEY_SEEN
 
-#Functions
+# Functions
 load_keys () {
 	local KEY
 	local DEF
@@ -27,7 +27,7 @@ load_keys () {
 	done < ${KEYS_FILE}
 }
 
-#Execution
+# Execution
 SEARCHTERM=?
 
 load_keys

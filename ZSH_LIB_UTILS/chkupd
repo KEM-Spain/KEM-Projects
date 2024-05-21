@@ -14,15 +14,15 @@ STRIKE="\033[9m"
 ITALIC="\033[3m"
 UNDER="\033[4m"
 
-#Declarations
+# Declarations
 typeset -Z2 CNT
 
-#Constants
+# Constants
 TODAY=$(date +'%Y-%m-%d')
 LOG=~/.${0:t}.log
 MOTD=/etc/update-motd.d
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh

@@ -14,7 +14,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A DEV_STATE_COLOR
 typeset -A _DEV_MAC_NAME
 typeset -A _DEV_MAC_TYPE
@@ -23,20 +23,20 @@ typeset -a _BT_OUTPUT
 typeset -a _SELECTED_DEVICE
 typeset -a _ACTIONS
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 DEV_STATE_COLOR[connected]=${GREEN_FG}
 DEV_STATE_COLOR[disconnected]=${RED_FG}
 _ACTIONS=(toggle connect disconnect)
 
-#Imports
+# Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/VALIDATE.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 bt_command () {
 	local LINE
 
@@ -211,7 +211,7 @@ select_device () {
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 		DEV=${_SELECTION_VALUE}
 
-		MAC=${(k)_DEV_MAC_NAME[(r)${DEV}]} #reverse lookup
+		MAC=${(k)_DEV_MAC_NAME[(r)${DEV}]} # Reverse lookup
 		_SELECTED_DEVICE=${MAC}
 
 		selection_list_set ${_ACTIONS}
@@ -348,7 +348,7 @@ wait_status_change () {
 			break
 		fi
 		sleep 1 
-		[[ ${TIMER} -gt ${TIMEOUT} ]] && RC=2 && break #wait TIMEOUT attempts
+		[[ ${TIMER} -gt ${TIMEOUT} ]] && RC=2 && break # Wait TIMEOUT attempts
 	done
 	return ${RC}
 }
@@ -429,7 +429,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 

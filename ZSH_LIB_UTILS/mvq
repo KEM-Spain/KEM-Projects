@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -20,13 +20,13 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Constants
+# Constants
 _LOG=/tmp/mvqry.log
 _LIB_DIR=/usr/local/lib
 _DIRECTOR_LIST=/usr/local/etc/.directors
 _ACTOR_LIST=/usr/local/etc/.actors
 
-#Declarations
+# Declarations
 typeset -a SLIST
 typeset -a RAWLIST
 typeset -a LIST
@@ -38,7 +38,7 @@ _LIST_VALUE=''
 TEMPLATE[1]="1-4"
 TEMPLATE[2]="6-81"
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
@@ -47,7 +47,7 @@ source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/VALIDATE.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local YR TITLE URL M
 
@@ -304,10 +304,10 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
-#Mashall arguments
+# Mashall arguments
 SEARCHTERM=${@}
 if [[ ${DO_LIST} == 'true' && (${ACTOR} == 'true' || ${DIRECTOR} == 'true' || ${DECADE} == 'true') ]];then
 	if [[ ${ACTOR} == 'true' ]];then
@@ -343,7 +343,7 @@ fi
 
 HEADER="${HEADER}"
 
-#Submit query
+# Submit query
 msg_box -c "Working...querying flickchart (a very slow site) for ${QRY}"
 
 LIST=("${(f)$(do_query ${QRY})}")
@@ -371,7 +371,7 @@ for L in ${LIST};do
 		LN=0
 	fi
 done
-SLIST=(${(on)SLIST}) #sort
+SLIST=(${(on)SLIST}) # Sort
 
 HLEN=$((${#TITLE} + ${#HEADER} + ${#SEARCHTERM} + 17))
 DLEN=$((112))
@@ -380,26 +380,26 @@ PAD=$(str_rep_char '-' ${HPAD})
 
 msg_box_clear
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} Selected:${WHITE_FG}%-3d %s ${CYAN_FG}%s ${BLACK_FG}${PAD}${WHITE_FG}${_PG}${RESET}" ${#SLIST} ${SELECTED_COUNT} ${HEADER} ${SEARCHTERM}'
 list_add_header_break
 list_set_header_break_color ${MAGENTA_FG}
 list_set_barlines true
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%4s ${WHITE_FG}%-50s ${CYAN_FG}%15s ${GREEN_FG}%43s${RESET}\n" ${_LIST_NDX} $(get_field 1 ${_LIST_NDX}) "$(get_field 2 ${_LIST_NDX})" "$(get_field 3 ${_LIST_NDX})" "$(get_field 4 ${_LIST_NDX})"
 '
 
 while true;do
-	#display list
+	# Display list
 	list_select ${SLIST}
 	RC=${?}
 
 	[[ ${RC} -eq 0 ]] && break
 
 	if [[ $(list_get_selected_count) -ne 0 ]];then
-		#get user selections
+		# Get user selections
 		_MARKED=($(list_get_selected))
 		action_do
 	fi

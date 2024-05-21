@@ -2,5 +2,5 @@
 TODAY=$(date +'%Y-%m-%d') 
 ALIAS=LCM
 
-#ssh ${ALIAS}
+# Ssh ${ALIAS}
 mosh -no-init -p 64000 LCM

@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,17 +15,17 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A MON_STATUS
 typeset -A MON_ABBV=(int eDP-1 ext HDMI-1)
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 get_mon_status () {
 	local -a LIST=("${(f)$(xrandr | grep "DP\|HDMI")}")
 	local L
@@ -176,8 +176,8 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
-get_mon_status #load table with mon status data
+# Execution
+get_mon_status # Load table with mon status data
 
 if [[ -n ${1} ]];then
 	if ! validate_mon_arg ${1};then
@@ -201,10 +201,10 @@ elif [[ ${INT_ONLY} == 'true' ]];then
 elif [[ ${TOGGLE_EXT_ONLY} == 'true' ]];then
 	EXT_STATE=$(get_mon_state ${MON_ABBV[ext]})
 	INT_STATE=$(get_mon_state ${MON_ABBV[int]})
-	if [[ ${INT_STATE} == 'off' ]];then #ext only to both
+	if [[ ${INT_STATE} == 'off' ]];then # Ext only to both
 		set_mon_state ${MON_ABBV[ext]} on 
 		set_mon_state ${MON_ABBV[int]} on
-	else #ext only
+	else # Ext only
 		set_mon_state ${MON_ABBV[ext]} on 
 		set_mon_state ${MON_ABBV[int]} off
 	fi

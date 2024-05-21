@@ -11,7 +11,7 @@ BOLD="\033[1m"
 
 typeset -A LANGTYPE=(en English es Spanish)
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
@@ -93,7 +93,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ -z ${1} ]] && usage "missing argument:<WORD>" || WORD=${@}
 
 OUT=$(echo ${WORD} | aspell -l ${LANG} -a)

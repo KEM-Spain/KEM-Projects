@@ -7,27 +7,27 @@ GREEN_FG="\033[32m"
 YELLOW_FG="\033[33m"
 WHITE_FG="\033[37m"
 
-#Constants
+# Constants
 SYS_LOGS=/var/log
 LOCAL_LOGS=("${(f)$(find ${HOME} -maxdepth 3 -type f -name '*.log')}")
 
-#Declarations
+# Declarations
 typeset -a _FILES
 typeset -a _SORTED_LIST
 typeset -a _LOCAL_LIST
 typeset -A _RAWLIST
 typeset -a _ALL_LOGS=(${SYS_LOGS} ${LOCAL_LOGS})
 
-#Imports
+# Imports
 zmodload -F zsh/stat b:zstat
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local -a MARKED=(${@})
 	local M
@@ -155,12 +155,12 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
  
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 SEARCHTERM=${1}
 
-[[ ${DAYS_OLD} -gt 0 ]] && MTIME=-$(($DAYS_OLD +1)) || MTIME=0 #adjust MTIME to go back in time if not 0 (today)
+[[ ${DAYS_OLD} -gt 0 ]] && MTIME=-$(($DAYS_OLD +1)) || MTIME=0 # Adjust MTIME to go back in time if not 0 (today)
 
 if [[ ${DAYS_OLD} -eq 0 ]];then
 	HEADER="${BOLD}${RED_FG}Logs modified today${RESET}"
@@ -177,30 +177,30 @@ else
 fi
 
 for F in ${_FILES};do
-	[[ ! $(file ${F}) =~ 'text' ]] && continue #omit non text files from list
+	[[ ! $(file ${F}) =~ 'text' ]] && continue # Omit non text files from list
 	_RAWLIST[$F]+=$(zstat -F "%s" +mtime ${F})
 done
 
-_SORTED_LIST=($(for K in ${(k)_RAWLIST};do echo "${_RAWLIST[$K]}|${K}";done | sort -rn)) #sort desc numerically
+_SORTED_LIST=($(for K in ${(k)_RAWLIST};do echo "${_RAWLIST[$K]}|${K}";done | sort -rn)) # Sort desc numerically
 
 for K in ${_SORTED_LIST};do
 	VAL=$(echo ${K} | cut -d'|' -f2)
 	_LOCAL_LIST+=$VAL
 done
 
-#Abort if SEARCH failed
+# Abort if SEARCH failed
 if [[ -n ${SEARCHTERM} ]];then
 	if ! arr_is_populated "${_LOCAL_LIST}";then
 		exit_leave $(msg_warn "No matches for:${SEARCHTERM}")
 	fi
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize log ${#_LIST})${RESET}  Filter:${WHITE_FG}%s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} "${FILTER}" ${SELECTED_COUNT}'
 list_set_header 'printf "${HEADER}"'
 list_add_header_break
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"
 '
@@ -210,15 +210,15 @@ list_set_action_msgs view log
 list_set_clear_ghosts true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -gt 1 ]];then
-		action_warn ${MARKED} #warn if more than 1 selected
+		action_warn ${MARKED} # Warn if more than 1 selected
 	fi
 
 	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then

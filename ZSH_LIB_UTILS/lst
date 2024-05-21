@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -31,13 +31,13 @@ E_RED_FG=$(echo "\033[31m")
 E_WHITE_FG=$(echo "\033[37m")
 E_YELLOW_FG=$(echo "\033[33m")
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Declarations
+# Declarations
 typeset -A _SUMMARY
 typeset -a _RAWLIST
 typeset -a _LOCAL_LIST
@@ -61,7 +61,7 @@ swp vim-lock \
 zsh zsh \
 )
 
-#Functions
+# Functions
 file_type () {
 	local FN=${1}
 	local FILE_DESC
@@ -203,7 +203,7 @@ type_color () {
 		*) COLOR=YELLOW;;
 	esac
 
-	if [[ ${STYLE} != 'A' ]];then #use ansi with echo
+	if [[ ${STYLE} != 'A' ]];then # Use ansi with echo
 		CTAG="E_${COLOR}_FG"
 		CSTR="${BOLD}${(P)CTAG}${TYPE}${E_RESET}"
 	else
@@ -287,7 +287,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${#} -ne 0 ]] && SEARCHTERM=${1} || SEARCHTERM=''
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
@@ -311,7 +311,7 @@ for L in ${(on)_RAWLIST};do
 	[[ -n ${SEARCHTERM} && ! ${DESC} =~ ${SEARCHTERM} ]] && continue
 	[[ ${TYPE_ONLY} != 'false' && ! ${DESC} =~ ${TYPE_ONLY} ]] && continue
 	_LOCAL_LIST+=("${LINE}|${DESC}")
-	if [[ -L ${L} ]];then # links show fullpath
+	if [[ -L ${L} ]];then # Links show fullpath
 		RP=$(realpath ${L:t})
 		[[ ${#RP} -gt ${MAX_FN_LEN} ]] && MAX_FN_LEN=${#RP}
 	else
@@ -328,7 +328,7 @@ fi
 
 _LOCAL_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} 2 a _LOCAL_LIST)}") # Forward sort default type asc
 
-#Verify existence of data
+# Verify existence of data
 if ! arr_is_populated "${_LOCAL_LIST}";then
 	if [[ ${TYPE_ONLY} != 'false' ]];then
 		exit_leave $(msg_warn "No file types matched:${TYPE_ONLY}")
@@ -337,7 +337,7 @@ if ! arr_is_populated "${_LOCAL_LIST}";then
 	fi
 fi
 
-#Summary only (filtered for type if specified)
+# Summary only (filtered for type if specified)
 if [[ ${_SUMMARY_ONLY} == 'true' ]];then
 	NDX=0
 	LONGEST=0
@@ -363,13 +363,13 @@ if [[ ${_SUMMARY_ONLY} == 'true' ]];then
 	exit_leave 
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST}) Path:${WHITE_FG}%-*s${RESET} ${_PG}" ${#_LIST} ${#PATHLBL} "${PATHLBL}"'
 list_set_header 'printf " "'
 list_set_header 'printf "%*s %-*s  %-*s" 5 "" ${MAX_FN_LEN} "File" ${MAX_DESC_LEN} "Type"'
 list_set_header 'printf "%*s ${MAGENTA_FG}%-*s  %*s${RESET}" 5 "" ${MAX_FN_LEN} "$(str_unicode_line ${MAX_FN_LEN})" ${MAX_DESC_LEN} "$(str_unicode_line ${MAX_DESC_LEN})"'
 
-#set line item
+# Set line item
 list_set_line_item '
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${BAR}%-*s  %*s${RESET}\n" ${_LIST_NDX} ${MAX_FN_LEN} "$(get_fn ${_LIST_NDX})" ${MAX_DESC_LEN} "$(item_decorate ${_LIST_NDX})"
 '
@@ -386,7 +386,7 @@ list_set_selectable false
 list_set_sortable true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 done

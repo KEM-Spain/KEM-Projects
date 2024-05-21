@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -24,7 +24,7 @@ RED_BG="\033[41m"
 WHITE_BG="\033[47m"
 YELLOW_BG="\033[43m"
 
-#Echoed ansi
+# Echoed ansi
 E_BOLD=$(echo -n "\033[1m")
 E_ITALIC=$(echo -n "\033[3m")
 E_RESET=$(echo -n "\033[m")
@@ -49,16 +49,16 @@ E_RED_BG=$(echo -n "\033[41m")
 E_WHITE_BG=$(echo -n "\033[47m")
 E_YELLOW_BG=$(echo -n "\033[43m")
 
-#Declarations
+# Declarations
 typeset -a LIST
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/STR.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 function termcolors () 
 {
 	local b c g r

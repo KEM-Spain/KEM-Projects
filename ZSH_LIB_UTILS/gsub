@@ -14,24 +14,24 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a _LOCAL_LIST
 typeset -a _RAWLIST
 
-#Constants
+# Constants
 _BAK_DIR=./.gsub_bak_$(date +%s)
 
-#Globals
+# Globals
 g_FROM_TEXT=?
 g_TO_TEXT=?
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 	local L
@@ -47,7 +47,7 @@ action_do () {
 		MATCHES=("${(f)$(perl -ne "if (/${g_FROM_TEXT}/) { print }" ${_LOCAL_LIST[${M}]})}")
 		if ! arr_is_populated "${MATCHES}";then
 			msg_box -p -PK "Nothing matches <w>${(qq)g_FROM_TEXT}<N>| |in File:<w>${_LOCAL_LIST[${M}]}<N>"
-			list_set_selected ${M} 3 #mark as missing match
+			list_set_selected ${M} 3 # Mark as missing match
 		else
 			if [[ ${APPROVE_ALL} == 'false' && ${#_MARKED} -gt 1 ]];then
 				msg_box -p -PN "Substituting <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>| |$(msg_list ${MATCHES})| |in File:<w>${_LOCAL_LIST[${M}]}<N>"
@@ -64,13 +64,13 @@ action_do () {
 
 		if [[ ${?} -ne 0 ]];then
 			msg_box -p -PK "Substitution <r>failed<N> for <w>${(qq)g_FROM_TEXT}<N>| |in file:<w>${_LOCAL_LIST[${M}]}<N>"
-			list_set_selected ${M} 4 #mark as failed
+			list_set_selected ${M} 4 # Mark as failed
 		else
 			[[ -e ${_LOCAL_LIST[${M}]}.bak ]] && sudo mv ${_LOCAL_LIST[${M}]}.bak ${_BAK_DIR}
 			[[ ${APPROVE_ALL} == 'false' ]] && MBOX_OPTS='-p -PK' && MBOX_OPTS=''
 			msg_box ${MBOX_OPTS} "Substituted <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>| |in file:<w>${_LOCAL_LIST[${M}]}<N>| |A backup file:${_BAK_DIR}/${_LOCAL_LIST[${M}]:t}.bak was created"
 			sudo chmod 664 ${_BAK_DIR}/${_LOCAL_LIST[${M}]:t}.bak
-			list_set_selected ${M} ${_GHOST_ROW} #mark as complete
+			list_set_selected ${M} ${_GHOST_ROW} # Mark as complete
 		fi
 	done
 }
@@ -168,7 +168,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${#} -ne 2 ]] && usage "2 arguments required:$(opt_type f) ${WHITE_FG}${ITALIC}$(opt_type t)${RESET}"
 
 g_FROM_TEXT=${1}
@@ -202,12 +202,12 @@ if ! arr_is_populated "${_LOCAL_LIST}";then
 fi
 
 [[ ${CASE} == 'i' ]] && CASE_MSG="Case insensitive" || CASE_MSG="Case sensitive"
-#set headings
+# Set headings
 list_set_header 'printf "${RED_FG}Substituting${RESET}:${WHITE_FG}%s${RESET} with ${WHITE_FG}%s${RESET}" ${(qq)g_FROM_TEXT} ${(qq)g_TO_TEXT}'
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST})  Search:${WHITE_FG}${CASE_MSG}${RESET}  Path:${WHITE_FG}%-*s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${SELECTED_COUNT}'
 list_add_header_break
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
 '
@@ -215,11 +215,11 @@ printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} 
 list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) <${GREEN_FG}ENTER${RESET}> to process (${ITALIC}or exit if none selected${RESET})."
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -ne 0 ]];then
@@ -230,7 +230,7 @@ while true;do
 	fi
 done
 
-#cleanup
+# Cleanup
 BAK_DIR_FILES=$(find ${_BAK_DIR} -type f | wc -l)
 [[ ${BAK_DIR_FILES} -eq 0 ]] && rm -rf ${_BAK_DIR}
 

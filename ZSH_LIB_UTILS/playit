@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,7 +15,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a _RAW_LIST
 typeset -aU _LOCAL_LIST
 typeset -aU _T_LIST
@@ -24,7 +24,7 @@ typeset -a _TRACK_QUEUE
 typeset -aU _MUSIC_DIRS
 typeset -aU _ARTISTS
 
-#Constants
+# Constants
 _AUDIO_FILES='\(\.mp3\|\.m4a\|\.flac\|\.ogg\|\.wav\)$'
 _MUSIC_DIRS+="${PWD}"
 _MUSIC_DIRS+="/home/kmiller/Documents/Music"
@@ -32,18 +32,18 @@ _MUSIC_DIRS+="/media/kmiller/KEM_Misc/Music/KEM-B9"
 _PLAYLIST_FILE=/home/kmiller/.tmp/playlist.m3u
 _DEFAULT_PLAYER=/usr/bin/clementine
 
-#Globals
+# Globals
 g_TITLE=''
 g_ARTIST=''
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/WIN.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 
@@ -126,7 +126,7 @@ path_segment () {
 		fi
 	done
 
-	#Numeric targets
+	# Numeric targets
 	if [[ -n ${TARGET} && ${TARGET} == ${TARGET%%[!0-9]*} ]];then
 		[[ ${TARGET} -le 0 ]] && echo "TARGET:${TARGET} invalid" && return 1
 		[[ ${TARGET} -gt ${#SEGS} ]] && echo "TARGET:${TARGET} exceeds SEGMENTS:${#SEGS}" && return 1
@@ -140,11 +140,11 @@ path_segment () {
 			echo ${P_OUT}
 		fi
 	else
-		#Keyword targets
+		# Keyword targets
 		case ${TARGET} in
 			head) echo "${M_SHORTEST}";; # _MUSIC_DIR
-			tail) echo "${DIR_SLICE}";; # path w/o _MUSIC_DIR
-			n2l*) P_OUT=$(n2l "${DIR_SLICE}" ${TARGET});echo "${M_SHORTEST}${P_OUT}";; # next to last
+			tail) echo "${DIR_SLICE}";; # Path w/o _MUSIC_DIR
+			n2l*) P_OUT=$(n2l "${DIR_SLICE}" ${TARGET});echo "${M_SHORTEST}${P_OUT}";; # Next to last
 			*) return 1;;
 		esac
 	fi
@@ -156,7 +156,7 @@ player_playlist () {
 
 	for T in ${_TRACK_QUEUE};do
 		echo $(realpath ${T})
-	done | m3u >${_PLAYLIST_FILE} #create the playlist using external tool m3u
+	done | m3u >${_PLAYLIST_FILE} # Create the playlist using external tool m3u
 }
 
 player_start () {
@@ -250,7 +250,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ! -d ~/.tmp ]] && mkdir ~/.tmp
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
@@ -262,12 +262,12 @@ FPATH=${FPATH:q}
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
-#Arg check
+# Arg check
 [[ ${#} -gt 1 ]] && usage "Only one argument accepted. Surround multi word search in quotes"
 [[ ${#} -eq 1 ]] && SEARCHTERM=${1}
 [[ (-n ${g_ARTIST} || -n ${g_TITLE}) && ${#} -ne 0 ]] && usage "Specify a search using either options or a <SEARCHTERM>; not both"
 
-#Build list from all available music dirs
+# Build list from all available music dirs
 [[ ${LOCAL_ONLY} == 'true' ]] && _MUSIC_DIRS=${PWD}
 
 msg_box "Searching..."
@@ -284,7 +284,7 @@ else
 	dbg "${0}:${LINENO} ${GREEN_FG}_LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 fi
 
-#Early exit if no rows
+# Early exit if no rows
 if ! arr_is_populated "${_RAW_LIST}";then
 	if [[ -n ${SEARCHTERM} ]];then
 		exit_leave $(msg_warn "No audio files matching:${SEARCHTERM} were found")
@@ -293,7 +293,7 @@ if ! arr_is_populated "${_RAW_LIST}";then
 	fi
 fi
 
-#filter results and build either artist list or full list
+# Filter results and build either artist list or full list
 NDX=0
 tput cup 0 0
 typeset -A SEEN=()
@@ -310,10 +310,10 @@ for R in ${(o)_RAW_LIST};do
 #		[[ ! -s ${R} ]]              && dbg "${0}:${LINENO} skipping zero length file"
 #	fi
 
-	[[ ${R:l} =~ 'iphone' ]]  && continue #skip
-	[[ ${R:l} =~ 'flashcards' ]] && continue #skip
-	[[ ${PWD} == ${HOME} ]] && continue #skip
-	[[ ! -s ${R} ]] && continue #skip
+	[[ ${R:l} =~ 'iphone' ]]  && continue # Skip
+	[[ ${R:l} =~ 'flashcards' ]] && continue # Skip
+	[[ ${PWD} == ${HOME} ]] && continue # Skip
+	[[ ! -s ${R} ]] && continue # Skip
 
 	SEEN[${R:t}]=1
 
@@ -324,7 +324,7 @@ for R in ${(o)_RAW_LIST};do
 	fi
 done
 
-#Build artist list if indicated
+# Build artist list if indicated
 if [[ -n ${g_ARTIST} ]];then
 	for A in ${(o)_ARTISTS};do
 		if [[ ${A:l} =~ ".*${g_ARTIST:l}.*" ]];then
@@ -343,7 +343,7 @@ if [[ -n ${g_ARTIST} ]];then
 	fi
 fi
 
-#Filter on title
+# Filter on title
 if [[ -n ${g_TITLE} ]];then
 	for L in ${_LOCAL_LIST};do
 		[[ ${L:t:l} =~ ${g_TITLE} ]] && T_LIST+=(${L})
@@ -356,7 +356,7 @@ if [[ -n ${g_TITLE} ]];then
 	fi
 fi
 
-#Early exit if no rows
+# Early exit if no rows
 if ! arr_is_populated "${_LOCAL_LIST}";then
 	if [[ -n ${SEARCHTERM} ]];then
 		exit_leave $(msg_warn "No audio files matching:${SEARCHTERM} were found")
@@ -365,10 +365,10 @@ if ! arr_is_populated "${_LOCAL_LIST}";then
 	fi
 fi
 
-#Sort the list
+# Sort the list
 _LOCAL_LIST=(${(o)_LOCAL_LIST})
 
-#set headings
+# Set headings
 [[ ${LOCAL_ONLY} == 'true' ]] && SMSG="(Local)" || SMSG='None'
 [[ -n ${SEARCHTERM} ]] && SMSG="(General):${SEARCHTERM}"
 [[ -n ${g_TITLE} ]] && SMSG="(Title):${g_TITLE}"
@@ -378,7 +378,7 @@ list_set_header 'printf "Found:${WHITE_FG}%-d${RESET}  Search ${WHITE_FG}%-s${RE
 list_add_header_break 
 list_set_header_break_color ${MAGENTA_FG}
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
 '
@@ -388,11 +388,11 @@ list_set_clear_ghosts true
 list_set_barlines true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -ne 0 ]];then

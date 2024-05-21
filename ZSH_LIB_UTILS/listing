@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,7 +17,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a _LS_FORMAT
 typeset -a _LS_LIST
 typeset -a _LS_OPTS
@@ -30,7 +30,7 @@ typeset _HIDDEN_ONLY=false
 typeset _LINKS_ONLY=false
 typeset _LS_ARGS=''
 
-#Constants
+# Constants
 _CALLER=${0:t}
 _LS_FORMAT+='--color=always'
 _LS_FORMAT+='--group-directories-first'
@@ -40,13 +40,13 @@ _LS_FORMAT+='-N'
 _LS_FORMAT+='-X'
 
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 get_ls_opts () {
 	local CALLER=${1}
 
@@ -67,7 +67,7 @@ has_filter () {
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} FILTER scan..."
 	for A in ${ARGS};do
-		[[ ${A} == '-D' ]] && ARGS=("${(@)ARGS:#${A}}") # remove any debug switches
+		[[ ${A} == '-D' ]] && ARGS=("${(@)ARGS:#${A}}") # Remove any debug switches
 	done
 
 	if [[ ${#ARGS} -eq 0 ]];then
@@ -95,7 +95,7 @@ has_filter () {
 	elif [[ ${#ARG_STR} -gt 1 ]];then
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARG_STR -gt 1: scanning for filter:${ARG_STR}"
 		if [[ ${ARG_STR:t} =~ '.\s[A-Za-z0-9]*$' ]];then
-			_FILTER=($(echo ${ARG_STR} | rev| cut -d' ' -f1 | rev)) # bare word
+			_FILTER=($(echo ${ARG_STR} | rev| cut -d' ' -f1 | rev)) # Bare word
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Found filter${RESET}:${_FILTER}"
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Filter detected: ${RED_FG}REMOVING TRAILING ARG${RESET}"
 			return 0
@@ -114,7 +114,7 @@ get_filter_glob () {
 
 	if [[ -z ${_FILTER} ]];then
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} no filter - do nothing - return original"
-		ARGS=${ARGS} # do nothing - return original
+		ARGS=${ARGS} # Do nothing - return original
 		RC=1
 	elif [[ ${ARGS} =~ '^\.$' ]];then  # PWD - non hidden
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} PWD - add non hidden"
@@ -134,7 +134,7 @@ get_filter_glob () {
 			ARGS="${ARGS:h}/.${_FILTER}*"
 		else
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARG is bare dir - add filter"
-			[[ ${_HIDDEN_ONLY} == 'true' ]] && ARGS="${ARGS}/.${_FILTER}*" || ARGS="${ARGS}/${_FILTER}*" # hidden/non hidden
+			[[ ${_HIDDEN_ONLY} == 'true' ]] && ARGS="${ARGS}/.${_FILTER}*" || ARGS="${ARGS}/${_FILTER}*" # Hidden/non hidden
 		fi
 	else
 		RC=1
@@ -163,7 +163,7 @@ get_glob_prefix () {
 		ARGS="./.*"
 	elif [[ -d ${ARGS} ]];then 
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARG is dir - add glob"
-		ARGS+="/*" # dir
+		ARGS+="/*" # Dir
 	else
 		RC=1
 	fi
@@ -188,7 +188,7 @@ get_hidden_glob () {
 		ARGS='.*' # PWD - add hidden glob
 	elif [[ -d ${ARGS} ]];then
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARG is dir - add hidden"
-		ARGS+='/.*' # dir - add hidden glob
+		ARGS+='/.*' # Dir - add hidden glob
 	else
 		RC=1
 	fi
@@ -306,7 +306,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 RECURSE=false
 case ${0:t} in
 	l) _HIDDEN_ONLY=false;;

@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,7 +17,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Constants
+# Constants
 _REPO=./REPO
 _USER_DIR=${_REPO}/USER_DIR
 _ETC_SUPPORT=${_REPO}/ETC_SUPPORT
@@ -39,7 +39,7 @@ _VIM_DIR=/home/kmiller/.vim
 _ZSH_CFG_DIR=/etc/zsh
 _ZSH_COMP_DIR=/home/kmiller/.zsh/completions
 
-#Declarations
+# Declarations
 typeset -a _UL_BIN_ZSH_FILES
 typeset -a _UL_LIB_ZSH_FILES
 typeset -a _UL_ETC_FILES
@@ -48,7 +48,7 @@ typeset -a _ZSH_COMP_FILES
 typeset -a _PYTHON_FILES
 typeset -a _USER_FILES
 
-#Functions
+# Functions
 copy_zsh_lib_utils () {
 	echo "${WHITE_FG}ZSH LIB UTILS${RESET}" >&2
 	for L in ${_UL_BIN_ZSH_FILES};do
@@ -119,11 +119,11 @@ copy_user_files () {
 	cp -R /home/kmiller/Code/LOCAL/ovpn/ovpn ${_USER_DIR}
 }
 
-#Execution
+# Execution
 
 pushd ~/Code
 
-#Build tree
+# Build tree
 #[[ -e ${_REPO} ]] && /bin/rm -rf ${_REPO}
 #[[ ! -e ${_REPO} ]] && mkdir -p ${_REPO}
 [[ ! -e ${_USER_DIR} ]] && mkdir -p ${_USER_DIR}
@@ -136,10 +136,10 @@ pushd ~/Code
 [[ ! -e ${_ZSH_LIB_UTILS} ]] && mkdir -p ${_ZSH_LIB_UTILS}
 [[ ! -e ${_ZSH_NON_LIB_UTILS} ]] && mkdir -p ${_ZSH_NON_LIB_UTILS}
 
-#readme
+# Readme
 cp ./README.md ${_REPO}
 
-#updater
+# Updater
 cp ./do_commit ${_REPO}
 
 # zsh scripts
@@ -164,8 +164,8 @@ copy_non_lib_utils
 copy_zsh_libs
 
 # system
-copy_sys_files #clone /usr/local/bin/system
-copy_user_files #clone /home/kmiller
+copy_sys_files # Clone /usr/local/bin/system
+copy_user_files # Clone /home/kmiller
 
 # etc
 _UL_ETC_FILES=("${(f)$(find ${_UL_ETC_DIR} -maxdepth 1 -type f)}")

@@ -9,7 +9,7 @@ CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 BOLD="\033[1m"
 
-#Declarations
+# Declarations
 typeset -U _PKG_KEYS=()
 typeset -a _LOCAL_LIST=()
 typeset -a _INFO_MSG
@@ -17,13 +17,13 @@ typeset -a _INSTALLED
 typeset -a _RELATED
 typeset -a _MARKED
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 
@@ -129,7 +129,7 @@ get_related () {
 	done
 }
 
-#Begin getopts
+# Begin getopts
 read -r -d '' DESC<<EOF
 Search for installed packages
 \tDefault is to return all packages
@@ -170,9 +170,9 @@ while getopts ${OPTS} OPTION;do
 	esac
 done
 shift $((OPTIND -1))
-#End getopts
+# End getopts
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 SEARCHTERM=${1}
@@ -224,14 +224,14 @@ for K in ${_PKG_KEYS};do
 	[[ ${#DESC[${K}]} -gt ${LONGEST_DESC} ]] && LONGEST_DESC=${#DESC[${K}]}
 done
 
-#set headings
+# Set headings
 SEARCHTERM=${SEARCHTERM:=None}
 list_set_header 'printf "Found:${WHITE_FG}%-*d${RESET} $(str_pluralize package ${#_LIST})  Filter:${WHITE_FG}%*s${RESET}  ${_PG}" ${#${#_LIST}} ${#_LIST} ${#SEARCHTERM} ${SEARCHTERM}'
 list_set_header 'printf " "'
 list_set_header 'printf "%5s %-*s  %-16s" "" ${LONGEST_PKG} "Package" "Description"'
 list_set_header 'printf "%5s ${MAGENTA_FG}%-*s  %-*s${RESET}" "" ${LONGEST_PKG} "$(str_unicode_line ${LONGEST_PKG})" ${LONGEST_DESC} "$(str_unicode_line ${LONGEST_DESC})"'
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${BAR} ${SHADE}%-*s${RESET} ${BAR} ${WHITE_FG}%-*s${RESET}\n" ${_LIST_NDX} ${LONGEST_PKG} "${_LIST[${_LIST_NDX}]}" ${LONGEST_DESC} "${(C)DESC[${_LIST[${_LIST_NDX}]}]}"
 '
@@ -242,14 +242,14 @@ list_set_clear_ghosts true
 list_set_barlines true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 	
 	_MARKED=($(list_get_selected))
 
 	if [[ $(list_get_selected_count) -gt 1 ]];then
-		action_warn ${_MARKED} #warn if more than 1 selected
+		action_warn ${_MARKED} # Warn if more than 1 selected
 	fi
 
 	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then

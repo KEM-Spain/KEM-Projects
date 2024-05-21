@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -25,6 +25,15 @@ source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 
 source ${_LIB_DIR}/GET_DEPS.zsh
+
+# Functions
+do_fix_comments () {
+	local FN=${1}
+
+	[[ ! $(file ${FN}) =~ 'zsh' ]] && return 1
+	sed -i.CMT -e 's/^#\([A-Za-z]\)/# \U\1/g' -e 's/\([ \t]\)#\([A-Za-z]\)/\1# \U\2/g' -e 's/\([ \t]\)# \([a-z]\)/\1# \U\2/g' ${FN}
+	return 0
+}
 
 #--Begin GetOpts--
 local -a OPTIONS
@@ -80,19 +89,23 @@ usage () {
 	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "${WHITE_FG}-a${RESET} fix comments for all files in the current directory"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 
 	exit_leave $(msg_err "${PENDING_MSGS}")
 }
 
-OPTSTR=":HD"
+OPTSTR=":HDa"
 OPTIND=0
+
+ALL_FILES=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
+     a) ALL_FILES=true;;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
 	esac
@@ -102,6 +115,15 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-[[ -z ${1} ]] && usage "Missing arg $(opt_type f)"
 
-sed -i.CMT -e 's/^#\([A-Za-z]\)/# \U\1/g' -e 's/\([ \t]\)#\([A-Za-z]\)/\1# \U\2/g' -e 's/\([ \t]\)# \([a-z]\)/\1# \U\2/g' ${1}
+if [[ ${ALL_FILES} == 'true' ]];then
+	LOCAL_LIST=("${(f)$(find . -maxdepth 1 -type f)}")
+	for L in ${LOCAL_LIST};do
+		do_fix_comments ${L}
+		[[ ${?} -ne 0 ]] && echo "Skipped ${L} - not a zsh script"
+	done
+else 
+	[[ -z ${1} ]] && usage "Missing arg $(opt_type f)"
+	do_fix_comments ${1}
+fi
+

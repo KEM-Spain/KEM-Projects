@@ -43,7 +43,7 @@ page () {
 		} else { # Less than a full screen will be printed and exit
 			print $BUFFER;
 			print "\n";
-			if (defined $WAIT) { # if WAIT is populated end with msg
+			if (defined $WAIT) { # If WAIT is populated end with msg
 				print "Press any key...";
 			}
 			exit 1;

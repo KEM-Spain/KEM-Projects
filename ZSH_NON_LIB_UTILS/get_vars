@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -45,13 +45,13 @@ echo "Initial extract of variables" >>${LOG}
 
 echo "Clearing variables of modifiers and tags" >>${LOG}
 for V in ${(o)_VARS};do
-	VAR=("${(f)$(perl -pe 's/((?<={))([(][A-Za-z].*[)])(.*)(?=})/\1\3\4/' <<<${V})}") # strip modifiers
-	[[ ${VAR} =~ "\[" ]] && VAR=$(cut -d'[' -f1 <<<${VAR}) || VAR=${V} # strip element refs
-	VAR=$(tr -d '${}' <<<${VAR}) # prefix, braces
-	[[ -z ${VAR} ]] && continue # null
-	[[ ${VAR} =~ "^ *$" ]] && continue # spaces
-	[[ ${VAR} =~ "^\(" ]] && continue # remnant
-	if $(grep -q "${BLACK_LIST}" <<<${VAR});then # blacklisted
+	VAR=("${(f)$(perl -pe 's/((?<={))([(][A-Za-z].*[)])(.*)(?=})/\1\3\4/' <<<${V})}") # Strip modifiers
+	[[ ${VAR} =~ "\[" ]] && VAR=$(cut -d'[' -f1 <<<${VAR}) || VAR=${V} # Strip element refs
+	VAR=$(tr -d '${}' <<<${VAR}) # Prefix, braces
+	[[ -z ${VAR} ]] && continue # Null
+	[[ ${VAR} =~ "^ *$" ]] && continue # Spaces
+	[[ ${VAR} =~ "^\(" ]] && continue # Remnant
+	if $(grep -q "${BLACK_LIST}" <<<${VAR});then # Blacklisted
 		echo "BLACKLISTED:${VAR}"
 		continue
 	fi

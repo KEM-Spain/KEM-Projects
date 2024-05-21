@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,11 +17,11 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _UTILS
 typeset -A _UTILS_DESC
 
-#Constants
+# Constants
 _WRAPPER=${0:t}
 _UTILS=(
 add_braces 1
@@ -39,13 +39,13 @@ strip_ansi "ANSI:Remove ansi escape sequences"
 to_lower "CASE:Convert to lower case"
 )
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 add_braces () {
 	local DESC
 	local LINE
@@ -55,7 +55,7 @@ add_braces () {
 Add braces to zsh variables from <FILE> or <PIPE>
 ___EOF
 
-	#Functions
+	# Functions
 	usage () {
 		local -a PENDING_MSGS=(${@})
 
@@ -70,7 +70,7 @@ ___EOF
 		exit_leave $(msg_err ${PENDING_MSGS})
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	if [[ ! -t 0 ]];then
@@ -92,7 +92,7 @@ ascii_only () {
 Filter any non ascii chars from <FILE> or <PIPE>
 ___EOF
 
-	#Functions
+	# Functions
 	usage () {
 		local -a PENDING_MSGS=(${@})
 
@@ -107,7 +107,7 @@ ___EOF
 		exit_leave ${PENDING_MSGS}
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	if [[ ! -t 0 ]];then
@@ -143,7 +143,7 @@ ___EOF
 		exit_leave ${PENDING_MSGS}
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	if [[ ! -t 0 ]];then
@@ -179,7 +179,7 @@ ___EOF
 		exit_leave ${PENDING_MSGS}
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	if [[ ! -t 0 ]];then
@@ -214,7 +214,7 @@ ___EOF
 		exit_leave ${PENDING_MSGS}
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	if [[ ! -t 0 ]];then
@@ -299,7 +299,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 
 [[ ${#} -ne 0 ]] && UTIL=${1}
 
@@ -313,12 +313,12 @@ else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 	selection_list_set ${(v)_UTILS_DESC}
-	#selection_list -c -O ${CYAN_FG} -x11 -y32 -w10 "<w>Show Text Utilities usage or <h>(q)uit<N>"
+	# Selection_list -c -O ${CYAN_FG} -x11 -y32 -w10 "<w>Show Text Utilities usage or <h>(q)uit<N>"
 	selection_list -c -O ${CYAN_FG} -w10 "<w>Show Text Utilities usage or <h>(q)uit<N>"
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
-	echo #clear read
-	${_SCRIPT} -H # call function help
+	echo # Clear read
+	${_SCRIPT} -H # Call function help
 
 	exit_leave
 fi

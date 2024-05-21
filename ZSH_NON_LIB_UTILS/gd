@@ -49,7 +49,7 @@ while getopts ":Hds" opts;do
 done
 shift $((${OPTIND} - 1))
 
-#unmount or cd if no args passed
+# Unmount or cd if no args passed
 if [[ ${STATUS_CALL} == 'false' ]];then
 	if _gd_is_mounted && [[ ${#} -eq 0 && ${PWD} == ${_gd_MOUNTPOINT} ]];then
 		cd ~/
@@ -67,12 +67,12 @@ if [[ ${STATUS_CALL} == 'false' ]];then
 		 fi
 	fi
 
-	#mount if not already mounted
+	# Mount if not already mounted
 	if ! _gd_is_mounted;then
 		echo -e "\nMounting Google Drive volume at ${_gd_MOUNTPOINT}\n"
 		google-drive-ocamlfuse ${_gd_MOUNTPOINT}
 	fi
 
-	#convenient if you source the execution
+	# Convenient if you source the execution
 	cd ${_gd_MOUNTPOINT}
 fi

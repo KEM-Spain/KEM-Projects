@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -19,21 +19,21 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Declarations
+# Declarations
 typeset -a LINES_IN
 typeset -a PF_VALS
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/VALIDATE.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Defaults
+# Defaults
 NUM_COLS=7
 COL_WIDTH=20
 HEADER=''
@@ -115,8 +115,8 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
-#echo "$0 is broken - Work In Progress"
+# Execution
+# Echo "$0 is broken - Work In Progress"
 if ! validate_is_integer ${NUM_COLS};then
 	usage "Invalid $(opt_type i) Number of Columns:${NUM_COLS}"
 elif ! validate_is_integer ${COL_WIDTH};then
@@ -127,21 +127,21 @@ elif [[ ${COL_WIDTH} -le 0 ]];then
 	usage "Invalid $(opt_type i) Column Width:${COL_WIDTH}"
 fi
 
-#Generate printf
+# Generate printf
 PF_FMT='printf "'
 for ((C=1; C<=NUM_COLS; C++ ));do
 	PF_FMT+=' %-'${COL_WIDTH}'s'
 done
 PF_FMT+='\\n"'
 
-#Get lines
+# Get lines
 LINES_IN=("${(f)$(
 	while read -r LINE;do
 		echo ${LINE} | tut strip_ansi | sed 's/[^[:print:]]//g'
 	done 
 )}")
 
-#Header
+# Header
 if [[ -n ${HEADER} ]];then
 	TW=$(( (NUM_COLS * COL_WIDTH) ))
 	LH=${#HEADER}
@@ -149,9 +149,9 @@ if [[ -n ${HEADER} ]];then
 	printf "%${LS}s%s\n\n" "" "${(C)HEADER}"
 fi
 
-#Format into columns
+# Format into columns
 NDX=0
-#TODO splitting lines into words - each line needs to represent a single column i.e. Kurt Miller  NOT  Kurt        Miller
+# TODO splitting lines into words - each line needs to represent a single column i.e. Kurt Miller  NOT  Kurt        Miller
 for L in ${(o)LINES_IN};do
 	((NDX++))
 	PF_VALS+=${L}

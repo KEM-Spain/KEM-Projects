@@ -17,26 +17,26 @@ UNDER="\033[4m"
 E_WHITE_FG=$(echo "\033[37m")
 E_RESET=$(echo "\033[m")
 
-#Constants
+# Constants
 VPN=/usr/bin/nordvpn
 DEFAULT_ARGS='--group P2P'
 _DO_PARSE=true
 _TOKEN="e9f2abd840a7d6121ac3eac6236b6cf681d31967e56489d1f0633381a14e9bf7"
 
-#Declaration
+# Declaration
 typeset -A SHORTCUTS=(us United_States gb United_Kingdom gr Germany fr France es Spain lx Luxembourg tr Turkey)
 
-#Globals
+# Globals
 g_SHORTLIST=true
 g_CURRENT_STATE=?
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 call_nord () {
 	local CMD=(${@})
 
@@ -82,27 +82,27 @@ format_nord () {
 	local -a LIST
 
 	while read LINE;do
-		[[ ${LINE:l} =~ "(version|http|rate)" ]] && continue #continue past info header
+		[[ ${LINE:l} =~ "(version|http|rate)" ]] && continue # Continue past info header
 
 		if [[ ${_DO_PARSE} == 'false' ]];then
 			echo ${LINE}
 		else
-			L=$(echo "${LINE}" | sed -e 's/[	\-]//g') #kill tabs, carriage, and dash
+			L=$(echo "${LINE}" | sed -e 's/[	\-]//g') # Kill tabs, carriage, and dash
 
 			LBL=$(echo ${L} | cut -d':' -f1 | sed 's/^ *//')
 			VAL=$(echo ${L} | cut -d':' -f2 | sed 's/^ *//')
 			[[ ${#LBL} -gt ${LONGEST} ]] && LONGEST=${#LBL}
 
-			if [[ -n ${OFFSET} ]];then #offset, get value
+			if [[ -n ${OFFSET} ]];then # Offset, get value
 				LBL=${OFFSET}
 				VAL=${VAL}
 			fi
 
-			if [[ ${L:l} =~ 'subnet' ]];then #get offset label, catch value next cycle
+			if [[ ${L:l} =~ 'subnet' ]];then # Get offset label, catch value next cycle
 				LBL=$(echo ${L} | cut -d':' -f1)
 				OFFSET=${LBL}
 				continue
-			elif [[ ${L:l} =~ 'ports' ]];then #get offset label, catch value next cycle
+			elif [[ ${L:l} =~ 'ports' ]];then # Get offset label, catch value next cycle
 				LBL=$(echo ${L} | cut -d':' -f1)
 				OFFSET=${LBL}
 				continue
@@ -141,8 +141,8 @@ get_current_state () {
 		local -a RAWLIST
 		local L
 
-		#reflects current output of 'countries' command. Extraneous info
-		#on first 2 lines (tail -n -+2) is eliminated.  Could change.
+		# Reflects current output of 'countries' command. Extraneous info
+		# On first 2 lines (tail -n -+2) is eliminated.  Could change.
 		RAWLIST=($(call_nord countries | tail -n +2 | sed -re 's/\t+/ /g' -e 's/\x0d\x2d\x0d\x20\x20\x0d//g'))
 
 		for L in ${(o)RAWLIST};do
@@ -244,12 +244,12 @@ while getopts ${OPTSTR} OPTION;do
 		d) do_disconnect;;
 		f) g_SHORTLIST=false;list_servers;exit_leave;;
 		v) nordvpn --version;;
-		r) exit_pre_exit;exec nord_reset;; #external 
+		r) exit_pre_exit;exec nord_reset;; # External 
 		s) call_nord settings;;
-		t) exit_pre_exit;exec speedtest --single --no-upload;; #external 
+		t) exit_pre_exit;exec speedtest --single --no-upload;; # External 
 		l) list_servers;exit_leave;;
-		:) if [[ ${OPTARG} == "l" ]];then #list requested - optional argument
-				if [[ ${OPTION} == ":" ]];then #no args
+		:) if [[ ${OPTARG} == "l" ]];then # List requested - optional argument
+				if [[ ${OPTION} == ":" ]];then # No args
 					list_servers 
 					exit_leave
 				fi

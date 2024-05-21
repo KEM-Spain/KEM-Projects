@@ -20,7 +20,7 @@ typeset -A MOUNTS
 typeset -a USB_STICKS
 typeset -a SD_DEVS 
 
-#Execution
+# Execution
 [[ ${1} == '-H' ]] && echo "${WHITE_FG}Usage${RESET}:${0:t} [ -D debug -H help -d quiet ]\n${WHITE_FG} Desc${RESET}:detect presence of usb sticks" && exit
 [[ ${1} == '-D' ]] && _DEBUG=true
 
@@ -39,8 +39,8 @@ HIT=false
 LINE=''
 for F in ${FDISK};do
 	[[ ! ${F:l} =~ "^disk" ]] && continue
-	[[ ${HIT} == 'true' ]] && LINE+=${F} && HIT=false && SD_DEVS+=${LINE} && LINE='' # join lines to include model
-	[[ ${F:l} =~ '/sd' ]] && LINE=${F} && HIT=true && continue # hit disk line; model line is next
+	[[ ${HIT} == 'true' ]] && LINE+=${F} && HIT=false && SD_DEVS+=${LINE} && LINE='' # Join lines to include model
+	[[ ${F:l} =~ '/sd' ]] && LINE=${F} && HIT=true && continue # Hit disk line; model line is next
 done
 
 for S in ${SD_DEVS};do
@@ -67,7 +67,7 @@ if [[ ${_DEBUG} == 'true' ]];then
 	echo "${WHITE_ON_GREY}DEBUG: BUS Info${RESET}"
 	for D in ${(k)DISKS};do
 		BUS=$(udevadm info --query=all --name=${D} | grep -wi "id_bus" | cut -d'=' -f2)
-		[[ ${BUS:l} == 'usb' ]] && USB_STICKS+=${D} # pick off usb
+		[[ ${BUS:l} == 'usb' ]] && USB_STICKS+=${D} # Pick off usb
 		if [[ -n ${USB_STICKS} ]];then
 			echo "DISK:${D}"
 			echo "BUS:${BUS}"
@@ -82,7 +82,7 @@ BUS=''
 USB_STICKS=()
 for D in ${(k)DISKS};do
 	BUS=$(udevadm info --query=all --name=${D} | grep -wi "id_bus" | cut -d'=' -f2)
-	[[ ${BUS:l} == 'usb' ]] && USB_STICKS+=${D} # pick off usb
+	[[ ${BUS:l} == 'usb' ]] && USB_STICKS+=${D} # Pick off usb
 done
 
 if [[ ${_DEBUG} == 'true' ]];then
@@ -106,7 +106,7 @@ fi
 MOUNTS_DETECTED=false
 for S in ${USB_STICKS};do
 	MINFO=("${(f)$(mount | grep ${S} | sed 's/ type.*//')}")
-	for M in ${MINFO};do # can be multiple mount points per stick
+	for M in ${MINFO};do # Can be multiple mount points per stick
 		MOUNTS_DETECTED=true
 		KEY=$(cut -d' ' -f1 <<<${M})
 		VAL=$(cut -d' ' -f3- <<<${M})
@@ -118,10 +118,10 @@ done
 if [[ ${MOUNTS_DETECTED} == 'true' ]];then
 	typeset -aU MOUNT_KEYS
 	for K in ${(k)MOUNTS};do
-		MOUNT_KEYS+=$(grep -P -o 'sd.' <<<${K}) # unique keys from mount points
+		MOUNT_KEYS+=$(grep -P -o 'sd.' <<<${K}) # Unique keys from mount points
 	done
 
-	if [[ ${1} == '-d' ]];then # quiet service option -d
+	if [[ ${1} == '-d' ]];then # Quiet service option -d
 		[[ -z ${MOUNT_KEYS} ]] && return 1
 		for L in ${MOUNT_KEYS};do
 			for K in ${(k)MOUNTS};do
@@ -139,7 +139,7 @@ if [[ ${MOUNTS_DETECTED} == 'true' ]];then
 	fi
 	exit 0
 else
-	if [[ ${1} == '-d' ]];then # quiet service option -d
+	if [[ ${1} == '-d' ]];then # Quiet service option -d
 		return 2
 	else
 		if [[ -n ${USB_STICKS} ]];then

@@ -1,13 +1,13 @@
 #!/usr/bin/env zsh
  
-#Declarations
+# Declarations
 typeset -A _APP
 typeset -a _APP_DIRS
 typeset -a _LOOP_LIST
 typeset -a _RAWLIST
 typeset -aU _LOCAL_LIST
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 CFGDIRS=(
 /home/kmiller \
@@ -55,12 +55,12 @@ EXCLUDE=" \
 ! -name '*zwc' \
 ! -name '*~'"
 
-#Imports
+# Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local -a MARKED=(${@})
 	local M
@@ -159,30 +159,30 @@ SEARCHTERM=${@}
 DEPTH=2
 [[ ${DEEP} == "true" ]] && CFGDIRS+=(/usr/share /usr/lib) && ((DEPTH++))
  
-#Search
+# Search
 echo "Finding candidates..."
-_RAWLIST=$(eval "sudo zsh -c \"find ~ -maxdepth 1 -name '.*${SEARCHTERM}*'"\") #home
+_RAWLIST=$(eval "sudo zsh -c \"find ~ -maxdepth 1 -name '.*${SEARCHTERM}*'"\") # Home
 if arr_is_populated "${_RAWLIST}";then
 	_APP_DIRS=(${_RAWLIST})
 fi
 
-_RAWLIST=$(eval "sudo zsh -c \"find ~/.config -maxdepth 2 -name '*${SEARCHTERM}*'"\") #home .config
+_RAWLIST=$(eval "sudo zsh -c \"find ~/.config -maxdepth 2 -name '*${SEARCHTERM}*'"\") # Home .config
 if arr_is_populated "${_RAWLIST}";then
 	_APP_DIRS+=(${_RAWLIST})
 fi
 
-_RAWLIST=$(eval "sudo zsh -c \"find ~/.local/share -maxdepth 2 -name '*${SEARCHTERM}*'"\") #home .local/share
+_RAWLIST=$(eval "sudo zsh -c \"find ~/.local/share -maxdepth 2 -name '*${SEARCHTERM}*'"\") # Home .local/share
 if arr_is_populated "${_RAWLIST}";then
 	_APP_DIRS+=(${_RAWLIST})
 fi
 
-_RAWLIST=$(eval "sudo zsh -c \"find /usr/share -maxdepth 2 -name '*${SEARCHTERM}*'"\") #usr/share
+_RAWLIST=$(eval "sudo zsh -c \"find /usr/share -maxdepth 2 -name '*${SEARCHTERM}*'"\") # Usr/share
 if arr_is_populated "${_RAWLIST}";then
 	_APP_DIRS+=(${_RAWLIST})
 fi
 
-_RAWLIST=("${(f)$(echo ${_RAWLIST})}") #break array on newline
-_APP_DIRS=("${(f)$(echo ${_APP_DIRS})}") #break array on newline
+_RAWLIST=("${(f)$(echo ${_RAWLIST})}") # Break array on newline
+_APP_DIRS=("${(f)$(echo ${_APP_DIRS})}") # Break array on newline
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} CFGDIRS:${CFGDIRS}"
 
@@ -196,8 +196,8 @@ for D in ${CFGDIRS};do
 	_LOOP_LIST=("${(f)$(eval "${CMD}" 2>/dev/null)}")
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Searching ${D}..found ${#_LOOP_LIST}"
 
-	[[ -n ${_LOOP_LIST} ]] && _RAWLIST+=(${_LOOP_LIST}) #build LIST
-	unset _LOOP_LIST #clear list
+	[[ -n ${_LOOP_LIST} ]] && _RAWLIST+=(${_LOOP_LIST}) # Build LIST
+	unset _LOOP_LIST # Clear list
 done
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _RAWLIST:${#_RAWLIST} ${=_RAWLIST[1,20]} ...truncated"
@@ -206,10 +206,10 @@ if ! arr_is_populated "${_RAWLIST}";then
 	exit_leave $(msg_warn "No cfg file(s) found for:${SEARCHTERM}")
 fi
 
-#Only include files that can be edited or viewed
+# Only include files that can be edited or viewed
 _LOCAL_LIST=()
 for F in ${_RAWLIST};do
-	TYPE=$(file -b $(sudo realpath ${F})) #eliminate known unwanted
+	TYPE=$(file -b $(sudo realpath ${F})) # Eliminate known unwanted
 	[[ ${F:l} =~ "license$" ]] && continue
 	[[ ${F:l} =~ "log$" ]] && continue
 	[[ ${F:l} =~ ".py$" ]] && continue
@@ -226,7 +226,7 @@ for F in ${_RAWLIST};do
 	_LOCAL_LIST+=${F}
 done
 
-#Sort by tail
+# Sort by tail
 _LOCAL_LIST=($(for L in ${_LOCAL_LIST};do
 	echo ${L:h}:${L:t}
 done | sort -t: -k2 | sed 's!:!/!g'))
@@ -237,11 +237,11 @@ fi
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${#_LOCAL_LIST} ${=_LOCAL_LIST[1,20]} ...truncated"
 
-#Set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} configuration file(s) for:${WHITE_FG}%s${RESET}  ${_PG}" ${#_LIST} ${SEARCHTERM}'
 list_add_header_break
 
-#Set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"
 '
@@ -250,15 +250,15 @@ list_set_action_msgs edit config
 list_set_clear_ghosts true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	MARKED=($(list_get_selected))
 
 	if [[ $(list_get_selected_count) -gt 1 ]];then
-		action_warn ${MARKED} #warn if more than 1 selected
+		action_warn ${MARKED} # Warn if more than 1 selected
 	fi
 
 	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then

@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,18 +15,18 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a LOCAL_LIST
 typeset -a MARKED
 typeset -A NAME_INODE
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 	local INODE
@@ -138,7 +138,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 RAWPATH=$(path_get_raw)
@@ -165,12 +165,12 @@ for L in ${LOCAL_LIST};do
 	NAME_INODE[${L}]=${INODE}
 done
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST})  Path:${WHITE_FG}%-*s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${SELECTED_COUNT}'
 list_add_header_break
 list_set_header_break_color ${RED_FG}
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
 '
@@ -178,11 +178,11 @@ printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} 
 list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> [to do some action] (${ITALIC}or exit if none selected${RESET})."
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${(o)LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -ne 0 ]];then

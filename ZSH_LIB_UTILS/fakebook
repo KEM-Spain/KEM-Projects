@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,14 +15,14 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _BOOKS
 typeset -a _RAWLIST
 typeset -a _LOCAL_LIST
 typeset -A _COL_WIDTHS
 typeset -a _MARKED
 
-#Constants
+# Constants
 FAKE_BOOKS=/home/kmiller/Documents/Music/Printed/FakeBooks/RealBook
 _BOOKS["New Real Book Vol 1"]=13
 _BOOKS["New Real Book Vol 2"]=12
@@ -31,13 +31,13 @@ _BOOKS["Real Book Vol 1"]=8
 _BOOKS["Real Book Vol 2"]=7
 _BOOKS["Real Book Vol 3"]=5
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 	local BOOK
@@ -46,7 +46,7 @@ action_do () {
 	for M in ${_MARKED};do
 		BOOK=$(get_book ${_LIST[${M}]})
 		PG=$(get_pg ${_LIST[${M}]})
-		okular -p $((PG+${_BOOKS["${BOOK}"]})) ${FAKE_BOOKS}/${BOOK}.pdf 2>/dev/null & #add the offset to access the correct page in the various books
+		okular -p $((PG+${_BOOKS["${BOOK}"]})) ${FAKE_BOOKS}/${BOOK}.pdf 2>/dev/null & # Add the offset to access the correct page in the various books
 	done
 
 	for M in ${_MARKED};do
@@ -144,7 +144,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ ${#} -eq 0 ]] && usage "Missing arument:<SEARCHTERM>"
@@ -176,24 +176,24 @@ for L in ${_RAWLIST};do
 	_LOCAL_LIST+="${BOOK}|${TITLE}|${PG}"
 done
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize title ${#_LIST}) Matching:${WHITE_FG}${(C)SEARCHTERM}${RESET}  ${_PG}" ${#_LIST}'
 list_set_header 'printf ""'
 list_set_header 'printf "%*s${WHITE_FG}%-*s   %-*s %-*s${RESET}" 6 "" ${_COL_WIDTHS[BOOK]} "Book" ${_COL_WIDTHS[TITLE]} "Title" 4 "Page"'
 list_set_header 'printf "%*s${MAGENTA_FG}%*s   %*s %*s${RESET}" 6 "" ${_COL_WIDTHS[BOOK]} $(str_unicode_line ${_COL_WIDTHS[BOOK]}) ${_COL_WIDTHS[TITLE]} $(str_unicode_line ${_COL_WIDTHS[TITLE]}) 4 $(str_unicode_line 4)'
 
-#set line item
+# Set line item
 list_set_line_item '
 printf "${WHITE_FG}%4s${RESET}) ${BAR}${SHADE}%-*s   %-*s %-*s${RESET}\n" ${_LIST_NDX} ${_COL_WIDTHS[BOOK]} "$(get_book ${_LIST[${_LIST_NDX}]})" ${_COL_WIDTHS[TITLE]} "$(get_title ${_LIST[${_LIST_NDX}]})" ${_COL_WIDTHS[PG]} "$(get_pg ${_LIST[${_LIST_NDX}]})"
 '
 list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select song(s) then <${GREEN_FG}ENTER${RESET}> to view (${ITALIC}or exit if none selected${RESET})."
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 	
 	action_do

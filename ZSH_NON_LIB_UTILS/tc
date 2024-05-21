@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,13 +15,13 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Constants
+# Constants
 read PW < ~/.tcp
 _MOUNTPOINT=/media/truecrypt1
 _VOLUME=~/PRS1;
 _SCRIPT=${0:t}
 
-#Functions
+# Functions
 create_mp () {
 	local RC=0
 
@@ -47,7 +47,7 @@ dismount () {
 	kill -SIGINT $$;
 }
 
-#getopts
+# Getopts
 read -r -d '' DESC<<EOF
 This script mounts truecrypt volumes
 \tIf no args are passed, behaves like a toggle
@@ -69,7 +69,7 @@ usage () {
 }
 
 OPTIND=0
-#leading ":" in opts generates "?" for unknown opt
+# Leading ":" in opts generates "?" for unknown opt
 while getopts ":hpd" opts;do
 	case $opts in
       p) _MOUNTPOINT='/media/personal'
@@ -83,13 +83,13 @@ while getopts ":hpd" opts;do
 done
 shift $(($OPTIND - 1))
 
-#Execution
+# Execution
 if ! create_mp;then
 	echo "Unable to create mountpoint:${_MOUNTPOINT}"
 	exit 1
 fi
 
-#Unmount or cd if no args passed
+# Unmount or cd if no args passed
 if is_mounted && [[ $# -eq 0 && ${PWD} == ${_MOUNTPOINT} ]];then
 	cd ~/
 	dismount
@@ -105,14 +105,14 @@ else
     PASS=$1
 fi
 
-#Mount if not already mounted
+# Mount if not already mounted
 if ! is_mounted;then
     echo -e "\nMounting truecrypt volume at ${_MOUNTPOINT}\n"
     truecrypt -k "" --protect-hidden=no -p$PASS $_VOLUME $_MOUNTPOINT
 fi
 
-#Remove password from history
+# Remove password from history
 eval sed -i '/$PASS/d' ~/.zsh_history
 
-#Convenient if you source the execution
+# Convenient if you source the execution
 cd $_MOUNTPOINT

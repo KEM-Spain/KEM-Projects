@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -19,7 +19,7 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Declarations
+# Declarations
 typeset -A _UTILS=(
 comments 1
 extensions 1
@@ -44,22 +44,22 @@ findexe "EXE:Find executable file"
 surface "EXTRACT:Extract files from sub directory"
 )
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _WRAPPER=${0:t}
 
-#Globals
+# Globals
 g_USAGE=false
 g_UTIL=''
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/VALIDATE.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 findexe () {
 	local -a LIST
 	local -a RAWLINE
@@ -135,7 +135,7 @@ ______EOF
 	shift $((OPTIND -1))
 	#--End GetOpts--
 	 
-	#Execution
+	# Execution
 	[[ ${#} -eq 0 ]] && usage "missing argument:<FILE>" || FN=${1}
 
 	RAWLINE=("${(f)$(whereis -bf ${FN} | cut -d: -f2-)}")
@@ -179,7 +179,7 @@ surface () {
 		local SOURCES
 		local RC
 
-		#Globals
+		# Globals
 		local g_TARGET_DIR=${PWD}
 		 
 		get_response () {
@@ -248,7 +248,7 @@ surface () {
 			
 			if [[ ${RC} -eq 0 ]];then
 				echo "${YELLOW_FG}Skipped empty directory:${GREEN_FG}${1}${RESET}"
-				return #skip empty dirs in the current dir
+				return # Skip empty dirs in the current dir
 			else
 				if [[ ${DO_PROMPTS} = 'true' ]];then
 					echo -n "Should files from ${GREEN_FG}${1}${RESET} be moved to ${TARGET_DIR_MSG}? (y/n):"
@@ -446,7 +446,7 @@ _____EOF
 		shift $((OPTIND -1))
 		#--End GetOpts--
 
-		#Execution
+		# Execution
 		[[ ${DO_SIM} == 'true' ]] && echo "${WHITE_ON_GREY}SIMULATION MODE${RESET}"
 
 		[[ ${#} -eq 0 ]] && exit_leave $(msg_err "Missing argument:$(opt_type d)") || SOURCE_DIR=${@:=${PWD}}
@@ -454,7 +454,7 @@ _____EOF
 
 		if [[ ${DO_SIM} == 'false' ]];then
 			if [[ ! -d ${g_TARGET_DIR} ]];then
-				mkdir ${g_TARGET_DIR} # create destination directory if needed
+				mkdir ${g_TARGET_DIR} # Create destination directory if needed
 				RC=${?}
 			fi
 			[[ ${RC} -ne 0 ]] && exit_leave $(msg_err "Unable to create directory:${g_TARGET_DIR}")
@@ -530,7 +530,7 @@ comments () {
 		local HIDE=false
 		local SHOW=false
 
-		#Functions
+		# Functions
 		hide_comments () {
 			local LINE
 
@@ -637,7 +637,7 @@ ______EOF
 		[[ ${HIDE} == 'true' ]] && hide_comments <${FN}
 		[[ ${SHOW} == 'true' ]] && show_comments <${FN}
 
-		[[ ${HIDE} == 'false' && ${SHOW} == 'false' ]] && hide_comments <${FN} #default
+		[[ ${HIDE} == 'false' && ${SHOW} == 'false' ]] && hide_comments <${FN} # Default
 }
 
 extensions () {
@@ -829,9 +829,9 @@ ______EOF
 		[[ -z ${ARGS} ]] && usage "missing required argument"
 		[[ $(validate_is_number ${ARGS}) -eq 0 ]] && CNT=${ARGS} || usage "count must be a positive integer"
 
-		[[ ${#OPTIONS} -eq 0 ]] && FILE=true # default
+		[[ ${#OPTIONS} -eq 0 ]] && FILE=true # Default
 
-		[[ ${FILE} == "false" && ${DIR} == "false" && ${HIDDEN} == "false" && ${LINK} == "false" ]] && FILE=true #default
+		[[ ${FILE} == "false" && ${DIR} == "false" && ${HIDDEN} == "false" && ${LINK} == "false" ]] && FILE=true # Default
 
 		[[ ${FILE} == "true" ]] && echo "Creating ${CNT} regular file(s) in ${PWD}"
 		[[ ${DIR} == "true" ]] && echo "Creating ${CNT} dir(s) in ${PWD}"
@@ -868,7 +868,7 @@ links () {
 		local NDX=0
 		local OPTSET=false
 
-		#Functions
+		# Functions
 		get_level () {
 			local HEAD=${@}
 
@@ -956,7 +956,7 @@ ______EOF
 		
 		local -a ARGS=(${@})
 
-		[[ -z ${ARGS} ]] && ARGS=${PWD} # default to pwd
+		[[ -z ${ARGS} ]] && ARGS=${PWD} # Default to pwd
 		[[ $(is_dir ${ARGS}) -eq 0 ]] && CMD_PATH=${ARGS} || usage "path is invalid:${ARGS}"
 
 		local -a BY_LEVEL
@@ -972,9 +972,9 @@ ______EOF
 
 		echo "\n${0} - Scanning:depth level ${WHITE_FG}${FIND_DEPTH}${RESET} of ${WHITE_FG}$(realpath ${CMD_PATH})${RESET}..."
 
-		pushd ${CMD_PATH} #run in path
+		pushd ${CMD_PATH} # Run in path
 
-		LINKED+=("${(f)$(sudo find $(pwd) -maxdepth ${FIND_DEPTH} ! -path . -type l)}") #build list of links
+		LINKED+=("${(f)$(sudo find $(pwd) -maxdepth ${FIND_DEPTH} ! -path . -type l)}") # Build list of links
 
 		[[ -z ${LINKED[1]} ]] && exit_leave "No linked files or directories found"
 
@@ -985,25 +985,25 @@ ______EOF
 			exit_leave
 		fi
 
-		#Sort LINKED by level and record longest path
+		# Sort LINKED by level and record longest path
 		LONGEST=0
 		for L in ${LINKED};do
-			BY_LEVEL+="$(get_level ${L:h})|${L}" #build array with level,path
+			BY_LEVEL+="$(get_level ${L:h})|${L}" # Build array with level,path
 			[[ ${#L:t} -gt ${LONGEST} ]] && LONGEST=${#L:t}
 		done
 
 		NDX=0
 		LAST_LINK_LEVEL=?
 		LAST_LINK_PATH=?
-		for L in ${(on)BY_LEVEL};do #sort by level,path
+		for L in ${(on)BY_LEVEL};do # Sort by level,path
 			LINK_LEVEL=$(echo ${L} | cut -d '|' -f1)
 			LINK_PATH=$(echo ${L} | cut -d '|' -f2)
 
-			TARGET_TYPE="${E_RED_FG}[UNKN]${E_RESET}" #default type
+			TARGET_TYPE="${E_RED_FG}[UNKN]${E_RESET}" # Default type
 			[[ -d ${LINK_PATH} ]] && TARGET_TYPE=" <DIR>"
 			[[ -f ${LINK_PATH} ]] && TARGET_TYPE="<FILE>"
 
-			F_INFO=$(file -L ${LINK_PATH}) #using dereference option
+			F_INFO=$(file -L ${LINK_PATH}) # Using dereference option
 
 			if [[ ${F_INFO} =~ 'broken' ]];then
 				if [[ ${IGNORE} == 'true' ]];then
@@ -1120,10 +1120,10 @@ ______EOF
 		shift $((OPTIND -1))
 		#--End GetOpts--
 
-		#Execution
+		# Execution
 		local -a ARGS=(${@})
 
-		[[ -z ${ARGS} ]] && ARGS=${PWD} # default to pwd
+		[[ -z ${ARGS} ]] && ARGS=${PWD} # Default to pwd
 		[[ $(is_dir ${ARGS}) -eq 0 ]] && CMD_PATH=${ARGS} || usage "path is invalid:${ARGS}"
 
 		echo "\n${0} - Scanning:depth level ${WHITE_FG}${FIND_DEPTH}${RESET} of ${WHITE_FG}$(realpath ${CMD_PATH})${RESET}\n"
@@ -1270,7 +1270,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ${#} -ne 0 ]] && UTIL=${1}
 
 [[ ${UTIL} != 'none' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
@@ -1283,12 +1283,12 @@ else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 	selection_list_set ${(v)_UTILS_DESC}
-	#selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"
+	# Selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"
 	selection_list -O ${CYAN_FG} -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
-	echo #clear read
-	${_SCRIPT} -H # call function help
+	echo # Clear read
+	${_SCRIPT} -H # Call function help
 
 	exit_leave
 fi

@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,13 +17,13 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Constants
+# Constants
 VIM_HIST=~/.vim/undo
 
-#Declarations
+# Declarations
 typeset -a LIST
 
-#Execution
+# Execution
 RAW_LIST=("${(f)$(find ${VIM_HIST} ! -path ${VIM_HIST})}")
 
 tput smcup

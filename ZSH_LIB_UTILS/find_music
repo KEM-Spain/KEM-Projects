@@ -14,13 +14,13 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a LOCAL_LIST
 typeset -a LIST
 typeset -a MUSIC_DIRS
 typeset -g SEARCHTERM
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _MD_EXTERNAL="/media/kmiller/KEM_Misc/Music/KEM-B9"
 _MD_LOCAL="/home/kmiller/Documents/Music"
@@ -34,16 +34,16 @@ _RECORDED='(mp3|m4a|flac|ogg|wav|mp4)$'
 _NOTATION='\mscz$'
 _ALL='(pdf|txt|doc|odg|mp3|m4a|flac|ogg|wav|mp4|mscz)$'
 
-#Globals
+# Globals
 WIN_X=5
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 say_msg_search_info () {
 	local EXT_DRV=${1:=null}
 
@@ -158,7 +158,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
  
 SEARCHTERM=${@}

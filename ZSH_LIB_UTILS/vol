@@ -10,13 +10,13 @@ WHITE_FG="\033[37m"
 ERESET=$(echo "\033[m")
 EGREEN_FG=$(echo "\033[32m")
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/DBG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 function get_level {
 	local LIST
 	local LEVEL=0
@@ -132,7 +132,7 @@ shift $((OPTIND -1))
 
 CURR_LEVEL=$(get_level)
 
-#Execution
+# Execution
 if [[ ${ACTION} != "?" ]];then
 	case ${ACTION} in
 		mute) set_mode mute;;
@@ -147,7 +147,7 @@ fi
 
 [[ ${_DEBUG} -gt 0 ]] && set -xv
 
-#no options - default action is to unmute and display settings
+# No options - default action is to unmute and display settings
 if [[ $# -eq 0 ]];then
 	set_mode unmute
 	show-mix

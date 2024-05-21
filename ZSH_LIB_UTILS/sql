@@ -9,25 +9,25 @@ CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 BOLD="\033[1m"
 
-#Declarations
+# Declarations
 LIB=/usr/local/lib
 typeset -a _DB_LIST
 typeset -a _TB_LIST
 typeset -a TABLES
 
-#Globals
+# Globals
 _DELIM=' '
 _DB=''
 _TB=''
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 query () {
 	local SQL=(${@})
 	sqlite3 -separator ${_DELIM} ${_DB} <<____END_SQL
@@ -160,7 +160,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 if [[ ${SHOW_SCHEMA} == 'true' ]];then

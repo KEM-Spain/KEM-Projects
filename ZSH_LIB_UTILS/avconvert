@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -19,11 +19,11 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Declarations
+# Declarations
 typeset -a _VID_EXT=(mov avi mkv mp4 webm)
 typeset -a _AUD_EXT=(mp3 flac wav)
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
@@ -99,7 +99,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ -z ${1} ]] && usage "missing $(opt_type f)" || FN=${1}
 [[ -z ${2} ]] && usage "missing $(opt_type e)" || EXT=${2}
 

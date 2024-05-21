@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 RESET="\033[m"
 BOLD="\033[1m"
 ITALIC="\033[3m"
@@ -16,10 +16,10 @@ MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
-#Declarations
+# Declarations
 typeset -A _SSID_SIGNAL
 
-#Constants
+# Constants
 _IWCONFIG=/sbin/iwconfig
 _IWLIST=/sbin/iwlist
 _NMCLI=/usr/bin/nmcli
@@ -27,17 +27,17 @@ _TIMEOUT=10
 _WIFI_STATE=$(nmcli -t -f WIFI radio)
 _WLESS_DEV=wlo1
 
-#Globals
+# Globals
 g_BEST_SIGNAL=0
 g_ACTIVE_SSID="Not connected"
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 connection_off () {
 	local SSID=${1}
 
@@ -138,7 +138,7 @@ ssid_choose () {
 	list_set_header 'printf "%5s %-*s %-7s" "" ${LONGEST} "SSID" "Quality"'
 	list_set_header 'printf "%5s ${MAGENTA_FG}%-*s %7s${RESET}" "" ${LONGEST} "$(str_unicode_line ${LONGEST})" "$(str_unicode_line 7)"'
 
-	#set line item
+	# Set line item
 	list_set_line_item ' 
 	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-*s${RESET} ${SHADE}${BAR}%7d${RESET} ${GREEN_FG}%s${RESET}\n" ${_LIST_NDX} ${LONGEST} ${_LIST[${_LIST_NDX}]} ${_SSID_SIGNAL[${_LIST[${_LIST_NDX}]}]} $(is_active ${_LIST_NDX})
 	'
@@ -233,7 +233,7 @@ wifi_on () {
 	fi
 }
 
-#Getopts 
+# Getopts 
 
 read -r -d '' DESC<<EOF
 Wireless connection manager
@@ -287,7 +287,7 @@ while getopts ${OPTSTR} opts;do
 done
 shift $(($OPTIND - 1))
 
-#Execution 
+# Execution 
 [[ ! -e ${_NMCLI} ]] && exit_leave $(msg_warn "Required application:${_NMCLI} not found")
 
 load_ssid_signals
@@ -302,20 +302,20 @@ else #  process arg
 	fi
 fi
 
-#Execute indicated command
-if [[ ${1:l} == "off" ]];then #switch wifi off
+# Execute indicated command
+if [[ ${1:l} == "off" ]];then # Switch wifi off
 	if wifi_off;then
 		exit_leave $(msg_warn "Turning off wireless")
 	else
 		exit_leave $(msg_warn "Error: turning off wireless")
 	fi
-elif [[ ${1:l} == "on" ]];then #switch wifi on
+elif [[ ${1:l} == "on" ]];then # Switch wifi on
 	if wifi_off;then
 		exit_leave $(msg_warn "Turning on wireless")
 	else
 		exit_leave $(msg_warn "Error${RESET}: turning on wireless")
 	fi
-elif [[ -n ${SSID_ARG} ]];then #connect to SSID
+elif [[ -n ${SSID_ARG} ]];then # Connect to SSID
 	if [[ "${g_ACTIVE_SSID}" != "${SSID_ARG}" ]];then
 		connection_off ${g_ACTIVE_SSID}
 		if connection_try ${SSID_ARG};then
@@ -325,11 +325,11 @@ elif [[ -n ${SSID_ARG} ]];then #connect to SSID
 			echo "${RED_FG}Error${RESET}: connecting to ${WHITE_FG}${g_ACTIVE_SSID}${RESET}"
 		fi
 	fi
-elif [[ ${GET_CURRENT_SSID} == "true" ]];then #echo current SSID
+elif [[ ${GET_CURRENT_SSID} == "true" ]];then # Echo current SSID
 	set_current_ssid
 	echo ${g_ACTIVE_SSID}
 	exit_leave
-elif [[ ${FIND_BEST} == "true" ]];then #connect to best signal
+elif [[ ${FIND_BEST} == "true" ]];then # Connect to best signal
 		echo "Finding best SSID..."
 		if ssid_best;then
 			set_current_ssid
@@ -337,11 +337,11 @@ elif [[ ${FIND_BEST} == "true" ]];then #connect to best signal
 		else
 			echo "${RED_FG}Error${RESET}: connecting to ${WHITE_FG}${g_ACTIVE_SSID}${RESET}"
 		fi
-elif [[ ${CHOOSE_SSID} == "true" ]];then #choose a connection
+elif [[ ${CHOOSE_SSID} == "true" ]];then # Choose a connection
 		ssid_choose
 		[[ ${?} -ne 0 ]] && msg_box -p -PK "<r>Error<N>: connecting to <w>${g_ACTIVE_SSID}<N>"
 		tput clear
-elif [[ ${SPEEDTEST} == "true" ]];then #run a speedtest
+elif [[ ${SPEEDTEST} == "true" ]];then # Run a speedtest
 	speedtest
 fi
 

@@ -14,7 +14,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _EPERMS
 typeset -A _FILES
 typeset -A _FTYPES
@@ -31,14 +31,14 @@ typeset -a _RAWLIST
 typeset -a _LOCAL_LIST
 typeset -i _FNDX=0
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local -A POP_DECODE=('set permissions' sp 'change owner' co 'change group' cg 'change owner and group' cog)
 	local -A PTYPE_DECODE=(special s owner o group g world w all a umask u)
@@ -58,8 +58,8 @@ action_do () {
 	local UMASK_PERMS=false
 	local match mbegin mend
 	local RC1 RC2
-	local TOP_WIN_X=8 #cascade
-	local TOP_WIN_Y=30 #cascade
+	local TOP_WIN_X=8 # Cascade
+	local TOP_WIN_Y=30 # Cascade
 
 	for U in ${USER_LIST};do
 		[[ ${GROUP_LIST[(i)${U}]} -le ${#GROUP_LIST} ]] && USER_GROUP_LIST+=${U}
@@ -117,7 +117,7 @@ action_do () {
 
 	for M in ${_MARKED};do
 		NDX=${_LOCAL_LIST[${M}]}
-		if [[ ${_FTYPES[${NDX}]} != 'l' ]];then #ignore links
+		if [[ ${_FTYPES[${NDX}]} != 'l' ]];then # Ignore links
 			case ${POP} in
 				co) sudo chown ${CHOWN} ${_FILES[${NDX}]} 2>/dev/null && RC1=${?};;
 			  cog) sudo chown ${CHOWN}:${CHGRP} ${_FILES[${NDX}]} 2>/dev/null && RC1=${?};;
@@ -170,9 +170,9 @@ set_perms () {
 	local F_UMASK="0$(( 666-$(umask) ))"
 	local D_UMASK="0$(( 777-$(umask) ))"
 
-	#msg_box -p "PTYPE:${PTYPE} PERM_CODE:${PERM_CODE} FN:${FN}"
+	# Msg_box -p "PTYPE:${PTYPE} PERM_CODE:${PERM_CODE} FN:${FN}"
 	 
-	[[ ${FTYPE} == 'l' ]] && return 0 #ignore links
+	[[ ${FTYPE} == 'l' ]] && return 0 # Ignore links
 
 	[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} NDX:${1} PTYPE:${2} PERM_CODE:${3} FN:${FN} PERMS:${_PERMS} BIT_1=${BIT_1} BIT_2=${BIT_2} BIT_3=${BIT_3} BIT_4=${BIT_4} F_UMASK:${F_UMASK} D_UMASK:${D_UMASK}"
 
@@ -380,7 +380,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 RAWPATH=$(path_get_raw)
@@ -406,14 +406,14 @@ done
 
 LBL_WIDTH=8
 
-#TODO: some jagged columns w/ long file names
-#set headings
+# TODO: some jagged columns w/ long file names
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET}  Path:${WHITE_FG}%-*s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${SELECTED_COUNT}'
 list_set_header 'printf " "'
 list_set_header 'printf "%*s %*s %4s %4s %10s %10s %-12s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s" 5 "" ${LONGEST} "File" "Type" "Perm" "Owner" "Group" ${_PERM_LABELS[s]} ${_PERM_LABELS[o]} ${_PERM_LABELS[g]} ${_PERM_LABELS[w]}'
 list_set_header 'printf "%*s ${CYAN_FG}%4s${RESET} ${CYAN_FG}%4s${RESET} ${CYAN_FG}%4s${RESET} ${CYAN_FG}%10s${RESET} ${CYAN_FG}%10s${RESET} ${MAGENTA_FG}%-12s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s${RESET}" $((LONGEST+1)) "" $(str_unicode_line 4) $(str_unicode_line 4) $(str_unicode_line 4)  $(str_unicode_line 10) $(str_unicode_line 10) $(str_unicode_line 12) $(str_unicode_line ${LBL_WIDTH}) $(str_unicode_line ${LBL_WIDTH}) $(str_unicode_line ${LBL_WIDTH})' 
 
-#set line item
+# Set line item
 list_set_line_item ' 
 local FNDX=${_LIST[${_LIST_NDX}]};
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%*s${RESET} %-4s ${SHADE}${BAR}%4s${RESET} ${SHADE}${BAR}%10s${RESET} ${SHADE}${BAR}%10s${RESET} ${SHADE}${BAR}%-12s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s\n" ${_LIST_NDX} ${LONGEST} ${_FILES[${FNDX}]:t} "(${_FTYPES[${FNDX}]})" ${_PERMS[${FNDX}]} ${_OWNERS[${FNDX}]} ${_GROUPS[${FNDX}]} ${_EPERMS[${FNDX}]} ${_OPERMS[${FNDX}]} ${_GPERMS[${FNDX}]} ${_WPERMS[${FNDX}]}
@@ -431,11 +431,11 @@ list_set_sort_type assoc
 list_set_searchable false
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -ne 0 ]];then

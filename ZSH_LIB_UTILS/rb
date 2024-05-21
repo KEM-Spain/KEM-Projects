@@ -9,15 +9,15 @@ CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 BOLD="\033[1m"
 
-#Declarations
+# Declarations
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 dismount () {
 	sudo umount /dev/sda1 2>/dev/null
 	sudo umount /dev/sda4 2>/dev/null
@@ -114,7 +114,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
  
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 if [[ ${#OPTIONS} -eq 0 ]];then

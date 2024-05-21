@@ -1,6 +1,6 @@
 #!/usr/bin/zsh
 
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,7 +17,7 @@ WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 BLACK_FG="\033[30m"
 
-#Declarations
+# Declarations
 typeset -a _LOCAL_LIST
 typeset -a _DEPTH_OPTS=("[d] More Depth" "[l] Less Depth" "[r] Reset Depth" "[Esc] (or <ENTER>) to Ignore")
 typeset -A _BASELINE=()
@@ -28,24 +28,24 @@ typeset -A _USB_INFO=()
 typeset -A _DISPLAY=()
 typeset -A _ARGS=()
 
-#Constants
+# Constants
 _LOG=/tmp/${0:t}.log
 _MIN_DEPTH=1
 
-#Globals
+# Globals
 g_OBJECT=item
 g_PATHLBL=?
 g_PREFIX=''
 g_CONTEXT=''
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local -a PROG
 	local M
@@ -83,8 +83,8 @@ action_do () {
 		((NDX++))
 		[[ -d ${_LIST[${M}]} ]] && OBJ_TYPE='directory' || OBJ_TYPE='file'
 
-		if [[ ${_DISPLAY[MODE]} == 'source' ]];then # copy files to stick
-			[[ -d ${_LIST[${M}]} ]] && TS='/' || TS='' # rsync needs trailing slash
+		if [[ ${_DISPLAY[MODE]} == 'source' ]];then # Copy files to stick
+			[[ -d ${_LIST[${M}]} ]] && TS='/' || TS='' # Rsync needs trailing slash
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0} ${LINENO} rsync -r -z -h -I -v --info=progress2 --no-R --no-i-r ${_LIST[${M}]}${TS} --mkpath ${_USB_INFO[PATH]}/${g_PREFIX}${_LIST[${M}]:t}${TS} >>${_LOG} 2>${RS_ELOG} &"
 			[[ -e ${RS_ELOG} ]] && rm -f ${RS_ELOG}
 			rsync -r -z -h -I -v --info=progress2 --no-R --no-i-r ${_LIST[${M}]}${TS} --mkpath ${_USB_INFO[PATH]}/${g_PREFIX}${_LIST[${M}]:t}${TS} >>${_LOG} 2>${RS_ELOG} &
@@ -98,14 +98,14 @@ action_do () {
 					msg_box -c -x12 "Processing <w>${CL}<g> 100% <w>${CR}<N>"
 					break
 				else
-					PCT=$(str_trim $(get_progress)) # read the rsync log
-					[[ ${#PCT} -lt ${LAST_LEN} || ${LEN_WIDE} == 'true' ]] && CL="<<<<<<<" && CR=">>>>>>>" && LEN_WIDE=true # maintain msg_box width
+					PCT=$(str_trim $(get_progress)) # Read the rsync log
+					[[ ${#PCT} -lt ${LAST_LEN} || ${LEN_WIDE} == 'true' ]] && CL="<<<<<<<" && CR=">>>>>>>" && LEN_WIDE=true # Maintain msg_box width
 					[[ ${#PCT} -eq 0 ]] && DISPLAY_PCT=${LAST_PCT} || DISPLAY_PCT=${PCT}
 					[[ ${PCT} =~ "100" ]] && MSG="Waiting for rsync to finish processing" || MSG="Processing"
 					LAST_PCT=${DISPLAY_PCT}
 					LAST_LEN=${#DISPLAY_PCT}
 					((PNDX++))
-					if [[ $(( ${PNDX} % 2 )) -eq 0 ]];then # alternate chevrons
+					if [[ $(( ${PNDX} % 2 )) -eq 0 ]];then # Alternate chevrons
 						LC='<g>' && RC='<m>'
 					else
 						LC='<m>' && RC='<g>'
@@ -115,7 +115,7 @@ action_do () {
 				sleep .5
 			done
 			sleep 1
-		else # delete files from stick
+		else # Delete files from stick
 			msg_box -c -x15 "Deleting..."
 			[[ -d ${_LIST[${M}]} ]] && /bin/rm -r ${_LIST[${M}]} || /bin/rm ${_LIST[${M}]}
 			RC1=${?}
@@ -188,13 +188,13 @@ get_progress () {
 
 header_callback () {
 	local NDX=${1}
-	local STATE_DATA=${2} # returning FUNCTION|BOOLEAN
+	local STATE_DATA=${2} # Returning FUNCTION|BOOLEAN
 	local SELECTED_BYTES=0
 	local STATE
 	local STATE_NDX
 
-	local -A TA_STATES=(0 alloff 1 allon) # all
-	local -A TR_STATES=(0 off 1 on) # row
+	local -A TA_STATES=(0 alloff 1 allon) # All
+	local -A TR_STATES=(0 off 1 on) # Row
 
 	local STATE_NDX=$(cut -d'|' -f2 <<<${STATE_DATA})
 
@@ -234,7 +234,7 @@ item_decorate () {
 	 
 	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: NDX:${NDX} _LIST:${_LIST[${NDX}]}"
 
-	if [[ ${_DISPLAY[MODE]} == 'source' ]];then # source vs target
+	if [[ ${_DISPLAY[MODE]} == 'source' ]];then # Source vs target
 		ACTION="copied"
 		[[ -d ${_LIST[${NDX}]} ]] && DIR_COLOR="> ${CYAN_FG}" || DIR_COLOR="_ ${WHITE_FG}"
 	elif [[ ${_DISPLAY[MODE]} == 'target' ]];then
@@ -242,7 +242,7 @@ item_decorate () {
 		[[ -d ${_LIST[${NDX}]} ]] && DIR_COLOR="> ${RED_FG}" || DIR_COLOR="${RED_FG}"
 	fi
 
-	if [[ -d ${_LIST[${NDX}]} ]];then # dir vs file
+	if [[ -d ${_LIST[${NDX}]} ]];then # Dir vs file
 		DIR="(${CYAN_FG}d${RESET})"
 		OBJ=directory
 	else
@@ -250,11 +250,11 @@ item_decorate () {
 		OBJ=file
 	fi
 
-	[[ ${_LIST_SELECTED[${NDX}]} == ${_GHOST_ROW} ]] && TAG="${OBJ} ${ITALIC}${ACTION}${RESET}" || TAG='' # set TAG
+	[[ ${_LIST_SELECTED[${NDX}]} == ${_GHOST_ROW} ]] && TAG="${OBJ} ${ITALIC}${ACTION}${RESET}" || TAG='' # Set TAG
 
 	DIR_SEG=$(path_seg ${_LIST[${NDX}]:h} last)
 
-	echo "${DIR_COLOR}${DIR_SEG}${RESET}/${FN_COLOR}${_LIST[${NDX}]:t}${RESET} ${DIR} ${TAG}" # display line item
+	echo "${DIR_COLOR}${DIR_SEG}${RESET}/${FN_COLOR}${_LIST[${NDX}]:t}${RESET} ${DIR} ${TAG}" # Display line item
 }
 
 key_callback () {
@@ -278,14 +278,14 @@ key_callback () {
 
 load_list () {
 	local -aU SUBLIST
-	local DEPTH=${_DISPLAY[${_DISPLAY[MODE]}_DEPTH]} # reduce chatter below
+	local DEPTH=${_DISPLAY[${_DISPLAY[MODE]}_DEPTH]} # Reduce chatter below
 	local F_GLOB
 	local F_PATH
 	local L M
 	local MARKED
 	local MSG=''
 	local RAWPATH
-	local S_PATH=${_USB_INFO[PATH]:q} # reduce chatter below
+	local S_PATH=${_USB_INFO[PATH]:q} # Reduce chatter below
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
 
@@ -304,7 +304,7 @@ load_list () {
 
 				[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sudo find ${F_PATH} -maxdepth ${DEPTH} ${F_GLOB}"
 				_LOCAL_LIST=("${(f)$(eval "sudo find ${F_PATH} -maxdepth ${DEPTH} ${F_GLOB}" | sort)}")
-			else # only expand what was previously displayed based on SEARCHTERM
+			else # Only expand what was previously displayed based on SEARCHTERM
 				for L in ${_LOCAL_LIST};do
 					[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sudo find ${F_PATH}/${L:t:q} -maxdepth ${DEPTH} 2>/dev/null"
 					SUBLIST+=("${(f)$(eval "sudo find ${F_PATH}/${L:t:q} -maxdepth ${DEPTH} 2>/dev/null" | sort)}")
@@ -452,7 +452,7 @@ select_callback () {
 			[[ ${_DISPLAY[REPAINT]} == 'true' ]] && repaint
 			set_tally
 		fi
-	else #row != 1
+	else # Row != 1
 		[[ -z ${_LIST_SELECTED[1]} || ${_LIST_SELECTED[1]} -eq 0 ]] && _DISPLAY[REPAINT]=true || _DISPLAY[REPAINT]=false
 		if [[ ${_DISPLAY[${_DISPLAY[MODE]}_ALL]} == 'true' ]];then
 			msg_box -p -PK "Top level directory selected|No further selection required"
@@ -509,7 +509,7 @@ set_du_bytes () {
 				_TARGET_STATS[PCT_AVAIL]=100
 			fi
 		fi
-	else # row selection
+	else # Row selection
 		TA=${_TARGET_STATS[TL_AVAIL]}
 		TP=$(( (BYTES/TA) * 100 ))
 
@@ -530,13 +530,13 @@ set_du_bytes () {
 			if [[ ${STATE} =~ "on" ]];then
 				(( _SELECTION[TL_BYTES]+=BYTES ))
 				(( _TARGET_STATS[TL_USED]-=BYTES ))
-				(( _TARGET_STATS[CUR_AVAIL]+=BYTES )) # not updating in display?
+				(( _TARGET_STATS[CUR_AVAIL]+=BYTES )) # Not updating in display?
 				_TARGET_STATS[PCT_AVAIL]=$(( ${_TARGET_STATS[PCT_AVAIL]} + TP ))
 			fi
 			if [[ ${STATE} =~ "off" ]];then 
 				(( _SELECTION[TL_BYTES]-=BYTES ))
 				(( _TARGET_STATS[TL_USED]+=BYTES ))
-				(( _TARGET_STATS[CUR_AVAIL]-=BYTES )) # not updating in display?
+				(( _TARGET_STATS[CUR_AVAIL]-=BYTES )) # Not updating in display?
 				_TARGET_STATS[PCT_AVAIL]=$(( ${_TARGET_STATS[PCT_AVAIL]} - TP ))
 			fi
 		fi
@@ -684,7 +684,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ -e ${_LOG} ]] && /bin/rm -f ${_LOG}
 
@@ -694,7 +694,7 @@ shift $((OPTIND -1))
 [[ ${#} -ge 1 ]] && ARG_1=${1} || ARG_1=''
 [[ ${#} -ge 2 ]] && ARG_2=${2} || ARG_2=''
 
-if [[ ${#} -ge 1 ]];then # either a path, or searchterm
+if [[ ${#} -ge 1 ]];then # Either a path, or searchterm
 	_ARGS[PATH_ARG]=''
 	_ARGS[SEARCHTERM]=''
 	[[ -d ${ARG_1} ]] && _ARGS[PATH]=${1}
@@ -702,11 +702,11 @@ if [[ ${#} -ge 1 ]];then # either a path, or searchterm
 fi
 
 if [[ -n ${ARG_2} ]];then
-	[[ -z ${_ARGS[PATH]} ]] && usage "Invalid file or path:${ARG_1}" # abort
-	_ARGS[SEARCHTERM]=${ARG_2} # searchterm following a valid path or file
+	[[ -z ${_ARGS[PATH]} ]] && usage "Invalid file or path:${ARG_1}" # Abort
+	_ARGS[SEARCHTERM]=${ARG_2} # Searchterm following a valid path or file
 fi
 
-#Initialize
+# Initialize
 _DISPLAY[source_DEPTH]=1
 _DISPLAY[target_DEPTH]=1
 _DISPLAY[source_ALL]=false
@@ -735,9 +735,9 @@ else
 	CUR_AVAIL=14500000000
 	TL_USED=0
 	PCT_USED=0
-	TL_AVAIL=$(( TL_AVAIL * 1024 )) #blocks to bytes
-	CUR_AVAIL=$(( CUR_AVAIL * 1024 )) #blocks to bytes
-	TL_USED=$(( TL_USED * 1024 )) #blocks to bytes
+	TL_AVAIL=$(( TL_AVAIL * 1024 )) # Blocks to bytes
+	CUR_AVAIL=$(( CUR_AVAIL * 1024 )) # Blocks to bytes
+	TL_USED=$(( TL_USED * 1024 )) # Blocks to bytes
 
 	_BASELINE=(TL_AVAIL ${TL_AVAIL} CUR_AVAIL ${CUR_AVAIL} TL_USED ${TL_USED} PCT_USED ${PCT_USED})
 	_TARGET_STATS=(TL_AVAIL ${TL_AVAIL} CUR_AVAIL ${CUR_AVAIL} TL_USED ${TL_USED} PCT_USED ${PCT_USED})
@@ -747,7 +747,7 @@ fi
 
 load_list
 
-#set headings
+# Set headings
 list_set_header '
 if [[ ${_DISPLAY[MODE]} == 'source' ]];then
 	MODE_LABEL="Copy to Stick"
@@ -763,7 +763,7 @@ list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} %s Path:${WHITE_FG}%-*s${R
 list_add_header_break
 list_set_header_callback header_callback
 
-#set line item
+# Set line item
 list_set_line_item 'printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"'
 list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${_DISPLAY[MODE]} (${ITALIC}or exit if none selected${RESET}) ${WHITE_FG}Special Keys${RESET}:(${WHITE_FG}d${RESET}) Adjust Depth, (${WHITE_FG}z${RESET}) Switch Context"
 list_set_barlines true
@@ -784,7 +784,7 @@ while true;do
 	if [[ ${RC} -eq -1 ]];then # 'z' key 
 		toggle_mode
 	else
-		_MARKED=($(list_get_selected)) #get selections
+		_MARKED=($(list_get_selected)) # Get selections
 		if [[ $(list_get_selected_count) -ne 0 ]];then
 			action_warn
 			if [[ ${_MSG_KEY} == "y" ]];then

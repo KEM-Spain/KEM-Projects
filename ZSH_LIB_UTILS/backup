@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,7 +15,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a MARKED
 typeset -a RS_OPTS
 typeset -a RS_EXCL
@@ -23,21 +23,21 @@ typeset -a RS_INCL
 typeset -a BACKUP_DIRS
 
 #--Option settings for rsync--
-#RS_OPTS+=('-n') #dry run
-#RS_OPTS+=('-i') #itemize changes
-#RS_OPTS+=('-x') #don't cross file system boundaries
-#RS_OPTS+=('-h') #human readable output
-#RS_OPTS+=('-A') #preserve ACLS
-#RS_OPTS+=('-X') #preserve extended attributes
+# RS_OPTS+=('-n') # Dry run
+# RS_OPTS+=('-i') # Itemize changes
+# RS_OPTS+=('-x') # Don't cross file system boundaries
+# RS_OPTS+=('-h') # Human readable output
+# RS_OPTS+=('-A') # Preserve ACLS
+# RS_OPTS+=('-X') # Preserve extended attributes
 
-RS_OPTS+=('-v') #verbose
-RS_OPTS+=('-a') #archive
-RS_OPTS+=('-z') #compress
-RS_OPTS+=('--delete') #delete if original no longer exists
-RS_OPTS+=('--inplace') #update files directly (faster - no building temp copies)
-RS_OPTS+=('--numeric-ids') #no translation of UID,GID - needed for flexible restores
-RS_OPTS+=('--delete-excluded') #exluded here; deleted there
-RS_OPTS+=('--ignore-errors') #continue through errors
+RS_OPTS+=('-v') # Verbose
+RS_OPTS+=('-a') # Archive
+RS_OPTS+=('-z') # Compress
+RS_OPTS+=('--delete') # Delete if original no longer exists
+RS_OPTS+=('--inplace') # Update files directly (faster - no building temp copies)
+RS_OPTS+=('--numeric-ids') # No translation of UID,GID - needed for flexible restores
+RS_OPTS+=('--delete-excluded') # Exluded here; deleted there
+RS_OPTS+=('--ignore-errors') # Continue through errors
 
 #--Exclude settings for rsync--
 RS_EXCL+=(--exclude='lost+found')
@@ -56,7 +56,7 @@ RS_EXCL+=(--exclude='.git')
 RS_INCL+=(--include='Downloads/Torrents/Completed')
 BACKUP_DIRS=(/root /home/kmiller /usr/local /etc /opt)
 
-#Constants
+# Constants
 _MOUNT=media
 _USER=kmiller
 _MOUNTPOINT="/${_MOUNT}/${_USER}"
@@ -68,18 +68,18 @@ _LIB_DIR=/usr/local/lib
 _LOGFILE=/home/kmiller/.${_TAG}.log
 _TODAY=$(date +'%Y-%m-%d') 
 
-#Globals
+# Globals
 g_LAST_RUN=?
 g_FOUND_EXT=false
 
-#Imports
+# Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/TPUT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 datediff () {
 	local D1=$(date -d "$1" +%s)
 	local D2=$(date -d "$2" +%s)
@@ -211,7 +211,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 g_LAST_RUN=$(last_backup ${_MARKER})
 
@@ -228,7 +228,7 @@ while true;do
 	fi
 done
 
-#Info option
+# Info option
 [[ ${INFO} == 'true' ]] && msg_box -p -PK "Last backup was ${WHITE_FG}${g_LAST_RUN}${RESET}" && exit_leave
 
 if [[ (-f ${_MARKER}) && (${FORCE} == "false") && (${g_LAST_RUN:l} =~ 'today') ]];then
@@ -254,7 +254,7 @@ while true;do
 done
 [[ g_FOUND_EXT == 'false' ]] && exit_leave $(msg_warn "Failed to mount ${_DEST_ID:l}")
 
-#Backup
+# Backup
 echo
 echo "Backup started: $(date)" | tee ${_LOGFILE}
 echo "Excluded files: ${RS_EXCL}" | tee -a ${_LOGFILE}

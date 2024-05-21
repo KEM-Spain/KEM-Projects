@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,11 +17,11 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _LOG=/tmp/${0:t}.log
 
-#Imports
+# Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
@@ -99,7 +99,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
  
-#Execution
+# Execution
 [[ ${#} -eq 0 ]] && usage "Missing argument:<APP>"
 APP=${1}
 
@@ -119,8 +119,8 @@ CYCLE=0
 ID_CHANGE=0
 ID_CNT=0
 LAST_WID=?
-MAX_CHANGES=3 # some apps open preliminary windows and id's change - 3 changes should be sufficient
-MAX_CYCLES=50 # max attempts to get an id
+MAX_CHANGES=3 # Some apps open preliminary windows and id's change - 3 changes should be sufficient
+MAX_CYCLES=50 # Max attempts to get an id
 STABLE_ID=12 # 12 iterations without a change of id should indicate a stable id
 TIMEOUT=false
 TITLE=''
@@ -129,13 +129,13 @@ while true;do
 	((CYCLE++))
 	[[ ${CYCLE} -ge ${MAX_CYCLES} ]] && TIMEOUT=true && break 
 
-	WIN_INFO=("${(f)$(wmctrl -lx 2>/dev/null)}") # list all active windows
+	WIN_INFO=("${(f)$(wmctrl -lx 2>/dev/null)}") # List all active windows
 
 	for I in ${WIN_INFO};do
 		WDW_ID=$(echo ${I} | grep -i ${APP} | tr -s '[:space:]' | cut -d' ' -f1)
 		if [[ ${WDW_ID} =~ '0x' ]];then
-			[[ ${LAST_WID} != ${WDW_ID} ]] && LAST_WID=${WDW_ID} && ((ID_CHANGE++)) && ID_CNT=0 # different id
-			[[ ${LAST_WID} == ${WDW_ID} ]] && ((ID_CNT++)) # same id
+			[[ ${LAST_WID} != ${WDW_ID} ]] && LAST_WID=${WDW_ID} && ((ID_CHANGE++)) && ID_CNT=0 # Different id
+			[[ ${LAST_WID} == ${WDW_ID} ]] && ((ID_CNT++)) # Same id
 			if [[ (${SINGLE_WIN_APPS[${APP}]} -eq 1) || (${ID_CHANGE} -ge ${MAX_CHANGES}) || (${ID_CNT} -ge ${STABLE_ID}) ]];then
 				logit "Returning ${WDW_ID} for APP:${APP}"
 				TITLE=$(sed 's/\(^.*\)\(KEM-AS \)\(.*$\)/\3/' <<<${I})

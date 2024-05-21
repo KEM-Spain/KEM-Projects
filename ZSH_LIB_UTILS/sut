@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,11 +17,11 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _UTILS
 typeset -A _UTILS_DESC
 
-#Constants
+# Constants
 _WRAPPER=${0:t}
 _UTILS=(
 autostart 1
@@ -73,28 +73,28 @@ mime_defaults "MIME:Display apps assoc with mime type"
 host_mac "SYSTEM:Get MAC address of host"
 )
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 autostart () {
-	#Declarations
+	# Declarations
 	local -a AUTODIRS
 	local -a _MARKED=()
 	local -a _LOCAL_LIST=()
 	local SEARCHTERM
 	local DESC
 
-	#Constants
+	# Constants
 	AUTODIRS+=/etc/xdg/autostart
 	AUTODIRS+=~/.config/autostart
 	local USER=kmiller
 
-	#Functions
+	# Functions
 	action_do () {
 		local -a MARKED=(${@})
 		local M
@@ -207,7 +207,7 @@ ___EOF
 	shift $((OPTIND -1))
 	#--End GetOpts--
 
-	#Execution
+	# Execution
 	[[ ${#} -gt 0 ]] && SEARCHTERM=${1} || SEARCHTERM=''
 
 	_LOCAL_LIST=("${(f)$(sudo find ${AUTODIRS} -iname "*${SEARCHTERM}*desktop")}") 
@@ -215,12 +215,12 @@ ___EOF
 		[[ -n ${SEARCHTERM} ]] && exit_leave $(msg_warn "No autostart applications found matching:${WHITE_FG}${SEARCHTERM}${RESET}")
 	fi
 
-	#set headings
+	# Set headings
 	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} files  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
 	list_add_header_break
 	list_set_header_break_offset 1
 
-	#set line item
+	# Set line item
 	list_set_line_item ' 
 	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
 	'
@@ -230,15 +230,15 @@ ___EOF
 	list_set_clear_ghosts true
 
 	while true;do
-		#get selection
+		# Get selection
 		list_select ${_LOCAL_LIST}
 		[[ ${?} -eq 0 ]] && break
 
-		#get selections
+		# Get selections
 		_MARKED=($(list_get_selected))
 
 		if [[ $(list_get_selected_count) -gt 1 ]];then
-			action_warn ${_MARKED} #warn if more than 1 selected
+			action_warn ${_MARKED} # Warn if more than 1 selected
 		fi
 
 		if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then
@@ -248,7 +248,7 @@ ___EOF
 }
 
 cam () {
-	#Functions
+	# Functions
 	local DESC
 
 	status () {
@@ -308,7 +308,7 @@ cam () {
 		[[ -n ${DEV} ]] && echo "Selected:${DEVICES[${DEV}]}" && guvcview -d ${DEVICES[${DEV}]} 2>/dev/null
 	}
 
-	#Execution
+	# Execution
 	read -r -d '' DESC<<___EOF
 Enable/Disable onboard cam
 \tWithout arguments (and cam is enabled), a cam selector is displayed
@@ -323,7 +323,7 @@ ___EOF
 		exit_leave
 	fi
 
-	#Argument options
+	# Argument options
 	if [[ -n ${1} ]];then
 		case $1 in
 			off) sudo modprobe -r uvcvideo;;
@@ -433,7 +433,7 @@ ___EOF
 }
 
 info () {
-	#Constants
+	# Constants
 	local	DESC=$(lsb_release -d | cut -d:  -f2-)
 	local	NAME=$(lsb_release -c | cut -d:  -f2-)
 	local	OS=$(uname)
@@ -446,7 +446,7 @@ info () {
 	local	GTK4=$(dpkg -l | grep "libgtk-4.*bin\b" | tr -s '[:space:]' | cut -d' ' -f2,3)
 	local	QT=($(qmake --version))
 
-	#Declarations
+	# Declarations
 	local _VERBOSITY=0
 	local HDW_DTLS=(
 	bios-vendor
@@ -467,7 +467,7 @@ info () {
 	processor-frequency
 	)
 
-	#Functions
+	# Functions
 	format () {
 		local -a _LOCAL_LIST
 		local -a LABELS
@@ -497,7 +497,7 @@ info () {
 		for L in ${LABELS};do
 			((NDX++))
 			(( PADDING = LONGEST - ${#L} ))
-			[[ ${PADDING} -eq 0 ]] && PAD=$(printf ' %.0s' {1..$((LONGEST - 10))}) #not working as intended - not sure what was intended...
+			[[ ${PADDING} -eq 0 ]] && PAD=$(printf ' %.0s' {1..$((LONGEST - 10))}) # Not working as intended - not sure what was intended...
 			[[ ! ${LABELS[${NDX}]} =~ '-' &&  -z ${TEXTS[${NDX}]} ]] && echo 
 			echo "${PAD}${L}${TEXTS[${NDX}]}"
 		done
@@ -590,7 +590,7 @@ info () {
 	shift $((OPTIND -1))
 	#--End GetOpts--
 
-	#Execution
+	# Execution
 	local PROD_NAME=$(sudo dmidecode -s system-product-name | sed 's/_.*//g')
 	local BIOS_VERSION=$(sudo dmidecode -t bios | grep -i version | cut -d: -f2 | sed 's/^ //')
 	local BIOS_RELEASE=$(sudo dmidecode -s bios-release-date)
@@ -780,8 +780,8 @@ ___EOF
 	shift $((OPTIND -1))
 	#--End GetOpts--
 
-	#Execution
-	#if log rotation is recent and log is empty then use last log
+	# Execution
+	# If log rotation is recent and log is empty then use last log
 	[[ ! -s ${HISTORY_LOG} ]] && zcat ${HISTORY_LOG}.1.gz > /tmp/history.log && HISTORY_LOG=/tmp/history.log 
 
 	[[ ${RECENT} == 'true' ]] && LAST_UPD_LINE=1 || LAST_UPD_LINE=$(grep --color=never -n 'Start-Date' ${HISTORY_LOG} | grep $(date +"%Y-%m-%d") | head -1 | cut -d: -f1)
@@ -880,7 +880,7 @@ ___EOF
 	shift $((OPTIND -1))
 	#--End GetOpts--
 
-	#Execution
+	# Execution
 	journalctl ${JARGS}
 }
 
@@ -1032,7 +1032,7 @@ ___EOF
 }
 
 lscolors () {
-	#Declarations
+	# Declarations
 	local -A OBJ_COLOR
 	local -A ATTRIBUTE_CODES=(00 none 01 bold 04 underscore 05 blink 07 reverse 08 concealed)
 	local -A FOREGROUND_COLOR_CODES=(30 black 31 red 32 green 33 yellow 34 blue 35 magenta 36 cyan 37 white)
@@ -1048,11 +1048,11 @@ lscolors () {
 	local WIDTH
 	local C F K T
 
-	#Constants
+	# Constants
 	local _DIR_COLORS=/etc/zsh/DIR_COLORS
 	local _CANDIDATES=("${(@f)$(sudo find . -maxdepth 1 ! -path . 2>/dev/null)}")
 
-	#Functions
+	# Functions
 	set_color_code () {
 		local CODE=${1}
 		local K
@@ -1122,7 +1122,7 @@ lscolors () {
 		done < ${_DIR_COLORS}
 	}
 
-	#Execution
+	# Execution
 	read -r -d '' DESC<<___EOF
 View color assignments for listings
 \tof files in the current directory
@@ -1138,7 +1138,7 @@ ___EOF
 
 	parse_dir_colors
 
-	#Parse local file types...
+	# Parse local file types...
 	for F in ${_CANDIDATES};do
 		if [[ -d ${F} && -k ${F} && ! -O ${F} && -w ${F} ]];then
 			FOUND_TYPES+="STICKY_OTHER_WRITABLE"
@@ -1172,7 +1172,7 @@ ___EOF
 		[[ ${#FOUND_TYPES[-1]} -gt ${FIELD_LEN[TYPE]} ]] && FIELD_LEN[TYPE]=${#FOUND_TYPES[-1]}
 	done 
 
-	#Parse local file extensions...
+	# Parse local file extensions...
 	for F in ${_CANDIDATES};do
 		[[ -d ${F} ]] && continue
 		T=${F:t}
@@ -1266,7 +1266,7 @@ lssc () {
 			-e "s/\bstatic/$(echo ${BOLD}${YELLOW_FG}static${RESET})/g"
 	}
 
-	#Execution
+	# Execution
 	read -r -d '' DESC<<___EOF
 View current systemd services
 ___EOF
@@ -1282,7 +1282,7 @@ ___EOF
 	[[ -n $1 ]] && SEARCHTERM=$1
 
 	if [[ -n ${SEARCHTERM} ]];then
-		#echo "Searching for:${WHITE_FG}${SEARCHTERM}${RESET}"
+		# Echo "Searching for:${WHITE_FG}${SEARCHTERM}${RESET}"
 		POST_PROCESS="grep -i ${SEARCHTERM} | tr -s '[:space:]' | sed 's/^[ \t]//g' | sort | hilite | mypager"
 	else
 		POST_PROCESS="tr -s '[:space:]' | sed 's/^[ \t]//g' | hilite | mypager"
@@ -1307,27 +1307,27 @@ ___EOF
 	sudo systemctl list-units --type=service --all | grep exited
 	echo "\n${WHITE_FG}Inactive or Dead services...${RESET}\n"
 	sudo systemctl list-units --type=service --all | grep inactive
-	#echo "\n${WHITE_FG}Dead services...${RESET}\n"
-	#sudo systemctl list-units --type=service --all | sort | grep dead
+	# Echo "\n${WHITE_FG}Dead services...${RESET}\n"
+	# Sudo systemctl list-units --type=service --all | sort | grep dead
 	) | eval "${POST_PROCESS}"
 }
 
 mkinitscript () {
-	#Init Script Creator
+	# Init Script Creator
 	# 2009 - Mike Golvach - eggi@comcast.net - heavily modified by mr miller
 	#
-	#Creative Commons License
-	#rcscript.sh by Mike Golvach is licensed under a Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License.
-	#Based on a work at linuxshellaccount.blogspot.com.
-	#Permissions beyond the scope of this license may be available at http://linuxshellaccount.blogspot.com.
+	# Creative Commons License
+	# Rcscript.sh by Mike Golvach is licensed under a Creative Commons Attribution-Noncommercial-No Derivative Works 3.0 United States License.
+	# Based on a work at linuxshellaccount.blogspot.com.
+	# Permissions beyond the scope of this license may be available at http://linuxshellaccount.blogspot.com.
 	#
 
-	#trap 'rm -f ${INIT_DIR}/${SCRIPT_NAME} ${RC3_DIR}/${SCRIPT_NAME} ${RC0_DIR}/${SCRIPT_NAME} ${SCRIPT_NAME}' 1 2 3 9 15
+	# Trap 'rm -f ${INIT_DIR}/${SCRIPT_NAME} ${RC3_DIR}/${SCRIPT_NAME} ${RC0_DIR}/${SCRIPT_NAME} ${SCRIPT_NAME}' 1 2 3 9 15
 
 	# Tips for a few command line arguments - setting an argument to zero will not be considered equivalent to not defining it
-	# a. set INIT_DIR to 0 if you don't want any scripts and links setup - set RC3_DIR, rc2_dir and/or INIT_DIR to "0" to not create that link/script.
-	# b. If any of the INIT_DIR, rc2_dir and/or RC3_DIR variables are not set, they will default to the examples below.
-	# c. options that include 0 in the example do not need to be set and are entirely optional
+	# A. set INIT_DIR to 0 if you don't want any scripts and links setup - set RC3_DIR, rc2_dir and/or INIT_DIR to "0" to not create that link/script.
+	# B. If any of the INIT_DIR, rc2_dir and/or RC3_DIR variables are not set, they will default to the examples below.
+	# C. options that include 0 in the example do not need to be set and are entirely optional
 	# 
 
 	local INIT_DIR=/etc/init.d
@@ -1346,8 +1346,8 @@ mkinitscript () {
 	local DELETE=false
 	local OPTION
 
-	#FULLY_QUALIFIED_PROGRAM_NAME=/usr/local/bin/testProgram
-	# sure_kill=   "space delimited list of extra programs to kill" or 0
+	# FULLY_QUALIFIED_PROGRAM_NAME=/usr/local/bin/testProgram
+	# Sure_kill=   "space delimited list of extra programs to kill" or 0
 	#
 
 	function usage {
@@ -1662,17 +1662,17 @@ ___EOF
 		fi
 	else
 		[[ ${ACTION} == status ]] && status ${APP}
-		#prevent/allow update
+		# Prevent/allow update
 		echo ${APP} ${ACTION} | sudo dpkg --set-selections
 		status ${APP}
 	fi
 }
 
 ppamgr () {
-	#Constants
+	# Constants
 	local -a SOURCES=(/etc/apt/sources.list /etc/apt/sources.list.d) 
 
-	#Declarations
+	# Declarations
 	local	ADD_PPA=false
 	local	ADD_PPA_KEY=false
 	local	DEBUG=false
@@ -1685,7 +1685,7 @@ ppamgr () {
 	local -a PPAS=()
 	local OPT_PASSED=false
 
-	#Functions
+	# Functions
 	add_ppa () {
 		local PPA_ARG=$1
 		local RC
@@ -1730,7 +1730,7 @@ ppamgr () {
 		local RC
 		local UNINSTALLED
 
-		#optional arg 
+		# Optional arg 
 		if [[ -n ${PKG_ARG} ]];then
 			[[ ${DEBUG} == "true" ]] && echo "PKG_ARG:${PKG_ARG}"
 			PKG=${PKG_ARG}
@@ -1813,7 +1813,7 @@ ppamgr () {
 			ALL=true
 		fi
 
-		#build list of active ppas
+		# Build list of active ppas
 		for S in ${SOURCES};do
 			if [[ -d ${S} ]];then
 				_LOCAL_LIST=("${(f)$(find ${S})}") 
@@ -1821,7 +1821,7 @@ ppamgr () {
 					if [[ ${L:e} == "list" ]];then
 						FILE_CONTENT=("${(f)$(cat ${L})}")
 						for LINE in ${FILE_CONTENT};do
-							[[ ${LINE} =~ "^#" ]] && continue #ignore commented out 
+							[[ ${LINE} =~ "^#" ]] && continue # Ignore commented out 
 							PPAS[${LINE}]=${L}
 
 						done
@@ -1831,7 +1831,7 @@ ppamgr () {
 				if [[ ${ALL} == "true" ]];then
 					FILE_CONTENT=("${(f)$(cat ${S})}")
 					for LINE in ${FILE_CONTENT};do
-						[[ ${LINE} =~ "^#" ]] && continue #ignore commented out 
+						[[ ${LINE} =~ "^#" ]] && continue # Ignore commented out 
 						PPAS[${LINE}]=${S}
 
 					done
@@ -1955,10 +1955,10 @@ ppamgr () {
 		  k) ADD_PPA_KEY=true;PPA_KEY=${OPTARG};;
 		  u) update-repo;exit;;
 		  :) if [[ ${OPTARG} == "l" ]];then
-				_LOCAL_LIST_PPA=true #optional option
+				_LOCAL_LIST_PPA=true # Optional option
 				continue
 			elif [[ ${OPTARG} == "f" ]];then
-				FIND_PKG=true #optional option
+				FIND_PKG=true # Optional option
 				continue
 			else
 				print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"
@@ -1971,11 +1971,11 @@ ppamgr () {
 	#--End GetOpts--
 	 
 	#--Execution--
-	#set default action
+	# Set default action
 	if [[ ${OPT_PASSED} == "false" ]];then
 		if [[ -n ${1} ]];then
 			PPA_ARG=$1
-			ADD_PPA=true #make default
+			ADD_PPA=true # Make default
 		else
 			usage
 		fi
@@ -2131,7 +2131,7 @@ ___EOF
 }
 
 updates () {
-	#Constants
+	# Constants
 	local DEFAULT=$(date +"%Y-%m-%d")
 	local LOGS=("${(f)$(find /var/log/dpkg.log*)}") 
 
@@ -2194,7 +2194,7 @@ ___EOF
 	shift $((OPTIND -1))
 	#--End GetOpts--
 
-	#Execution
+	# Execution
 	local DATEARG=${1:=${DEFAULT}}
 	local PRE_LOCAL_LIST=$(zgrep -h ${DATEARG} $LOGS | sed -e 's/status //g' -e '/startup/d')
 	local _LOCAL_LIST=("${(f)$(echo ${PRE_LOCAL_LIST} | zgrep -hP "\sinstalled|remove|purge" | cut -d' ' -f1,3- | sort -u)}") 
@@ -2311,7 +2311,7 @@ ___EOF
 	done
 	shift $((OPTIND -1))
 	#--End GetOpts--
-	#Execution
+	# Execution
 	[[ ${#} -ne 0 ]] && SEARCHTERM=${1} && echo "Searching for keyword: ${SEARCHTERM}"
 
 	call_xdg_app () {
@@ -2453,7 +2453,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ${#} -ne 0 ]] && UTIL=${1}
 
 [[ ${UTIL:=null} != 'null' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
@@ -2471,7 +2471,7 @@ else
 	selection_list -O ${GREEN_FG} -x11 -y32 -c -w10 "<w>Show System Utilities usage or <h>(q)uit<N>"
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
-	${_SCRIPT} -H # call function help
+	${_SCRIPT} -H # Call function help
 
 	exit_leave
 fi

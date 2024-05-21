@@ -9,11 +9,11 @@ CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 BOLD="\033[1m"
 
-#Constants
+# Constants
 JAR=/usr/local/etc/jdraw_v1.1.5.jar
 _LIB_DIR=/usr/local/lib
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
@@ -27,11 +27,11 @@ center_wdw () {
 	NDX=0
 	while true;do
 		((NDX++))
-		[[ ${NDX} -gt 5 ]] && break #testing shows at least 5 trips for the id to settle
+		[[ ${NDX} -gt 5 ]] && break # Testing shows at least 5 trips for the id to settle
 		WID_1=$(xdotool search --name jdraw 2>/dev/null | sed -n '1{p;q}')
 		WID_2=$(xdotool search --name jdraw 2>/dev/null | sed -n '2{p;q}')
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} WID_1:${WID_1} WID_2:${WID_2}" >&2
-		[[ ${WID_2} -gt ${WID_1} ]] && WID=${WID_2} #want the largest (latest) window id
+		[[ ${WID_2} -gt ${WID_1} ]] && WID=${WID_2} # Want the largest (latest) window id
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} IDS:${IDS} OUT:${OUT} WID:${WID}" >&2
 		sleep 1
 	done
@@ -120,7 +120,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ! -e ${JAR} ]] && exit_leave $(msg_err "${JAR} not found")
 
 (

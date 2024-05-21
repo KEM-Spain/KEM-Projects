@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,26 +15,26 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a LIST
 typeset -R2 SNDX=0
 typeset -a SUBLIST
 typeset -a _ICO_DIRS=(/opt /home/kmiller/.local/share /usr/share/icons /usr/share/pixmaps)
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _ICO_REGEX='.*(ico|png|svg)$'
 
-#Globals
+# Globals
 g_LIMIT=200
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 is_valid_int () {
 	local ARG=${1}
 	local REGEX='^[0-9]+$'
@@ -128,7 +128,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 && ${PRINT_PATHS} == 'false' ]] && do_smcup
 [[ ${#} -ne 0 ]] && SEARCHTERM=${1}
 
@@ -183,7 +183,7 @@ if [[ ${PRINT_PATHS} == 'false' ]];then
 fi
 
 for F in ${RAWLIST};do
-		if [[ -n ${SEARCHTERM} ]];then # apply SEARCHTERM
+		if [[ -n ${SEARCHTERM} ]];then # Apply SEARCHTERM
 			[[ ${F:l} =~ "${SEARCHTERM}" ]] && LIST+=${F}
 		else
 			LIST+=${F}

@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,26 +15,26 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a _RAWLIST
 typeset -a _LOCAL_LIST
 typeset -A _COL_WIDTHS
 typeset -a _BLACKLIST=(-v "\.so\|\.pcm")
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 CUR_USER=$(whoami)
 
-#Imports
+# Imports
 zmodload -F zsh/stat b:zstat
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local -a MARKED=(${@})
 	local M
@@ -213,7 +213,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ ${#} -gt 1 ]] && usage "Too many arguments:${#}"
@@ -227,7 +227,7 @@ if [[ -z ${SEARCHTERM} ]];then
 	START_DIR=.
 else
 	if [[ ${MAX_DEPTH} -eq ${DEFAULT_DEPTH} ]];then
-		MAX_DEPTH=4 #default depth for SEARCHTERM unless overridden
+		MAX_DEPTH=4 # Default depth for SEARCHTERM unless overridden
 	fi
 	START_DIR=${TOP_LEVEL}
 fi
@@ -286,11 +286,11 @@ if [[ ${HIT} == 'false' ]];then
 	exit_leave
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST}) Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
 list_add_header_break
 
-#set line item
+# Set line item
 list_set_line_item '
 printf "${WHITE_FG}%4s${RESET}) ${BAR}${SHADE}%-*s${RESET}\n" ${_LIST_NDX} ${_COL_WIDTHS[FN]} "${_LIST[${_LIST_NDX}]}"
 '
@@ -298,15 +298,15 @@ list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_
 list_set_action_msgs open file
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -gt 1 ]];then
-		action_warn ${MARKED} #warn if more than 1 selected
+		action_warn ${MARKED} # Warn if more than 1 selected
 	fi
 
 	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then

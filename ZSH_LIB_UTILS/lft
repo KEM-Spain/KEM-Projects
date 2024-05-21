@@ -26,26 +26,26 @@ CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 BOLD="\033[1m"
 
-#Declarations
+# Declarations
 typeset -A _TYPE_LABELS
 typeset -a _RAWLIST
 typeset -a _LOCAL_LIST
 typeset -a _SORT_LIST
 typeset -a _STATS
 
-#Constants
+# Constants
 _TYPE_LABELS=(a "Last Access" m "Last Modification" c "Last Change")
 
-#Globals
+# Globals
 g_FN_TAG=''
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 get_stat () {
 	local NDX=${1}
 	local TYPE=${2}
@@ -155,7 +155,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ ${#} -ne 0 && ! -e ${1} ]] && exit_leave $(msg_warn "No files found matching:${1}")
 
@@ -182,24 +182,24 @@ for L in ${(o)_RAWLIST};do
 	tput cup 0 0; 
 	printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#_RAWLIST} $(( (NDX * 100.00)  / ${#_RAWLIST} ))
 	_STATS=("${(f)$(stat ${L} -c'%x %y %z' | perl -ne 'for (m/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/g) { print "$_\n" }')}")
-	_SORT_LIST+="${(f)LINE}|${_STATS[1]}|${_STATS[2]}|${_STATS[3]}" #columns sort indexing
+	_SORT_LIST+="${(f)LINE}|${_STATS[1]}|${_STATS[2]}|${_STATS[3]}" # Columns sort indexing
 done
-LONGEST=$(( LONGEST+4 )) # allow for directory markup ' (d)'
+LONGEST=$(( LONGEST+4 )) # Allow for directory markup ' (d)'
 
-_LOCAL_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} 4 a _SORT_LIST)}") && _SORT_DIRECTION[3]=d # default sort mod_date desc
+_LOCAL_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} 4 a _SORT_LIST)}") && _SORT_DIRECTION[3]=d # Default sort mod_date desc
 
 if [[ ${_DEBUG} -ge 4 ]];then
 	dbg "${0}:${LINENO} $(for L in ${_LOCAL_LIST};do echo "${L}";done)"
 fi
 
-#set headings
+# Set headings
 LBL_WIDTH=17
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file)  Path:${WHITE_FG}%-40s${RESET} ${_PG}" ${#_LIST} "${PATHLBL}"'
 list_set_header 'printf " "'
 list_set_header 'printf "%-*s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s" $((LONGEST+5)) "" ${_TYPE_LABELS[c]} ${_TYPE_LABELS[a]} ${_TYPE_LABELS[m]}'
 list_set_header 'printf "%-*s ${MAGENTA_FG}%${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s${RESET}" $((LONGEST+5)) "" "$(str_unicode_line ${LBL_WIDTH})" "$(str_unicode_line ${LBL_WIDTH})" "$(str_unicode_line ${LBL_WIDTH})"'
 
-#set line item
+# Set line item
 list_set_line_item ' 
 [[ -d $(cut -d"|" -f1 <<<${_LIST[${_LIST_NDX}]}) ]] && local LC=${ITALIC}${CYAN_FG} || local LC=${RESET}
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${BAR}${LC}%-*s${RESET}%${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s\n" ${_LIST_NDX} ${LONGEST} "$(item_decorate ${_LIST_NDX})" "$(get_stat ${_LIST_NDX} c)" "$(get_stat ${_LIST_NDX} a)" "$(get_stat ${_LIST_NDX} m)"

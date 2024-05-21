@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,11 +17,11 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _UTILS
 typeset -A _UTILS_DESC
 
-#Constants
+# Constants
 _WRAPPER=${0:t}
 _UTILS=(
 list 1
@@ -35,13 +35,13 @@ mc "POINTER:Show mouse coordinates"
 wid "ID:Current win ID"
 )
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 list () {
 	local DESC
 
@@ -49,7 +49,7 @@ list () {
 List current windows
 ___EOF
 
-	#Functions
+	# Functions
 	usage () {
 		local -a PENDING_MSGS=(${@})
 
@@ -64,7 +64,7 @@ ___EOF
 		exit_leave $(msg_err ${PENDING_MSGS})
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	echo "wmctrl Info\n-------------------"
@@ -90,7 +90,7 @@ mc  () {
 Show current mouse coordinates
 ___EOF
 
-	#Functions
+	# Functions
 	usage () {
 		local -a PENDING_MSGS=(${@})
 
@@ -105,7 +105,7 @@ ___EOF
 		exit_leave $(msg_err ${PENDING_MSGS})
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	for SIG in {1..9}; do
@@ -126,7 +126,7 @@ wid () {
 Show current window ID
 ___EOF
 
-	#Functions
+	# Functions
 	usage () {
 		local -a PENDING_MSGS=(${@})
 
@@ -141,7 +141,7 @@ ___EOF
 		exit_leave $(msg_err ${PENDING_MSGS})
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	local -a WDW_LIST=("${(f)$( wmctrl -l | grep -i terminal)}") 
@@ -227,7 +227,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 
 [[ ${#} -ne 0 ]] && UTIL=${1}
 
@@ -245,8 +245,8 @@ else
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
 
-	echo #clear read
-	${_SCRIPT} -H # call function help
+	echo # Clear read
+	${_SCRIPT} -H # Call function help
 
 	exit_leave
 fi

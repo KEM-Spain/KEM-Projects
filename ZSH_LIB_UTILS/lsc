@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,7 +15,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _COL_WIDTHS
 typeset -A _DESCRIPTIONS
 typeset -A _RUN_STATES
@@ -29,17 +29,17 @@ typeset -a _RAWLIST
 typeset -a _RAW_STATES
 typeset -a _STATE_SELECT
 
-#Constants
+# Constants
 _MAX_ITEM_LEN=75
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 	local NDX
@@ -220,7 +220,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ -n ${1} ]] && SEARCHTERM=${1} || SEARCHTERM=''
@@ -243,9 +243,9 @@ if [[ ${RUNNING} == 'true' ]];then
 
 	NDX=0
 	for L in ${(o)_RAWLIST};do
-		[[ -n ${SEARCHTERM} && (! ${L} =~ ${SEARCHTERM}) ]] && continue # enforce search
+		[[ -n ${SEARCHTERM} && (! ${L} =~ ${SEARCHTERM}) ]] && continue # Enforce search
 
-		#echo to translate any hex encoding
+		# Echo to translate any hex encoding
 		UNIT=$(cut -d' ' -f1 <<<$(echo ${L}))
 		STATE=$(cut -d' ' -f4 <<<$(echo ${L}))
 		DESC=$(cut -d' ' -f5- <<<$(echo ${L}))
@@ -297,7 +297,7 @@ else
 	for L in ${(o)_RAWLIST};do
 		[[ -n ${SEARCHTERM} && (! ${L} =~ ${SEARCHTERM}) ]] && continue
 
-		#echo to translate any hex encoding
+		# Echo to translate any hex encoding
 		UNIT=$(cut -d' ' -f1 <<<$(echo ${L}))
 		STATE=$(cut -d' ' -f2 <<<$(echo ${L}))
 
@@ -317,7 +317,7 @@ else
 		_STATES[${NDX}]=${STATE}
 		_RUN_STATES[${NDX}]=${RUN_STATE:=N/A}
 
-		# capture longest column
+		# Capture longest column
 		[[ ${#_UNIT_FILES[${NDX}]} -gt ${_COL_WIDTHS[UNIT]} ]] && _COL_WIDTHS[UNIT]=${#_UNIT_FILES[${NDX}]}
 		[[ ${#_STATES[${NDX}]} -gt ${_COL_WIDTHS[STATE]} ]] && _COL_WIDTHS[STATE]=${#_STATES[${NDX}]}
 		[[ ${#_RUN_STATES[${NDX}]} -gt ${_COL_WIDTHS[RUN_STATE]} ]] && _COL_WIDTHS[RUN_STATE]=${#_RUN_STATES[${NDX}]}
@@ -350,18 +350,18 @@ if [[ ${_DEBUG} -gt 2 ]];then
 	) | dbg
 fi
 
-#Boundary check
+# Boundary check
 [[ ${_COL_WIDTHS[UNIT]} -gt ${_MAX_ITEM_LEN} ]] && _COL_WIDTHS[UNIT]=${_MAX_ITEM_LEN}
 [[ ${_COL_WIDTHS[DESC]} -gt ${_MAX_ITEM_LEN} ]] && _COL_WIDTHS[DESC]=${_MAX_ITEM_LEN}
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} System Control ${HDR_TYPE}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
 list_set_header 'printf ""'
 if [[ ${RUNNING} == 'true' ]];then
 	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_COL_WIDTHS[UNIT]} "Unit File" ${_COL_WIDTHS[STATE]} "State" ${_COL_WIDTHS[DESC]} "Description"'
 	list_set_header 'printf "%*s ${MAGENTA_FG}%-*s %-*s %-*s${RESET}" 5 "" ${_COL_WIDTHS[UNIT]} $(str_unicode_line ${_COL_WIDTHS[UNIT]}) ${_COL_WIDTHS[STATE]} $(str_unicode_line ${_COL_WIDTHS[STATE]}) ${_COL_WIDTHS[DESC]} $(str_unicode_line ${_COL_WIDTHS[DESC]})'
 
-	#set line item
+	# Set line item
 	list_set_line_item ' 
 	local FNDX=${_LIST[${_LIST_NDX}]};
 	local ST_COLOR=$(boolean_color ${_STATES[${FNDX}]});
@@ -370,7 +370,7 @@ else
 	list_set_header 'printf "%*s %-*s %-*s %-*s" 5 "" ${_COL_WIDTHS[UNIT]} "Unit File" ${_COL_WIDTHS[STATE]} "State" ${_COL_WIDTHS[RUN_STATE]} "Status"'
 	list_set_header 'printf "%*s ${MAGENTA_FG}%*s %*s %*s${RESET}" 5 "" ${_COL_WIDTHS[UNIT]} $(str_unicode_line ${_COL_WIDTHS[UNIT]}) ${_COL_WIDTHS[STATE]} $(str_unicode_line ${_COL_WIDTHS[STATE]}) ${_COL_WIDTHS[RUN_STATE]} $(str_unicode_line ${_COL_WIDTHS[RUN_STATE]})'
 
-	#set line item
+	# Set line item
 	list_set_line_item ' 
 	local FNDX=${_LIST[${_LIST_NDX}]};
 	local ST_COLOR=$(boolean_color ${_RUN_STATES[${FNDX}]});
@@ -388,11 +388,11 @@ list_set_sort_type assoc
 list_set_barlines true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 
 	if [[ $(list_get_selected_count) -ne 0 ]];then

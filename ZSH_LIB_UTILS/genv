@@ -8,13 +8,13 @@ MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
-#Declarations
+# Declarations
 typeset -a LIST
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
@@ -92,7 +92,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 LIST=("${(f)$(env | grep -i "^${1}" | sort)}") 

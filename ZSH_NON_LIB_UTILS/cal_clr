@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -19,7 +19,7 @@ WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
 
-#Echoed ansi
+# Echoed ansi
 E_BOLD=$(echo -n "\033[1m")
 E_ITALIC=$(echo -n "\033[3m")
 E_RESET=$(echo -n "\033[m")

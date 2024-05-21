@@ -33,7 +33,7 @@ action_do () {
 	local M
 	local NDX=0
 
-	#TODO implement a page hold
+	# TODO implement a page hold
 	for M in ${(on)MARKED};do
 		((NDX++))
 		for F in ${_FUNC_MATCH};do
@@ -43,13 +43,13 @@ action_do () {
 		if [[ ${NO_PROMPTS} == 'true' ]];then
 			for F in ${FUNCTIONS};do
 				print_func ${F} ${_LIST[${M}]}
-			done | less -S -P "Viewing functions within\:$(sed 's/\./\\./' <<<${_LIST[${M}]})" # less hides dots in prompt - must escape
+			done | less -S -P "Viewing functions within\:$(sed 's/\./\\./' <<<${_LIST[${M}]})" # Less hides dots in prompt - must escape
 		else
 			msg_box -H3 -P"Show function code (y/n)?" -cp "<U>Function List<N>||File:<w>${_LIST[${M}]}<N> (<w>${NDX}<N> of <w>${#MARKED}<N>)| |$(msg_list ${(o)FUNCTIONS})"
 			if [[ ${_MSG_KEY} == 'y' ]];then
 				for F in ${FUNCTIONS};do
 					print_func ${F} ${_LIST[${M}]}
-				done | less -S -P "Viewing functions within\:$(sed 's/\./\\./' <<<${_LIST[${M}]})" # less hides dots in prompt - must escape
+				done | less -S -P "Viewing functions within\:$(sed 's/\./\\./' <<<${_LIST[${M}]})" # Less hides dots in prompt - must escape
 			fi
 			FUNCTIONS=()
 		fi
@@ -57,7 +57,7 @@ action_do () {
  
 	for M in ${MARKED};do
 		MARKED[${M}]=0
-		list_set_selected ${M} ${_GHOST_ROW} # mark as complete
+		list_set_selected ${M} ${_GHOST_ROW} # Mark as complete
 	done
 }
 
@@ -174,11 +174,11 @@ PATHLBL=$(path_get_label 40)
 [[ ${#} -ge 2 ]] && ARG_2=${2} || ARG_2=''
 
 # Verify path/file if passed
-if [[ ${#} -eq 0 ]];then # no args - PWD
+if [[ ${#} -eq 0 ]];then # No args - PWD
 	HDR_MSG="Showing all files in:${WHITE_FG}${PWD}${RESET}"
-elif [[ ${#} -ge 1 ]];then # either a path, file, or searchterm
+elif [[ ${#} -ge 1 ]];then # Either a path, file, or searchterm
 	PATH_ARG=''
-	if [[ -d ${ARG_1} ]];then # dir?
+	if [[ -d ${ARG_1} ]];then # Dir?
 		PATH_ARG=${1}
 		HDR_MSG="Showing all files in path:${WHITE_FG}$(realpath ${PATH_ARG})${RESET}"
 		FPATH=${PATH_ARG:q}
@@ -186,15 +186,15 @@ elif [[ ${#} -ge 1 ]];then # either a path, file, or searchterm
 
 	FEXE=''
 	FILE_ARG=''
-	if [[ -z ${PATH_ARG} ]];then # file?
+	if [[ -z ${PATH_ARG} ]];then # File?
 		[[ -f ${ARG_1} ]] && FILE_ARG=${ARG_1} && FPATH=${FILE_ARG:h} && FGLOB="-name ${FILE_ARG:t}" && PATHLBL=${FPATH}
-		[[ -z	${FILE_ARG} ]] && FEXE=$(fut findexe ${ARG_1}) # possible file but not in PWD
+		[[ -z	${FILE_ARG} ]] && FEXE=$(fut findexe ${ARG_1}) # Possible file but not in PWD
 		[[ -f ${FEXE} ]] && FILE_ARG=${FEXE} && FPATH=${FILE_ARG:h} && FGLOB="-name ${FILE_ARG:t}" && PATHLBL=${FPATH}
 		[[ -n ${FILE_ARG} ]] && HDR_MSG="Showing functions in file:${WHITE_FG}${FILE_ARG:t}${RESET}"
 	fi
 
 	SEARCHTERM=''
-	if [[ -z ${PATH_ARG} && -z ${FILE_ARG} ]];then # searchterm?
+	if [[ -z ${PATH_ARG} && -z ${FILE_ARG} ]];then # Searchterm?
 		SEARCHTERM=${1}
 		HDR_MSG="Showing files in:${WHITE_FG}${PWD}${RESET} with functions matching:${WHITE_FG}${SEARCHTERM}${RESET}"
 	fi
@@ -203,9 +203,9 @@ fi
 if [[ -n ${ARG_2} ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARG_2:${ARG_2}"
 
-	[[ -z ${PATH_ARG} && -z ${FILE_ARG} ]] && usage "Invalid file or path:${ARG_1}" # abort
+	[[ -z ${PATH_ARG} && -z ${FILE_ARG} ]] && usage "Invalid file or path:${ARG_1}" # Abort
 
-	SEARCHTERM=${ARG_2} # searchterm following a valid path or file
+	SEARCHTERM=${ARG_2} # Searchterm following a valid path or file
 
 	if [[ -n ${PATH_ARG} ]];then
 		HDR_MSG="Showing files in path:${WHITE_FG}$(realpath ${PATH_ARG})${RESET} with functions matching:${WHITE_FG}${SEARCHTERM}${RESET}"
@@ -236,8 +236,8 @@ if ! arr_is_populated "${RAWLIST}";then
 fi
 
 for R in ${(o)RAWLIST};do
-	[[ ! $(file ${R}) =~ 'script' && ${R:e} != 'zsh' ]] && continue # only zsh script files
-	[[ ${R:h} == \. ]] && FN=${R:t} || FN=${R} # cut path for pwd
+	[[ ! $(file ${R}) =~ 'script' && ${R:e} != 'zsh' ]] && continue # Only zsh script files
+	[[ ${R:h} == \. ]] && FN=${R:t} || FN=${R} # Cut path for pwd
 
 	FUNC_LIST=("${(f)$(grep -P '^\S*\s\(\) {' ${FN})}")
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} FUNC_LIST:${#FUNC_LIST}"
@@ -246,11 +246,11 @@ for R in ${(o)RAWLIST};do
 		[[ ${F} =~ ${_BLACKLIST} ]] && continue
 		if [[ ${SEARCHTERM:=null} != 'null' ]];then
 			if [[ ${F} =~ ${SEARCHTERM} ]];then
-				_FUNC_MATCH+=${F} # matching <SEARCHTERM>
+				_FUNC_MATCH+=${F} # Matching <SEARCHTERM>
 				_LOCAL_LIST+=${FN}
 			fi
 		else
-			_FUNC_MATCH+=${F} # all functions
+			_FUNC_MATCH+=${F} # All functions
 			_LOCAL_LIST+=${FN}
 		fi
 	done
@@ -305,7 +305,7 @@ fi
 
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
-if [[ -n ${FILE_ARG} ]];then # process a single file arg directly
+if [[ -n ${FILE_ARG} ]];then # Process a single file arg directly
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} FILE_ARG:${FILE_ARG} process file - exit"
 	_LIST=(${_LOCAL_LIST})
 	action_do 1
@@ -327,14 +327,14 @@ list_set_clear_ghosts true
 list_set_client_warn true
 
 while true;do
-	# input selections
+	# Input selections
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	# store selections
+	# Store selections
 	MARKED=($(list_get_selected))
 	
-	# process selections
+	# Process selections
 	[[ ${#MARKED} -ne 0 ]] && action_do ${MARKED}
 done
 

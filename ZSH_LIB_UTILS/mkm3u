@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,25 +15,25 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Constants
+# Constants
 AGREP=/usr/bin/agrep
 MUSIC_DIR=''
 
-#Declarations
+# Declarations
 typeset -a SEARCHTERM
 typeset -a SUB_DIRS
 typeset -a FILTERED_LIST
 typeset -a QUERY
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Housekeeping
+# Housekeeping
 if [[ -n ${MUSIC_DIR} ]];then
-	MUSIC_DIR=(${MUSIC_DIR}) #from the environment
+	MUSIC_DIR=(${MUSIC_DIR}) # From the environment
 else
 	MUSIC_DIR=(/media/kmiller/KEM_Misc/Music/KEM-B9)
 fi
@@ -142,7 +142,7 @@ SEARCHTERM=($(for S in ${@};do echo ${S};done))
 
 [[ ${ALT_MUSIC_DIR} != 'false' ]] && MUSIC_DIR=${ALT_MUSIC_DIR}
 
-MUSIC_DIR=$(echo ${MUSIC_DIR} | sed 's/^ [\t]*//g') #trim
+MUSIC_DIR=$(echo ${MUSIC_DIR} | sed 's/^ [\t]*//g') # Trim
 if [[ ! -d ${MUSIC_DIR} ]];then
 	echo "MUSIC_DIR:${MUSIC_DIR} is invalid" >&2
 	exit_leave
@@ -177,14 +177,14 @@ fi
 [[ ${VERBOSE} == 'true' ]] && echo "STEP 1:Build DIRECTORY master list from ${MUSIC_DIR}"
 [[ ${VERBOSE} == 'true' ]] && echo "Building list of top level directories under ${MUSIC_DIR}"
 
-LIST=("${(f)$(find ${MUSIC_DIR:q} -maxdepth 1 -type d ! -path ${MUSIC_DIR:q} ! -path "${MUSIC_DIR:q}/iPhone/*")}") #top level dirs under MUSIC_DIR
+LIST=("${(f)$(find ${MUSIC_DIR:q} -maxdepth 1 -type d ! -path ${MUSIC_DIR:q} ! -path "${MUSIC_DIR:q}/iPhone/*")}") # Top level dirs under MUSIC_DIR
 
 [[ ${VERBOSE} == 'true' ]] && echo "List contains ${WHITE_FG}${#LIST}${RESET} entries."
 [[ ${VERBOSE} == 'true' && ${DIR_SEARCH} == "true" ]] && echo "STEP 2:DIRECTORY SEARCH:Limiting directories to those matching search term:${WHITE_FG}${DIR_PHRASE}${RESET}"
 
 DIR_PHRASE=$(echo ${DIR_PHRASE:Q} | tr -d '[:space:]')
 
-#Drill down through directories for a match
+# Drill down through directories for a match
 [[ ${VERBOSE} == 'true' && ${DIR_SEARCH} == "true" ]] && echo "STEP 2:FILE SEARCH:Adding all qualifiying directories to work list"
 [[ ${VERBOSE} == 'true' && ${DIR_SEARCH} == "false" ]] && echo "STEP 2:FILE SEARCH:Adding all directories to work list"
 
@@ -197,7 +197,7 @@ for L in ${LIST};do
 		echo "${L}" | grep -qi ${DIR_PHRASE}; RC=$?
 	
 		if [[ ${RC} -eq 0 ]];then
-			SUB_DIRS+=${L} #only matching
+			SUB_DIRS+=${L} # Only matching
 			(( MATCH_COUNT++ ))
 			GOT_MATCH=true
 		fi
@@ -207,14 +207,14 @@ for L in ${LIST};do
 			for D in ${SUB_LIST};do
 				echo "${D:t}" | grep -qi ${DIR_PHRASE}; RC=$?
 				if [[ ${RC} -eq 0 ]];then
-					SUB_DIRS+=${D} #only matching
+					SUB_DIRS+=${D} # Only matching
 					(( MATCH_COUNT++ ))
 					GOT_MATCH=true
 				fi
 			done
 		fi
 	else
-		SUB_DIRS+=${L} #no dir search qualifier - all qualify
+		SUB_DIRS+=${L} # No dir search qualifier - all qualify
 	fi
 done
 
@@ -241,7 +241,7 @@ fi
 
 [[ ${VERBOSE} == 'true' ]] && echo "STEP 3:Filtering master list based on results from ${#SUB_DIRS} directories..."
 
-#Create file list and pipe to m3u to generate playlist
+# Create file list and pipe to m3u to generate playlist
 for D in ${SUB_DIRS};do
 	CMD="find ${D:q} -type f | grep -E \"${FILETYPES}$\""
 	QUERY=("${(f)$(eval ${CMD})}") 

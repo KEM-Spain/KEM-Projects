@@ -1,11 +1,11 @@
 #!/usr/bin/zsh
 
-#Declarations
+# Declarations
 typeset -a LIST
 typeset -a PLAYLIST
 typeset -Z 3 NDX 
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/ARRAY.zsh
@@ -80,7 +80,7 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 #--Execution--
-#Read file names from file/or stdin and generate playlist
+# Read file names from file/or stdin and generate playlist
 [[ -n ${FN} ]] && echo "Reading file names from:${FN}">&2
 [[ -n ${DIR} ]] && echo "Using DIR:${DIR} to locate files">&2
 
@@ -101,10 +101,10 @@ if ! arr_is_populated "${LIST}";then
 fi
 
 for L in ${LIST};do
-	if [[ $(file ${L}) =~ '(media|audio)' ]];then #supplied name is fully qualified and valid
+	if [[ $(file ${L}) =~ '(media|audio)' ]];then # Supplied name is fully qualified and valid
 		PLAYLIST+=${L}
 	else
-		FQFN=$(find ${DIR:=~} -name "${L:t}" 2>/dev/null) #supplied name needs qualification
+		FQFN=$(find ${DIR:=~} -name "${L:t}" 2>/dev/null) # Supplied name needs qualification
 		[[ -z ${FQFN} ]] && echo "Unable to locate audio file:${L} - omitted from playlist">&2 && read && continue
 		PLAYLIST+=${FQFN}
 	fi

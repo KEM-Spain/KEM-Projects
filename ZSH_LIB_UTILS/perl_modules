@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,16 +15,16 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 
-#Imports
+# Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/ARRAY.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Declarations
+# Declarations
 typeset -a LIST
 
 #--Begin GetOpts--
@@ -105,13 +105,13 @@ shift $((OPTIND -1))
 # Execution
 [[ ${INSTALLED} == 'true' ]] && /usr/local/lib/perl_mods && exit_leave
  
-#Set case sensitivity
+# Set case sensitivity
 [[ ${CASE} == 'false' ]] && CASE_OPT='-i' || CASE_OPT=''
 
-#Set SEARCHTERM
+# Set SEARCHTERM
 [[ -n ${1} ]] && SEARCHTERM=${1}
 
-#Search for modules, prepend depth of path, sort by depth and path, remove depth
+# Search for modules, prepend depth of path, sort by depth and path, remove depth
 [[ ${CASE} == 'true' ]] && MSG="(case sensitive search)" || MSG='(case insensitive)'
 if [[ -n ${SEARCHTERM} ]];then
 	echo "Searching for paths or modules matching:${WHITE_FG}${1}${RESET}..."
@@ -123,9 +123,9 @@ fi
 LIST=("${(f)$(
 /usr/bin/locate ${CASE_OPT} -r ".*${SEARCHTERM}.*\.pm$" |
 while read LINE;do
-	[[ ${LINE:l} =~ "/build/" ]] && continue #ignore
-	[[ ${LINE:l} =~ "/test/" ]] && continue #ignore
-	[[ ${LINE:l} =~ "/work/" ]] && continue #ignore
+	[[ ${LINE:l} =~ "/build/" ]] && continue # Ignore
+	[[ ${LINE:l} =~ "/test/" ]] && continue # Ignore
+	[[ ${LINE:l} =~ "/work/" ]] && continue # Ignore
 	DEPTH=$(awk '{print gsub(/[/]/,"")}' <<<${LINE})
 	echo "${DEPTH}|${LINE}"
 done | sort -n -t'_' -k2 -k1 | cut -d'|' -f2
@@ -137,7 +137,7 @@ if ! arr_is_populated "${LIST}";then
 	exit_leave "No matches for:${WHITE_FG}${SEARCHTERM}${RESET} ${MSG}"
 fi
 
-#Output list as path followed by modules
+# Output list as path followed by modules
 LAST_HEAD=?
 for L in ${LIST};do
 	HEAD=${L:h}

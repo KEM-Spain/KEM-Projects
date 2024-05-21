@@ -3,5 +3,5 @@
 nordvpn whitelist add subnet 192.168.18.0/24
 nordvpn whitelist add subnet 10.5.0.0/24
 nordvpn whitelist add port 64000
-#nordvpn set dns 8.8.8.8 8.8.4.4
+# Nordvpn set dns 8.8.8.8 8.8.4.4
 nordvpn set dns 103.86.96.100 103.86.99.100

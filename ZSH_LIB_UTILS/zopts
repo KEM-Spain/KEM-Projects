@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim]= syntax off
+# Vim]= syntax off
 RESET="\033[m"
 BOLD="\033[1m"
 ITALIC="\033[3m"
@@ -16,18 +16,18 @@ MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
-#Declarations
+# Declarations
 typeset -A _OPTLIST
 typeset -a _LOCAL_LIST
 typeset -a _MARKED
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Load options
+# Load options
 _OPTLIST[aliases]="ALIASES"
 _OPTLIST[aliasfuncdef]="ALIAS_FUNC_DEF"
 _OPTLIST[allexport]="ALL_EXPORT"
@@ -221,7 +221,7 @@ _OPTLIST[warnnestedvar]="WARN_NESTED_VAR"
 _OPTLIST[xtrace]="XTRACE"
 _OPTLIST[zle]="ZLE"
 
-#Functions
+# Functions
 action_do () {
 	local MARKED=(${@})
 	local M
@@ -317,11 +317,11 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 tabs -8
 
 if [[ -n ${1} ]];then
-	#Arg passed; go direct; no list
+	# Arg passed; go direct; no list
 	_LOCAL_LIST+="${1}"
 	action_do 1
 	exit_leave
@@ -339,11 +339,11 @@ else
 		[[ ${_DEBUG} -eq 0 ]] && do_smcup
 		_LOCAL_LIST=(${(ok)_OPTLIST[@]})
 
-		#set headings
+		# Set headings
 		list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize option ${#_LIST})  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
 		list_add_header_break
 
-		#set line item
+		# Set line item
 		list_set_line_item ' 
 		printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} ${_LIST[${_LIST_NDX}]}
 		'
@@ -352,11 +352,11 @@ else
 		list_set_action_msgs delete file
 
 		while true;do
-			#get selection
+			# Get selection
 			list_select ${_LOCAL_LIST}
 			[[ ${?} -eq 0 ]] && break
 
-			#get selections
+			# Get selections
 			_MARKED=($(list_get_selected))
 			
 			if [[ $(list_get_selected_count) -ne 0 ]];then

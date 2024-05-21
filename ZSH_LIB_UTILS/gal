@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -24,7 +24,7 @@ RED_BG="\033[41m"
 WHITE_BG="\033[47m"
 YELLOW_BG="\033[43m"
 
-#Echoed ansi
+# Echoed ansi
 E_BOLD=$(echo -n "\033[1m")
 E_ITALIC=$(echo -n "\033[3m")
 E_RESET=$(echo -n "\033[m")
@@ -49,14 +49,14 @@ E_RED_BG=$(echo -n "\033[41m")
 E_WHITE_BG=$(echo -n "\033[47m")
 E_YELLOW_BG=$(echo -n "\033[43m")
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 _ALIAS_FN=/etc/zsh/aliases
 
-#Imports
+# Imports
 zmodload zsh/pcre
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
@@ -64,14 +64,14 @@ source ${_LIB_DIR}/VALIDATE.zsh
 source ${_LIB_DIR}/DURABLE.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Declarations
+# Declarations
 typeset -A ALIAS_LIST
 typeset -a _SEARCH_MSGS
 typeset -a _SCOPE_MSGS
 typeset -a _MATCH_MSGS
 typeset -a _OUTPUT_MSGS
 
-#Functions
+# Functions
 function strip {
 	echo ${1} | sed "s/[\'\"]//g"
 }
@@ -225,7 +225,7 @@ shift $((OPTIND -1))
 
 [[ ${QUIET} == 'true' ]] && WAIT='' || WAIT='wait'
 
-#Build list
+# Build list
 ALIASES=("${(@f)$(cat ${_ALIAS_FN} | grep ^alias | sort)}")
 for A in ${ALIASES};do
 	ALIAS=$(echo ${A} | cut -d= -f1 | sed -e 's/^alias//g' -e 's/.*-g//g')
@@ -234,7 +234,7 @@ for A in ${ALIASES};do
 	[[ ${_DEBUG} -gt 1 ]] && dbg "${0}:${LINENO} ALIASES:${#ALIASES} -> ALIAS:${ALIAS} DEF:${DEF}"
 done
 
-#Apply search criteria
+# Apply search criteria
 [[ -n ${SEARCHTERM} ]] && LIST_ALL=false || LIST_ALL=true
 
 if [[ ${LIST_ALL} == true ]];then
@@ -264,7 +264,7 @@ fi
 REGEX="${SEARCHTERM}"
 [[ ${EXACT} == "true" ]] && IS_WORD=true || IS_WORD=false
 
-#Process list
+# Process list
 {
 	durable_set EXV EV 0
 	_HIT=false
@@ -318,7 +318,7 @@ REGEX="${SEARCHTERM}"
 						do_header ${_SCOPE_MSGS}
 						HEADER_OUT=true
 					fi
-					[[ ${A} == ${LAST_ALIAS} ]] && continue #Avoid duplicate output
+					[[ ${A} == ${LAST_ALIAS} ]] && continue # Avoid duplicate output
 					printf "${CYAN_FG}%12s${RESET} -> ${WHITE_FG}%-50s${RESET}\n" ${A} "$(strip ${ALIAS_LIST[${A}]})"
 				fi
 			fi

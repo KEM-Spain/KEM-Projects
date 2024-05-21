@@ -11,7 +11,7 @@ MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
-#Constants
+# Constants
 _ADD_PATH=/usr/local/bin/system/launchers
 _CACHE=~/.${0:t}/cached_targets
 _EDITABLE='ascii\|text\|script\|json'
@@ -20,22 +20,22 @@ _FUNCTIONS=/etc/zsh/system_wide/functions
 _GAL=/usr/local/bin/gal
 _LIB_DIR=/usr/local/lib
 
-#Globals
+# Globals
 g_TARGET_FILE=''
 
-#Declarations
+# Declarations
 typeset -a FILES
 typeset -aU CANDIDATES
 typeset -a BLOCKED_DIRS=(snap flatpak)
 typeset -A CACHED_TARGETS=()
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 need_sudo () {
 	local FN=${1}
 	local RC
@@ -61,7 +61,7 @@ is_editable () {
 	local FILE=${1}
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Checking 'file -L ${FILE}' for ${_EDITABLE}"
-	file -L ${FILE} 2>/dev/null | grep -qi ${_EDITABLE} #filter editable result
+	file -L ${FILE} 2>/dev/null | grep -qi ${_EDITABLE} # Filter editable result
 	[[ $? -eq 0 ]]	&& return 0 || return 1
 }
 
@@ -98,30 +98,30 @@ validate_fn () {
 
 		if [[ ! ${FN:t:l} =~ ${FILE_ARG:l} ]];then
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${RED_FG}${FN}${RESET} no match for cmdline arg"
-			return 1 #not an arg match
+			return 1 # Not an arg match
 		fi
 		if is_blocked_dir ${FN};then
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${RED_FG}${FN}${RESET} is blocked..."
-			return 1 #is blocked
+			return 1 # Is blocked
 		fi
 		if [[ $(file ${FN}) =~ 'compressed' ]];then
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${RED_FG}Ignoring compressed files...${RESET}"
-			return 1 #omit compressed
+			return 1 # Omit compressed
 		fi
 		if [[ ${FN:h} == "." ]];then
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${RED_FG}Ignoring hidden files...${RESET}"
-			return 1 #omit hidden files
+			return 1 # Omit hidden files
 		fi
 		if [[ ${FN:e} == "bak" ]];then
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${RED_FG}Ignoring if .bak files...${RESET}"
-			return 1 #omit bak files
+			return 1 # Omit bak files
 		fi
 		if ! is_editable ${FN};then
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${RED_FG}${FN} not editable${RESET}"
-			return 1 #not editable
+			return 1 # Not editable
 		else
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${GREEN_FG}${FN}${RESET} is editable"
-			return 0 #editable
+			return 0 # Editable
 		fi
 }
 
@@ -200,9 +200,9 @@ try_alias () {
 	if [[ ${RC} -eq 0 ]];then
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}${1}${RESET} is an alias for:${WHITE_FG}${ALIAS}${RESET}"
 
-		TOKEN=$(echo ${ALIAS} | cut -d' ' -f1) #grab first token
-		if [[ ${TOKEN} =~ "sudo" ]];then #check for sudo
-			TOKEN=$(echo ${ALIAS} | cut -d' ' -f2) #grab second token
+		TOKEN=$(echo ${ALIAS} | cut -d' ' -f1) # Grab first token
+		if [[ ${TOKEN} =~ "sudo" ]];then # Check for sudo
+			TOKEN=$(echo ${ALIAS} | cut -d' ' -f2) # Grab second token
 		fi
 
 		ALIAS=${TOKEN}
@@ -214,7 +214,7 @@ try_alias () {
 				continue
 			fi
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} realpath returned:${LINK_F}"
-			if [[ -e ${LINK_F} ]];then #validate
+			if [[ -e ${LINK_F} ]];then # Validate
 				if is_editable ${ALIAS};then
 					CANDIDATES+=${ALIAS}
 					RC=0
@@ -223,7 +223,7 @@ try_alias () {
 					[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LINK:${LINK_F} is ${RED_FG}invalid${RESET}"
 				fi
 			fi
-		elif [[ -e ${ALIAS} ]];then #validate
+		elif [[ -e ${ALIAS} ]];then # Validate
 			if is_blocked_dir ${ALIAS};then
 				continue
 			fi
@@ -267,7 +267,7 @@ set_target () {
 
 	g_TARGET_FILE=''
 
-	#Process candidates
+	# Process candidates
 	if [[ -n ${CANDIDATES} ]];then
 		echo "${MAGENTA_FG}Evaluating candidates...${RESET}" >&2
 
@@ -292,11 +292,11 @@ set_target () {
 			fi
 		done
 
-		#Prioritize multiple candidates
+		# Prioritize multiple candidates
 		if [[ ${#PRIORITIZE} -eq 1 ]];then
-			g_TARGET_FILE=$(echo ${PRIORITIZE[1]} | cut -d'|' -f2) #only 1 match; take it
+			g_TARGET_FILE=$(echo ${PRIORITIZE[1]} | cut -d'|' -f2) # Only 1 match; take it
 		else
-			echo "${WHITE_FG}${ARG}${RESET} matched multiple files..." #prompt for selection if multiple hits
+			echo "${WHITE_FG}${ARG}${RESET} matched multiple files..." # Prompt for selection if multiple hits
 			while true;do
 				NDX=0
 				for P in ${PRIORITIZE};do
@@ -393,39 +393,39 @@ shift $((OPTIND -1))
 
 #--Execution--
 fc -R
-RAW_CMD_LINE=($(fc -lnr | head -1)) #unexpanded command line
+RAW_CMD_LINE=($(fc -lnr | head -1)) # Unexpanded command line
 
-#Validate editor
+# Validate editor
 if [[ ! -x ${_EDITOR_CMD} ]];then
 	exit_leave $(msg_warn "_EDITOR_CMD${RESET}:${_EDITOR_CMD} is not a valid executable${RESET}.")
 fi
 
-#Catch missing argument
+# Catch missing argument
 [[ $# -eq 0 ]] && exit_leave $(msg_warn "missing $(opt_type f)")
 
-#Catch excessive arguments
+# Catch excessive arguments
 if [[ $# -gt 1 ]];then
 	try_alias ${RAW_CMD_LINE[-1]}
 	if [[ $? -ne 0 ]];then
-		FILE_ARG="${RAW_CMD_LINE[-1]}" #override alias
+		FILE_ARG="${RAW_CMD_LINE[-1]}" # Override alias
 	else
 		exit_leave echo "${RED_FG}Only one argument allowed${RESET}, Args received (${#}):${@}"
 	fi
 fi
 
-#Set filename
+# Set filename
 [[ -z ${FILE_ARG} ]] && FILE_ARG=${1:t}
 
 echo "Searching for ${FILE_ARG}..."
 
-#Local file takes precedence
+# Local file takes precedence
 if	[[ -e ./${FILE_ARG} && -f ./${FILE_ARG} ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Found local file:${FILE_ARG}"
-	#Set candidate
+	# Set candidate
 	CANDIDATES+=$(realpath ${FILE_ARG})
 fi
 
-#Search for matching cache entries
+# Search for matching cache entries
 FILE_IS_CACHED=false
 if [[ ${IGNORE__CACHE} == "false" ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Inspecting cached edits..."
@@ -442,13 +442,13 @@ fi
 if [[ ${FILE_IS_CACHED} == 'true' ]];then
 	FN=${CACHED_FN}
 else
-	#Find a suitable candidate
+	# Find a suitable candidate
 	set_target ${FILE_ARG}
 	FN=${g_TARGET_FILE}
 
 	[[ ${_DEBUG} -gt 0 && -n ${g_TARGET_FILE} ]] && dbg "${0}:${LINENO} main:set_target returned:${g_TARGET_FILE}"
 
-	#Verify candidate exists and is editable; reject fail
+	# Verify candidate exists and is editable; reject fail
 	if [[ -e ${FN} ]];then
 		if ! is_editable ${FN};then
 			msg_box -p -PK  "<w>File<N>:${FN}<I><r> not editable<N>|$(file -b ${FN} | fold -s -w50)"
@@ -457,7 +457,7 @@ else
 
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} FN:${FN} is editable, calling ${_FUNCTIONS}/run_vi for editing..."
 
-		#Cache this edit
+		# Cache this edit
 		write_cache "${FILE_ARG}" "${FN}"
 	else
 		exit_leave $(msg_warn "No candidate found for:${FILE_ARG}")

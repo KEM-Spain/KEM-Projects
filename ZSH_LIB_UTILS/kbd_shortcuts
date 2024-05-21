@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 RESET="\033[m"
 BOLD="\033[1m"
 ITALIC="\033[3m"
@@ -16,7 +16,7 @@ MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
-#Declarations
+# Declarations
 typeset -A TILING_ASSIST_KEYS
 typeset -A UBUNTU
 typeset -A CHROME_TABWIN
@@ -26,13 +26,13 @@ typeset -A CHROME_WEBPAGE
 typeset -A CHROME_MOUSE
 typeset -A KODI_KEYS
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Declarations
+# Declarations
 TILING_ASSIST_KEYS=(
 activate-layout3 "<Shift><Control>4"
 center-window "<Shift><Control>c"
@@ -156,7 +156,7 @@ window-screenshot '<Alt>Print'
 window-screenshot-clip '<Control><Alt>Print'
 )
 
-#Tab and window shortcuts
+# Tab and window shortcuts
 CHROME_TABWIN=(
 'Open a new window' 'Ctrl + n'
 'Open a new window in Incognito mode' 'Ctrl + Shift + n'
@@ -175,7 +175,7 @@ CHROME_TABWIN=(
 'Maximize the current window' 'Alt + Space then x'
 'Quit Google Chrome' 'Alt + f then x'
 )
-#Google Chrome feature shortcuts
+# Google Chrome feature shortcuts
 CHROME_FEATURE=(
 'Open the Chrome menu' 'Alt + f or Alt + e'
 'Show or hide the Bookmarks bar' 'Ctrl + Shift + b'
@@ -197,7 +197,7 @@ CHROME_FEATURE=(
 'Log in a different user or browse as a Guest' 'Ctrl + Shift + m'
 'Open a feedback form' 'Alt + Shift + i'
 )
-#Address bar shortcuts
+# Address bar shortcuts
 CHROME_ADDRESS=(
 'Search with your default search engine' 'Type a search term + Enter'
 'Search using a different search engine' 'Type a search engine name and press Tab'
@@ -208,7 +208,7 @@ CHROME_ADDRESS=(
 'Remove predictions from your address bar' 'Down arrow to highlight + Shift + Delete'
 'Move cursor to the address bar' 'Ctrl + F5'
 )
-#Webpage shortcuts
+# Webpage shortcuts
 CHROME_WEBPAGE=(
 'Open options to print the current page' 'Ctrl + p'
 'Open options to save the current page' 'Ctrl + s'
@@ -236,7 +236,7 @@ CHROME_WEBPAGE=(
 'Open the Home page in the current tab' 'Alt + Home'
 'Reset page zoom level' 'Ctrl + 0'
 )
-#Mouse shortcuts
+# Mouse shortcuts
 CHROME_MOUSE=(
 'Open a link in a current tab (mouse only)' 'Drag a link to a tab'
 'Open a link in new background tab' 'Ctrl + Click a link'
@@ -256,7 +256,7 @@ CHROME_MOUSE=(
 'Make everything on the page smaller' 'Ctrl + Scroll your mousewheel down'
 )
 
-#Kodi shortcuts
+# Kodi shortcuts
 KODI_KEYS=(
 'Navigate up' 'Up arrow'
 'Navigate down' 'Down arrow'
@@ -405,9 +405,9 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-[[ (${_DEBUG} -eq 0 && ${OPTIND} -eq 1) || (${_DEBUG} -gt 0 && ${OPTIND} -eq 2) ]] && SET_DEFAULT=true || SET_DEFAULT=false #no options passed - make default
+[[ (${_DEBUG} -eq 0 && ${OPTIND} -eq 1) || (${_DEBUG} -gt 0 && ${OPTIND} -eq 2) ]] && SET_DEFAULT=true || SET_DEFAULT=false # No options passed - make default
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ -n ${1} ]] && SEARCHTERM=${1} || SEARCHTERM=?
 
@@ -435,7 +435,7 @@ if [[ ${TILING_ASSIST} == "true" ]];then
 	HDR=true
 	LAST_VAL=?
 	for V in ${(nov)TILING_ASSIST_KEYS};do
-		[[ ${SEARCHTERM} != "?" && ! ${V:l} =~ ${SEARCHTERM:l} ]] && continue #search key
+		[[ ${SEARCHTERM} != "?" && ! ${V:l} =~ ${SEARCHTERM:l} ]] && continue # Search key
 		HIT=true
 		if [[ ${HDR} == "true" ]];then
 			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Tiling Assistant Shortcuts by Key"
@@ -453,7 +453,7 @@ if [[ ${UBUNTU_BY_KEY} == "true" ]];then
 	HDR=true
 	LAST_VAL=?
 	for V in ${(nov)UBUNTU};do
-		[[ ${SEARCHTERM} != "?" && ! ${V:l} =~ ${SEARCHTERM:l} ]] && continue #search key
+		[[ ${SEARCHTERM} != "?" && ! ${V:l} =~ ${SEARCHTERM:l} ]] && continue # Search key
 		HIT=true
 		if [[ ${HDR} == "true" ]];then
 			printf "\n${WHITE_FG}${BOLD}%s${RESET}\n" "Ubuntu Shortcuts by Key"

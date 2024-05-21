@@ -14,7 +14,7 @@ E_GREEN_FG=$(echo -n "\033[32m")
 E_RED_FG=$(echo -n "\033[31m")
 E_MAGENTA_FG=$(echo -n "\033[35m")
 
-#Declarations
+# Declarations
 typeset -a TZ=(Los_Angeles Denver Chicago New_York)
 typeset -a ZONES
 typeset -a LIST
@@ -22,7 +22,7 @@ typeset -i HOUR_DIFF
 typeset -i UTC_DIFF_VAL
 typeset LONGEST=0
 
-#Constants
+# Constants
 ZPATH=/usr/share/zoneinfo
 EXCLUDE="${ZPATH:t}|posix|right|SystemV|Etc"
 LOCAL_TIME=$(date +"%T")
@@ -33,13 +33,13 @@ UTC_DATE=$(date -u +"%D")
 UTC_HOUR=$(date -u +"%H")
 UTC_DIFF=$(date +"%z")
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/DBG.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 rep () {
 	local CHAR=${1}
 	local LENGTH=${2}
@@ -152,7 +152,7 @@ fi
 echo "   LOCAL:${WHITE_FG}${LOCAL_TIME} ${CYAN_FG}${LOCAL_ZONE}${RESET} ${LOCAL_DATE}"
 echo "UTC(GMT):${WHITE_FG}${UTC_TIME}${RESET} ${UTC_DATE} (${UTC_DIFF_VAL} hour${HP} ${UTC_LBL})\n"
 
-#typeset -i TZ_DIFF
+# Typeset -i TZ_DIFF
 
 for Z in ${ZONES};do
 	TZ_HEAD=$(TZ=${Z} date +"%A, %B %d %Y,")

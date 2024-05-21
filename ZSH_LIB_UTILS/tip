@@ -1,6 +1,6 @@
 #!/usr/bin/zsh
 
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -20,7 +20,7 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Echoed ansi
+# Echoed ansi
 E_BOLD=$(echo -n "\033[1m")
 E_ITALIC=$(echo -n "\033[3m")
 E_RESET=$(echo -n "\033[m")
@@ -45,12 +45,12 @@ E_RED_BG=$(echo -n "\033[41m")
 E_WHITE_BG=$(echo -n "\033[47m")
 E_YELLOW_BG=$(echo -n "\033[43m")
 
-#Declarations
+# Declarations
 typeset -A _EXTERNAL=(desktop_files  1 sed 1 zsh_comp_official 1 zsh_comp_guide 1)
 typeset -A _EXTERNAL_FILES
 typeset -a _TIPS
 
-#Constants
+# Constants
 _EXT_DIR=/usr/local/etc
 _EXTERNAL_FILES=(
 desktop_files "${_EXT_DIR}/Desktop Entry Specification.pdf"
@@ -92,13 +92,13 @@ zsh_primitives
 zsh_cheatsheet 
 )
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 tip_cron () {
 echo ${E_BOLD}${E_WHITE_FG}${(C)${0/tip_/}} Tips${E_RESET}
 cat << tip_cron_EOF
@@ -428,7 +428,7 @@ ${E_WHITE_FG}git${E_RESET} log
 ${E_WHITE_FG}git${E_RESET} log <ref>..<ref>
   show commits between the specified range. Useful for seeing changes from
   remotes:
-  ${E_WHITE_FG}git${E_RESET} log HEAD..origin/master # after ${E_WHITE_FG}git${E_RESET} remote update
+  ${E_WHITE_FG}git${E_RESET} log HEAD..origin/master # After ${E_WHITE_FG}git${E_RESET} remote update
 
 ${E_WHITE_FG}git${E_RESET} show <rev>
   show the changeset (diff) of a commit specified by <rev>, which can be any
@@ -1198,10 +1198,10 @@ ns1     IN        A 192.168.18.100
 mail    IN        A 192.168.18.100
 @       IN        MX 5 mail
 
-#Add zone:
+# Add zone:
 sudo named-checkzone test.com. /var/cache/bind/db.test
 
-#Edit:
+# Edit:
 /etc/bind/named.conf.default-zones
 
 izone "kem-as.com." {
@@ -1209,25 +1209,25 @@ izone "kem-as.com." {
        file "db.test";
 };
 
-#Edit:
+# Edit:
 /etc/bind/named.conf.options
 
 Uncomment forwaders
 Modify to 8.8.8.8
 
-#Restart:
+# Restart:
 sudo systemctl restart bind9
 
-#Add user:
+# Add user:
 sudo usermod -aG mail $(whoami)
 
-#Install postfix
+# Install postfix
 Select Internet Site
 Server: kem-as.com
 
-#Install mailutils
+# Install mailutils
 
-#Test:
+# Test:
 mail kmiller@kem-as.com
 tip_mail_EOF
 }
@@ -1305,7 +1305,7 @@ ${E_WHITE_FG}Exit status on match
 	perl -ne 'if ( /REGEX/ ) { exit(0) } else { exit(1) }' <<<\${ARG}
 
 ${E_WHITE_FG}Strip Options:${E_RESET}
-	while true;do #strip options
+	while true;do # Strip options
 		grep -q '\-' <<<${RAW_PATH}
 		[[ \${?} -ne 0 ]] && break
 		RAW_PATH=\$(echo \${RAW_PATH} \| perl -pe 's/(-\w+)\s+(.*)/\2/g')
@@ -1325,7 +1325,7 @@ ${E_WHITE_FG}Keyword Arguments:${E_RESET}
 			  INCREMENT   => '10s',
 			  FINISH      => 0,
 			  START       => 0,
-			  @_,         # argument pair list goes here
+			  @_,         # Argument pair list goes here
 		 );
 		 if (${args}{INCREMENT}  =~ /m$/ ) { ..... }
 	}
@@ -1406,7 +1406,7 @@ ${E_WHITE_FG}Print 1st, 2nd, and last columns (use -l for auto-line-end processi
 ${E_WHITE_FG}Print columns 1-20:${E_RESET}
     perl -F"\t" -nlae'print join "\t", @F[0..19]'
 
-${E_WHITE_FG}Print all filenames & their line #s w/ pattern:${E_RESET}
+${E_WHITE_FG}Print all filenames & their line # S w/ pattern:${E_RESET}
     perl -ne'if (/PATTERN/) { print "\${ARGV:} $.\n" }; $. = 0 if eof'
 
 ${E_WHITE_FG}Print file up to some pattern:${E_RESET}
@@ -1463,7 +1463,7 @@ SYNOPSIS
     As with all standard commands, a single-character switch may be
     clustered with the following switch, if any.
 
-        #!/usr/bin/perl -spi.orig   # same as -s -p -i.orig
+        #!/usr/bin/perl -spi.orig   # Same as -s -p -i.orig
 
     A "--" signals the end of options and disables further option
     processing. Any arguments after the "--" are treated as filenames and
@@ -1667,7 +1667,7 @@ SYNOPSIS
            # Bourne shell syntax
            $ PERLDB_OPTS="NonStop=1 AutoTrace=1 frame=2" perl -dS program
 
-           # csh syntax
+           # Csh syntax
            % (setenv PERLDB_OPTS "NonStop=1 AutoTrace=1 frame=2"; perl -dS program)
 
          See perldebug for details and variations.
@@ -1745,22 +1745,22 @@ SYNOPSIS
          This allows you to add a prefix to the backup file, instead of (or
          in addition to) a suffix:
 
-          $ perl -pi'orig_*' -e 's/bar/baz/' fileA  # backup to
+          $ perl -pi'orig_*' -e 's/bar/baz/' fileA  # Backup to
                                                     # 'orig_fileA'
 
          Or even to place backup copies of the original files into another
          directory (provided the directory already exists):
 
-          $ perl -pi'old/*.orig' -e 's/bar/baz/' fileA  # backup to
+          $ perl -pi'old/*.orig' -e 's/bar/baz/' fileA  # Backup to
                                                         # 'old/fileA.orig'
 
          These sets of one-liners are equivalent:
 
-          $ perl -pi -e 's/bar/baz/' fileA          # overwrite current file
-          $ perl -pi'*' -e 's/bar/baz/' fileA       # overwrite current file
+          $ perl -pi -e 's/bar/baz/' fileA          # Overwrite current file
+          $ perl -pi'*' -e 's/bar/baz/' fileA       # Overwrite current file
 
-          $ perl -pi'.orig' -e 's/bar/baz/' fileA   # backup to 'fileA.orig'
-          $ perl -pi'*.orig' -e 's/bar/baz/' fileA  # backup to 'fileA.orig'
+          $ perl -pi'.orig' -e 's/bar/baz/' fileA   # Backup to 'fileA.orig'
+          $ perl -pi'*.orig' -e 's/bar/baz/' fileA  # Backup to 'fileA.orig'
 
          From the shell, saying
 
@@ -1791,7 +1791,7 @@ SYNOPSIS
                  s/foo/bar/;
              }
              continue {
-                 print;  # this prints to original filename
+                 print;  # This prints to original filename
              }
              select(STDOUT);
 
@@ -1898,7 +1898,7 @@ SYNOPSIS
 
            LINE:
              while (<>) {
-                 ...             # your program goes here
+                 ...             # Your program goes here
              }
 
          Note that the lines are not printed by default. See "-p" to have
@@ -1928,7 +1928,7 @@ SYNOPSIS
 
            LINE:
              while (<>) {
-                 ...             # your program goes here
+                 ...             # Your program goes here
              } continue {
                  print or die "-p destination: $!\n";
              }
@@ -2716,10 +2716,10 @@ ${E_WHITE_FG}#container * {
 ${E_WHITE_FG}    border: 1px solid black; 
 ${E_WHITE_FG}}${E_RESET}
 
-This will target every single element that is a child of the #container div.
+This will target every single element that is a child of the # Container div.
 Again, try not to use this technique very much, if ever.
 
-${E_BOLD}${E_CYAN_FG}2.${E_WHITE_FG} #X${E_RESET}
+${E_BOLD}${E_CYAN_FG}2.${E_WHITE_FG} # X${E_RESET}
 
 ${E_WHITE_FG}#container {
 ${E_WHITE_FG}    width: 960px;    
@@ -2815,7 +2815,7 @@ ${E_WHITE_FG}        <li> List Item </li>    
 ${E_WHITE_FG}    </ul> 
 ${E_WHITE_FG}</div>${E_RESET}
 
-A selector of #container > ul will only target the ul' which are direct children
+A selector of # Container > ul will only target the ul' which are direct children
 of the div with an id of container. It will not target, for instance, the ul
 that is a child of the first li.  
 
@@ -3012,7 +3012,7 @@ it's smarter to use the single-colon version in your projects.
 ${E_BOLD}${E_CYAN_FG}19.${E_WHITE_FG} X:hover${E_RESET}
 
 ${E_WHITE_FG}div:hover {
-${E_WHITE_FG}    background: #e3e3e3;
+${E_WHITE_FG}    background: # E3e3e3;
 ${E_WHITE_FG}}${E_RESET}
 
 Oh come on. You know this one. The official term for this is user action pseudo class. 
@@ -4002,7 +4002,7 @@ ${E_WHITE_FG}(?<=#START#).*${E_RESET}
 After the look-behind asserts that what immediately precedes the current position is ${E_WHITE_FG}#START#${E_RESET}, the ${E_WHITE_FG}dot-star .*${E_RESET} matches all the 
 characters to the right. 
 
-Or would you like to match all characters in a string up to, but not including the characters #END#? Make a delimiter using a 
+Or would you like to match all characters in a string up to, but not including the characters # END#? Make a delimiter using a 
 look-ahead:
 ${E_WHITE_FG}.*?(?=#END#)${E_RESET}
 
@@ -4870,10 +4870,10 @@ advanced sed examples
 =====================
 ${E_WHITE_FG}Example 1${E_RESET}
 
-sed '/PATTERN_1/,/PATTERN_2/d' FILE # pattern inclusive
-sed '/PATTERN_1/,/PATTERN_2/-1d' FILE # first pattern inclusive - leave last pattern
+sed '/PATTERN_1/,/PATTERN_2/d' FILE # Pattern inclusive
+sed '/PATTERN_1/,/PATTERN_2/-1d' FILE # First pattern inclusive - leave last pattern
 
-sed -i "/PATTERN_1/,/PATTERN_2/{PATTERN_1/!{PATTERN_2/!d}}" FILE # pattern non inclusive (between)
+sed -i "/PATTERN_1/,/PATTERN_2/{PATTERN_1/!{PATTERN_2/!d}}" FILE # Pattern non inclusive (between)
 
 Explanation:
 
@@ -5053,7 +5053,7 @@ tput - list of tput capabilities
 		Examples
 		------------
 		# Yet Another Large Screen Clock
-		# pulsed terminal clock
+		# Pulsed terminal clock
 		clear;
 		while true; do
 			sleep 1;
@@ -5068,10 +5068,10 @@ tput - list of tput capabilities
 			done;
 		done
 		
-		# toggle line wrapping in your terminal
-		# will disable line wrapping so that long lines are truncated to width of the terminal (${COLUMNS}).
+		# Toggle line wrapping in your terminal
+		# Will disable line wrapping so that long lines are truncated to width of the terminal (${COLUMNS}).
 		tput rmam
-		# will re-enable wrapping.
+		# Will re-enable wrapping.
 		tput smam
 		
 		
@@ -5115,9 +5115,9 @@ tput - list of tput capabilities
 		
 		# Displays the number of unread messages on your gmail at the top right corner of your terminal
 		# Checks your gmail account every 30 seconds and display the number of new messages in the top right corner 
-		# of the terminal.  # A kind of CLI "Gmail notifier" if you will. :-)
+		# Of the terminal.  # A kind of CLI "Gmail notifier" if you will. :-)
 		# This is a mashup of http://www.commandlinefu.com/commands/view/7916/put-a-console-clock-in-top-right-corner 
-		# and http://www.commandlinefu.com/commands/view/3386/check-your-unread-gmail-from-the-command-line
+		# And http://www.commandlinefu.com/commands/view/3386/check-your-unread-gmail-from-the-command-line
 		while sleep 30;do
 			tput sc;
 			tput cup 0 $(($(tput cols)-15));
@@ -5129,10 +5129,10 @@ tput - list of tput capabilities
 		
 		
 		# There's been a similar Futurama thing around for a while, 
-		# which grabs a quote from the /. headers [curl -Ism3 slashdot.org | 
-		# egrep "^X-(F|B|L)" | cut -d \- -f 2- | fmt -w $(tput cols)]. 
+		# Which grabs a quote from the /. headers [curl -Ism3 slashdot.org | 
+		# Egrep "^X-(F|B|L)" | cut -d \- -f 2- | fmt -w $(tput cols)]. 
 		# Same deal, but more likely to stop working when someone forgets 
-		# to pay the bill on the domain. Until then: Cave Johnson!
+		# To pay the bill on the domain. Until then: Cave Johnson!
 		curl -s http://www.cavejohnsonhere.com/random/ | grep quote_main | cut -d \> -f 2- | fmt -w $(tput cols)
 		
 		while true;do 
@@ -5162,7 +5162,7 @@ tput - list of tput capabilities
 		done;
 		echo
 		
-		# create a progress bar...
+		# Create a progress bar...
 		# A simple way yo do a progress bar like wget.
 		while sleep 1;do
 			tput sc;
@@ -5173,7 +5173,7 @@ tput - list of tput capabilities
 		
 		# Put a console clock in top right corner
 		# A nice way to use the console in full screen without forget the current time.
-		# you can too add other infos like cpu and mem use.
+		# You can too add other infos like cpu and mem use.
 		while :;do
 			ping -W1 -c1 -n 8.8.8.8 > /dev/null || tput bel > /dev/console;
 			sleep 1;
@@ -5181,13 +5181,13 @@ tput - list of tput capabilities
 		
 		# Make a server's console beep when the network is down
 		# This is like ping -a, but it does the opposite. It alerts you if the network is down, not up. Note that the beep 
-		# will be from the speaker on the server, not from your terminal.  Once a second, this script checks if the Internet 
-		# is accessible and beeps if it is not. I define the Net as being "UP", if I can ping Google's public DNS 
-		# server (8.8.8.8), but of course you could pick a different static IP address. I redirect the beep to /dev/console 
-		# so that I can run this in the background from /etc/rc.local. Of course, doing that requires that the script is run 
-		# by a UID or GID that has write permissions to /dev/console (usually only root).
+		# Will be from the speaker on the server, not from your terminal.  Once a second, this script checks if the Internet 
+		# Is accessible and beeps if it is not. I define the Net as being "UP", if I can ping Google's public DNS 
+		# Server (8.8.8.8), but of course you could pick a different static IP address. I redirect the beep to /dev/console 
+		# So that I can run this in the background from /etc/rc.local. Of course, doing that requires that the script is run 
+		# By a UID or GID that has write permissions to /dev/console (usually only root).
 		# Question: I am not sure if the -W1 flag works under BSD. I have only tested this under GNU/Linux using ping 
-		# from iputils. If anybody knows how portable -W is, please post a comment.
+		# From iputils. If anybody knows how portable -W is, please post a comment.
 		 
 		while [ 1 -lt 2 ];do
 			i=0;
@@ -5217,11 +5217,11 @@ tput - list of tput capabilities
 		seq -s'#' 0 $(tput cols) | tr -d '[:digit:]'
 		
 		# Print a row of characters across the terminal. Uses tput to establish the current terminal width, 
-		# and generates a line of characters just long enough to cross it. In the example '#' is used.
+		# And generates a line of characters just long enough to cross it. In the example '#' is used.
 		# It's possible to use a repeating sequence by dividing the columns by the number of characters 
-		# in the sequence like this:
+		# In the sequence like this:
 		seq -s'~-' 0 $(( $(tput cols) /2 )) | tr -d '[:digit:]'
-		# or
+		# Or
 		seq -s'-~?' 0 $(( $(tput cols) /3 )) | tr -d '[:digit:]'
 		# You will lose chararacters at the end if the length isn't cleanly divisible.
 		 
@@ -5231,7 +5231,7 @@ tput - list of tput capabilities
 		}
 		
 		# Depending on the TERM, the terminfo version, ncurses version, etc.. you may be using a varied assortment of terminal 
-		# escape codes.  # With this command you can easily find out exactly what is going on.. This is terminal escape zen!
+		# Escape codes.  # With this command you can easily find out exactly what is going on.. This is terminal escape zen!
 		( 2>&2 strace -f -F -e write -s 1000 \
 			sh -c 'echo -e "initc\nis2\ncnorm\nrmso\nsgr0" \
 			| tput -S' 2>&1 
@@ -5243,8 +5243,8 @@ tput - list of tput capabilities
 		echo -e "'tput blink'This will blink'tput sgr0' This wont"
 		# Now you can use this function instead of calling tput 
 		#(tput is much smarter for portable code because it works differently depending on the current TERM, 
-		# and tput -T anyterm works too.) to turn that echo into a much faster executing code. 
-		# tput queries files, opens files, etc.. but echo is very strait and narrow.
+		# And tput -T anyterm works too.) to turn that echo into a much faster executing code. 
+		# Tput queries files, opens files, etc.. but echo is very strait and narrow.
 		# So now you can do this:
 		echo -e "\33[5mThis will blink\33(B\33[m This wont"
 		# More at http://www.askapache.com/linux-unix/bash_profile-functions-advanced-shell.html
@@ -5267,8 +5267,8 @@ tput - list of tput capabilities
 		
 		# Using tput to save, clear and restore the terminal contents
 		# Very useful for interactive scripts where you would like to return the terminal contents 
-		# to its original state before the script was run. This would be similar to how vi exits 
-		# and returns you to your original terminal screen.
+		# To its original state before the script was run. This would be similar to how vi exits 
+		# And returns you to your original terminal screen.
 		tput smcup;
 		echo "Doing some things...";
 		sleep 2;
@@ -5280,22 +5280,22 @@ tput - list of tput capabilities
 		tput rmcup
 		
 		
-		# prints message in given argument on on center of screen
-		# echox prints given argument on bottom line center screen in terminal
-		# you can easily use these functions by placing them in your .bashrc file, make sure to source your 
+		# Prints message in given argument on on center of screen
+		# Echox prints given argument on bottom line center screen in terminal
+		# You can easily use these functions by placing them in your .bashrc file, make sure to source your 
 		# .bashrc once you do:
 		function echox { 
 			echo 'tput cup $(($(tput lines))) $(( ($(tput cols) - $(echo "${#1}"))/2 )) \
 			'"${1}"'tput cup $(tput lines) $(( $(tput cols)-1 ))';
 		}
 		
-		# exhoxy prints given argument center screen
+		# Exhoxy prints given argument center screen
 		function echoxy { 
 			echo 'tput cup $(($(tput lines)/2)) $(( ($(tput cols) - $(echo "${#1}"))/2))'"${1}"' \
 			tput cup $(tput lines) $(( $(tput cols)-1 ))';
 		}
 		
-		# echos prints date and time on second from last line (used as status message)
+		# Echos prints date and time on second from last line (used as status message)
 		function echos { 
 			echo 'tput cup $(($(tput lines)-2)) $(($(tput cols)-$(echo ${#1}))) && \
 				  tput sc'"${1}"'tput cup $(($(tput lines)-2)) 0 && tput rc';
@@ -5305,9 +5305,9 @@ tput - list of tput capabilities
 			echos "'date'";
 		done
 		
-		# reset a hanging terminal session
-		# when your terminal session seems unrensponsive (this normally happen after outputting 
-		# some binary data directly on your standard output) it may me saned by hitting:
+		# Reset a hanging terminal session
+		# When your terminal session seems unrensponsive (this normally happen after outputting 
+		# Some binary data directly on your standard output) it may me saned by hitting:
 		# Note: don't press the Enter key, just ctrl+j
 		# CTRL+J tput sgr0 CTRL+J
 		^J tput sgr0 ^J
@@ -6112,7 +6112,7 @@ ${E_MAGENTA_FG}please check the following items:${E_RESET}
 
 	- In general, test your color scheme against as many filetypes, Vim features, environments, etc. as possible.
 
-	- Do not use hard coded escape sequences, these will not work in other terminals.  Always use #RRGGBB for the GUI.
+	- Do not use hard coded escape sequences, these will not work in other terminals.  Always use # RRGGBB for the GUI.
 
 	- When targetting 8-16 colors terminals, don't count on "darkblue" to be blue and dark, or on "2" to be even 
 	  vaguely reddish.  Names are more portable than numbers, though.
@@ -6122,7 +6122,7 @@ ${E_MAGENTA_FG}please check the following items:${E_RESET}
 	- Typographic attributes (bold, italic, underline, reverse, etc.) are not universally supported.  
 	  Don't count on any of them.
 
-	- Is "g:terminal_ansi_colors" set to a list of 16 #RRGGBB values?
+	- Is "g:terminal_ansi_colors" set to a list of 16 # RRGGBB values?
 
 	- Try to keep your color scheme simple by avoiding unnecessary logic and refraining from adding options.  
 	  The best color scheme is one that only requires: >
@@ -6980,21 +6980,21 @@ ${E_WHITE_FG}*xfree-xterm*${E_RESET}
 
 	You probably want to use these X resources (in your ~/.Xdefaults file):
 		XTerm*color0:			#000000
-		XTerm*color1:			#c00000
+		XTerm*color1:			# C00000
 		XTerm*color2:			#008000
 		XTerm*color3:			#808000
 		XTerm*color4:			#0000c0
-		XTerm*color5:			#c000c0
+		XTerm*color5:			# C000c0
 		XTerm*color6:			#008080
-		XTerm*color7:			#c0c0c0
+		XTerm*color7:			# C0c0c0
 		XTerm*color8:			#808080
-		XTerm*color9:			#ff6060
+		XTerm*color9:			# Ff6060
 		XTerm*color10:			#00ff00
-		XTerm*color11:			#ffff00
+		XTerm*color11:			# Ffff00
 		XTerm*color12:			#8080ff
-		XTerm*color13:			#ff40ff
+		XTerm*color13:			# Ff40ff
 		XTerm*color14:			#00ffff
-		XTerm*color15:			#ffffff
+		XTerm*color15:			# Ffffff
 		Xterm*cursorColor:		Black
 
 	[Note: The cursorColor is required to work around a bug, which changes the
@@ -9590,7 +9590,7 @@ ${E_MAGENTA_FG}Unique Lines (no sort)${E_RESET}
 awk '!x[\${0}]++'
 
 ${E_MAGENTA_FG}Counting chars in a string${E_RESET}
-MATCHED=\$(awk '{print gsub(/\|/,"")}' <<<\${STRING}) #count pipe delimiters
+MATCHED=\$(awk '{print gsub(/\|/,"")}' <<<\${STRING}) # Count pipe delimiters
 
 ${E_MAGENTA_FG}Mounting Notes${E_RESET}
 Remount / as RW
@@ -9622,7 +9622,7 @@ ${E_MAGENTA_FG}ARRAYS${E_RESET}
 
 ${E_WHITE_FG}Regular arrays${E_RESET}
 typeset -a TEST
-TEST=("one" "two" "three times") #assignment
+TEST=("one" "two" "three times") # Assignment
 
 ${E_WHITE_FG}To get index:${E_RESET}
 for i in \${arr}; do
@@ -9630,11 +9630,11 @@ for i in \${arr}; do
 done
 
 ${E_WHITE_FG}To delete an element from a regular array: ${E_RESET}
-TEST[N]=() #method 1
+TEST[N]=() # Method 1
 
-TEST=("\${(@)TEST:#two}") #method 2
+TEST=("\${(@)TEST:#two}") # Method 2
 
-TEST=(\${TEST[@]/#%three times}) #method 2a
+TEST=(\${TEST[@]/#%three times}) # Method 2a
 The #% prefix forces whole word matching.  Very important if the elements contain spaces!
 
 ${E_WHITE_FG}To test for element in array${E_RESET}
@@ -9683,7 +9683,7 @@ ARRAY=('PREPEND' \${ARRAY[@]})
 
 ${E_WHITE_FG}Associative arrays${E_RESET}
 typeset -A ARR
-ARR[key]=value #assignment
+ARR[key]=value # Assignment
 
 \${(k)ARR} = access keys
 \${(v)ARR} = access values
@@ -9721,7 +9721,7 @@ keys=( "\${(@k)hash}" )
 values=( "\${(@v)hash}" )
 
 typeset -A reversed
-reversed=( "\${(@)values:^keys}" ) # array zipping operator
+reversed=( "\${(@)values:^keys}" ) # Array zipping operator
 Or using the Oa parameter expansion flag to reverse the order of the key+value list:
 
 typeset -A reversed
@@ -9918,7 +9918,7 @@ ${E_MAGENTA_FG}Increment Operator${E_RESET}
 ------------------
 for i in {1..7}
 do
-	   #stuff
+	   # Stuff
 done
 
 ${E_MAGENTA_FG}DEBUG Arrays${E_RESET}
@@ -10161,7 +10161,7 @@ ${E_WHITE_FG}PARAMETER EXPANSION${E_RESET}
 
 	      If  the option POSIX_IDENTIFIERS is not set, and spec is a simple name, then the braces are optional;
 	      this is true even for special parameters so e.g. \${#}- and \${#}* take the length of the string \$- and
-	      the array \$* respectively.  If POSIX_IDENTIFIERS is set, then braces are required for the # to be
+	      the array \$* respectively.  If POSIX_IDENTIFIERS is set, then braces are required for the # To be
 	      treated  in this fashion.
 
        \${^spec}
@@ -10218,7 +10218,7 @@ ${E_WHITE_FG}Parameter Expansion Flags${E_RESET}
        '(%%qqq)'.  The following flags are supported:
 
        #      Evaluate the resulting words as numeric expressions and output the characters corresponding to the resulting integer.  
-              Note that this form is entirely distinct from use of the # without parentheses.
+              Note that this form is entirely distinct from use of the # Without parentheses.
 
               If the MULTIBYTE option is set and the number is greater than 127 (i.e. not an ASCII character) it is treated as a Unicode character.
 
@@ -10369,7 +10369,7 @@ ${E_WHITE_FG}Parameter Expansion Flags${E_RESET}
 
        W      Similar to w with the difference that empty words between repeated delimiters are also counted.
 
-       X      With  this  flag,  parsing  errors  occurring with the Q, e and # flags or the pattern matching forms such as '\${name#pattern}' 
+       X      With  this  flag,  parsing  errors  occurring with the Q, e and # Flags or the pattern matching forms such as '\${name#pattern}' 
               are reported.  Without the flag, errors are silently ignored.
 
        z      Split the result of the expansion into words using shell parsing to find the words, i.e. taking into account any quoting in the value.  
@@ -10423,7 +10423,7 @@ l:expr::string1::string2:
               Control characters are always assumed to be one unit wide; this allows the mechanism to be used for generating repetitions of 
               control characters.
 
-       m      Only  useful together with one of the flags l or r or with the # length operator when the MULTIBYTE option is in effect.  Use the 
+       m      Only  useful together with one of the flags l or r or with the # Length operator when the MULTIBYTE option is in effect.  Use the 
               character width reported by the system in calculating how much of the string it occupies or the overall length of the string.  Most 
               printable characters have a width of one  unit, however certain Asian character sets and certain special effects use wider characters; 
               combining characters have zero width.  Non-printable characters are arbitrarily counted as zero width; how they would actually be 
@@ -10461,7 +10461,7 @@ _:flags:      The underscore (_) flag is reserved for future use.  As of this re
 
               The following flags are meaningful with the \${...#...} or \${...%...} forms.  The S and I flags may also be used with the \${.../...} forms.
 
-       S      Search substrings as well as beginnings or ends; with # start from the beginning and with % start from the end  of  the  string.With  
+       S      Search substrings as well as beginnings or ends; with # Start from the beginning and with % start from the end  of  the  string.With  
               substitution  via \${.../...} or \${...//...}, specifies non-greedy matching, i.e. that the shortest instead of the longest match should 
               be replaced.
 
@@ -10734,9 +10734,9 @@ s/l/r[/]      Substitute  r  for l as described below.The substitution is done o
               (#q:s/.../.../) in order for the shell to recognize the expression as a glob qualifier.Further, note that
               bad patterns in the substitution are not subject to the NO_BAD_PATTERN option so will cause an error.
  
-              When HIST_SUBST_PATTERN is set, l may start with a # to indicate that the pattern must match at the start
-              of the string to be substituted, and a % may appear  at the start or after an # to indicate that the pattern
-              must match at the end of the string to be substituted.  The % or # may be quoted with two backslashes.
+              When HIST_SUBST_PATTERN is set, l may start with a # To indicate that the pattern must match at the start
+              of the string to be substituted, and a % may appear  at the start or after an # To indicate that the pattern
+              must match at the end of the string to be substituted.  The % or # May be quoted with two backslashes.
  
               For example, the following piece of filename generation code with the EXTENDED_GLOB option:
  
@@ -11728,7 +11728,7 @@ ${E_MAGENTA_FG}BUILTINS${E_RESET}
 		     Exclusion in the form A^B.
 
 	      '#' (EXTENDED_GLOB)
-		     The pattern character # wherever it occurs, both for repetition of a previous pattern and for indicating globbing flags.
+		     The pattern character # Wherever it occurs, both for repetition of a previous pattern and for indicating globbing flags.
 
 	      '?(' (KSH_GLOB)
 		     The grouping form ?(...).	Note this is also disabled if '?' is disabled.
@@ -13060,7 +13060,7 @@ ${E_MAGENTA_FG}SET Commands${E_RESET}
 -x XTRACE
 -y SH_WORD_SPLIT
 
-#sh/ksh emulation set
+# Sh/ksh emulation set
 -C NO_CLOBBER
 -T TRAPS_ASYNC
 -X MARK_DIRS
@@ -13236,8 +13236,8 @@ Aliases for quit: q!, exit, q
 	Examples:
 	---------
 	
-	    examine x+1   # ok
-	    examine x + 1 # not ok
+	    examine x+1   # Ok
+	    examine x + 1 # Not ok
 	
 	See also:
 	---------
@@ -13288,15 +13288,15 @@ Aliases for quit: q!, exit, q
 	Examples:
 	---------
 	
-	    kill                # non-interuptable, nonmaskable kill
-	    kill 9              # same as above
-	    kill -9             # same as above
-	    kill 15             # nicer, maskable TERM signal
-	    kill! 15            # same as above, but no confirmation
-	    kill -INT           # same as above
-	    kill -SIGINT        # same as above
-	    kill -WINCH         # send "window change" signal
-	    kill -USR1          # send "user 1" signal
+	    kill                # Non-interuptable, nonmaskable kill
+	    kill 9              # Same as above
+	    kill -9             # Same as above
+	    kill 15             # Nicer, maskable TERM signal
+	    kill! 15            # Same as above, but no confirmation
+	    kill -INT           # Same as above
+	    kill -SIGINT        # Same as above
+	    kill -WINCH         # Send "window change" signal
+	    kill -USR1          # Send "user 1" signal
 	
 	See also:
 	---------
@@ -13339,8 +13339,8 @@ Aliases for quit: q!, exit, q
 	
 	The difference between eval and print. Suppose cmd has the value "ls".
 	
-	print ${cmd} # prints "ls"
-	eval ${cmd}  # runs an ls command
+	print ${cmd} # Prints "ls"
+	eval ${cmd}  # Runs an ls command
 	
 	
 	Aliases for print: pr
@@ -13514,8 +13514,8 @@ Aliases for quit: q!, exit, q
 	Examples:
 	---------
 	
-	  display echo ${x}  # show the current value of x each time debugger stops
-	  display          # evaluate all display statements
+	  display echo ${x}  # Show the current value of x each time debugger stops
+	  display          # Evaluate all display statements
 	
 	See also:
 	---------
@@ -13606,7 +13606,7 @@ Aliases for quit: q!, exit, q
 	    list 4+1                # Same as above.
 	    list /etc/profile:5     # List starting from line 5 of /etc/profile
 	    list /etc/profile 5     # Same as above.
-	    list /etc/profile 5 6   # list lines 5 and 6 of /etc/profile
+	    list /etc/profile 5 6   # List lines 5 and 6 of /etc/profile
 	    list /etc/profile 5 2   # Same as above, since 2 < 5.
 	    list profile:5 2        # List two lines starting from line 5 of profile
 	    list .                  # List lines centered from where we currently are stopped
@@ -13765,8 +13765,8 @@ Aliases for quit: q!, exit, q
 	   backtrace      # Print a full stack trace
 	   backtrace 2    # Print only the top two entries
 	   backtrace -1   # Print a stack trace except the initial (least recent) call.
-	   backtrace -s   # show source lines in listing
-	   backtrace --source   # same as above
+	   backtrace -s   # Show source lines in listing
+	   backtrace --source   # Same as above
 	
 	See also:
 	---------
@@ -14187,7 +14187,7 @@ echo "A1:${A1}"
 echo "A2:${A2}"
 
 echo -n "\n\${A1:|A2} == "
-echo ${A1:|A2} # can't be quoted
+echo ${A1:|A2} # Can't be quoted
 echo ${RESET}
 
 cat << EP1
@@ -14202,7 +14202,7 @@ echo "A1:${A1}"
 echo "A2:${A2}"
 
 echo -n "\n\${A1*|A2} == "
-echo ${A1:*A2} # can't be quoted
+echo ${A1:*A2} # Can't be quoted
 echo ${RESET}
  
 cat << EP1
@@ -14231,9 +14231,9 @@ echo "A1:${A1}"
 echo "A2:${A2}"
 
 echo -n "\n\${A1:^A2} == "
-echo ${A1:^A2} # can't be quoted
+echo ${A1:^A2} # Can't be quoted
 echo -n "\${A1:^^|A2} == "
-echo ${A1:^^A2} # can't be quoted
+echo ${A1:^^A2} # Can't be quoted
 echo ${RESET}
 
 cat << EP1
@@ -14357,7 +14357,7 @@ affect  other sub-expressions in spec.  Note that '^', '=', and '~', below, must
 
 If  the option POSIX_IDENTIFIERS is not set, and spec is a simple name, then the braces are optional;
 this is true even for special parameters so e.g. \$#- and \$#* take the length of the string \$- and
-the array \$* respectively.  If POSIX_IDENTIFIERS is set, then braces are required for the # to be
+the array \$* respectively.  If POSIX_IDENTIFIERS is set, then braces are required for the # To be
 treated  in this fashion.
 EP1
 
@@ -14462,7 +14462,7 @@ cat << EP1
  The following flags are supported:
 
  #      Evaluate  the resulting words as numeric expressions and interpret these as character codes.  Output the corresponding characters.  Note that this form is
-    entirely distinct from use of the # without parentheses.
+    entirely distinct from use of the # Without parentheses.
 
     If the MULTIBYTE option is set and the number is greater than 127 (i.e. not an ASCII character) it is treated as a Unicode character.
 
@@ -14622,7 +14622,7 @@ cat << EP1
 
  W      Similar to w with the difference that empty words between repeated delimiters are also counted.
 
- X      With this flag, parsing errors occurring with the Q, e and # flags or the pattern matching forms such as  '\${name#pattern}'  are  reported.   Without  the
+ X      With this flag, parsing errors occurring with the Q, e and # Flags or the pattern matching forms such as  '\${name#pattern}'  are  reported.   Without  the
     flag, errors are silently ignored.
 
  z      Split  the  result of the expansion into words using shell parsing to find the words, i.e. taking into account any quoting in the value.  Comments are not
@@ -14680,7 +14680,7 @@ cat << EP1
 
     Control characters are always assumed to be one unit wide; this allows the mechanism to be used for generating repetitions of control characters.
 
- m      Only useful together with one of the flags l or r or with the # length operator when the MULTIBYTE option is in effect.  Use the character width  reported
+ m      Only useful together with one of the flags l or r or with the # Length operator when the MULTIBYTE option is in effect.  Use the character width  reported
     by  the system in calculating how much of the string it occupies or the overall length of the string.  Most printable characters have a width of one unit,
     however certain Asian character sets and certain special effects use wider characters; combining characters have zero width.  Non-printable characters are
     arbitrarily counted as zero width; how they would actually be displayed will vary.
@@ -14729,7 +14729,7 @@ cat << EP1
 
  The following flags are meaningful with the \${...#...} or \${...%...} forms.  The S, I, and * flags may also be used with the \${.../...} forms.
 
- S      With # or ##, search for the match that starts closest to the start of the string (a 'substring match'). Of all matches at a particular  position,  #  se‐
+ S      With # Or ##, search for the match that starts closest to the start of the string (a 'substring match'). Of all matches at a particular  position,  #  se‐
     lects the shortest and ## the longest:
 
      % str="aXbXc"
@@ -15028,7 +15028,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${#} -ne 0 ]] && ARG=${1} || ARG=''
 
 typeset -A KEY_RANGE
@@ -15065,7 +15065,7 @@ if [[ -n ${KEYWORD} ]];then
 		fi
 		EHIT=false
 		for X in ${ELIST};do
-			echo ${X} | grep -q ${WORD_OPT} ${KEYWORD} # enforce WORD_OPT - pdfgrep (-w not supported)
+			echo ${X} | grep -q ${WORD_OPT} ${KEYWORD} # Enforce WORD_OPT - pdfgrep (-w not supported)
 			RC=${?}
 			if [[ ${RC} -eq 0 ]];then
 				EHIT=true

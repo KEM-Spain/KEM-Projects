@@ -1,6 +1,6 @@
 #!/usr/bin/zsh
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/DBG.zsh
@@ -69,7 +69,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${MAX_LEN} != 'false' ]] && LEN_LIMIT=${MAX_LEN} || LEN_LIMIT=60
 
 if [[ ! -t 0 ]];then
@@ -82,10 +82,10 @@ fi
 
 echo ${LINE} | perl -wane'
 	foreach $w (@F) {
-		$w =~ s#/$(?=^/.*)##g;             #kill if trailing slash if preceded by any chars
-		$w =~ s#([^/])([^/]*(?=.*/))#$1#g; #for every word btwn slashes kill all after first char
-		$w =~ s/%//g;                      #kill any percent signs (not sure why)
-		push (@line,$w);                   #build line
+		$w =~ s#/$(?=^/.*)##g;             # Kill if trailing slash if preceded by any chars
+		$w =~ s#([^/])([^/]*(?=.*/))#$1#g; # For every word btwn slashes kill all after first char
+		$w =~ s/%//g;                      # Kill any percent signs (not sure why)
+		push (@line,$w);                   # Build line
 	}
 	printf("%-s\n", "@line");
 ;' 

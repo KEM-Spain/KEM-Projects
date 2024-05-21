@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -17,11 +17,11 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _UTILS
 typeset -A _UTILS_DESC
 
-#Constants
+# Constants
 _UTILS=(
 info 1
 length 1
@@ -40,25 +40,25 @@ dts2ac3 "AUDIO:Convert DTS audio to AC3"
 
 _WRAPPER=${0:t}
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 info () {
-	#Declarations
+	# Declarations
 	local -a LIST
 	local HIT
 	local L
 
-	#Constants
+	# Constants
 	local _VID_REGEX_Z='.*\.(mp4|avi|mkv)$'
 	local _VID_REGEX_F='.*\.\(mp4\|avi\|mkv\)$'
 
-	#Functions
+	# Functions
 	trim () {
 		local LINE
 
@@ -174,7 +174,7 @@ ___EOF
 	shift $((OPTIND -1))
 	#--End GetOpts--
 
-	#Execution
+	# Execution
 	if [[ ${#} -eq 0 ]];then
 		LIST=("${(f)$(find . -maxdepth 1 -type f -regex "${_VID_REGEX_F}")}")
 	else
@@ -200,7 +200,7 @@ length () {
 Display network connections
 ___EOF
 
-	#Functions
+	# Functions
 	usage () {
 		local -a PENDING_MSGS=(${@})
 
@@ -213,7 +213,7 @@ ___EOF
 		exit_leave $(msg_err ${PENDING_MSGS})
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	[[ ${#} -eq 0 ]] && usage "missing video filename" || FN=${1}
@@ -228,7 +228,7 @@ ___EOF
 
 
 merge () {
-	#Declarations
+	# Declarations
 	local -a FILE_ARGS
 	local -a WORKFILES
 	local APP=ffmpeg
@@ -236,7 +236,7 @@ merge () {
 	local RESPONSE
 	local F
 
-	#Constants
+	# Constants
 	local _DEFAULT_OUT=vid_merge
 
 	#--Begin GetOpts--
@@ -358,12 +358,12 @@ ___EOF
 }
 
 rescale () {
-	#Declarations
+	# Declarations
 	local -a RESOLUTIONS
 	local SCALE
 	local FN_OUT
 
-	#Constants
+	# Constants
 	local RESOLUTIONS=(1920:1080 1280:720)
 
 	#--Begin GetOpts--
@@ -435,7 +435,7 @@ ___EOF
 	shift $((OPTIND -1))
 	#--End GetOpts--
 
-	#Execution
+	# Execution
 	[[ ${#} -eq 0 ]] && usage "Missing argument $(opt_type v)" || FN=${1}
 
 	[[ ! -e ${FN} ]] && usage "File not found:${FN}"
@@ -459,7 +459,7 @@ dts2ac3 () {
 Convert DTS audio to AC3
 ___EOF
 
-	#Functions
+	# Functions
 	usage () {
 		local -a PENDING_MSGS=(${@})
 
@@ -472,7 +472,7 @@ ___EOF
 		exit_leave $(msg_err ${PENDING_MSGS})
 	}
 
-	#Execution
+	# Execution
 	[[ ${1} == '-H' ]] && usage
 
 	[[ ${#} -eq 0 ]] && usage "missing argument:<VIDEO_FILE>" || FN=${1}
@@ -552,7 +552,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${#} -ne 0 ]] && UTIL=${1}
 
 [[ ${UTIL} != 'none' && ${_UTILS[${UTIL}]} -ne 1 ]] && usage "UTIL:${UTIL} not found"
@@ -565,12 +565,12 @@ else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 	selection_list_set ${(v)_UTILS_DESC}
-	#selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
+	# Selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
 	selection_list -O ${CYAN_FG} -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
-	echo #clear read
-	${_SCRIPT} -H # call function help
+	echo # Clear read
+	${_SCRIPT} -H # Call function help
 
 	exit_leave
 fi

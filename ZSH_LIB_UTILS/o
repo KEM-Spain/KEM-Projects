@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Ansi colors
+# Ansi colors
 REVERSE="\033[7m"
 RESET="\033[m"
 BOLD="\033[1m"
@@ -15,7 +15,7 @@ STRIKE="\033[9m"
 ITALIC="\033[3m"
 UNDER="\033[4m"
 
-#Echoed ansi colors
+# Echoed ansi colors
 E_REVERSE=$(echo "\033[7m")
 E_RESET=$(echo "\033[m")
 E_BOLD=$(echo "\033[1m")
@@ -29,7 +29,7 @@ E_CYAN_FG=$(echo "\033[36m")
 E_WHITE_FG=$(echo "\033[37m")
 E_STRIKE=$(echo "\033[9m")
 
-#Declarations
+# Declarations
 typeset -a _RAWLIST
 typeset -a _MARKED=()
 typeset -a _LOCAL_LIST=()
@@ -38,7 +38,7 @@ typeset -A _FILE_NDX
 typeset -A _APP_EXE
 typeset -A _APP_TYPE
 
-#Constants
+# Constants
 _APP_EXE["EBOOK"]="/usr/bin/python2.7 /usr/bin/ebook-viewer"
 _APP_EXE["OKULAR"]=/usr/bin/okular
 _APP_EXE["MDLESS"]=/usr/local/bin/mdless
@@ -73,13 +73,13 @@ _MD_EXTERNAL="/media/kmiller/KEM_Misc/Music/KEM-B9"
 _MD_LOCAL="/home/kmiller/Documents/Music"
 _MD_MUSE="/home/kmiller/Documents/MuseScore4/Scores"
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local -a _MARKED=(${@})
 	local M
@@ -210,7 +210,7 @@ single_file_launch () {
 
 	[[ ${APP} == '?' ]] && exit_leave "${RED_FG}No application${RESET} to handle file:${WHITE_FG}${FN}${RESET} of type: [$(file -b ${FN})]"
 
-	_LIST+=$(realpath ${FN}) #add full path
+	_LIST+=$(realpath ${FN}) # Add full path
 	_FILE_APP[${F}]=${APP}
 	_FILE_NDX[${F}]=1
 
@@ -302,7 +302,7 @@ shift $((OPTIND -1))
 #--Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
-#File(s) passed on command line or pipe
+# File(s) passed on command line or pipe
 typeset -a ARGS
 
 # Command line args
@@ -316,10 +316,10 @@ FPATH=${FPATH:q}
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
-[[ ${#} -eq 1 && -f ${1} ]] && FILE_ARG=${1} || FILE_ARG='' # single file arg
+[[ ${#} -eq 1 && -f ${1} ]] && FILE_ARG=${1} || FILE_ARG='' # Single file arg
 
-#Verify path/file if passed
-if [[ ${#} -eq 0 ]];then # no args - PWD
+# Verify path/file if passed
+if [[ ${#} -eq 0 ]];then # No args - PWD
 	HDR_MSG="Showing all files in:${PWD}"
 else
 	HDR_MSG="Processing file list"
@@ -336,16 +336,16 @@ fi
 NDX=0
 for F in ${_RAWLIST};do
 	((NDX++))
-	FN=$(realpath ${F}) #add full path
+	FN=$(realpath ${F}) # Add full path
 	[[ ${?} -ne 0 ]] && exit_leave $(msg_err "realpath error: ${FN}")
 	_RAWLIST[${NDX}]=${FN}
 done
 
 NDX=0
 for F in ${(o)_RAWLIST};do
-	[[ -d ${F} ]] && continue #skip any directories
+	[[ -d ${F} ]] && continue # Skip any directories
 	APP=$(get_app ${F})
-	[[ ${APP} == '?' && ${FILTER_UNSUPPORTED} == 'true' ]] && continue #skip any unsupported
+	[[ ${APP} == '?' && ${FILTER_UNSUPPORTED} == 'true' ]] && continue # Skip any unsupported
 	((NDX++))
 	if [[ ${MUSIC_DIRS} == 'true' ]];then
 		FN=${F}
@@ -370,17 +370,17 @@ if [[ -z ${_LOCAL_LIST} ]];then
 	exit_leave
 fi
 
-if [[ -n ${FILE_ARG} ]];then # process a single file arg directly
+if [[ -n ${FILE_ARG} ]];then # Process a single file arg directly
 	_LIST=(${_LOCAL_LIST})
 	action_do 1
 	exit_leave
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST})  ${WHITE_FG}%-*s${RESET}  Filter:${WHITE_FG}%s${RESET}  Selected:${WHITE_FG}%*d${RESET}  ${_PG}" ${#_LIST} ${#HDR_MSG} "${HDR_MSG}" "${FILTER}" ${#${#SELECTED_COUNT}} ${SELECTED_COUNT}'
 list_add_header_break
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${GREEN_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
 '
@@ -391,15 +391,15 @@ list_set_clear_ghosts true
 list_set_client_warn true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_LOCAL_LIST}
 	[[ ${?} -eq 0 ]] && break
 
-	#get selections
+	# Get selections
 	_MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -gt 1 ]];then
-		action_warn ${_MARKED} #warn if more than 1 selected
+		action_warn ${_MARKED} # Warn if more than 1 selected
 	fi
  
  	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then

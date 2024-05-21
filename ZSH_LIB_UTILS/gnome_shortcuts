@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,7 +15,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a _MARKED=()
 typeset -a _SHORTCUTS=( 
 "<Alt><Print>|window-screenshot"
@@ -88,13 +88,13 @@ typeset -a _SHORTCUTS=(
 )
 typeset -a _MARKED
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M
 	local K A
@@ -200,30 +200,30 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ ${#} -ne 0 ]] && SEARCHTERM=${1}
 
-_SHORTCUTS=(${(L)_SHORTCUTS}) #set to lower for search
+_SHORTCUTS=(${(L)_SHORTCUTS}) # Set to lower for search
 
 if [[ -n ${SEARCHTERM} ]];then
 	_SHORTCUTS=(${(CM)_SHORTCUTS:#*${SEARCHTERM:l}*})
 	HDR_MSG="matching${RESET}: ${WHITE_FG}${SEARCHTERM}${RESET}\t"
 else
 	HDR_MSG=''
-	_SHORTCUTS=(${(onC)_SHORTCUTS}) #proper case and sort
+	_SHORTCUTS=(${(onC)_SHORTCUTS}) # Proper case and sort
 fi
 
 if ! arr_is_populated "${_SHORTCUTS}";then
 	exit_leave "${RED_FG}No shortcuts found matching: ${WHITE_FG}${SEARCHTERM}${RESET}"
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} ${CYAN_FG}Shortcut Key Definitions ${HDR_MSG}${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
 list_add_header_break
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-40s -> %-40s${RESET}\n" ${_LIST_NDX} "${$(get_shortcut_keys ${_LIST[${_LIST_NDX}]})}" "${(C)$(get_key_action ${_LIST[${_LIST_NDX}]})}" 
 '
@@ -240,11 +240,11 @@ list_set_selection_limit 1
 list_set_clear_ghosts true
 
 while true;do
-	#get selection
+	# Get selection
 	list_select ${_SHORTCUTS}
 	[[ ${?} -eq 0 ]] && break
 
-	#get user selections
+	# Get user selections
 	_MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -ne 0 ]];then

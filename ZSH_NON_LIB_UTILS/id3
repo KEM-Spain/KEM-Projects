@@ -21,7 +21,7 @@ usage () {
 	exit
 }
 
-#Execution
+# Execution
 [[ -z ${1} ]] && usage
 
 for F in ${@};do

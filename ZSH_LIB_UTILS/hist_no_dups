@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,15 +15,15 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A TIME_CMD
 typeset -A TIME_ARG
 typeset -a CMD_UNIQ
 typeset -a HIST_NEW
 typeset -A LOCAL_EXES
 
-#Constants
-#_HIST_FILE=./.zsh_history #for testing
+# Constants
+#_HIST_FILE=./.zsh_history # For testing
 _HIST_FILE=~/.zsh_history
 _HIST_FILE_NEW=/tmp/zsh_history.new
 _ALIAS_FILE=/etc/zsh/aliases
@@ -31,20 +31,20 @@ _LOCAL_EXE_PATH=~/Code/LOCAL
 _LIB_DIR=/usr/local/lib
 _CMD_CACHE=~/.cmd_cache
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 validate_cmd () {
 	local CMD=${@}
 
 	grep -q ${CMD} ${_CMD_CACHE}
 	[[ ${?} -eq 0 ]] && return 0
 
-	#validate command or alias
+	# Validate command or alias
 	which ${CMD} >/dev/null 2>&1
 	if [[ ${?} -eq 0 ]];then
 			echo ${CMD} >> ${_CMD_CACHE}
@@ -70,28 +70,28 @@ get_last_cmd () {
 	local IN_ITEM=false
 	local V
 
-	#find most recent cmd
+	# Find most recent cmd
 	for V in ${(onv)TIME_CMD};do
 		if [[ ${CMD} == "${V/\#\#*}" ]];then
 			HIT=true
 			IN_ITEM=true
 			((ITEM_NDX++))
-			ITEM_STACK[${ITEM_NDX}]=${(k)TIME_CMD[(r)${V}]} #unique timestamp resolution
-			#echo "CMD:${CMD} RLU:${(k)TIME_CMD[(r)${V}]} ITEM_NDX:${ITEM_NDX} ITEM_STACK:${ITEM_STACK[${ITEM_NDX}]}" >&2
+			ITEM_STACK[${ITEM_NDX}]=${(k)TIME_CMD[(r)${V}]} # Unique timestamp resolution
+			# Echo "CMD:${CMD} RLU:${(k)TIME_CMD[(r)${V}]} ITEM_NDX:${ITEM_NDX} ITEM_STACK:${ITEM_STACK[${ITEM_NDX}]}" >&2
 		else
 			IN_ITEM=false
 		fi
 		[[ ${HIT} == 'true' && ${IN_ITEM} == 'false' ]] && break
 	done
 
-	echo ${ITEM_STACK[${ITEM_NDX}]} #return most recent instance based on timestamp
+	echo ${ITEM_STACK[${ITEM_NDX}]} # Return most recent instance based on timestamp
 }
 
 _cleanup () {
 	[[ -e ${_HIST_FILE_NEW} ]] && rm -f ${_HIST_FILE_NEW}
 }
 
-#Execution
+# Execution
 sort -u -o ${_CMD_CACHE} < ${_CMD_CACHE}
 sort -u -o ${_HIST_FILE} < ${_HIST_FILE}
 
@@ -101,7 +101,7 @@ NDX=0
 tput sc
 for L in ${LIST};do
 	((NDX++))
-	#tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX}. ${#LIST}. $(( NDX * 100. / ${#LIST}. ))
+	# Tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX}. ${#LIST}. $(( NDX * 100. / ${#LIST}. ))
 	if [[ $(file ${L}) =~ 'zsh script' ]];then
 		LOCAL_EXES[${L:t}]=1
 	fi
@@ -119,13 +119,13 @@ NDX=0
 HF_LINES=$(wc -l ${_HIST_FILE})
 while read LINE;do
 	((NDX++))
-	#tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX}. ${HF_LINES}. $(( NDX * 100. / ${HF_LINES}. ))
+	# Tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX}. ${HF_LINES}. $(( NDX * 100. / ${HF_LINES}. ))
 	TIME=$(cut -d':' -f2 <<<${LINE} | sed 's/^ *//')
 	CMD=$(cut -d':' -f3- <<<${LINE} | sed 's/0;//' | cut -d' ' -f1)
 	ARG=$(cut -d':' -f3- <<<${LINE} | sed 's/0;//' | cut -s -d' ' -f2-)
 	if validate_cmd ${CMD};then
 		((VALID_CNT++))
-		TIME_CMD[${TIME}]="${CMD}##${NDX}" #force unique time stamp resolution
+		TIME_CMD[${TIME}]="${CMD}##${NDX}" # Force unique time stamp resolution
 		TIME_ARG[${TIME}]="${ARG}"
 		CMD_UNIQ+=${CMD}
 	else
@@ -139,23 +139,17 @@ typeset -A SEEN
 
 NDX=0
 for C in ${(o)CMD_UNIQ};do
-	[[ ${C} =~ '^\[' ]] && continue #skip bracket commands
+	[[ ${C} =~ '^\[' ]] && continue # Skip bracket commands
 	((NDX++))
-	#tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#CMD_UNIQ} $(( NDX * 100. / ${#CMD_UNIQ} ))
+	# Tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#CMD_UNIQ} $(( NDX * 100. / ${#CMD_UNIQ} ))
 	TS=$(get_last_cmd ${C})
-	CA=$(tr -d '[:space:]' <<<${C}${TIME_ARG[${TS}]}) # cmd + args
+	CA=$(tr -d '[:space:]' <<<${C}${TIME_ARG[${TS}]}) # Cmd + args
 	[[ -n ${CA} && ${SEEN[${CA:q}]} -ge 1 ]] && continue
 	HIST_NEW+=": ${TS}:0;${C} ${TIME_ARG[${TS}]}"
 	(( SEEN[${CA:q}]+=1 ))
 done
-#for C in ${(u)CMD_UNIQ};do
-#	[[ ${C} =~ '^\[' ]] && continue #skip bracket commands
-#	TS=$(get_last_cmd $C)
-#	HIST_NEW+=": ${TS}:0;$C ${TIME_ARG[${TS}]}"
-#done
 
 DUPLICATE_CNT=$(( (HIST_CNT-${#HIST_NEW}) - INVALID_CNT ))
-# printf "History lines:${WHITE_FG}%d${RESET} Valid:${WHITE_FG}%d${RESET} Invalid:${WHITE_FG}%d${RESET} Duplicate:${WHITE_FG}%d${RESET} Remaining:${WHITE_FG}%d${RESET}\n" ${HIST_CNT} ${VALID_CNT} ${INVALID_CNT} ${DUPLICATE_CNT} ${#HIST_NEW}
 printf "History ${WHITE_FG}%d${RESET} | (${WHITE_FG}%d${RESET}) | ${WHITE_FG}%d${RESET} lines\n" ${HIST_CNT} $(( INVALID_CNT + DUPLICATE_CNT )) ${#HIST_NEW}
 
 _cleanup

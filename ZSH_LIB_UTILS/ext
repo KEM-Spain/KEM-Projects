@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,7 +15,7 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Constants
+# Constants
 typeset -A _SUPPORTED_TYPES=(
 tar.bz2 "tar xvjf"
 tar.gz "tar xvzf"
@@ -36,7 +36,7 @@ xz "tar --lzma xvf"
 zst "zstd -d"
 )
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
@@ -116,7 +116,7 @@ while getopts ${OPTSTR} OPTION;do
 done
 shift $((OPTIND -1))
 #--End GetOpts--
-#Execution
+# Execution
 #[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 if [[ ${LIST_EXT} == 'true' ]];then
@@ -130,7 +130,7 @@ fi
 [[ ${#} -eq 0 ]] && usage "missing argument:$(opt_type c)" || FN=${1}
 [[ ! -f ${FN} ]] && exit_leave $(msg_err "file not found:${FN}")
 
-FES=(${${(s/./)FN}[2,-1]}) # all possible file extensions
+FES=(${${(s/./)FN}[2,-1]}) # All possible file extensions
 FE=''
 for L in ${FES};do
 	if [[ -z ${_SUPPORTED_TYPES[${L}]} ]];then
@@ -141,10 +141,10 @@ for L in ${FES};do
 done
 echo "File extension:${WHITE_FG}${FE}${RESET}"
 
-CMD=${_SUPPORTED_TYPES[${FE[2,-1]}]} # skip leading dot
+CMD=${_SUPPORTED_TYPES[${FE[2,-1]}]} # Skip leading dot
 [[ -z ${CMD} ]] && exit_leave $(msg_err "unsupported extension:${FE}")
 
-[[ ${CMD} =~ 'unzip' ]] && ARG_SET="$(tr -cd '[:alnum:]' <<<${FN:r}) ${(qqq)FN}" || ARG_SET="${FN}" # special arg handling for unzip - needs dir name to extract to
+[[ ${CMD} =~ 'unzip' ]] && ARG_SET="$(tr -cd '[:alnum:]' <<<${FN:r}) ${(qqq)FN}" || ARG_SET="${FN}" # Special arg handling for unzip - needs dir name to extract to
 
 echo "Command:${WHITE_FG}${CMD} ${ARG_SET}${RESET}"
 

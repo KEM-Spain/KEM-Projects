@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#vim: syntax off
+# Vim: syntax off
 BOLD="\033[1m"
 RESET="\033[m"
 BOLD="\033[1m"
@@ -15,13 +15,13 @@ MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
 WHITE_FG="\033[37m"
 
-#Declarations
+# Declarations
 typeset -a _SOURCES
 typeset -aU _TODO_LIST
 typeset -A _SEEN
 typeset GET_PWD=true
 
-#Constants
+# Constants
 _THIS=${0:t}
 CACHED_TARGETS=~/.tvi/cached_targets
 _SOURCES+=${PWD}
@@ -30,7 +30,7 @@ _SOURCES+="/usr/local/bin/system"
 _SOURCES+="/usr/local/lib"
 _SOURCES+="/home/kmiller/Code/LOCAL"
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/STR.zsh
@@ -40,7 +40,7 @@ read -r -d '' DESC<<EOF
 Show list of TODO labels embedded in scripts
 EOF
 
-#Functions
+# Functions
 usage () {
 	local -a PENDING_MSGS=(${@})
 
@@ -55,7 +55,7 @@ usage () {
 	exit_leave ${PENDING_MSGS}
 }
 
-#Execution
+# Execution
 [[ ${1} == '-H' ]] && usage
 
 echo "${CYAN_FG}${BOLD}Cached edits${WHITE_FG}...${RESET}"

@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Ansi colors
+# Ansi colors
 REVERSE="\033[7m"
 RESET="\033[m"
 BOLD="\033[1m"
@@ -15,7 +15,7 @@ STRIKE="\033[9m"
 ITALIC="\033[3m"
 UNDER="\033[4m"
 
-#Echoed ansi colors
+# Echoed ansi colors
 E_REVERSE=$(echo "\033[7m")
 E_RESET=$(echo "\033[m")
 E_BOLD=$(echo "\033[1m")
@@ -29,20 +29,20 @@ E_CYAN_FG=$(echo "\033[36m")
 E_WHITE_FG=$(echo "\033[37m")
 E_STRIKE=$(echo "\033[9m")
 
-#Declarations
+# Declarations
 typeset -a _MARKED=()
 typeset -a _LOCAL_LIST=()
 typeset -a _FILTER
 
-#Constants
+# Constants
 _LIB_DIR=/usr/local/lib
 
-#Imports
+# Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/GET_DEPS.zsh
 
-#Functions
+# Functions
 action_do () {
 	local M X
 	local RC
@@ -170,7 +170,7 @@ shift $((OPTIND -1))
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ ${#} -ne 0 ]] && SEARCHTERM=(${@}) || SEARCHTERM=''
 
-#Set content
+# Set content
 [[ ${DIRS} == "true" ]] && OBJTYPE="directory" || OBJTYPE="file"
 
 RAWPATH=$(path_get_raw)
@@ -180,11 +180,11 @@ FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
 if [[ ${DIRS} == 'true' ]];then
-	RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path ${FPATH}" 2>/dev/null)}") #double quote surrounding command
+	RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path ${FPATH}" 2>/dev/null)}") # Double quote surrounding command
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} find ${FPATH} -maxdepth 1 ${FGLOB} -type d ! -path ${FPATH}"
 else
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} find ${FPATH} -maxdepth 1 ${FGLOB} -type f ! -path ${FPATH}"
-	RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} -type f,l ! -path ${FPATH}" 2>/dev/null)}") #double quote surrounding command
+	RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} -type f,l ! -path ${FPATH}" 2>/dev/null)}") # Double quote surrounding command
 fi
 
 for R in ${(on)RAWLIST};do
@@ -209,12 +209,12 @@ else
 	_FILTER='None'
 fi
 
-#set headings
+# Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize ${OBJTYPE} ${#_LIST}) Path:${WHITE_FG}%-*s${RESET}  Filter:${WHITE_FG}%s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} ${PATHLBL} "${_FILTER[1,60]}" ${SELECTED_COUNT}'
 list_add_header_break
 list_set_header_break_color ${RED_FG}
 
-#set line item
+# Set line item
 list_set_line_item ' 
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})" 
 '
@@ -223,13 +223,13 @@ list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_
 list_set_action_msgs delete file
 
 while true;do
-	#display list
+	# Display list
 	list_select ${(on)_LOCAL_LIST}
 	RC=${?}
 
 	[[ ${RC} -eq 0 ]] && break
 
-	#get user selections
+	# Get user selections
 	_MARKED=($(list_get_selected))
 	
 	if [[ $(list_get_selected_count) -ne 0 ]];then
