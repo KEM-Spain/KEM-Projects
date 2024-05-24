@@ -387,6 +387,7 @@ list_set_action_msgs delete file
 list_set_barlines true
 list_set_selectable false
 list_set_sortable true
+list_set_max_sort_col 2
 
 while true;do
 	# Get selection

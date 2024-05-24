@@ -476,8 +476,6 @@ list_repaint_section () {
 	local LINE_SNIP=''
 	local R
 
- # TODO: if list does not reach MC[X] do msg_box_clear instead
-	 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	DISPLAY_ROWS=$(( ${_LIST_INDEX_RANGE[2]} - ${_LIST_INDEX_RANGE[1]} +1 ))
@@ -793,7 +791,7 @@ list_select () {
 				n) DIR_KEY=n;PAGE_BREAK=true;break;; # 'n' Next page
 				p) DIR_KEY=p;PAGE_BREAK=true;break;; # 'p' Prev page
 				q) exit_request;; # 'q' Quit app request
-				s) list_call_sort;_HOLD_PAGE=true;break;; # 's' Sort
+				s) [[ ${_LIST_IS_SORTABLE} == 'true' ]] && list_call_sort;_HOLD_PAGE=true;break;; # 's' Sort
 				t) DIR_KEY=fp;PAGE_BREAK=true;break;; # 't' Top row first page
 				z) return -1;; # 'z' Quit loop
 				${_CB_KEY}) ${_KEY_CALLBACK_FUNC};return -2;; # Custom callback key

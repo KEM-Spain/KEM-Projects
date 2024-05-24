@@ -199,12 +199,16 @@ get_keys () {
 							NUM[${#NUM}]=()
 							echo -n " ">&2
 						fi;;
-			      *) RESP=$(printf '%d' "'${KEY}");; # Ascii letter value
+			*) RESP=$(printf '%d' "'${KEY}");; # Ascii letter value
 		esac
 
 		if [[ ${RESP} != "?" ]];then
 			if [[ -z ${NUM} ]];then
-				[[ ${RESP} -lt 65 ]] && echo ${RESP} || echo $(get_key_trans ${RESP})
+				case ${RESP} in
+					<48-57>) RESP=${KEY};; # Numeric
+					<65-122>) RESP=${KEY};; # Alpha
+				esac
+				echo ${RESP}
 			else
 				echo "K${(j::)NUM}"
 			fi
@@ -213,53 +217,6 @@ get_keys () {
 	done
 
 	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
-}
-
-get_key_trans () {
-	local KEY_IN=${1}
-	local KEY_OUT
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	case ${KEY_IN} in
-		32) KEY_OUT=32;; # Space
-		47) KEY_OUT=47;; # Forward Slash
-		60) KEY_OUT=60;; # Less Than
-		62) KEY_OUT=62;; # Greater Than
-		65) KEY_OUT='A';; # A
-		68) KEY_OUT='D';; # D
-		69) KEY_OUT='E';; # E
-		97) KEY_OUT='a';; # a
-		98) KEY_OUT='b';; # b
-		99) KEY_OUT='c';; # c
-		100) KEY_OUT='d';; # d
-		101) KEY_OUT='e';; # e
-		102) KEY_OUT='f';; # f
-		103) KEY_OUT='g';; # g
-		104) KEY_OUT='h';; # h
-		105) KEY_OUT='l';; # i
-		106) KEY_OUT='j';; # j
-		107) KEY_OUT='k';; # k
-		108) KEY_OUT='l';; # l
-		109) KEY_OUT='m';; # m
-		110) KEY_OUT='n';; # n
-		111) KEY_OUT='o';; # o
-		112) KEY_OUT='p';; # p
-		113) KEY_OUT='q';; # q
-		114) KEY_OUT='r';; # r
-		115) KEY_OUT='s';; # s
-		116) KEY_OUT='t';; # t
-		117) KEY_OUT='u';; # u
-		118) KEY_OUT='v';; # v
-		119) KEY_OUT='w';; # w
-		120) KEY_OUT='x';; # x
-		121) KEY_OUT='y';; # y
-		122) KEY_OUT='z';; # z
-		*) KEY_OUT=${KEY_IN};;
-	esac
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: received:${KEY_IN}, returning:${KEY_OUT}"
-	echo ${KEY_OUT}
 }
 
 inline_vi_edit () {

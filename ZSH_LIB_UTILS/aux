@@ -115,7 +115,7 @@ opt_type () {
 }
 
 read -r -d '' DESC<<EOF
-Show processes with ability to kill
+Show/kill processes
 \tIf a <SEARCHTERM> is entered, list is limited to any matching commands 
 \tBy default, only processes for the current user are displayed
 EOF

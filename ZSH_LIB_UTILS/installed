@@ -220,7 +220,8 @@ for K in ${_PKG_KEYS};do
 	((PNDX--))
 	_LOCAL_LIST+=${K}
 	[[ ${#K} -gt ${LONGEST_PKG} ]] && LONGEST_PKG=${#K}
-	DESC[${K}]="$(apt-cache show ${K} 2>/dev/null | grep -i description-en | head -n 1 | sed 's/description\-en://gI')"
+	DESC[${K}]="$(apt-cache show ${K} 2>/dev/null | grep --color=never -i description | head -n 1 | sed 's/description.*: //gI')"
+	[[ -z ${DESC[${K}]} ]] && DESC[${K}]="No description available"
 	[[ ${#DESC[${K}]} -gt ${LONGEST_DESC} ]] && LONGEST_DESC=${#DESC[${K}]}
 done
 
