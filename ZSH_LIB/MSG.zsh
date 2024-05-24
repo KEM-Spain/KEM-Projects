@@ -50,6 +50,7 @@ msg_box () {
 	# OPTIONS
 	local -a MSG=()
 	local BOX_HEIGHT=0
+	local FOLD_WIDTH=${MAX_LINE_WIDTH}
 	local FRAME_COLOR=''
 	local BOX_WIDTH=0
 	local CLEAR_MSG=false
@@ -70,7 +71,7 @@ msg_box () {
 	local TEXT_STYLE=c # Default to center
 	local TIMEOUT=0
 
-	local OPTSTR=":DH:P:O:CRch:inpqruj:s:t:w:x:y:"
+	local OPTSTR=":DH:P:O:CRcf:h:inpqruj:s:t:w:x:y:"
 	OPTIND=0
 
 	while getopts ${OPTSTR} OPTION;do
@@ -82,6 +83,7 @@ msg_box () {
 			P) PROMPT_TEXT=${OPTARG};;
 			R) _CONT_DATA[BOX]=false;;
 			c) CLEAR_MSG=true;;
+			f) FOLD_WIDTH=${OPTARG};;
 			h) BOX_HEIGHT=${OPTARG};;
 			i) IGNORE_MARKUP=true;;
 			j) TEXT_STYLE=${OPTARG};;
@@ -160,7 +162,7 @@ msg_box () {
 		K=$(tr -d '[:space:]' <<<${M})
 		[[ -z ${K} ]] && continue
 		if [[ ${#M} -gt ${MAX_LINE_WIDTH} ]];then
-			MSG_FOLD=("${(f)$(fold -s -w${MAX_LINE_WIDTH} <<<${M})}")
+			MSG_FOLD=("${(f)$(fold -s -w${FOLD_WIDTH} <<<${M})}")
 			for T in ${MSG_FOLD};do
 				MSGS+=${T}
 				((DISPLAY_ROWS++))
@@ -366,20 +368,14 @@ msg_box () {
 			if [[ $((DTL_NDX % BREAK_POINT)) -eq 0 ]];then
 				if [[ ${PROMPT_USER} == "true" ]];then
 					[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
-					read -sk1 KEY
-					[[ $(xxd -p <<<${KEY}) == '1b0a' ]] && KEY=esc
-					case ${KEY} in
-						[A-Za-z0-9]) K=${KEY};;
-						esc) K=${KEY};;
-						*) K=n;; # Default to no
-					esac 
-					[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
-					_MSG_KEY=${K} # Set global key
-					if [[ ${PAGING} == 'true' ]];then
-						[[ ${_MSG_KEY} == 'esc' ]] && break # Exit msg window
-						[[ ${_MSG_KEY} == 'y' ]] && break # Exit msg window
-						[[ ${_MSG_KEY} == 'q' ]] && exit_request
-						MSG_NDX=$(msg_paging ${KEY} ${MSG_NDX} ${#MSGS} ${DISPLAY_ROWS} ${HEADER_LINES})
+					_MSG_KEY=$(get_keys)
+					if [[ ${PAGING} == 'true' ]];then # Intercept interrupt keys or pass to msg_paging
+						case ${_MSG_KEY} in
+							27) break;; # esc - Exit msg window
+							q) exit_request;; # 'q' - Exit request
+							y) break;; # 'y' - Exit msg window
+						esac
+						MSG_NDX=$(msg_paging ${_MSG_KEY} ${MSG_NDX} ${#MSGS} ${DISPLAY_ROWS} ${HEADER_LINES})
 					fi
 					[[ -z ${_MSG_KEY} ]] && _MSG_KEY=n # Default to no
 				fi
@@ -577,10 +573,10 @@ msg_paging () {
 	[[ ${PARTIAL} -ne 0 ]] && ((TL_PAGES++))
 
 	case ${KEY} in
-		t|h) echo $((HEADER_LINES));; # Top
-		b|l) echo $(( ((TL_PAGES-1) * DETAIL_LINES) + HEADER_LINES));; # Bottom
-		u|k) [[ $((NDX-(DETAIL_LINES*2))) -lt ${HEADER_LINES} ]] && echo ${HEADER_LINES} || echo $((NDX-(DETAIL_LINES*2)));; # Page up
-		d|j) echo ${NDX};; # Page down (default)
+		t|h) echo $((HEADER_LINES));; # Top 't|h'
+		b|l) echo $(( ((TL_PAGES-1) * DETAIL_LINES) + HEADER_LINES));; # Bottom 'b|l'
+		u|k) [[ $((NDX-(DETAIL_LINES*2))) -lt ${HEADER_LINES} ]] && echo ${HEADER_LINES} || echo $((NDX-(DETAIL_LINES*2)));; # Page up 'u|k'
+		d|j) echo ${NDX};; # Page down (default) 'd|j'
 		*) echo ${NDX};;
 	esac
 }

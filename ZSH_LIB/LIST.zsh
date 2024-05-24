@@ -783,19 +783,19 @@ list_select () {
 									DIR_KEY=${_TARGET_PAGE}; _CURRENT_ARRAY=${_TARGET_NDX}; _CURRENT_CURSOR=${_TARGET_CURSOR}; _HOLD_CURSOR=true; PAGE_BREAK=true; break
 								fi
 								;;
-				97) [[ ${_SELECTABLE} == 'true' ]] && list_toggle_all ${PAGE_RANGE_TOP} ${TOP_OFFSET} ${MAX_DISPLAY_ROWS} ${MAX_ITEM} ${PAGE} ${MAX_PAGE} toggle;; # 'a' Toggle all
-				98) DIR_KEY=lp;PAGE_BREAK=true;break;; # 'b' Top row last page
-				99) [[ ${_SELECTABLE} == 'true' ]] && list_toggle_all ${PAGE_RANGE_TOP} ${TOP_OFFSET} ${MAX_DISPLAY_ROWS} ${MAX_ITEM} ${PAGE} ${MAX_PAGE} off;; # 'c' Clear
-				104) DIR_KEY=t;CURSOR_NDX=1;_LIST_NDX=${PAGE_RANGE_TOP};; # 'h' Top Row current page
-				106) DIR_KEY=d;((CURSOR_NDX++));_LIST_NDX=$(list_set_index ${DIR_KEY} ${_LIST_NDX} ${PAGE_RANGE_TOP} ${PAGE_RANGE_BOT} ${MAX_ITEM});; # 'j' Next row
-				107) DIR_KEY=u;((CURSOR_NDX--));_LIST_NDX=$(list_set_index ${DIR_KEY} ${_LIST_NDX} ${PAGE_RANGE_TOP} ${PAGE_RANGE_BOT} ${MAX_ITEM});; # 'k' Prev row
-				108) DIR_KEY=b;CURSOR_NDX=${MAX_CURSOR};_LIST_NDX=${PAGE_RANGE_BOT};; # 'l' Bottom Row current page
-				110) DIR_KEY=n;PAGE_BREAK=true;break;; # 'n' Next page
-				112) DIR_KEY=p;PAGE_BREAK=true;break;; # 'p' Prev page
-				113) exit_request;; # 'q' Quit app request
-				115) list_call_sort;_HOLD_PAGE=true;break;; # 's' Sort
-				116) DIR_KEY=fp;PAGE_BREAK=true;break;; # 't' Top row first page
-				122) return -1;; # 'z' Quit loop
+				a) [[ ${_SELECTABLE} == 'true' ]] && list_toggle_all ${PAGE_RANGE_TOP} ${TOP_OFFSET} ${MAX_DISPLAY_ROWS} ${MAX_ITEM} ${PAGE} ${MAX_PAGE} toggle;; # 'a' Toggle all
+				b) DIR_KEY=lp;PAGE_BREAK=true;break;; # 'b' Top row last page
+				c) [[ ${_SELECTABLE} == 'true' ]] && list_toggle_all ${PAGE_RANGE_TOP} ${TOP_OFFSET} ${MAX_DISPLAY_ROWS} ${MAX_ITEM} ${PAGE} ${MAX_PAGE} off;; # 'c' Clear
+				h) DIR_KEY=t;CURSOR_NDX=1;_LIST_NDX=${PAGE_RANGE_TOP};; # 'h' Top Row current page
+				j) DIR_KEY=d;((CURSOR_NDX++));_LIST_NDX=$(list_set_index ${DIR_KEY} ${_LIST_NDX} ${PAGE_RANGE_TOP} ${PAGE_RANGE_BOT} ${MAX_ITEM});; # 'j' Next row
+				k) DIR_KEY=u;((CURSOR_NDX--));_LIST_NDX=$(list_set_index ${DIR_KEY} ${_LIST_NDX} ${PAGE_RANGE_TOP} ${PAGE_RANGE_BOT} ${MAX_ITEM});; # 'k' Prev row
+				l) DIR_KEY=b;CURSOR_NDX=${MAX_CURSOR};_LIST_NDX=${PAGE_RANGE_BOT};; # 'l' Bottom Row current page
+				n) DIR_KEY=n;PAGE_BREAK=true;break;; # 'n' Next page
+				p) DIR_KEY=p;PAGE_BREAK=true;break;; # 'p' Prev page
+				q) exit_request;; # 'q' Quit app request
+				s) list_call_sort;_HOLD_PAGE=true;break;; # 's' Sort
+				t) DIR_KEY=fp;PAGE_BREAK=true;break;; # 't' Top row first page
+				z) return -1;; # 'z' Quit loop
 				${_CB_KEY}) ${_KEY_CALLBACK_FUNC};return -2;; # Custom callback key
 				0) SELECTED_COUNT=$(list_get_selected_count); # Enter
 					_HOLD_PAGE=true;

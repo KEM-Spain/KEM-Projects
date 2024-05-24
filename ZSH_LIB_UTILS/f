@@ -84,6 +84,7 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug; when repeated increases level"
 	echo -e "${WHITE_FG}-d${RESET} depth; when repeated increases depth"
+	echo -e "${WHITE_FG}-f${RESET} path (default pwd)"
 	echo -e "${WHITE_FG}-l${RESET} add listing detail"
 	echo -e "${WHITE_FG}-r${RESET} arg is a 'regex' (PWD)"
 	echo -e "${WHITE_FG}-R${RESET} arg is a 'regex' (ANY)"
@@ -96,13 +97,13 @@ usage () {
 
 typeset -a OPTIONS
 
-CURDIR=false
 LISTING=false
-OBJ_TYPE=''
+OBJ_TYPE="-type f"
 OPTIND=0
-IS_REGEX=false
+REGEX=''
+FIND_PATH=${PWD}
 
-OPTSTR=":HDdlr:R:t:"
+OPTSTR=":HDdp:lr:t:"
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
@@ -110,8 +111,8 @@ while getopts ${OPTSTR} OPTION;do
      D) dbg_set_level;;
      d) depth_set_level;;
      l) LISTING=true;;
-     r) REGEX=${OPTARG};PWD_REGEX=true;IS_REGEX=true;;
-     R) REGEX=${OPTARG};IS_REGEX=true;;
+     p) FIND_PATH=${OPTARG};;
+     r) REGEX="-regex ${OPTARG}";;
      t) OBJ_TYPE="-type ${OPTARG}";;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
@@ -125,29 +126,14 @@ shift $((OPTIND -1))
 MAXDEPTH=${_DEPTH}
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LISTING:${LISTING}\nMAXDEPTH:${MAXDEPTH}\nREGEX:${REGEX}\nOBJ_TYPE:${OBJ_TYPE:-both}"
-
-if [[ ${IS_REGEX} == 'true' ]];then
-	[[ ${OPTIONS[(i)d]} -le ${#OPTIONS} ]] && usage "-d is incompatible with -r (pwd only)"
-
-#	fc -R # Read history
-#	RAW_CMD_LINE=("${(f)$(fc -lnr | head -1 | str_trim)}") # Parse raw cmdline
-#	RAW_ARGS=$(echo ${RAW_CMD_LINE} | rev | cut -d' ' -f1 | rev) # Grab the args
-
-	[[ ${PWD_REGEX} == 'true' ]] && REGEX_PATTERN="\\\.\\\/${REGEX}.*" || REGEX_PATTERN="${REGEX}" 
-
-	REGEX_PATTERN=${REGEX_PATTERN:Q}
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} REGEX_PATTERN:${(Q)REGEX_PATTERN}"
-
-	CMD="sudo find -L . -maxdepth ${MAXDEPTH} -regextype posix-extended -regex '${REGEX_PATTERN}' ${OBJ_TYPE}"
-	# LIST=("${(f)$(eval "sudo find -L . -maxdepth ${MAXDEPTH} -regextype posix-extended -regex '${REGEX_PATTERN}' ${OBJ_TYPE}")}")
-else
-	[[ ${#} -eq 0 ]] && usage "Missing argument:$(opt_type s)"
-	CMD="sudo find -L . -maxdepth ${MAXDEPTH} -iname '*${(q)1}*' ${OBJ_TYPE}"
-	# LIST=("${(f)$(eval "sudo find -L . -maxdepth ${MAXDEPTH} -iname '*${(q)1}*' ${OBJ_TYPE}")}")
-fi
+CMD="sudo find ${FIND_PATH} -maxdepth ${MAXDEPTH} -iname '${(q)1}*' ${REGEX} ${OBJ_TYPE}"
 
 LIST=("${(f)$(eval ${CMD})}")
+if ! arr_is_populated "${LIST}" ;then
+	echo "\nCommand: ${CMD}"
+	exit_leave $(msg_warn "No results for query")
+fi
+
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} CMD:${CMD}"
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LIST COUNT:${#LIST}"
 

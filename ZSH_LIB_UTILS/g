@@ -134,7 +134,6 @@ SEARCHTERM=${@}
 
 # Execution
 [[ ${_DEBUG} -eq 0 && FILELIST == 'false' ]] && do_smcup
-#[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ -z ${SEARCHTERM} ]] && usage "Missing argument:<SEARCHTERM>"
 [[ ! -t 0 ]] && exit_leave $(msg_warn "Unable to accept piped input")
@@ -146,7 +145,7 @@ if [[ -n ${MY_FILE} ]];then # If file was passed
 		MY_GREP_ARG="${MY_PATH}/${MY_FILE}" # Limit to file name
 	fi
 else
-	MY_GREP_ARG="${MY_PATH}/*" # No file name was passed - all files in path
+	MY_GREP_ARG="${MY_PATH}/(*|.*)" # No file name was passed - all files in path
 fi
 
 CMD=$(echo "grep -H -r -P -I -d skip -D skip ${MAX_MATCHES} --color=never ${RECURSE_OPT} ${LINENUM_OPT} ${EXCLUDE_OPT} ${ONLY_OPT} ${WORD_OPT} ${CASE_OPT} '"${SEARCHTERM}"' ${MY_GREP_ARG} 2>/dev/null")

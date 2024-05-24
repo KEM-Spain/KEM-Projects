@@ -675,9 +675,12 @@ ___EOF
 		fi
 
 		DU=$(sudo du -s 2>/dev/null | sed -e 's/\t/ /' -e 's/\./Total (including non directories)/g')
-		SZ=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f1)
+		TSZ=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f1) # Total PWD size in bytes
+
+		DU=$(sudo du -sh 2>/dev/null | sed -e 's/\t/ /' -e 's/\./Total (including non directories)/g')
+		SZ=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f1) # Total PWD size in human readable
 		FN=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f2)
-		HU=$(numfmt --to=iec $((${SZ}*1024)))
+		HU=$(numfmt --to=iec $((${TSZ}*1024))) # For percentage
 
 		if [[ ${DIRCNT} -ne 0 ]];then
 			printf "\\u2500%.0s" {1..$((LONGEST+17))}

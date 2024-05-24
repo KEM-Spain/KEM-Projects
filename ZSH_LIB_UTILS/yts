@@ -25,6 +25,7 @@ typeset -A COORDS=(X 15 Y 38 H 10 W 86)
 typeset -A _DOWNLOADS
 typeset -A _FAILED
 typeset -A _FAVORITE_ENGINE
+typeset -A _FAVORITE_OPTS
 typeset -A _FIELD_LEN
 typeset -A _FUTURE
 typeset -A _REJECTS
@@ -35,7 +36,7 @@ typeset -a _LOCAL_LIST
 #_JS_SCRIPT=./yts.js
 _ACTION=download
 _DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
-_ERROR_LIMIT=15
+_ERROR_LIMIT=10
 _ERROR_LOG=/tmp/yts.err
 _FIELD_LEN[age]=30
 _FIELD_LEN[agetime]=40
@@ -74,9 +75,11 @@ action_do () {
 	local DEST_1=''
 	local DEST_2=''
 	local DL_CNT=0
+	local DL_TXT=''
 	local EMSG=''
 	local ERROR_CNT=0
 	local ETA=''
+	local FRAME_PAD=2
 	local HAD_ERROR=false
 	local HDRS_OUT=false
 	local JOB_STALL=10
@@ -94,6 +97,7 @@ action_do () {
 	local SCAN_LIMIT=0
 	local TITLE=''
 	local URL=''
+	local X=0
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -143,8 +147,11 @@ action_do () {
 			fi
 
 			# Scan for resume
+			RESUMED_TAG=''
 			LOG_LINE=$(grep -m1 -i "resuming download" ${g_LOG})
-			[[ ${?} -eq 0 ]] && RESUMED_TAG='(<w>resumed<N>)' || RESUMED_TAG=''
+			if [[ ${?} -eq 0 ]];then
+				RESUMED_TAG=' (<w>resumed<N>)'
+			fi
 
 			# Get headers
 			LOG_LINE=$(grep -m1 -i "destination" ${g_LOG})
@@ -152,7 +159,10 @@ action_do () {
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N> ${RESUMED_TAG}"
+				DL_TXT="<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
+				X=$(( ${#$(msg_nomarkup ${DL_TXT})} ))
+				[[ $((X + FRAME_PAD)) -gt ${COORDS[W]} ]] && COORDS[W]=$((X + FRAME_PAD)) # Adjust frame width if needed
+				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} ${DL_TXT}
 				msg_box -C -jl "<m>Downloading: <c>${DEST_2[1,60]}<N>"
 				msg_box -C -jl "<m>$(str_unicode_line $((COORDS[W]-4)))<N>"
 				HDRS_OUT=true
@@ -179,16 +189,16 @@ action_do () {
 				break # While loop
 			fi
 
-			if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
+			if [[ ${_DOWNLOADS[${M}]} != 'true' ]];then
 				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_LOG} | tail -1) 
 				
 				# Scan for errors
-				grep -q -i 'error:\|transporterror' <<<${LOG_LINE}
+				grep -q -i 'error' <<<${LOG_LINE}
 				if [[ ${?} -eq 0 ]];then
 					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive:
 						TITLE=$(get_field title ${M})	
-						EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>" 
-						msg_box -p -PK "${EMSG}"
+						EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>|${LOG_LINE}" 
+						msg_box -f80 -p -PK "${EMSG}"
 						_FAILED[${M}]=true
 						_DOWNLOADS[${M}]=false
 						ERROR_CNT=0 # Reset
@@ -199,13 +209,13 @@ action_do () {
 											break 2 # While loop
 						;;
 						*unreachable*|*retrying*|*timed\ out*)	
-							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<w>${ERROR_CNT}<N>"
-							echo "$(get_field author ${M}) - Caught:"${L: -65} >> ${_ERROR_LOG}
+							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+							echo "$(get_field author ${M}) - Caught:"${LOG_LINE} >> ${_ERROR_LOG}
 							((ERROR_CNT++))
 							HAD_ERROR=true
 						;;
-						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<w>${ERROR_CNT}<N>"
-							echo "$(get_field author ${M}) - Uncaught:"${L: -65} >> ${_ERROR_LOG}
+						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+							echo "$(get_field author ${M}) - Uncaught:"${LOG_LINE} >> ${_ERROR_LOG}
 							((ERROR_CNT++))
 							HAD_ERROR=true
 						;;
@@ -216,33 +226,36 @@ action_do () {
 				fi
 
 				# Scan for progress
-				grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE}
-				if [[ ${?} -eq 0 ]];then
-					ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
-					if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
-						case ${ETA:l} in
-							*rumbleembed*) continue;;
-							*mib/s*) LINE_COLOR='<w>';;
-							*kib/s*) LINE_COLOR='<B><y>';;
-							*100%*) LINE_COLOR='<B><g>';;
-							*) LINE_COLOR='';;
-						esac
-						[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
+				if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
+					grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE}
+					if [[ ${?} -eq 0 ]];then
+						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
+						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
+							case ${ETA:l} in
+								*rumbleembed*) continue;;
+								*mib/s*) LINE_COLOR='<w>';;
+								*kib/s*) LINE_COLOR='<B><y>';;
+								*100%*) LINE_COLOR='<B><g>';;
+								*) LINE_COLOR='';;
+							esac
+							[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
 
-						msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
+							msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
 
-						if [[ ${ETA} =~ '100%' ]];then
-							if [[ ${#_MARKED} -gt 1 ]];then
-								msg_box -C -jc "<w>$(str_unicode_line 10)<N>"
-								if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-									msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+							if [[ ${ETA} =~ '100%' ]];then
+								if [[ ${#_MARKED} -gt 1 ]];then
+									msg_box -C -jc "<w>$(str_unicode_line 10)<N>"
+									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+										msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+									fi
 								fi
+								_DOWNLOADS[${M}]=true
+								post_process
+								break # Exit log scan
 							fi
-							_DOWNLOADS[${M}]=true
-							break # Exit log scan
+						else
+							echo "LOG_LINE:${LOG_LINE}" >> /tmp/${g_LOG:h}-ETA.dbg
 						fi
-					else
-						echo "LOG_LINE:${LOG_LINE}" >> /tmp/${g_LOG:h}-ETA.dbg
 					fi
 				fi
 			fi
@@ -256,7 +269,6 @@ action_do () {
 	for M in ${_MARKED};do
 		if [[ ${_DOWNLOADS[${M}]} == 'true' ]];then
 			list_set_selected ${M} ${_GHOST_ROW}
-			post_process
 		else
 			list_set_selected ${M} ${_AVAIL_ROW}
 		fi
@@ -307,7 +319,8 @@ delete_favorite () {
 get_favorite () {
 	local -a _DISPLAY_LIST=()
 	local LINE
-	local F P
+	local FAV
+	local PLATFORM
 	local MSG
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -318,13 +331,13 @@ get_favorite () {
 		if [[ -s ${_YTS_FAVORITES} ]];then
 			_DISPLAY_LIST=()
 			while read LINE;do
-				F=$(cut -d'|' -f1 <<<${LINE})
-				P=$(cut -d'|' -f2 <<<${LINE})
-				_FAVORITE_ENGINE[${F}]=${P}
+				FAV=$(cut -d'|' -f1 <<<${LINE})
+				PLATFORM=$(cut -d'|' -f2 <<<${LINE})
+				_FAVORITE_ENGINE[${FAV}]=${PLATFORM}
 				if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
-					[[ ${P:l} == 'r' || ${P:l} == 'rl' ]] && _DISPLAY_LIST+=${F}
+					[[ ${PLATFORM:l} == 'r' || ${PLATFORM:l} == 'rl' ]] && _DISPLAY_LIST+=${FAV}
 				else
-					[[ ${P:l} == 'y' ]] && _DISPLAY_LIST+=${F}
+					[[ ${PLATFORM:l} == 'y' || ${PLATFORM:l} == 'yns' ]] && _DISPLAY_LIST+=${FAV} # No strict requested
 				fi
 			done < ${_YTS_FAVORITES}
 		else
@@ -561,7 +574,7 @@ select_download () {
 		SEARCHTYPE=Live
 		list_set_sort_cols 1 4 2 2 3 3 # Age, author, title
 	elif [[ ${g_QRY_ENGINE:l} == 'youtube' && ${g_STRICT} == 'true' ]];then
-		SEARCHTYPE=${g_STRICT_MSG}
+		SEARCHTYPE="Strict (${g_STRICT_MSG})"
 		list_set_sort_cols '' # Age, author, title
 	fi
 
@@ -623,13 +636,19 @@ set_favorite () {
 
 	[[ -z ${#FAV} ]] && return
 
-	msg_box "Saving favorite: ${FAV}"
 
+# R   - Rumble  - general query
+# RL  - Rumble  - livestream query
+# Y   - YouTube - general query
+# YNS - YouTube - No strict - strict is default
+	
 	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
 		[[ ${g_LIVE} == 'true' ]] && FAV="${FAV}|RL" || FAV="${FAV}|R"
 	else
-		FAV="${FAV}|Y"
+		[[ ${g_STRICT} == 'false' ]] && FAV="${FAV}|YNS" || FAV="${FAV}|Y"
 	fi
+
+	msg_box -t.2 "Saving favorite: ${FAV}"
 
 	HISTORY+=${FAV}
 
@@ -701,9 +720,11 @@ youtube () {
 	local LINE
 	local PROXY_CMD
 	local NDX
+	local STR
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
+	[[ ${_FAVORITE_ENGINE[${1}]:l} == 'yns' ]] && g_STRICT=false && g_PROXY_CMD=$(sed 's/\-s//' <<<${g_PROXY_CMD}) # No strict requested
 	[[ -n ${g_FAVORITE} ]] && PROXY_CMD="${g_PROXY_CMD} ${g_FAVORITE:q}" || PROXY_CMD="${g_PROXY_CMD}"
 
 	# Command line processing is in the js script - only proxy the script
@@ -718,10 +739,12 @@ youtube () {
 		[[ ${LINE:l} =~ 'rejected' ]] && _REJECTS[${NDX}]=true || _REJECTS[${NDX}]=false
 		[[ ${LINE:l} =~ 'usage' && ${DATA} != 'true' ]] && DATA=info
 		[[ ${LINE:l} =~ 'error' && ${DATA} != 'true' ]] && DATA=info
-		[[ ${_REJECTS[${NDX}]} == 'false' && ${DATA} == 'true' ]] && _LOCAL_LIST+=${LINE:s/Streamed //}
+		STR=$(iconv -f utf-8 -t ascii//translit <<<${LINE}) # Scrub non ascii
+		[[ ${STR} =~ '[?][?][?]*' ]] && continue # Skip garbage items
+		[[ ${_REJECTS[${NDX}]} == 'false' && ${DATA} == 'true' ]] && _LOCAL_LIST+=${STR:s/Streamed //}
 	done< <(eval ${PROXY_CMD})
 
-	[[ ${g_STRICT} == 'true' ]] && g_STRICT_MSG="STRICT REJECTS:$(total_rejects ${NDX})" || g_STRICT_MSG=''
+	[[ ${g_STRICT} == 'true' ]] && g_STRICT_MSG="$(total_rejects ${NDX})" || g_STRICT_MSG=''
 
 	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}"
 
@@ -733,7 +756,7 @@ youtube () {
 
 	# Display search results
 	if ! arr_is_populated "${_LOCAL_LIST}";then
-		msg_box -p "No data for query:${g_PROXY_CMD}|${g_STRICT_MSG}"
+		msg_box -p -PK "No data for query:${g_PROXY_CMD}|${g_STRICT_MSG}|Use option '<w>-S<N>' to disable strict filtering"
 		return 1
 	fi
 
@@ -744,7 +767,13 @@ clear_log () {
 	local FROM=${1}
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-	[[ ${_DEBUG} -eq 0 && -e ${g_LOG} ]] && rm -f ${g_LOG} && echo "log ${g_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg
+
+	if [[ ${_DEBUG} -eq 0 && -e ${g_LOG} ]];then
+		rm -f ${g_LOG}
+		echo "log ${g_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg # Debug is NOT active - clear the log
+	else
+		echo "DEBUG active - log ${g_LOG} was retained for:${g_FAVORITE}" >> /tmp/yt.log.dbg # Debug is active - retain the log
+	fi
 }
 
 # Imports
@@ -755,9 +784,9 @@ Query either Youtube or Rumble for videos.
 \tor executes and parses Rumble queries.  Queries provide
 \ta selection list of matching videos. Following selection, 
 \titems are downloaded via yt-dlp. By default, Rumble queries
-\tfor livestreams and falls back to videos if no livestreams
-\tare found. The -L option will override this behavior. When
-\tsaving favorites, both query and platform are recorded.
+\tare for livestreams and fall back to general search if no 
+\tlivestreams are found. The -L option will override this behavior. 
+\tWhen saving favorites, query, platform, and search type are recorded.
 \tHidden keys: 'l' during menu selection will toggle livestreams.
 \t             'r' during download will reset the connection.
 EOF
@@ -795,20 +824,21 @@ usage () {
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-L${RESET} toggle stored livestream option (Rumble)"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
+	echo -e "${WHITE_FG}-S${RESET} Disable strict filtering (YouTube)"
 	echo -e "${WHITE_FG}-V${RESET} yt-search version (YouTube)"
 	echo -e "${WHITE_FG}-l${RESET} search for livestreams (Rumble)"
 	echo -e "${WHITE_FG}-a${RESET} age filter [all,min,hour,day,week,month,year] (YouTube)"
-	echo -e "${WHITE_FG}-s${RESET} strict filter [author must match query] (YouTube)"
+	echo -e "${WHITE_FG}-s${RESET} disable strict filter [author must match query] (YouTube)"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 }
 
-OPTSTR=":HDRVLla:s"
+OPTSTR=":HDRSVLla:s"
 OPTIND=0
 
 HELP_OPT=false
 VERSION_OPT=false
-g_STRICT=false
+g_STRICT=true
 g_QRY_ENGINE=youtube
 g_LIVE_OPT=false
 g_LIVE=false
@@ -819,6 +849,7 @@ while getopts ${OPTSTR} OPTION;do
      D) dbg_set_level;;
      V) VERSION_OPT=true;;
      R) g_QRY_ENGINE=rumble;;
+     S) g_STRICT=false;;
      l) g_LIVE=true;;
      a) AGE=${OPTARG};;
      s) g_STRICT=true;;
@@ -850,9 +881,12 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 	RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
 	RCL=$(sed 's/\-h//' <<<${RCL}) # Front end option only
 	RCL=$(sed 's/\-D//' <<<${RCL}) # Front end option only
+	RCL=$(sed 's/\-S//' <<<${RCL}) # Front end option only
 	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
 	RCL=$(sed 's/\-l//' <<<${RCL}) # Rumble only option
 
+	[[ ${g_STRICT} == 'true' ]] && RCL="${RCL} -s"
+	
 	[[ ${_DEBUG} -ne 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # Front end option only
 
 	if [[ ${VERSION_OPT} == 'true'  ]];then
@@ -865,8 +899,9 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 
 	ARG="${@}"
 	if [[ -n ${ARG} ]];then
-		RCL=$(sed "s/${ARG}//" <<<${RCL})
-		RCL="${RCL} ${ARG:q}" # Quote any multi-word searches
+		RCL="${RCL:Q}" # Remove any quotes
+		RCL=$(sed "s/${ARG}//" <<<${RCL}) # Remove arg as passed
+		RCL="${RCL} ${ARG:q}" # Quote arg for any multi-word searches
 	fi
 
 	g_PROXY_CMD="node ${_JS_SCRIPT} ${RCL}"

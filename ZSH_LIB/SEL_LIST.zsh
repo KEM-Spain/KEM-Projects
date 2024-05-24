@@ -273,17 +273,17 @@ selection_list () {
 			_SELECTION_KEY='?'
 			case ${KEY} in
 				0) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && break 2;;
-				100) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='d' && break 2;;
-				108) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='l' && break 2;;
-				114) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='r' && break 2;;
-				121) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='y' && break 2;;
-				110) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
-				112) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
-				113) exit_request $(selection_list_pos_exitbox);;
-				1|107) ((CURSOR_ROW--));((CURSOR_NDX--));DIR='U';;
-				2|106) ((CURSOR_ROW++));((CURSOR_NDX++));DIR='D';;
-				3|116) DIR='T';;
-				4|98) DIR='B';;
+				d) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='d' && break 2;;
+				l) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='l' && break 2;;
+				r) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='r' && break 2;;
+				y) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='y' && break 2;;
+				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
+				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
+				q) exit_request $(selection_list_pos_exitbox);;
+				1|k) ((CURSOR_ROW--));((CURSOR_NDX--));DIR='U';;
+				2|j) ((CURSOR_ROW++));((CURSOR_NDX++));DIR='D';;
+				3|t) DIR='T';;
+				4|b) DIR='B';;
 				27) msg_box_clear; return 2;;
 			esac
 

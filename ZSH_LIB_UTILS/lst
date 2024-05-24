@@ -50,6 +50,7 @@ zip archive \
 gz archive \
 bz2 archive \
 jar archive \
+js javascript \
 mkv video \
 avi video \
 mp4 video \
@@ -89,6 +90,7 @@ file_type () {
 			*elf*) echo "elf";;
 			*expect*) echo "expect";;
 			*image*) echo "image";;
+			*javascript*) echo "javascript";;
 			*media*) echo "media";;
 			*node*) echo "node";;
 			*pdf*) echo "pdf";;
@@ -170,6 +172,7 @@ type_color () {
 		*empty*) COLOR=WHITE;;
 		*expect*) COLOR=MAGENTA;;
 		*image*) COLOR=CYAN;;
+		*javascript*) COLOR=GREEN;;
 		*key*) COLOR=CYAN;;
 		*link*) COLOR=WHITE;;
 		*musescore*) COLOR=MAGENTA;;
