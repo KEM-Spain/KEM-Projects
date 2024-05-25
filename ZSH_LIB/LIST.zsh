@@ -750,6 +750,7 @@ list_select () {
 			list_item_highlight ${_LIST_LINE_ITEM} ${TOP_OFFSET} 0 ${SHADE} # Highlight first item
 		fi
 
+		# Main loop for user navigation
 		while true;do
 			LAST_LIST_NDX=${_LIST_NDX} # Store current index
 			_CURRENT_CURSOR=${CURSOR_NDX} # Store current cursor position
@@ -766,7 +767,7 @@ list_select () {
 				2) DIR_KEY=d;((CURSOR_NDX++));_LIST_NDX=$(list_set_index ${DIR_KEY} ${_LIST_NDX} ${PAGE_RANGE_TOP} ${PAGE_RANGE_BOT} ${MAX_ITEM});; # Down Arrow
 				3) DIR_KEY=t;CURSOR_NDX=1;_LIST_NDX=${PAGE_RANGE_TOP};; # Left Arrow
 				4) DIR_KEY=b;CURSOR_NDX=${MAX_CURSOR};_LIST_NDX=${PAGE_RANGE_BOT};; # Right Arrow
-				5) DIR_KEY=p;PAGE_BREAK=true;break;; # PgUp
+				5) DIR_KEY=p;PAGE_BREAK=true;break;; # PgUp 
 				6) DIR_KEY=n;PAGE_BREAK=true;break;; # PgDn
 				7) DIR_KEY=fp;PAGE_BREAK=true;break;; # Home
 				8) DIR_KEY=lp;PAGE_BREAK=true;break;; # End
