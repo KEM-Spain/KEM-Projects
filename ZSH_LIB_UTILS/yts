@@ -574,13 +574,15 @@ select_download () {
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"
 
 	SEARCHTYPE=Videos
-	if [[ ${g_QRY_ENGINE:l} == 'rumble' && ${g_LIVE} == 'true' ]];then
-		SEARCHTYPE=Live
+	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
 		list_set_sort_cols 1 4 2 2 3 3 # Age, author, title
-	elif [[ ${g_QRY_ENGINE:l} == 'youtube' && ${g_STRICT} == 'true' ]];then
-		SEARCHTYPE="Strict (${g_STRICT_MSG})"
+		[[ ${g_LIVE} == 'true' ]] && SEARCHTYPE=Live
+	elif [[ ${g_QRY_ENGINE:l} == 'youtube' ]];then
 		list_set_sort_cols '' # Age, author, title
+		[[ ${g_STRICT} == 'true' ]] && SEARCHTYPE="Strict (${g_STRICT_MSG})"
 	fi
+
+	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Sort cols set:${_SORT_COLS}"
 
  # Set headings
 	list_set_header_init
