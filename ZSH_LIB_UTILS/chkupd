@@ -28,7 +28,7 @@ source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/STR.zsh
 source ${_LIB_DIR}/ARRAY.zsh
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 need_boot () {
    [[ -e /var/run/reboot-required ]] && return 0 || return 1

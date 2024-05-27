@@ -24,14 +24,14 @@ _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
 do_fix_comments () {
 	local FN=${1}
 
 	[[ ! $(file ${FN}) =~ 'zsh' ]] && return 1
-	sed -i.CMT -e 's/^#\([A-Za-z]\)/# \U\1/g' -e 's/\([ \t]\)#\([A-Za-z]\)/\1# \U\2/g' -e 's/\([ \t]\)# \([a-z]\)/\1# \U\2/g' ${FN}
+	sed -i.CMT.bak -e 's/^#\([A-Za-z]\)/# \U\1/g' -e 's/\([ \t]\)#\([A-Za-z]\)/\1# \U\2/g' -e 's/\([ \t]\)# \([a-z]\)/\1# \U\2/g' ${FN}
 	return 0
 }
 

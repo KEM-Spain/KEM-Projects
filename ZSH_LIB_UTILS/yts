@@ -65,7 +65,7 @@ source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
 
@@ -414,7 +414,7 @@ get_field () {
 
 		STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) # Scrub non ascii
 		echo -n ${STR[1,65]}
-	}
+}
 
 item_decorate () {
 	local NDX=${1}

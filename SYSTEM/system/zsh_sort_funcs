@@ -1,32 +1,35 @@
 #!/usr/bin/zsh
-RESET="\033[m"
-RED_FG="\033[31m"
-GREEN_FG="\033[32m"
-YELLOW_FG="\033[33m"
-BLUE_FG="\033[34m"
-MAGENTA_FG="\033[35m"
-CYAN_FG="\033[36m"
-WHITE_FG="\033[37m"
+# Inline ansi
 BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
 
-#Declarations
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+# Declarations
 typeset -A _BLACKLIST=(usage 1 parse_opts 1 opt_type 1 opt_exists 1)
+typeset -A SEEN
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/MSG.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
-for D in ${=_DEPS_};do
-	if [[ -e ${_LIB_DIR}/${D} ]];then
-		source ${_LIB_DIR}/${D}
-	else
-		echo "Cannot source:${_LIB_DIR}/${D} - not found"
-		exit 1
-	fi
-done
-
-#Functions
+# Functions
 cleanup () {
 	[[ ${REPLACE_SORTED} == 'true' ]] && rm -f ${FN}.sorted.functions || rm -f ${FN}.new
 	rm -f ${FN}.normalized
@@ -46,13 +49,13 @@ delete_func () {
 list_func () {
 	local FN=${1}
 
-	grep -P "^\S.*\(\) {$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//'
+	grep --color=never -P "^\S.*\(\) {$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//'
 }
 
 normalize_functions () {
 	local FN=${1}
 
-	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g' < ${FN} > ${FN}.normalized
+	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g; s/^[ \t]*}$/}/g' < ${FN} > ${FN}.normalized
 }
 
 print_func () {
@@ -70,7 +73,7 @@ replace_functions () {
 
 	[[ ! -e ${FN}.sorted.functions ]] && echo "Unable to proceed.  No file containing sorted functions found." && cleanup
 
-	#Prepend function section if needed
+	# Prepend function section if needed
 	grep -i '#functions' < ${FN}.normalized
 	if [[ $? -ne 0 ]];then
 		sed -i '0,/.*() {$/s/.*() {$/#Functions\n&/' ${FN}.normalized
@@ -78,12 +81,12 @@ replace_functions () {
 
 	LIST=($(list_func ${FN}.normalized))
 
-	#delete existing funcs
+	# Delete existing funcs
 	for L in ${(o)LIST};do
 		delete_func ${L} ${FN}.normalized
 	done
 
-	#insert sorted funcs
+	# Insert sorted funcs
 	sed -i "/^#Functions/r ${FN}.sorted.functions" ${FN}.normalized
 }
 
@@ -97,12 +100,12 @@ sort_functions () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${FN}.normalized was created..."
 
 	grep -Pq '^\S*\s\(\) {' <${FN}.normalized
-	[[ $? -ne 0 ]] && echo "No functions found..." && cleanup
+	[[ $? -ne 0 ]] && echo "No functions found in file: ${FN}\n" && cleanup
 
 	LIST=($(list_func ${FN}.normalized))
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LIST:${LIST}"
 
-	#sort function alpha
+	# Sort function alpha
 	for L in ${(o)LIST};do
 		[[ ${USE_BLACKLIST} == 'true' && ${_BLACKLIST[${L}]} -eq 1 ]] && continue
 		((NDX++))
@@ -114,7 +117,8 @@ sort_functions () {
 			print_func ${L} ${FN}.normalized >>${FN}.sorted.functions
 		fi
 	done
-	[[ ${LIST_FUNCS} == 'false' ]] && echo "\n${WHITE_FG}${NDX}${RESET} ${FN} functions written to:${WHITE_FG}${FN}.sorted.functions${RESET} by function name in alphanumeric order"
+	[[ ${LIST_FUNCS} == 'false' ]] && echo "\n${WHITE_FG}${NDX}${RESET} ${FN} functions written\nto:${WHITE_FG}${FN}.sorted.functions${RESET}\nby function name in alphanumeric order"
+	[[ -e ${FN}.normalized ]] && /bin/rm -f ${FN}.normalized # No longer needed
 	echo
 }
 
@@ -155,11 +159,7 @@ Sort script functions
 \n\tSorted script functions may be placed:
 \n\t1) into a copy of the original as $(opt_type f).new (-r)
 \t2) into the original file with functions now sorted (-R)
-\t3) into a separate file (functions only) as $(opt_type f).sorted.functions (${WHITE_FG}default${RESET})
-\n\tBlacklisted functions are skipped
-\n\tImportant: If $(opt_type f) is NOT in the current directory
-\tthe file is first linked to the current directory and any options
-\teffect only the local copy - the distant copy is unaffected
+\t3) into a separate ${ITALIC}functions only${RESET} file: $(opt_type f).sorted.functions (${WHITE_FG}default${RESET})
 EOF
 
 usage () {
@@ -173,7 +173,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-B${RESET} no functions are blacklisted"
+	echo -e "${WHITE_FG}-B${RESET} no blacklist"
 	echo -e "${WHITE_FG}-b $(opt_type b)${RESET} add blacklisted function"
 	echo -e "${WHITE_FG}-l${RESET} list the functions in $(opt_type f)"
 	echo -e "${WHITE_FG}-r${RESET} create a file $(opt_type f).new with sorted functions"
@@ -208,10 +208,10 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 
-#Execution
+# Execution
 FN=${1}
-[[ ! -e ${FN} ]] && usage "File:${FN} NOT found"
-[[ ! -e ${PWD}/${FN:t} ]] && ln -s ${FN} ${PWD} # always work on a local file
+[[ ! -e ${FN} ]] && usage "Missing argument:$(opt_type f)"
+[[ ! -e ${PWD}/${FN:t} ]] && ln -s ${FN} ${PWD} # Link file
 FN=${PWD}/${FN:t}
 
 [[ -e ${FN}.normalized ]] && rm -f ${FN}.normalized
@@ -225,14 +225,14 @@ if [[ ${USE_BLACKLIST} == 'true' ]];then
 	echo
 fi
 
-normalize_functions ${FN} #normalize function declaration syntax
-sort_functions ${FN} #extract sorted functions
+normalize_functions ${FN} # Normalize function declaration syntax
+sort_functions ${FN} # Extract sorted functions
 
-#Early exits
-[[ ${LIST_FUNCS} == 'true' ]] && exit_leave # option was invoked in sort_functions
+# Early exits
+[[ ${LIST_FUNCS} == 'true' ]] && exit_leave # Option was invoked in sort_functions
 [[ ! -e ${FN}.sorted.functions ]] && exit_leave $(msg_err "sort_functions: failed to create and output. Exiting.")
 
-#Processing
+# Processing
 grep '() {' < ${FN}.sorted.functions | sort | uniq -c | grep -v -P '\s+1\s+'
 [[ ${?} -ne 1 ]] && exit_leave $(msg_warn "WARNING:Found duplicates")
 
@@ -247,7 +247,7 @@ if [[ ${REPLACE_FILE} == 'true' ]];then
 	[[ ! -e ${FN}.new ]] && exit_leave $(msg_err "Option -R failed - unable to locate ${FN}.new")
 	mv -f ${FN}.new ${FN}
 	chmod 775 ${FN}
-	[[ ! -e ${FN}.sort_functions ]] && rm -f ${FN}.sort_functions #cleanup
+	[[ ! -e ${FN}.sort_functions ]] && rm -f ${FN}.sort_functions # Cleanup
 	echo "Replaced original file: ${FN} with sorted functions"
 fi
 

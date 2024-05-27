@@ -43,7 +43,7 @@ to_lower "CASE:Convert to lower case"
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
 add_braces () {

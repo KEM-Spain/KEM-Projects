@@ -39,7 +39,7 @@ _SOURCES=/etc/apt/sources.list.d
 # Imports
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Declarations
 typeset -A _LONGEST=(DESC 0 NAME 0 STATE 0)

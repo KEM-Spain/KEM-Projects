@@ -14,11 +14,11 @@ typeset -A APP_ALT_NAMES=(deluge deluge-gtk org.kde.haruna haruna)
 
 LAUNCHER_DIR=/usr/local/bin/system/launchers
 DESKTOP_DIR=/usr/share/applications
-LAUNCHER_LIST=("${(f)$(find ${LAUNCHER_DIR}/run_*)}") # launchers have format: run_<APPNAME>
+LAUNCHER_LIST=("${(f)$(find ${LAUNCHER_DIR}/run_*)}") # Launchers have format: run_<APPNAME>
 
 for L in ${LAUNCHER_LIST};do
-	APP=$(echo ${L} | cut -d '_' -f2) #remove 'run_' prefix of launcher
-	DESKTOP_FILE=$(find ${DESKTOP_DIR} -iname "${APP}.desktop" 2>/dev/null) # find matching system desktop file
+	APP=$(echo ${L} | cut -d '_' -f2) # Remove 'run_' prefix of launcher
+	DESKTOP_FILE=$(find ${DESKTOP_DIR} -iname "${APP}.desktop" 2>/dev/null) # Find matching system desktop file
 	[[ -n ${DESKTOP_FILE} ]] && DESKTOP_LIST+=${DESKTOP_FILE:t}
 done
 
@@ -29,14 +29,14 @@ get_file_state () {
 	local STAMP_FILE=${LAUNCHER_DIR}/.${FN:t}
 
 	[[ -e ${FN} ]] || return 1
-	[[ -e ${STAMP_FILE} ]] && LAST_FILE_REFRESH=$(<${STAMP_FILE}) #get state
+	[[ -e ${STAMP_FILE} ]] && LAST_FILE_REFRESH=$(<${STAMP_FILE}) # Get state
 
-	CURR_FILE_TIME=$(stat -c %Z ${FN}(:A)) #file change time in seconds; the modifier `(:A)` resolves any symbolic links
+	CURR_FILE_TIME=$(stat -c %Z ${FN}(:A)) # File change time in seconds; the modifier `(:A)` resolves any symbolic links
 
 	if [[ ${LAST_FILE_REFRESH} -lt ${CURR_FILE_TIME} ]]; then
 		sudo touch ${FN}
-		CURR_FILE_TIME=$(stat -c %Z ${FN}) #file change time in seconds
-		echo "${CURR_FILE_TIME}" > ${STAMP_FILE} #set state
+		CURR_FILE_TIME=$(stat -c %Z ${FN}) # File change time in seconds
+		echo "${CURR_FILE_TIME}" > ${STAMP_FILE} # Set state
 		echo "stale"
 	else
 		echo "current"
@@ -47,9 +47,9 @@ get_file_state () {
 for L in ${DESKTOP_LIST};do
 	APP="run_${L:r}"
 	STATUS=$(get_file_state ${DESKTOP_DIR}/${L})
-	#printf "%15s Desktop file:%s is %-10s\n" ${0:t} ${L} ${STATUS}
+	# Printf "%15s Desktop file:%s is %-10s\n" ${0:t} ${L} ${STATUS}
 	if [[ ${STATUS} == "stale" ]];then
-		sudo cp ${DESKTOP_DIR}/${L} ${DESKTOP_DIR}/${L}.orig #backup original
+		sudo cp ${DESKTOP_DIR}/${L} ${DESKTOP_DIR}/${L}.orig # Backup original
 		APP_RUNNER=${LAUNCHER_DIR}/${APP}
 		APP_NAME=${APP_ALT_NAMES[${L}]}
 		[[ -z ${APP_NAME} ]] && APP_NAME=${L}

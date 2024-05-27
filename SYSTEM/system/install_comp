@@ -21,7 +21,7 @@ YELLOW_FG="\033[33m"
 _LIB=/usr/local/lib
 _COMP_DIR=~/.zsh/completions
 
-#Imports
+# Imports
 source ${_LIB}/LIB_INIT.zsh
 source ${_LIB}/MSG.zsh
 

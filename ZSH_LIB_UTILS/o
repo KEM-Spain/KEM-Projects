@@ -77,7 +77,7 @@ _MD_MUSE="/home/kmiller/Documents/MuseScore4/Scores"
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
 action_do () {

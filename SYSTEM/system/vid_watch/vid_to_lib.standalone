@@ -1,5 +1,5 @@
 #!usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,17 +15,17 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -a VIDEOS
 typeset -A VID_DESTS
 typeset -AU TITLES_PROCESSED
 
-#Constants
+# Constants
 _LIB=/usr/local/lib
 _VW=/usr/local/bin/system/vid_watch
 
-#_BASEDIR=${PWD} #test mode
-_BASEDIR=~/Downloads/Torrents #all target dirs are relative to BASEDIR
+#_BASEDIR=${PWD} # Test mode
+_BASEDIR=~/Downloads/Torrents # All target dirs are relative to BASEDIR
 
 _COMPLETED_DIR=${_BASEDIR}/Completed
 _DELUGE_STATE=~/.config/deluge/state
@@ -35,106 +35,26 @@ _LOG=/tmp/${0:t}.log
 _MOVIES_SUB=movies
 _SERIES_SUB=series
 
-#find regexes (posix-basic syntax)
+# Find regexes (posix-basic syntax)
 _VIDEO_REGEX='.*\(mkv\|mp4\|avi\)$'
 
-#perl regexes (extended syntax)
+# Perl regexes (extended syntax)
 _SERIES_REGEX='((?<!^)[Ss]\d{2}[Ee]\d{2}|\d{4}.\d{2}.\d{2})'
 _YEAR_REGEX='(?<!^)(?<=[(. ])(\d{4})(?=[). ])'
 _RES_REGEX='(?<!^)(720p|1080p)'
 _SHORT_TITLE_REGEX='s/^([^.]*[.][^.]*)[.].*$'
 
-#sed regexes (posix-basic syntax)
+# Sed regexes (posix-basic syntax)
 _TITLE_JUNK_REGEX='[.(_ ]'
 
-#Imports
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/ARRAY.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
-for D in ${=_DEPS_};do
-	if [[ -e ${_LIB_DIR}/${D} ]];then
-		source ${_LIB_DIR}/${D}
-	else
-		echo "Cannot source:${_LIB_DIR}/${D} - not found"
-		exit 1
-	fi
-done
-
-#Functions
-do_rmcup () {
-	[[ ${_SMCUP} == 'false' ]] && return
-	tp rmcup
-	# Echo "called rmcup"
-	_SMCUP=false
-}
-
-set_exit_value () {
-	_EXIT_VALUE=${1}
-}
-
-arr_is_populated () {
-	local -a ARR=(${@})
-	local RC
-	
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}, ARR:${#ARR}"
-	[[ ${_DEBUG} -ge 3 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARR:${ARR}"
-
-	[[ ${#} -eq 0 ]] && echo "${0}: ${RED_FG}requires an argument${RESET} of type <ARRAY> ${#}" >&2
-
-	[[ ${ARR[@]} =~ "^ *$" ]] && RC=1 || RC=0
-
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Returning:${RC}"
-
-	return ${RC}
-}
-
-exit_leave () {
-	local MSGS=(${@})
-
-	if [[ ${_DEBUG} -ge 1 ]];then
-		dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
-		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
-		dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
-		dbg "${RED_FG}${0}${RESET}: _SMCUP:${_SMCUP}"
-	fi
-
-	[[ -n ${MSGS} ]] && _EXIT_MSGS=${MSGS}
-
-	[[ ${_DEBUG} -ge 1 ]] && dbg_msg | mypager && /bin/rm -f ${_DEBUG_FILE}
-	
-	if [[ ${_APP_IS_SOURCED} == 'true' ]];then
-		_SOURCED_APP_EXIT=true
-		echo ${MSGS} >&2
-		return 9
-	fi
-
-	if [[ ${functrace[1]} =~ 'usage' && -z ${MSGS} ]];then
-		echo "\n"
-		set_exit_value 1
-	else
-		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage
-	fi
-
-	kill -SIGINT $$ # Fire the traps
-}
-
-logit () {
-	local MSG=${@}
-	local STAMP=$(date +'%Y-%m-%d:%T')
-	echo "${STAMP} ${MSG}" >> ${_LOG:=/tmp/${0}.log}
-}
-
-str_unicode_line () {
-	local LENGTH=${1}
-	local HORIZ_BAR="\\u2500%.0s"
-
-	[[ ${_DEBUG} -ge 4 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
-
-	printf "\\u2500%.0s" {1..$((${LENGTH}))}
-}
-
+# Functions
 clean_media () {
 	local -a VIDEOS=("${(f)$(find ${_LIBRARY_DIR} -regex "${_VIDEO_REGEX}")}")
 	local TITLE
@@ -148,7 +68,7 @@ clean_media () {
 
 	for V in ${(on)VIDEOS};do
 		TITLE=$(title_info "short" "${V:t:r}")
-		[[ ${TITLES_PROCESSED[${TITLE}]} -ne 1 ]] && continue #only videos from this session
+		[[ ${TITLES_PROCESSED[${TITLE}]} -ne 1 ]] && continue # Only videos from this session
 		[[ ${LAST_TITLE} == ${TITLE} ]] && continue
 
 		if [[ -n ${TITLE} ]];then
@@ -217,7 +137,7 @@ fix_orphan_subs () {
 }
 
 move_media () {
-	local SOURCE=${1} #FQFN
+	local SOURCE=${1} # FQFN
 	local DESTINATION=${2}
 	local EXTRACT=${3}
 	local -a PRE_LIST
@@ -236,19 +156,19 @@ move_media () {
 
 	logit "${0} DESTINATION:${DESTINATION}"
 
-	[[ ! -e ${SOURCE} ]] && return # nothing to do
+	[[ ! -e ${SOURCE} ]] && return # Nothing to do
 
-	if [[ -z ${DESTINATION:e} && ! -d ${DESTINATION} ]];then #no file extension; is directory
+	if [[ -z ${DESTINATION:e} && ! -d ${DESTINATION} ]];then # No file extension; is directory
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: creating a subdirectory:${DESTINATION}"
 		[[ ! -e ${DESTINATION} ]] && mkdir -p "${DESTINATION}"
 		[[ ${?} -ne 0 ]] && exit_leave "${BOLD}${RED_FG}Error${RESET}:failed to create subdirectory:${DESTINATION}"
 	fi
 
-	if [[ ${EXTRACT} == 'true' ]];then #if the source is in a subdirectory call fut surface
+	if [[ ${EXTRACT} == 'true' ]];then # If the source is in a subdirectory call fut surface
 		SOURCE_DIR=${SOURCE:h}
 		if [[ -d ${SOURCE_DIR} ]];then
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: ${WHITE_FG}EXTRACTING${RESET}: ${SOURCE_DIR} is a directory"
-			#enclose filenames in double quotes to protect filenames with spaces
+			# Enclose filenames in double quotes to protect filenames with spaces
 			PRE_LIST=(${(qqq)"${(f)$(find ${_LIBRARY_DIR} -maxdepth 1 -type f ! -path ${_LIBRARY_DIR})}"}) 
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: ${WHITE_FG}PRE_LIST${RESET}:${PRE_LIST}"
 
@@ -260,7 +180,7 @@ move_media () {
 			POST_LIST+=(${(qqq)"${(f)$(find ${_LIBRARY_DIR} -maxdepth 1 -type f ! -path ${_LIBRARY_DIR})}"})
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: ${WHITE_FG}POST_LIST${RESET}:${POST_LIST}"
 
-			#get a list of names that are not in PRE_LIST; add newline where " " separates names; scrub quotes when done
+			# Get a list of names that are not in PRE_LIST; add newline where " " separates names; scrub quotes when done
 			DIFF=("${(f)$(echo ${PRE_LIST[@]} ${POST_LIST[@]} | sed 's/\" \"/\"\n\"/g' | sort | uniq -u | sed 's/\"//g')}")
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: ${WHITE_FG}DIFF${RESET}:${DIFF}"
 
@@ -290,8 +210,8 @@ sub_rename () {
 	local HIT=false
 	local MSG="Scanning subtitles for naming errors..."
 
-	# handle naming issues for subtitles that fsub.standalone misses
-	# and some that are orphaned due to filenaming
+	# Handle naming issues for subtitles that fsub.standalone misses
+	# And some that are orphaned due to filenaming
 
 	VIDEOS=("${(f)$(find ${_LIBRARY_DIR} -type f -regex "${_VIDEO_REGEX}")}")
 	SUBS=("${(f)$(find ${_LIBRARY_DIR} -type f -name '*srt' )}")
@@ -301,14 +221,14 @@ sub_rename () {
 
 	for V in ${VIDEOS};do
 		TITLE=$(title_info "short" "${V:t:r}")
-		#echo "Scanning for ${WHITE_FG}${TITLE}${RESET} candidates"
+		# Echo "Scanning for ${WHITE_FG}${TITLE}${RESET} candidates"
 		V_HEAD=${V:h}
 		for S in ${SUBS};do
 			V_CLEAN=$(sed 's/[\._]/ /g' <<<${TITLE})
 			S_CLEAN=$(sed 's/[\._]/ /g' <<<${S})
 			if [[ ${S_CLEAN} =~ ${V_CLEAN} ]];then
 				if [[ ${V:r} != ${S:r} ]];then
-					if [[ ${S:r:l} =~ 'orphan' ]];then #handle subs that don't match the video name
+					if [[ ${S:r:l} =~ 'orphan' ]];then # Handle subs that don't match the video name
 						ORPHAN_TAG=$(perl -ne '/\w+\.\w+$/ && print "$&"' <<<${S})
 						if [[ -e ${S} && ! -e ${V:t:r}.${ORPHAN_TAG} ]];then
 							HIT=true
@@ -362,7 +282,7 @@ title_info () {
 		((NDX++))
 		if [[ ${SHORT_TITLE[-1]} =~ "${_TITLE_JUNK_REGEX}$" ]];then
 			SHORT_TITLE=$(sed "s/${_TITLE_JUNK_REGEX}$//" <<<${SHORT_TITLE})
-			[[ ${NDX} -ge 5 ]] && break # safety break
+			[[ ${NDX} -ge 5 ]] && break # Safety break
 		else
 			break
 		fi
@@ -456,7 +376,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
  
-#Execution
+# Execution
 [[ -e ${_LOG} ]] && rm -f ${_LOG}
 logit "start"
 logit "SERVICE_MODE:${SERVICE_MODE}"
@@ -484,7 +404,7 @@ for V in ${VIDEOS};do
 	echo "\n${CYAN_FG}$(str_unicode_line 10) Media File ${NDX} ${CYAN_FG}$(str_unicode_line 10)${RESET}"
 
 	MEDIA_FN=${${V}##${_COMPLETED_DIR}/}
-	FN_HEAD=${MEDIA_FN:h} #with _COMPLETED_DIR clipped ${FN_HEAD:h} will be . unless it's in a subdir
+	FN_HEAD=${MEDIA_FN:h} # With _COMPLETED_DIR clipped ${FN_HEAD:h} will be . unless it's in a subdir
 	MEDIA_FQFN=${_COMPLETED_DIR}/${MEDIA_FN}
 
 	# This section is testing subtitle file rename before library move
@@ -521,10 +441,10 @@ for V in ${VIDEOS};do
 
 	EXTRACT=false
 	if [[ ${IS_SERIES} == 'true' ]];then
-		MEDIA_DEST=${_LIBRARY_DIR}/${_SERIES_SUB}/${(C)SERIES_TITLE_SUB} # dest is series directory to house series files
+		MEDIA_DEST=${_LIBRARY_DIR}/${_SERIES_SUB}/${(C)SERIES_TITLE_SUB} # Dest is series directory to house series files
 		[[ ${FN_HEAD} != '.' ]] && EXTRACT=true
 	else
-		MEDIA_DEST=${_LIBRARY_DIR}/${_MOVIES_SUB} # dest is movies directory to house movie files
+		MEDIA_DEST=${_LIBRARY_DIR}/${_MOVIES_SUB} # Dest is movies directory to house movie files
 		[[ ${FN_HEAD} != '.' ]] && EXTRACT=true
 	fi
 
@@ -545,13 +465,13 @@ for V in ${VIDEOS};do
 done
 
 if [[ ${HIT} == 'true' ]];then
-	#Clean media file names
+	# Clean media file names
 	clean_media
 
-	#Validate/Correct subtitle file names
+	# Validate/Correct subtitle file names
 	sub_rename
 
-	#Clear Deluge queue
+	# Clear Deluge queue
 	clear_deluge_state
 fi
 

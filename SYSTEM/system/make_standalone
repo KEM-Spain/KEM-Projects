@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -15,20 +15,28 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
-#Declarations
+# Declarations
 typeset -A _BLACKLIST
 typeset -a _EXTRA_FUNCS
+typeset -A SEEN
+typeset -a NEEDED_FUNCS
 
-#Constants
+# Constants
 _BLACKLIST+=(usage 1 parse_opts 1 opt_type 1 opt_exists 1 dbg 1 dbg_msg 1 dbg_set_level 1)
-_LIB=/usr/local/lib
+_LIB_DIR=/usr/local/lib
 _LIB_FUNCS=${PWD}/lib.sorted.functions
-_LIB_LIST=(ANSI.zsh ARRAY.zsh DATE.zsh DBG.zsh DURABLE.zsh EXIT.zsh LIB_INIT.zsh LIST.zsh MSG.zsh PATH.zsh SEL_LIST.zsh STR.zsh TPUT.zsh UTILS.zsh VALIDATE.zsh WIN.zsh)
-
+_LIB_LIST=(${_LIB_DIR}/*zsh)
 _SCRIPT=${0:t}
 _FUNC_REGEX='() {$'
 
-#Functions
+# Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/ARRAY.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
+
+# Functions
 print_func () {
 	local FUNC=${1}
 	local FN=${2}
@@ -44,8 +52,9 @@ print_func () {
 clear_work_files () {
 	local FN=${1}
 
-	/bin/rm -f ${FN}.standalone.1
-	/bin/rm -f FUNCS_FOR_${(U)FN}
+	[[ -e ${FN}.standalone.1 ]] && /bin/rm -f ${FN}.standalone.1
+	[[ -e ${LOCAL_FUNC_LIST} ]] && /bin/rm -f ${LOCAL_FUNC_LIST}
+	[[ -e ${_LIB_FUNCS} ]] && /bin/rm -f ${_LIB_FUNCS}
 }
 
 #--Begin GetOpts--
@@ -130,7 +139,7 @@ shift $((OPTIND -1))
 
 # Execution
 [[ ${#} -eq 1 ]] && FN=${1} || usage "Missing argument:$(opt_type f)"
-LOCAL_FUNC_LIST=FUNCS_FOR_${(U)FN}
+LOCAL_FUNC_LIST=FUNCS_FOR_${(U)FN:t}
 
 # Initialize
 [[ -e ${_LIB_FUNCS} ]] && /bin/rm -f ${_LIB_FUNCS}
@@ -145,17 +154,14 @@ echo
 
 # Extract library functions
 for L in ${_LIB_LIST};do
-	zsh_sort_funcs -B ${_LIB}/${L}
-	if [[ -e ${L}.sorted.functions ]];then
-		cat ${L}.sorted.functions >> ${_LIB_FUNCS}
-		/bin/rm ${L}.sorted.functions
+	zsh_sort_funcs -B ${L}
+	if [[ -e ${PWD}/${L:t}.sorted.functions ]];then
+		cat ${PWD}/${L:t}.sorted.functions >> ${_LIB_FUNCS}
+		/bin/rm ${PWD}/${L:t}.sorted.functions
 	fi
 done
 
 FUNC_LIST=("${(f)$(grep --color=never ${_FUNC_REGEX} < ${_LIB_FUNCS} | sed 's/ [(][)] {//g')}")
-
-typeset -A SEEN
-typeset -a NEEDED_FUNCS
 
 # 1st pass
 NEEDED_FUNCS=("${(f)$(
@@ -183,7 +189,7 @@ done > ${LOCAL_FUNC_LIST}
 # Insert sorted funcs
 sed "/^#Functions/r ${LOCAL_FUNC_LIST}" ${FN} >${FN}.standalone.1
 
-NEEDED_FUNCS=() # reset
+NEEDED_FUNCS=() # Reset
 
 # 2nd pass
 NEEDED_FUNCS=("${(f)$(
@@ -194,26 +200,32 @@ NEEDED_FUNCS=("${(f)$(
 		SEEN[${L}]=1
 	done | sort -u
 )}")
-echo "${WHITE_FG}2nd pass${RESET}: ${#NEEDED_FUNCS} functions identified in ${FN}.standalone.1"
 
-echo "${WHITE_FG}2nd pass${RESET}: Adding functions..."
-for L in ${NEEDED_FUNCS};do
-	print_func ${L} ${_LIB_FUNCS}
-	[[ ${?} -eq 0 ]] && echo "${GREEN_FG}Added${RESET}:${L}" >&2 || echo "Error:print_func :${L}"
-done > ${LOCAL_FUNC_LIST}
+echo "${WHITE_FG}2nd pass${RESET}: include any functions referenced in ${FN}.standalone.1"
+if arr_is_populated "${NEEDED_FUNCS}";then
+	echo "${WHITE_FG}2nd pass${RESET}: Adding functions..."
+	for L in ${NEEDED_FUNCS};do
+		print_func ${L} ${_LIB_FUNCS}
+		[[ ${?} -eq 0 ]] && echo "${GREEN_FG}Added${RESET}:${L}" >&2 || echo "Error:print_func :${L}"
+	done > ${LOCAL_FUNC_LIST}
+else
+	echo "${WHITE_FG}2nd pass${RESET}: completed"
+fi
 
 # Insert sorted funcs
-sed "/^#Functions/r ${LOCAL_FUNC_LIST}" ${FN}.standalone.1 >${FN}.standalone
+grep -q '# Functions' ${FN}.standalone.1 
+[[ ${?} -ne 0 ]] && exit_leave $(msg_err "Missing tag: [# Functions] in ${FN}.standalone.1 - sed insert will fail")
+sed "/^# Functions/r ${LOCAL_FUNC_LIST}" ${FN}.standalone.1 >${FN}.standalone
 [[ -e ${FN:t}.standalone ]] && echo "${WHITE_FG}${FN}.standalone${RESET} created" && chmod 775 ${FN}.standalone
+
 
 # Any customization
 if [[ -e ./pre_release ]];then
 	echo "Executing pre_release..."
-	./pre_release # apply any modifications to production
+	./pre_release # Apply any modifications to production
 fi
 
-# Remove work files
+# Remove intermediate work files
 if [[ ${KEEP_INTERMEDIATE_FILES} == 'false' ]];then
 	clear_work_files ${FN}
-	[[ -e ${_LIB_FUNCS} ]] && /bin/rm -f ${_LIB_FUNCS}
 fi

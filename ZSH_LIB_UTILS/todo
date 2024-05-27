@@ -34,7 +34,7 @@ _SOURCES+="/home/kmiller/Code/LOCAL"
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/STR.zsh
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 read -r -d '' DESC<<EOF
 Show list of TODO labels embedded in scripts

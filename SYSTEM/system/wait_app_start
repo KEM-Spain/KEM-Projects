@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -19,12 +19,12 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-#Constants
+# Constants
 _LOG=/tmp/${0:t}.log
 typeset -a _APPS_TO_SCAN=(deluge okular)
 typeset -A _RUNNING_APPS
 
-#Imports
+# Imports
 _LIB=/usr/local/lib
 source ${_LIB}/LIB_INIT.zsh
 source ${_LIB}/UTILS.zsh

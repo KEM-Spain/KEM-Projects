@@ -49,7 +49,7 @@ g_PROD_WILL_OVERWRITE_BACKUP=?
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/DATE.zsh
 source ${_LIB_DIR}/MSG.zsh
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
 get_prod_dir () {

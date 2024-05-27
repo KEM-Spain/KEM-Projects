@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-#Inline ansi
+# Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -25,7 +25,7 @@ typeset -a _LIBS=(ARRAY.zsh DATE.zsh DBG.zsh DURABLE.zsh LIST.zsh MSG.zsh PATH.z
 
 _LIB=/usr/local/lib
 
-#Imports
+# Imports
 source ${_LIB}/LIB_INIT.zsh
 source ${_LIB}/STR.zsh
 source ${_LIB}/UTILS.zsh
@@ -95,7 +95,7 @@ app_scan () {
 
 	# Scan application for lib functions
 	for K in ${(ok)LIB_FUNC_LIST};do
-		F=$(grep -w -m1 -o --color=never ${K} ${FN}) # find lib function
+		F=$(grep -w -m1 -o --color=never ${K} ${FN}) # Find lib function
 		[[ ${?} -ne 0 ]] && continue
 		APP_LIB_FUNC_LIST[${F}]=${LIB_FUNC_LIST[${K}]}
 		printf "${WHITE_FG}%s${RESET} %s call is provided by:%s\n" ${FN:t} ${F} ${${APP_LIB_FUNC_LIST[${F}]}:t}
@@ -107,8 +107,8 @@ app_scan () {
 
 	LIB_CNT=0
 	for V in ${(uov)APP_LIB_FUNC_LIST};do
-		((LIB_CNT++)) # count libs
-		APP_LIBS+=${V:t} # all lib references in app
+		((LIB_CNT++)) # Count libs
+		APP_LIBS+=${V:t} # All lib references in app
 	done
 
 	HDR="${WHITE_FG}${FN} ${CYAN_FG}library dependencies${RESET}"
@@ -147,7 +147,7 @@ app_scan () {
 
 		for N in ${APP_LIBS};do
 			grep -iq ${N} <<<${LIB_SCORE[${K}]}
-			[[ ${?} -eq 0 ]] && NEEDED_LIBS=("${(@)NEEDED_LIBS:#${N}}") # found lib - delete from needed
+			[[ ${?} -eq 0 ]] && NEEDED_LIBS=("${(@)NEEDED_LIBS:#${N}}") # Found lib - delete from needed
 		done
 
 		NEEDED_LIBS=(${(@)NEEDED_LIBS})
@@ -159,7 +159,7 @@ app_scan () {
 		for K in ${(Onk)LIB_SCORE};do
 			CNT=$(cut -d':' -f1 <<<${K})
 			LIB=$(cut -d':' -f2 <<<${K})
-			((CNT++)) # increment CNT to reflect the lib being shown
+			((CNT++)) # Increment CNT to reflect the lib being shown
 			PRIMARY_LIB_ID=${LIB}
 			printf "${WHITE_FG}%s of %s ${CYAN_FG}libs provided by${RESET}: ${WHITE_FG}%s${RESET} (%s)\n" ${CNT} ${LIB_CNT} ${LIB} ${LIB_SCORE[${K}]}
 			break
@@ -176,7 +176,7 @@ app_scan () {
 	return 0
 }
 
-#Execution
+# Execution
 FILES=(${@})
 [[ -z ${FILES} ]] && echo "Missing argument:<FILE>" && exit 1
 

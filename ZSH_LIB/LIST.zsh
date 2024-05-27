@@ -1252,9 +1252,8 @@ list_sort_flat () {
 	local SORT_COL=${2}
 	local DIRECTION=${3}
 	local ARR_NAME=${4}
-	local CAL_SORT=${5:=false}
-	local -a RANKED
-	local RANK_COL
+	local -a RANKED=()
+	local RANK_COL=0
 	local S L
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
