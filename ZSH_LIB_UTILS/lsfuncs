@@ -45,7 +45,8 @@ action_do () {
 				print_func ${F} ${_LIST[${M}]}
 			done | less -S -P "Viewing functions within\:$(sed 's/\./\\./' <<<${_LIST[${M}]})" # Less hides dots in prompt - must escape
 		else
-			msg_box -H3 -P"Show function code (y/n)?" -cp "<U>Function List<N>||File:<w>${_LIST[${M}]}<N> (<w>${NDX}<N> of <w>${#MARKED}<N>)| |$(msg_list ${(o)FUNCTIONS})"
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Calling msg_box with: ${#FUNCTIONS} lines"
+			msg_box -H3 -P"Show function code (y/n)?" -cp "File:<w>${_LIST[${M}]}<N> (<w>${NDX}<N> of <w>${#MARKED}<N>)|Functions:<w>${#FUNCTIONS}<N>  Pages:<w>_MSG_PG<N>| |$(msg_list ${(o)FUNCTIONS})"
 			if [[ ${_MSG_KEY} == 'y' ]];then
 				for F in ${FUNCTIONS};do
 					print_func ${F} ${_LIST[${M}]}

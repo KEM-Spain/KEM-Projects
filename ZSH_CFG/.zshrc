@@ -131,7 +131,8 @@ _check_updates () {
 	MSGS_1+=("${(f)$(sudo run-parts ${_MOTD_DIR})}")
 
 	for M in ${MSGS_1};do
-		[[ ! ${M} =~ 'applied' ]] && continue
+		[[ ${M:l} =~ 'esm' ]] && continue
+		[[ ! ${M:l} =~ 'applied' ]] && continue
 		NUM=$(cut -d' ' -f1 <<<${M})
 		if [[ ${NUM} -gt 0 && ${M} =~ 'applied' ]];then
 			(( COUNT += ${NUM} ))
@@ -142,6 +143,7 @@ _check_updates () {
 
 	if [[ ${COUNT} -ne 0 ]];then
 		for M in ${MSGS_2};do
+			[[ ! ${M:l} =~ 'listing\|done' ]] && continue
 			((COUNT++))
 		done
 	fi

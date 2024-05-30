@@ -23,6 +23,10 @@ WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 typeset -A _BLACKLIST=(usage 1 parse_opts 1 opt_type 1 opt_exists 1)
 typeset -A SEEN
 
+# Constants
+_FUNC_REGEX='^.* () {$'
+_FUNC_TAG='^# Functions'
+
 # Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
@@ -37,57 +41,27 @@ cleanup () {
 	exit_leave
 }
 
-delete_func () {
-	local FUNC=${1}
-	local FN=${2}
-
-	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return
-
-	sed -i "/${FUNC}.*() {/,/^}/d" ${FN}
-}
-
-list_func () {
-	local FN=${1}
-
-	grep --color=never -P "^\S.*\(\) {$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//'
-}
-
-normalize_functions () {
-	local FN=${1}
-
-	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g; s/^[ \t]*}$/}/g' < ${FN} > ${FN}.normalized
-}
-
-print_func () {
-	local FUNC=${1}
-	local FN=${2}
-	
-	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return 1
-
-	perl -ne "print if /^${FUNC} \(\) {$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
-}
-
 replace_functions () {
 	local FN=${1}
 	local L
+	local -a LIST=()
 
 	[[ ! -e ${FN}.sorted.functions ]] && echo "Unable to proceed.  No file containing sorted functions found." && cleanup
 
 	# Prepend function section if needed
-	grep -i '#functions' < ${FN}.normalized
-	if [[ $? -ne 0 ]];then
-		sed -i '0,/.*() {$/s/.*() {$/#Functions\n&/' ${FN}.normalized
-	fi
+	grep -q ${_FUNC_TAG} ${FN}.normalized >/dev/null 2>&1
+	[[ ${?} -ne 0 ]] && sed -i '0,/.*() {$/s/.*() {$/# Functions\n&/' ${FN}.normalized
 
-	LIST=($(list_func ${FN}.normalized))
+	LIST=($(func_list ${FN}.normalized))
 
 	# Delete existing funcs
 	for L in ${(o)LIST};do
-		delete_func ${L} ${FN}.normalized
+		[[ ${_BLACKLIST[${L}]} -eq 1 ]] && continue
+		func_delete ${L} ${FN}.normalized
 	done
 
 	# Insert sorted funcs
-	sed -i "/^#Functions/r ${FN}.sorted.functions" ${FN}.normalized
+	sed -i "/${_FUNC_TAG}/r ${FN}.sorted.functions" ${FN}.normalized
 }
 
 sort_functions () {
@@ -99,10 +73,10 @@ sort_functions () {
 	[[ ! -e ${FN}.normalized ]] && echo "Unable to proceed.  No file containing normalized functions found." && cleanup
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${FN}.normalized was created..."
 
-	grep -Pq '^\S*\s\(\) {' <${FN}.normalized
+	grep -q ${_FUNC_REGEX} <${FN}.normalized
 	[[ $? -ne 0 ]] && echo "No functions found in file: ${FN}\n" && cleanup
 
-	LIST=($(list_func ${FN}.normalized))
+	LIST=($(func_list ${FN}.normalized))
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LIST:${LIST}"
 
 	# Sort function alpha
@@ -114,11 +88,10 @@ sort_functions () {
 			echo "${WHITE_FG}${NDX}${RESET}) ${L}"
 		else
 			tput el; printf "\rProcessing function ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} functions ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#LIST} $(( NDX * 100. / ${#LIST} ))
-			print_func ${L} ${FN}.normalized >>${FN}.sorted.functions
+			func_print ${L} ${FN}.normalized >>${FN}.sorted.functions
 		fi
 	done
 	[[ ${LIST_FUNCS} == 'false' ]] && echo "\n${WHITE_FG}${NDX}${RESET} ${FN} functions written\nto:${WHITE_FG}${FN}.sorted.functions${RESET}\nby function name in alphanumeric order"
-	[[ -e ${FN}.normalized ]] && /bin/rm -f ${FN}.normalized # No longer needed
 	echo
 }
 
@@ -175,9 +148,9 @@ usage () {
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-B${RESET} no blacklist"
 	echo -e "${WHITE_FG}-b $(opt_type b)${RESET} add blacklisted function"
-	echo -e "${WHITE_FG}-l${RESET} list the functions in $(opt_type f)"
-	echo -e "${WHITE_FG}-r${RESET} create a file $(opt_type f).new with sorted functions"
-	echo -e "${WHITE_FG}-R${RESET} replace file:$(opt_type f) with sorted functions"
+	echo -e "${WHITE_FG}-l${RESET} list the functions in script file:$(opt_type f)"
+	echo -e "${WHITE_FG}-r${RESET} create a duplicate script file:$(opt_type f).new with functions sorted"
+	echo -e "${WHITE_FG}-R${RESET} replace existing script file:$(opt_type f) with functions sorted"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 
@@ -225,7 +198,7 @@ if [[ ${USE_BLACKLIST} == 'true' ]];then
 	echo
 fi
 
-normalize_functions ${FN} # Normalize function declaration syntax
+func_normalize ${FN} # Normalize function declaration syntax
 sort_functions ${FN} # Extract sorted functions
 
 # Early exits
@@ -233,14 +206,14 @@ sort_functions ${FN} # Extract sorted functions
 [[ ! -e ${FN}.sorted.functions ]] && exit_leave $(msg_err "sort_functions: failed to create and output. Exiting.")
 
 # Processing
-grep '() {' < ${FN}.sorted.functions | sort | uniq -c | grep -v -P '\s+1\s+'
+grep ${_FUNC_REGEX} < ${FN}.sorted.functions | sort | uniq -c | grep -v -P '\s+1\s+'
 [[ ${?} -ne 1 ]] && exit_leave $(msg_warn "WARNING:Found duplicates")
 
 if [[ ${REPLACE_FILE} == 'true' || ${REPLACE_SORTED} == 'true' ]];then 
 	replace_functions ${FN}
 	[[ ! -e ${FN}.normalized ]] && exit_leave $(msg_err "Option -r failed - unable to locate ${FN}.normalized")
 	cat -s ${FN}.normalized | cat -s > ${FN}.new
-	echo "Modified script with sorted functions in file:${FN}.new"
+	echo "Modified script with functions sorted in file:${FN}.new"
 fi
 
 if [[ ${REPLACE_FILE} == 'true' ]];then 
@@ -248,7 +221,7 @@ if [[ ${REPLACE_FILE} == 'true' ]];then
 	mv -f ${FN}.new ${FN}
 	chmod 775 ${FN}
 	[[ ! -e ${FN}.sort_functions ]] && rm -f ${FN}.sort_functions # Cleanup
-	echo "Replaced original file: ${FN} with sorted functions"
+	echo "Replaced original file: ${FN} with functions sorted"
 fi
 
 cleanup

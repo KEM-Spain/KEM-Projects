@@ -405,7 +405,9 @@ set_state_color () {
 }
 
 #--Begin GetOpts--
-typeset -a OPTIONS
+local -a OPTIONS
+local OPTION
+local DESC
 
 read -r -d '' DESC<<EOF
 Display apps installed or uninstalled
@@ -414,12 +416,42 @@ Display apps installed or uninstalled
 \tIf no arguments or options are supplied, all apps are displayed
 EOF
 
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
 usage () {
 	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
 
-	tabs 5
 	[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
+	tabs 5
 	(
 	echo -e "${WHITE_FG}Usage${RESET}:${_SCRIPT} ${WHITE_FG}[${RESET}${OPTSTR}${WHITE_FG}]${RESET} ${WHITE_FG}[${RESET}PATTERN${WHITE_FG}]${RESET}\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
@@ -438,8 +470,11 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave ${PENDING_MSGS}
+	exit_leave $(msg_err "${PENDING_MSGS}")
 }
+
+OPTSTR=":HD3cdpinrsuvz"
+OPTIND=0
 
 SHOW_ALL_PKGS=true
 SHOW_INST=false
@@ -452,14 +487,11 @@ SKIP_SNAPFLAT=false
 PRINT=false
 MATCH_DESC=false
 PATTERN=?
-OPTIND=0
 I386=false
 FUZZY=false
 
-OPTSTR=":HD3cdpinrsuvz"
-
 while getopts ${OPTSTR} OPTION;do
-	case ${OPTION} in
+	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
      3) I386=true;;
@@ -473,12 +505,12 @@ while getopts ${OPTSTR} OPTION;do
      u) SHOW_ALL_PKGS=false;SHOW_UNIN=true;;
      v) SHOW_ALL_PKGS=false;SHOW_VIRT=true;;
      z) FUZZY=true;;
-    \?) exit_leave "[${WHITE_FG}${_SCRIPT}${RESET}]${RED_FG}->${RESET}${RED_FG}${BOLD}${RED_FG}Unknown option${RESET}${RESET}:${WHITE_FG}${OPTARG}${RESET}";;
-     :) exit_leave "${_SCRIPT}:${RED_FG}option: -${WHITE_FG}${OPTARG}${RESET} requires an argument${RESET}";;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
 	esac
 	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
 done
-shift $((${OPTIND} - 1))
+shift $((OPTIND -1))
 #--End GetOpts--
  
 # Execution

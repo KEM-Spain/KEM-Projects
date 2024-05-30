@@ -16,10 +16,11 @@ WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
 # Declarations
-typeset -A _BLACKLIST
-typeset -a _EXTRA_FUNCS
-typeset -A SEEN
-typeset -a NEEDED_FUNCS
+typeset -A _BLACKLIST=()
+typeset -A _FUNC_MAP=()
+typeset -A _SEEN=()
+typeset -a _EXTRA_FUNCS=()
+typeset -a _NEEDED_FUNCS=()
 
 # Constants
 _BLACKLIST+=(usage 1 parse_opts 1 opt_type 1 opt_exists 1 dbg 1 dbg_msg 1 dbg_set_level 1)
@@ -27,7 +28,8 @@ _LIB_DIR=/usr/local/lib
 _LIB_FUNCS=${PWD}/lib.sorted.functions
 _LIB_LIST=(${_LIB_DIR}/*zsh)
 _SCRIPT=${0:t}
-_FUNC_REGEX='() {$'
+_FUNC_REGEX='^.* () {$'
+_FUNC_TAG='^# Functions'
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -37,18 +39,6 @@ source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
 
 # Functions
-print_func () {
-	local FUNC=${1}
-	local FN=${2}
-	local B
-	
-	[[ ${_BLACKLIST[${FUNC}]} -eq 1 ]] && return 1
-	for B in ${(k)_BLACKLIST};do
-		[[ ${B} =~ ${FUNC} ]] && return 1
-	done
-	perl -ne "print if /^${FUNC} \(\) {$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
-}
-
 clear_work_files () {
 	local FN=${1}
 
@@ -58,9 +48,7 @@ clear_work_files () {
 }
 
 #--Begin GetOpts--
-RESET="\033[m"
-RED_FG="\033[31m"
-WHITE_FG="\033[37m"
+typeset -a OPTIONS
 
 read -r -d '' DESC<<EOF
 Attempt to identify and gather all references
@@ -73,17 +61,17 @@ EOF
 
 parse_opts () {
 	local OPTS=${@}
-	local -a OPTSTRING
+	local -a OPTSTR
 	local LETTER_OPT
 	local O
 
 	for O in {1..${#OPTS}};do
 		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
 		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
-		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+=$(opt_type ${LETTER_OPT}) && continue
-		OPTSTRING+="-${OPTS[${O}]}"
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
 	done
-	echo ${OPTSTRING}
+	echo ${OPTSTR}
 }
 
 opt_exists () {
@@ -102,33 +90,29 @@ opt_type () {
 usage () {
 	tabs 5
 
-	local OPTS=$(parse_opts ${OPTSTR})
 	local -a PENDING_MSGS=(${@})
 
 	(
-	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTSTR}${WHITE_FG}]${RESET} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-e $(opt_type e)${RESET} one or more extra functions to be extracted"
 	echo -e "${WHITE_FG}-r${RESET} retain intermediate files after run"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
-
-	echo "\n${PENDING_MSGS}"
 	) >&2
 
-	exit
+	exit_leave $(msg_err ${PENDING_MSGS})
 }
 
-typeset -a OPTIONS
 OPTSTR=":He:r"
 OPTIND=0
 
-KEEP_INTERMEDIATE_FILES=false
+KEEP_FILES=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
 	  e) _EXTRA_FUNCS+=(${=OPTARG});;
-	  r) KEEP_INTERMEDIATE_FILES=true;;
+	  r) KEEP_FILES=true;;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
 	esac
@@ -139,73 +123,79 @@ shift $((OPTIND -1))
 
 # Execution
 [[ ${#} -eq 1 ]] && FN=${1} || usage "Missing argument:$(opt_type f)"
+
+[[ -e ${_LIB_FUNCS} ]] && /bin/rm -f ${_LIB_FUNCS}
 LOCAL_FUNC_LIST=FUNCS_FOR_${(U)FN:t}
 
-# Initialize
+# Initialize workspace
 [[ -e ${_LIB_FUNCS} ]] && /bin/rm -f ${_LIB_FUNCS}
 clear_work_files ${FN}
 
-# Blacklisted
+# Show blacklisted
 echo "${WHITE_FG}Blacklisted Functions${RESET}:"
 for B in ${(k)_BLACKLIST};do
-	echo "${CYAN_FG}${B}${RESET}"
+	echo "${RED_FG}${B}${RESET}"
 done | sort
 echo
 
 # Extract library functions
 for L in ${_LIB_LIST};do
-	zsh_sort_funcs -B ${L}
-	if [[ -e ${PWD}/${L:t}.sorted.functions ]];then
-		cat ${PWD}/${L:t}.sorted.functions >> ${_LIB_FUNCS}
-		/bin/rm ${PWD}/${L:t}.sorted.functions
-	fi
+	LIST=("${(f)$(grep ${_FUNC_REGEX} ${L} | sed 's/ *.[(][)] {$//')}")
+	for F in ${LIST};do
+		_FUNC_MAP[${F}]=${L}
+	done
 done
 
-FUNC_LIST=("${(f)$(grep --color=never ${_FUNC_REGEX} < ${_LIB_FUNCS} | sed 's/ [(][)] {//g')}")
+for K in ${(ok)_FUNC_MAP};do
+	func_print ${K} ${_FUNC_MAP[${K}]} >> ${_LIB_FUNCS}
+done
 
 # 1st pass
-NEEDED_FUNCS=("${(f)$(
-	for L in ${FUNC_LIST};do
+_NEEDED_FUNCS=("${(f)$(
+	for L in ${(k)_FUNC_MAP};do
 		[[ ${_BLACKLIST[${L}]} -eq 1 ]] && continue
 		grep --color=never -o ${L} ${FN}
 	done | sort -u
 )}")
-echo "${WHITE_FG}1st pass${RESET}: ${#NEEDED_FUNCS} functions identified in ${FN}"
+echo "${WHITE_FG}1st pass${RESET}: ${#_NEEDED_FUNCS} library functions identified in ${FN}"
 
 # Extra funcs
 if [[ -n ${_EXTRA_FUNCS} ]];then
 	echo "${WHITE_FG}1st pass${RESET}: including ${#_EXTRA_FUNCS} additional functions:${_EXTRA_FUNCS}"
-	NEEDED_FUNCS+=(${_EXTRA_FUNCS})
+	_NEEDED_FUNCS+=(${_EXTRA_FUNCS})
 fi
 
 echo "${WHITE_FG}1st pass${RESET}: Adding functions..."
-for L in ${NEEDED_FUNCS};do
-	[[ ${SEEN[${L}]} -eq 1 ]] && continue
-	print_func ${L} ${_LIB_FUNCS}
+for L in ${_NEEDED_FUNCS};do
+	[[ ${_SEEN[${L}]} -eq 1 ]] && continue
+	[[ ${_BLACKLIST[${L}]} -eq 1 ]] && continue
+	func_print ${L} ${_LIB_FUNCS}
 	[[ ${?} -eq 0 ]] && echo "${GREEN_FG}Added${RESET}:${L}" >&2 || echo "Error:print_func :${L}"
-	SEEN[${L}]=1
+	_SEEN[${L}]=1
 done > ${LOCAL_FUNC_LIST}
 
 # Insert sorted funcs
-sed "/^#Functions/r ${LOCAL_FUNC_LIST}" ${FN} >${FN}.standalone.1
+grep -q ${_FUNC_TAG} ${FN}
+[[ ${?} -ne 0 ]] && exit_leave $(msg_err "Missing tag: [# Functions] in ${FN}.standalone.1 - sed insert will fail")
+sed "/${_FUNC_TAG}/r ${LOCAL_FUNC_LIST}" ${FN} >${FN}.standalone.1
 
-NEEDED_FUNCS=() # Reset
+_NEEDED_FUNCS=() # Reset
 
 # 2nd pass
-NEEDED_FUNCS=("${(f)$(
-	for L in ${FUNC_LIST};do
+_NEEDED_FUNCS=("${(f)$(
+	for L in ${(k)_FUNC_MAP};do
 		[[ ${_BLACKLIST[${L}]} -eq 1 ]] && continue
-		[[ ${SEEN[${L}]} -eq 1 ]] && continue
+		[[ ${_SEEN[${L}]} -eq 1 ]] && continue
 		grep --color=never -o ${L} ${FN}.standalone.1
-		SEEN[${L}]=1
+		_SEEN[${L}]=1
 	done | sort -u
 )}")
 
-echo "${WHITE_FG}2nd pass${RESET}: include any functions referenced in ${FN}.standalone.1"
-if arr_is_populated "${NEEDED_FUNCS}";then
+echo "${WHITE_FG}2nd pass${RESET}: ${#_NEEDED_FUNCS} library functions identified in ${FN}.standalone.1"
+if arr_is_populated "${_NEEDED_FUNCS}";then
 	echo "${WHITE_FG}2nd pass${RESET}: Adding functions..."
-	for L in ${NEEDED_FUNCS};do
-		print_func ${L} ${_LIB_FUNCS}
+	for L in ${_NEEDED_FUNCS};do
+		func_print ${L} ${_LIB_FUNCS}
 		[[ ${?} -eq 0 ]] && echo "${GREEN_FG}Added${RESET}:${L}" >&2 || echo "Error:print_func :${L}"
 	done > ${LOCAL_FUNC_LIST}
 else
@@ -213,9 +203,9 @@ else
 fi
 
 # Insert sorted funcs
-grep -q '# Functions' ${FN}.standalone.1 
+grep -q ${_FUNC_TAG} ${FN}.standalone.1 
 [[ ${?} -ne 0 ]] && exit_leave $(msg_err "Missing tag: [# Functions] in ${FN}.standalone.1 - sed insert will fail")
-sed "/^# Functions/r ${LOCAL_FUNC_LIST}" ${FN}.standalone.1 >${FN}.standalone
+sed "/${_FUNC_TAG}/r ${LOCAL_FUNC_LIST}" ${FN}.standalone.1 >${FN}.standalone
 [[ -e ${FN:t}.standalone ]] && echo "${WHITE_FG}${FN}.standalone${RESET} created" && chmod 775 ${FN}.standalone
 
 
@@ -226,6 +216,6 @@ if [[ -e ./pre_release ]];then
 fi
 
 # Remove intermediate work files
-if [[ ${KEEP_INTERMEDIATE_FILES} == 'false' ]];then
+if [[ ${KEEP_FILES} == 'false' ]];then
 	clear_work_files ${FN}
 fi

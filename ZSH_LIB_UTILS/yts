@@ -75,13 +75,16 @@ action_do () {
 	local DEST_1=''
 	local DEST_2=''
 	local DL_CNT=0
-	local DL_TXT=''
 	local EMSG=''
 	local ERROR_CNT=0
 	local ETA=''
-	local FRAME_PAD=2
+	local FRAME_PAD=4
 	local HAD_ERROR=false
+	local H_CTR=0
 	local HDRS_OUT=false
+	local HDR_TXT=0
+	local HDR_LEN=0
+	local HRZ_CTR=0
 	local JOB_STALL=10
 	local KEY=''
 	local L M S 
@@ -97,7 +100,6 @@ action_do () {
 	local SCAN_LIMIT=0
 	local TITLE=''
 	local URL=''
-	local X=0
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -159,10 +161,12 @@ action_do () {
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				DL_TXT="<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
-				X=$(( ${#$(msg_nomarkup ${DL_TXT})} ))
-				[[ $((X + FRAME_PAD)) -gt ${COORDS[W]} ]] && COORDS[W]=$((X + FRAME_PAD)) # Adjust frame width if needed
-				msg_box -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} ${DL_TXT}
+				HDR_TXT="<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
+				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR_TXT})} ))
+				HDR_LEN=$((HDR_LEN + FRAME_PAD))
+				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
+				[[ ${HDR_LEN} -gt ${COORDS[W]} ]] && COORDS[W]=${HDR_LEN} && COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
+				msg_box -c -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} ${HDR_TXT}
 				msg_box -C -jl "<m>Downloading: <c>${DEST_2[1,60]}<N>"
 				msg_box -C -jl "<m>$(str_unicode_line $((COORDS[W]-4)))<N>"
 				HDRS_OUT=true

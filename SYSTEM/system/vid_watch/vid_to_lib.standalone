@@ -55,6 +55,120 @@ source ${_LIB_DIR}/ARRAY.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
+do_rmcup () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	[[ ${_SMCUP} == 'false' ]] && return
+	tput rmcup
+	# Echo "called rmcup"
+	_SMCUP=false
+}
+
+exit_pre_exit () {
+	[[ ${_PRE_EXIT_RAN} == 'true' ]] && return
+	
+	_PRE_EXIT_RAN=true
+
+	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}, #_EXIT_MSGS:${#_EXIT_MSGS}"
+
+	if [[ ${XDG_SESSION_TYPE:l} == 'x11' ]];then
+		xset r on # Reset key repeat
+		eval "xset ${_XSET_DEFAULT_RATE}" # Reset key rate
+		[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: reset key rate:${_XSET_DEFAULT_RATE}"
+	fi
+
+	kbd_activate
+	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: activated keyboard"
+
+	[[ ${$(tabs -d | grep --color=never -o "tabs 8")} != 'tabs 8' ]] && tabs 8
+	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: reset tabstops"
+
+	if typeset -f _cleanup > /dev/null; then
+		[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: cleaning up"
+		_cleanup
+	fi
+
+	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
+
+	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}"
+
+	[[ -n ${_EXIT_CALLBACK} ]] && ${_EXIT_CALLBACK}
+
+	tput cnorm >&2
+}
+
+set_exit_value () {
+	_EXIT_VALUE=${1}
+}
+
+arr_is_populated () {
+	local -a ARR=(${@})
+	local RC
+	
+	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}, ARR:${#ARR}"
+	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARR:${ARR}"
+
+	[[ ${#} -eq 0 ]] && echo "${0}: ${RED_FG}requires an argument${RESET} of type <ARRAY> ${#}" >&2
+
+	[[ ${ARR[@]} =~ "^ *$" ]] && RC=1 || RC=0
+
+	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Returning:${RC}"
+
+	return ${RC}
+}
+
+exit_leave () {
+	local MSGS=(${@})
+
+	if [[ ${_DEBUG} -ne 0 ]];then
+		dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
+		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
+		dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
+		dbg "${RED_FG}${0}${RESET}: _SMCUP:${_SMCUP}"
+		dbg_msg | mypager wait
+	fi
+
+	[[ -n ${MSGS} ]] && _EXIT_MSGS=${MSGS}
+	
+	if [[ ${_APP_IS_SOURCED} == 'true' ]];then
+		_SOURCED_APP_EXIT=true
+		echo ${MSGS} >&2
+		return 9
+	fi
+
+	if [[ ${functrace[1]} =~ 'usage' && -z ${MSGS} ]];then
+		echo "\n"
+		set_exit_value 1
+	else
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage
+	fi
+
+	tput cnorm >&2
+
+	exit_pre_exit
+
+ # Kill -SIGINT $$ # Fire the traps
+	exit ${_EXIT_VALUE}
+}
+
+logit () {
+	local MSG=${@}
+	local STAMP=$(date +'%Y-%m-%d:%T')
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	echo "${STAMP} ${MSG}" >> ${_LOG:=/tmp/${0}.log}
+}
+
+str_unicode_line () {
+	local LENGTH=${1}
+	local HORIZ_BAR="\\u2500%.0s"
+
+	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
+
+	printf "\\u2500%.0s" {1..$((${LENGTH}))}
+}
+
 clean_media () {
 	local -a VIDEOS=("${(f)$(find ${_LIBRARY_DIR} -regex "${_VIDEO_REGEX}")}")
 	local TITLE
