@@ -58,8 +58,9 @@ g_QRY_ENGINE=''
 g_SEARCH_TYPE=''
 g_STRICT=false
 g_STRICT_MSG=''
+g_LIST_SUBSET=false
 
-
+# Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
 source ${_LIB_DIR}/LIST.zsh
@@ -68,7 +69,6 @@ source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
-
 action_do () {
 	local -a MSGS
 	local DEST=''
@@ -328,7 +328,7 @@ get_favorite () {
 	local -a _DISPLAY_LIST=()
 	local LINE
 	local FAV
-	local PLATFORM
+	local FAV_TYPE
 	local MSG
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -340,20 +340,21 @@ get_favorite () {
 			_DISPLAY_LIST=()
 			while read LINE;do
 				FAV=$(cut -d'|' -f1 <<<${LINE})
-				PLATFORM=$(cut -d'|' -f2 <<<${LINE})
-				_FAVORITE_ENGINE[${FAV}]=${PLATFORM}
+				FAV_TYPE=$(cut -d'|' -f2 <<<${LINE})
 				if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
-					[[ ${PLATFORM:l} == 'r' || ${PLATFORM:l} == 'rl' ]] && _DISPLAY_LIST+=${FAV}
+					[[ ${FAV_TYPE:l} =~ 'r' ]] && _DISPLAY_LIST+=${FAV} # Rumble
 				else
-					[[ ${PLATFORM:l} == 'y' || ${PLATFORM:l} == 'yns' ]] && _DISPLAY_LIST+=${FAV} # No strict requested
+					[[ ${g_LIST_SUBSET} == 'true' && ${FAV_TYPE:l} =~ 'p' ]] && _DISPLAY_LIST+=${FAV} # YouTube custom
+					[[ ${g_LIST_SUBSET} == 'false' && ${FAV_TYPE:l} =~ 'y' && (! ${FAV_TYPE:l} =~ 'p') ]] && _DISPLAY_LIST+=${FAV} # YouTube
 				fi
+				_FAVORITE_ENGINE[${FAV}]=${FAV_TYPE:s/P//} # Strip custom marker
 			done < ${_YTS_FAVORITES}
 		else
 			exit_leave "No favorites have been saved"
 		fi
 
 		selection_list_set ${(o)_DISPLAY_LIST}
-		selection_list_set_page_key_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>d<N>)elete favorite"
+		selection_list_set_page_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>c<N>)ustom list, (<w>d<N>)elete favorite"
 
 		clear
 
@@ -361,8 +362,6 @@ get_favorite () {
 
 		_SELECTION_VALUE=?
 		selection_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>"
-
-		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 
 		case ${_SELECTION_KEY} in
 			d) delete_favorite ${_SELECTION_VALUE} && _DISPLAY_LIST=() && continue;;
@@ -374,8 +373,9 @@ get_favorite () {
 				fi
 				continue
 				;;
-			r) g_QRY_ENGINE='rumble' && continue;;
-			y) g_QRY_ENGINE='youtube' && continue;;
+			r) g_QRY_ENGINE='rumble' && g_LIST_SUBSET=false && continue;;
+			y) g_QRY_ENGINE='youtube' && g_LIST_SUBSET=false && continue;;
+			c) g_QRY_ENGINE='youtube' && g_LIST_SUBSET=true && continue;;
 		esac
 
 		break
@@ -658,8 +658,6 @@ set_favorite () {
 		[[ ${g_STRICT} == 'false' ]] && FAV="${FAV}|YNS" || FAV="${FAV}|Y"
 	fi
 
-	msg_box -t.2 "Saving favorite: ${FAV}"
-
 	HISTORY+=${FAV}
 
 	if [[ -e ${_YTS_FAVORITES} ]];then
@@ -673,6 +671,8 @@ set_favorite () {
 	for H in ${(o)HISTORY};do
 		echo ${H} >> ${_YTS_FAVORITES}
 	done
+
+	sort -t'|' -k2 < ${_YTS_FAVORITES} > ${_YTS_FAVORITES}
 }
 
 set_item_color () {

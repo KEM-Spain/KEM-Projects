@@ -38,40 +38,8 @@ source ${_LIB_DIR}/LIB_DEPS.zsh
 action_do () {
 	local -a MARKED=(${@})
 	local M
-	local APP
-	local KEY
-	local ARGS
-	local LAUNCH_CMD
-	local -a EDIT_LIST
 
-	for M in ${MARKED};do
-		if  [[ $(file ${_LIST[${M}]}) =~ 'text|script' ]];then
-			EDIT_LIST+=${_LIST[${M}]}
-		fi
-	done
-
-	msg_box -jl -p -P"Enter selection or <RETURN> to cancel:" "Select either| |1) Edit|2) Execute"
-	case ${_MSG_KEY} in
-		1) if [[ -n ${EDIT_LIST[@]} ]];then
-				exit_pre_exit
-				echo
-				vim ${EDIT_LIST[@]}
-			fi;;
-		2) if [[ ${#MARKED} -gt 1 ]];then
-				msg_box -p -PK "Execute not valid for multiple items"
-			else
-				if [[ $(file ${EDIT_LIST[@]}) =~ 'executable' ]];then
-					if [[ -n ${EDIT_LIST[@]} ]];then
-						exit_pre_exit
-						echo
-						exec ${EDIT_LIST[@]}
-					fi
-				else
-					msg_box -p -PK "${EDIT_LIST[@]:t}: not an executable file"
-				fi
-			fi;;
-		*) msg_box -p -PK "Not a valid selection"
-	esac
+	msg_box -PK -p "No actions have been coded"
 
 	for M in ${MARKED};do
 		[[ ${M} -eq 0 ]] && continue
@@ -214,7 +182,7 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-[[ ${_DEBUG} -eq 0 ]] && do_smcup
+#[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ ${#} -gt 1 ]] && usage "Too many arguments:${#}"
 

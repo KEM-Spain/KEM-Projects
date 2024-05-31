@@ -133,7 +133,11 @@ selection_list () {
 
 	[[ ${MAX_X_COORD} -lt ${BOX_HEIGHT} ]] && BOX_HEIGHT=$((MAX_X_COORD-10 )) # Long list
 
-	[[ ${_SL_MAX_ITEM_LEN} -gt ${#TITLE} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( ${#TITLE}+2 )) # Choose either item or title for box width
+	# Find widest element for box width
+	CLEAN_TEXT=$(msg_nomarkup ${TITLE})
+	[[ ${_SL_MAX_ITEM_LEN} -ge ${#CLEAN_TEXT} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( ${#CLEAN_TEXT}+2 ))
+	CLEAN_TEXT=$(msg_nomarkup ${_PAGE_OPTION_KEY_HELP})
+	[[ ${_SL_MAX_ITEM_LEN} -ge ${#CLEAN_TEXT} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( ${#CLEAN_TEXT}+2 ))
 
 	[[ ${X_COORD_ARG} -gt 0 ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $((_MAX_ROWS)) ${BOX_HEIGHT})
 	[[ ${Y_COORD_ARG} -gt 0 ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $((_MAX_COLS)) ${SW})
@@ -148,8 +152,8 @@ selection_list () {
 
 	SL=$(( SX+BOX_HEIGHT + (PAD * 2) - 1 )) # Loop limit
 
-	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD} BOX_WIDTH:${BOX_WIDTH} BOX_HEIGHT:${BOX_HEIGHT} PAD:${PAD}=PAD"
-	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SX:${SX}->SL:${SL}, SY:${SY}->SW:${SW}"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD} BOX_WIDTH:${BOX_WIDTH} BOX_HEIGHT:${BOX_HEIGHT} PAD:${PAD}=PAD"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SX:${SX}->SL:${SL}, SY:${SY}->SW:${SW}"
 
 	# Space around list
 	for ((L=SX;L<=SL;L++));do
@@ -277,6 +281,7 @@ selection_list () {
 				l) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='l' && break 2;;
 				r) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='r' && break 2;;
 				y) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='y' && break 2;;
+				c) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='c' && break 2;;
 				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
 				q) exit_request $(selection_list_pos_exitbox);;
@@ -528,10 +533,12 @@ selection_list_set () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	_SELECTION_LIST=(${(on)LIST})
+	_SL_MAX_ITEM_LEN=0 # Trigger column width reset
+
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${0} _SELECTION_LIST:${#_SELECTION_LIST} ITEMS"
 }
 
-selection_list_set_page_key_help () {
+selection_list_set_page_help () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	_PAGE_OPTION_KEY_HELP=${@}
