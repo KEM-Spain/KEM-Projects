@@ -362,7 +362,7 @@ stamp_decorate () {
 	echo ${CMD_DATE_TIME}
 }
 
-#--BeginGetOpts--
+#--Begin GetOpts--
 parse_opts () {
 	local OPTS=${@}
 	local -a OPTSTR
@@ -445,7 +445,7 @@ while getopts ${OPTSTR} OPTION;do
 	esac
 done
 shift $((OPTIND -1))
-#--EndGetOpts--
+#--End GetOpts--
 
 # Arg housekeeping
 [[ -z ${SEARCHTERM} ]] && SEARCHTERM=${1} # SEARCHTERM may have been populated above via OPTARG w/o MATCH_CMDS

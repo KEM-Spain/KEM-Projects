@@ -672,7 +672,7 @@ set_favorite () {
 		echo ${H} >> ${_YTS_FAVORITES}
 	done
 
-	sort -t'|' -k2 < ${_YTS_FAVORITES} > ${_YTS_FAVORITES}
+	sort -o ${_YTS_FAVORITES} -t'|' -k2 ${_YTS_FAVORITES} 
 }
 
 set_item_color () {
@@ -787,7 +787,7 @@ clear_log () {
 }
 
 # Imports
-#--GetOpts--
+#--Begin GetOpts--
 read -r -d '' DESC<<EOF
 Query either Youtube or Rumble for videos.
 \tyts functions as proxy for yts.js (node yt-search client)

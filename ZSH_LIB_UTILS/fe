@@ -22,8 +22,10 @@ typeset -A _COL_WIDTHS
 typeset -a _BLACKLIST=(-v "\.so\|\.pcm")
 
 # Constants
-_LIB_DIR=/usr/local/lib
 CUR_USER=$(whoami)
+
+# Globals
+_DEPTH=4
 
 # Imports
 zmodload -F zsh/stat b:zstat
@@ -39,45 +41,30 @@ action_do () {
 	local -a MARKED=(${@})
 	local M
 
-	msg_box -PK -p "No actions have been coded"
-
 	for M in ${MARKED};do
-		[[ ${M} -eq 0 ]] && continue
+		if [[ $(file ${_LIST[${M}]}) =~ 'text' ]];then
+			msg_box -p -PE "<U><c>Selected File<N>|${_LIST[${M}]}"
+			[[ ${_MSG_KEY} == 'y' ]] && /bin/vi ${_LIST[${M}]}
+		else
+			msg_box -p -P"File is not editable" "<U><c>Selected File<N>|${_LIST[${M}]}"
+		fi
 		MARKED[${M}]=0
 		list_set_selected ${M} 0
 	done
 }
 
 action_warn () {
-	local MARKED=(${@})
-	local CNT=$(list_get_selected_count ${MARKED})
-	local M
-	local INFO_MSG
-	
-	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
-	msg_box -p -PO "<I>Please respond<N>|$(str_unicode_line 14)| |$(str_pluralize item $CNT true) queued for opening${INFO_MSG}"
-	if [[ ${_MSG_KEY} == 'n' ]];then
-		for M in ${MARKED};do
-			list_clear_selected ${M}
-		done
-	fi
+	return 0
 }
 
-is_valid_depth () {
-	local DEPTH=${1}
-	if [[ ${DEPTH} =~ '[1-9]' ]];then
-		echo "true"
-	else
-		msg_box -p -PK "${RED_FG}Depth${RESET} must be an integer > 0. Got:${WHITE_FG}${DEPTH}${RESET}" >&2
-		msg_box_clear >&2
-		echo "false"
-	fi
+depth_set_level () {
+	((_DEPTH++))
 }
 
 show_options () {
 	printf "\t${MAGENTA_FG}%s${RESET}\n" "Current Options"
    printf "${WHITE_FG}%12s${RESET}:%-s\n" "HIDDEN" ${HIDDEN}
-   printf "${WHITE_FG}%12s${RESET}:%-s\n" "MAX_DEPTH" ${MAX_DEPTH}
+   printf "${WHITE_FG}%12s${RESET}:%-s\n" "_DEPTH" ${_DEPTH}
    printf "${WHITE_FG}%12s${RESET}:%-s\n" "FUZZY" ${FUZZY}
    printf "${WHITE_FG}%12s${RESET}:%-s\n" "IS_OWNER" ${IS_OWNER}
    printf "${WHITE_FG}%12s${RESET}:%-s\n" "EXACT_MATCH" ${EXACT_MATCH}
@@ -92,8 +79,7 @@ IS_OWNER=false
 HIDDEN=false
 EXACT_MATCH=false
 FUZZY=false
-DEFAULT_DEPTH=1
-MAX_DEPTH=${DEFAULT_DEPTH}
+MAX_DEPTH=${_DEPTH}
 TOP_LEVEL=/
 
 read -r -d '' DESC<<EOF
@@ -102,10 +88,7 @@ Find executable files
 \tUse option -f (fuzzy) to match any portion of a filename
 \tWithout a <SEARCHTERM>, the current directory is scanned for executable files
 \tIf a <SEARCHTERM> is provided, searches begin at ${TOP_LEVEL} unless overridden 
-\twith option -t. Any single item may be edited or executed. Multiple items may 
-\tbe edited but execution is limited to a single item. When editing, the list 
-\twill be redisplyed for further interactions. When executing, the application
-\texits after launching the selection
+\twith option -t. Any selected text based file may be edited.
 EOF
 
 parse_opts () {
@@ -148,7 +131,7 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} Help"
 	echo -e "${WHITE_FG}-D${RESET} Debug"
 	echo -e "-h Show hidden files"
-	echo -e "-d ${WHITE_FG}$(opt_type d)${RESET} depth level of search (default is ${DEFAULT_DEPTH})"
+	echo -e "-d ${WHITE_FG}$(opt_type d)${RESET} depth level of search (default is ${_DEPTH})"
 	echo -e "-f Fuzzy search"
 	echo -e "-o Owned by user"
 	echo -e "-t ${WHITE_FG}$(opt_type t)${RESET} top level of search"
@@ -168,7 +151,7 @@ while getopts ${OPTSTR} OPTION;do
      H) usage;;
      D) dbg_set_level;;
      h) HIDDEN=true;;
-     d) MAX_DEPTH=${OPTARG};;
+     d) depth_set_level;;
      f) FUZZY=true;;
      o) IS_OWNER=true;;
      t) TOP_LEVEL=${OPTARG};;
@@ -182,21 +165,18 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-#[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 [[ ${#} -gt 1 ]] && usage "Too many arguments:${#}"
 
-[[ $(is_valid_depth ${MAX_DEPTH}) == 'false' ]] && usage "-d (depth) must be:>= 1"
-
 [[ -n ${1} ]] && SEARCHTERM=${@} || SEARCHTERM=''
+[[ ! -d ${TOP_LEVEL} ]] && usage "TOP_LEVEL must be a valid directory"
 
 if [[ -z ${SEARCHTERM} ]];then
 	[[ ${EXACT_MATCH} == 'true' ]] && usage "EXACT_MATCH requires:<SEARCHTERM>"
 	START_DIR=.
 else
-	if [[ ${MAX_DEPTH} -eq ${DEFAULT_DEPTH} ]];then
-		MAX_DEPTH=4 # Default depth for SEARCHTERM unless overridden
-	fi
+	MAX_DEPTH=${_DEPTH}
 	START_DIR=${TOP_LEVEL}
 fi
 
@@ -244,12 +224,12 @@ done
 
 if [[ ${HIT} == 'false' ]];then
 	typeset -a OPTMSGS
-	[[ -n ${#OPTIONS} ]] && OPTMSGS+="| |<w>Hidden Filter is Active<N>"
-	[[ ${HIDDEN} == 'false' && ${HIDDEN_CNT} -ne 0 ]] && OPTMSGS+="| |Use option [-h]|to see files that matched but were hidden:${HIDDEN_CNT}"
-	[[ ${FUZZY} == 'false' && ${FUZZY_CNT} -ne 0 ]] && OPTMSGS+="| |Use option [-f]|to see files that matched the substring \"${SEARCHTERM}\":${FUZZY_CNT}"
-	[[ ${EXACT_MATCH} == 'true' && ${EXACT_CNT} -ne 0 ]] && OPTMSGS+="| |Use option [-x]|to see files that matched but not exactly:${EXACT_CNT}"
-	[[ ${IS_OWNER} == 'true' && ${OWNER_CNT} -ne 0 ]] && OPTMSGS+="| |Use option [-o]|to see files that matched but you are not the owner:${OWNER_CNT}"
-	msg_box -p -PK -jl "<r>No Matches for${RESET}:${SEARCHTERM}${OPTMSGS}|$(msg_list ${(o)_RAWLIST})"
+	OPTMSGS+="| |<w>Hidden Filter is Active<N>" # Default
+	[[ ${HIDDEN} == 'false' && ${HIDDEN_CNT} -ne 0 ]] && OPTMSGS+="| |<w>Use option [-h] to see files<N> (<w>${HIDDEN_CNT}<N>) <w>that matched but were hidden<N>"
+	[[ ${FUZZY} == 'false' && ${FUZZY_CNT} -ne 0 ]] && OPTMSGS+="| |<w>Use option [-f] to select from files that matched<N> (<w>${FUZZY_CNT}<N>) <w>the substring \"${SEARCHTERM}\"<N>"
+	[[ ${EXACT_MATCH} == 'true' && ${EXACT_CNT} -ne 0 ]] && OPTMSGS+="| |<w>Use option [-x] to see files<N> (<w>${EXACT_CNT}<N>) <w>that matched but not exactly<N>"
+	[[ ${IS_OWNER} == 'true' && ${OWNER_CNT} -ne 0 ]] && OPTMSGS+="| |<w>Use option [-o] to see files that matched<N> (<w>${OWNER_CNT}<N>) but you are not the owner<N>"
+	msg_box -H$((${#OPTMSGS}+1)) -p -PK -jl "<r>No Matches for a file named${RESET}:${SEARCHTERM}${OPTMSGS}|$(msg_list ${(o)_RAWLIST})"
 	msg_box_clear
 	exit_leave
 fi
@@ -273,11 +253,7 @@ while true;do
 	# Get selections
 	MARKED=($(list_get_selected))
 	
-	if [[ $(list_get_selected_count) -gt 1 ]];then
-		action_warn ${MARKED} # Warn if more than 1 selected
-	fi
-
-	if [[ ${_MSG_KEY} == "y" || $(list_get_selected_count) -eq 1 ]];then
+	if [[ ${#MARKED} -ge 1 ]];then
 		action_do ${MARKED}
 	fi
 done

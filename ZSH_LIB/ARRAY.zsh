@@ -75,7 +75,6 @@ arr_long_elem_len () {
 		STR=$(str_strip_ansi <<<${STR})
 		STR=$(str_trim ${STR})
 		[[ ${#STR} -ge ${LONGEST} ]] && LONGEST=${#STR}
-		[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LEN:${#STR}"
 	done
 
 	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LONGEST ELEMENT LEN:${LONGEST}"

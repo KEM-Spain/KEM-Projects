@@ -37,8 +37,8 @@ _LIST_TYPE=''
 
 # Import default LIBS
 if [[ -e ./LIB_INIT.zsh && ${LIB_TESTING} == 'true' ]];then
+	clear;tput cup 0 0;echo "LIB TESTING is active - press any key";read
 	_LIB_DIR=${PWD}
-	source ${_LIB_DIR}/MSG.zsh
 	for D in ${=_DEPS_};do
 		if [[ -e ${_LIB_DIR}/${D} ]];then
 			source ${_LIB_DIR}/${D}
@@ -47,8 +47,6 @@ if [[ -e ./LIB_INIT.zsh && ${LIB_TESTING} == 'true' ]];then
 			exit 1
 		fi
 	done
-	clear
-	msg_box "TESTMODE is on"
 else
 	_LIB_DIR=/usr/local/lib
 fi

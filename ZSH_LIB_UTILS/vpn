@@ -23,7 +23,7 @@ DEFAULT_ARGS='--group P2P'
 _DO_PARSE=true
 _TOKEN="e9f2abd840a7d6121ac3eac6236b6cf681d31967e56489d1f0633381a14e9bf7"
 
-# Declaration
+# Declarations
 typeset -A SHORTCUTS=(us United_States gb United_Kingdom gr Germany fr France es Spain lx Luxembourg tr Turkey)
 
 # Globals
