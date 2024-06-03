@@ -612,14 +612,14 @@ select_download () {
 	list_set_barlines true
 
 	while true;do
-	 # Get selection
+		# Get selection
 		list_reset
 		list_select ${_LOCAL_LIST}
 		[[ ${?} -eq 0 ]] && break
 
-	 # Get selections
+		# Get selections
 		_MARKED=($(list_get_selected))
-		
+
 		if [[ $(list_get_selected_count) -ne 0 ]];then
 			action_warn
 			if [[ ${_MSG_KEY} == "y" ]];then
