@@ -191,13 +191,14 @@ msg_box () {
 		MSG_HDRS=(${MSGS[1,$((HDR_LINES))]})
 		MSG_BODY=(${MSGS[HDR_LINES+1,-1]})
 	else
-		MSG_BODY=${MSGS}
+		MSG_BODY=(${MSGS})
 	fi
-
-	[[ ${MSG_BODY} =~ '<L>' ]] && MSG_LIST=true || MSG_LIST=false # Check for list embeds
 
 	MSG_STR=$(arr_long_elem ${MSGS}) # Returns trimmed/no markup
 	MSG_COLS=${#MSG_STR}
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: INITIAL MSG_COLS:${MSG_COLS} MSG_STR:${MSG_STR}"
+
+	[[ ${MSG_BODY} =~ '<L>' ]] && MSG_LIST=true || MSG_LIST=false # Check for list embeds
 
 	# Handle paged messages
 	if [[ ${#MSGS} -gt ${DISPLAY_ROWS} ]];then
@@ -232,6 +233,7 @@ msg_box () {
 		fi
 	fi
 	((MSG_COLS+=2)) # Add gutter
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FINAL MSG_COLS:${MSG_COLS}"
 
 	# Center MSG unless coords were passed
 	[[ ${MSG_X_COORD_ARG} -eq -1 ]] && MSG_X_COORD=$(( ( _MAX_ROWS-(DISPLAY_ROWS+2) )/2 )) || MSG_X_COORD=${MSG_X_COORD_ARG}
@@ -666,7 +668,7 @@ msg_stream () {
 	
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG COUNT with BLANK LINES REMOVED:${#MSG_LINES}"
 
-	msg_box -H0 -P"<m>Last Page<N>" -pc -s${DELIM} -j${STYLE} ${MSG_LINES} # Display window
+	msg_box -P"<m>Last Page<N>" -pc -s${DELIM} -j${STYLE} ${MSG_LINES} # Display window
 }
 
 msg_unicode_box () {

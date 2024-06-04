@@ -57,6 +57,7 @@ selection_list () {
 	local LIST_BOT=0
 	local LIST_NDX=0
 	local LIST_TOP=0
+	local LONGEST=0
 	local MAX_BOX=0
 	local OPTION
 	local OPTSTR
@@ -135,17 +136,21 @@ selection_list () {
 
 	# Find widest element for box width
 	CLEAN_TEXT=$(msg_nomarkup ${TITLE})
-	[[ ${_SL_MAX_ITEM_LEN} -ge ${#CLEAN_TEXT} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( ${#CLEAN_TEXT}+2 ))
+	[[ ${#CLEAN_TEXT} -gt ${LONGEST} ]] && LONGEST=${#CLEAN_TEXT}
+
 	CLEAN_TEXT=$(msg_nomarkup ${_PAGE_OPTION_KEY_HELP})
-	[[ ${_SL_MAX_ITEM_LEN} -ge ${#CLEAN_TEXT} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( ${#CLEAN_TEXT}+2 ))
+	[[ ${#CLEAN_TEXT} -gt ${LONGEST} ]] && LONGEST=${#CLEAN_TEXT}
+
+	SW=$(( LONGEST+2 ))
+	#[[ ${LONGEST} -gt ${_SL_MAX_ITEM_LEN} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( LONGEST+2 ))
 
 	[[ ${X_COORD_ARG} -gt 0 ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $((_MAX_ROWS)) ${BOX_HEIGHT})
 	[[ ${Y_COORD_ARG} -gt 0 ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $((_MAX_COLS)) ${SW})
 
 	SX=$(( BOX_X_COORD-PAD ))
 	SY=$(( BOX_Y_COORD-PAD ))
-	SW=$(( SW + (PAD * 2) ))
-	SH=$(( BOX_HEIGHT + (PAD * 2) ))
+	SW=$(( SW + ( PAD * 2 ) ))
+	SH=$(( BOX_HEIGHT + ( PAD * 2 ) ))
 
 	[[ $((SW % 2)) -ne 0 ]] && ((SW++)) # Even width cols
 	[[ $((BOX_WIDTH % 2)) -ne 0 ]] && ((BOX_WIDTH++)) # Even width cols

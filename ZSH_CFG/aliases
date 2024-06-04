@@ -22,7 +22,6 @@ alias wim='mono /usr/local/src/RemoteMouse/RemoteMouse.exe >/dev/null 2>&1 &'
 # misc
 alias fdsk="sudo fdisk -l | sed -e '/Disk \/dev\/loop/,+5d'"
 alias feh='feh -F'
-alias google='ddgr --url-handler=/usr/local/bin/system/launchers/run_google-chrome --num 8 2>/dev/null'
 alias help='run-help'
 alias keyrate='xset r rate 500 33'
 alias locate='/usr/local/bin/system/launchers/run_locate'

@@ -64,7 +64,7 @@ while read F;do
 	FN=$(echo ${F} | cut -d \| -f2 2>/dev/null)
 	[[ ${_SEEN[${FN}]} -eq 1 ]] && continue
 	[[ ! -e ${FN} || ${FN:t} == ${_SCRIPT} ]] && continue
-	grep -qP "#TODO" ${FN}
+	grep -d skip -qP "#TODO" ${FN}
 	if [[ $? -eq 0 ]];then
 		_SEEN[${FN}]=1
 		echo "File:${WHITE_FG}${FN}${RESET}"

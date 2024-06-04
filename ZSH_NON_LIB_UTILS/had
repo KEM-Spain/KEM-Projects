@@ -1,4 +1,37 @@
 #!/usr/bin/zsh
-[[ ${1} == "-H" ]] && echo "Usage:${0}\n Desc:toggle autodock visibility"
-gsettings set org.gnome.shell.extensions.dash-to-dock autohide false
-gsettings set org.gnome.shell.extensions.dash-to-dock autohide true
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+ALERT="${RED_FG}Warning${RESET}"
+DESCRIPTION="setting autodock visibility to hide"
+
+[[ ${1} == "-H" ]] && echo "${WHITE_FG}Usage${RESET}:${0}\n ${WHITE_FG}Desc${RESET}:${DESCRIPTION}" && exit
+
+echo -n "\n${RED_FG}${ALERT}!${RESET} ${DESCRIPTION}${WHITE_FG}${RESET}:(${WHITE_FG}y/n${RESET})?"
+read -q RESPONSE
+echo
+if [[ ${RESPONSE} != "n" ]];then
+	echo "${WHITE_FG}${DESCRIPTION}${RESET}"
+	gsettings set org.gnome.shell.extensions.dash-to-dock autohide false
+	gsettings set org.gnome.shell.extensions.dash-to-dock autohide true
+else
+	echo "${RED_FG}Operation cancelled${RESET}..."
+	exit
+fi

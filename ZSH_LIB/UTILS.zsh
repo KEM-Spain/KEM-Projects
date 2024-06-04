@@ -39,30 +39,6 @@ arg_parse () {
 	done
 }
 
-box_coords_set () {
-	local -a ARGS=(${@})
-	local NDX=$((RANDOM%100))
-	local TAG=${ARGS[1]}
-	local COORDS=${ARGS[2,-1]}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	_COORD_TAB[${TAG}_${NDX}]=${COORDS}
-	_BOX_COORDS[${TAG}]=${TAG}_${NDX}
-}
-
-box_coords_get () {
-	local TAG=${1}
-	local KEY=${_BOX_COORDS[${TAG}]}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	[[ -z ${KEY} ]] && return 1
-
-	echo ${_COORD_TAB[${KEY}]}
-	return 0
-}
-
 boolean_color () {
 	local STATE=${1}
 
@@ -96,6 +72,30 @@ boolean_color_word () {
 		active) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${GREEN_FG}${STATE}${RESET}" || echo -n "${E_GREEN_FG}${STATE}${E_RESET}";;
 		*) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${RED_FG}${STATE}${RESET}" || echo -n "${E_RED_FG}${STATE}${E_RESET}";;
 	esac
+}
+
+box_coords_get () {
+	local TAG=${1}
+	local KEY=${_BOX_COORDS[${TAG}]}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	[[ -z ${KEY} ]] && return 1
+
+	echo ${_COORD_TAB[${KEY}]}
+	return 0
+}
+
+box_coords_set () {
+	local -a ARGS=(${@})
+	local NDX=$((RANDOM%100))
+	local TAG=${ARGS[1]}
+	local COORDS=${ARGS[2,-1]}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	_COORD_TAB[${TAG}_${NDX}]=${COORDS}
+	_BOX_COORDS[${TAG}]=${TAG}_${NDX}
 }
 
 cmd_get_raw () {
@@ -163,7 +163,6 @@ func_list () {
 func_normalize () {
 	local FN=${1}
 
-	#perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g; s/^[ \t]*}$/}/g' < ${FN} > ${FN}.normalized
 	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g' < ${FN} > ${FN}.normalized
 }
 
@@ -378,31 +377,6 @@ logit () {
 	echo "${STAMP} ${MSG}" >> ${_LOG:=/tmp/${0}.log}
 }
 
-parse_find_valid_delim () {
-	local LINE=${1}
-	local DELIM=''
-	local D
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	for D in ${_DELIMS};do
-		grep -q ${D} <<<${LINE}
-		[[ $? -eq 0 ]] && DELIM=${D} && break
-	done
-
-	[[ -n ${DELIM} ]] && echo ${DELIM} && return 0
-	return 1
-}
-
-parse_get_last_field () {
-	local DELIM=${1};shift
-	local LINE=${@}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	echo -n ${LINE} | rev | cut -d"${DELIM}" -f1 | rev
-}
-
 num_byte_conv () {
 	local BYTES=${1}
 	local WANTED=${2}
@@ -431,5 +405,30 @@ num_human () {
 	else printf "%10dB" ${BYTES} 
 	fi
 	) | sed 's/^[ \t]*//g' 
+}
+
+parse_find_valid_delim () {
+	local LINE=${1}
+	local DELIM=''
+	local D
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	for D in ${_DELIMS};do
+		grep -q ${D} <<<${LINE}
+		[[ $? -eq 0 ]] && DELIM=${D} && break
+	done
+
+	[[ -n ${DELIM} ]] && echo ${DELIM} && return 0
+	return 1
+}
+
+parse_get_last_field () {
+	local DELIM=${1};shift
+	local LINE=${@}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	echo -n ${LINE} | rev | cut -d"${DELIM}" -f1 | rev
 }
 

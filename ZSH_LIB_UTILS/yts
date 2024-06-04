@@ -415,7 +415,8 @@ get_field () {
 		fi
 
 		[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
-
+		
+		STR=$(html2text -ascii <<<${STR})
 		STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) # Scrub non ascii
 		echo -n ${STR[1,65]}
 }
@@ -467,7 +468,7 @@ post_process () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	msg_box "Post processing..."
+	msg_box -x$(( COORDS[X]+4 )) "Post processing..."
 
 	for K in ${KEYWORDS};do
 		fsub -iy ${K} ${_DOWNLOAD_DIR} >/dev/null 2>&1
@@ -556,10 +557,10 @@ rumble () {
 		_LOCAL_LIST=(${VID_LIST})
 	fi
 
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}"
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} TITLES: ${#TITLES}"
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}, TITLES: ${#TITLES}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${TITLES};do printf "TITLE:%s\n" ${L};done )"
 
-	# Display search results
+	# Return search status
 	if ! arr_is_populated "${_LOCAL_LIST}";then
 		return 1
 	fi
@@ -574,8 +575,7 @@ select_download () {
 	list_set_type classic
 	
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} ${_LOCAL_LIST}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 
 	SEARCHTYPE=Videos
 	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
@@ -612,14 +612,14 @@ select_download () {
 	list_set_barlines true
 
 	while true;do
-		# Get selection
+	 # Get selection
 		list_reset
 		list_select ${_LOCAL_LIST}
 		[[ ${?} -eq 0 ]] && break
 
-		# Get selections
+	 # Get selections
 		_MARKED=($(list_get_selected))
-
+		
 		if [[ $(list_get_selected_count) -ne 0 ]];then
 			action_warn
 			if [[ ${_MSG_KEY} == "y" ]];then
@@ -757,6 +757,7 @@ youtube () {
 	[[ ${g_STRICT} == 'true' ]] && g_STRICT_MSG="$(total_rejects ${NDX})" || g_STRICT_MSG=''
 
 	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${_LOCAL_LIST};do printf "TITLE:%s\n" "$(cut -d'|' -f3 <<<${L})" ;done )"
 
 	[[ ${_SMCUP} == 'false' ]] && do_smcup
 
@@ -764,7 +765,7 @@ youtube () {
 		exit_leave
 	fi
 
-	# Display search results
+	# Return search status
 	if ! arr_is_populated "${_LOCAL_LIST}";then
 		msg_box -p -PK "No data for query:${g_PROXY_CMD}|${g_STRICT_MSG}|Use option '<w>-S<N>' to disable strict filtering"
 		return 1
@@ -890,7 +891,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 
 	RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
 	RCL=$(sed 's/\-h//' <<<${RCL}) # Front end option only
-	RCL=$(sed 's/\-D//' <<<${RCL}) # Front end option only
+	RCL=$(sed 's/\-D*//' <<<${RCL}) # Front end option only
 	RCL=$(sed 's/\-S//' <<<${RCL}) # Front end option only
 	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
 	RCL=$(sed 's/\-l//' <<<${RCL}) # Rumble only option
