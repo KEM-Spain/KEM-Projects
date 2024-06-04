@@ -25,9 +25,9 @@ _PAGE_OPTION_KEY_HELP=''
 selection_list () {
 	local -A SKEYS
 	local -a SLIST
-	local MAX_X_COORD=$((_MAX_ROWS-5)) # Up from bottom 
 	local MAX_NDX=${#_SELECTION_LIST}
 	local BOX_HEIGHT=$(( MAX_NDX+2 ))
+	local MAX_X_COORD=$((_MAX_ROWS-5)) # Up from bottom 
 	local BOUNDARY_SET=false
 	local BOX_BOT=0
 	local BOX_NDX=0
@@ -39,36 +39,36 @@ selection_list () {
 	local BOX_X_COORD=0
 	local BOX_Y=0
 	local BOX_Y_COORD=0
-	local CENTER_Y
-	local CLEAN_TEXT
+	local CENTER_Y=0
+	local CLEAN_TEXT=''
 	local CURSOR_NDX=0
 	local CURSOR_ROW=0
-	local DIR
-	local F1 F2
+	local DIR=''
+	local F1='' F2=''
 	local GUIDE=false
 	local GUIDE_OFFSET=2
 	local GUIDE_ROW=0
 	local GUIDE_ROWS=1
-	local KEY
+	local KEY=''
 	local L P Q 
-	local LAST_NDX
-	local LAST_ROW
-	local LINE
+	local LAST_NDX=0
+	local LAST_ROW=0
+	local LINE=''
 	local LIST_BOT=0
 	local LIST_NDX=0
 	local LIST_TOP=0
 	local LONGEST=0
 	local MAX_BOX=0
-	local OPTION
-	local OPTSTR
+	local OPTION=''
+	local OPTSTR=''
 	local OPT_KEY_ROW=0
 	local PAD=2
 	local PG_BOT=0
 	local PG_TOP=0
-	local REM 
+	local REM=''
 	local ROWS_OUT=0
 	local SX SY SW SH SL
-	local TITLE
+	local TITLE=''
 	local TOP_SET=false
 	local _SORT_KEY=false
 
@@ -141,8 +141,7 @@ selection_list () {
 	CLEAN_TEXT=$(msg_nomarkup ${_PAGE_OPTION_KEY_HELP})
 	[[ ${#CLEAN_TEXT} -gt ${LONGEST} ]] && LONGEST=${#CLEAN_TEXT}
 
-	SW=$(( LONGEST+2 ))
-	#[[ ${LONGEST} -gt ${_SL_MAX_ITEM_LEN} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( LONGEST+2 ))
+	[[ ${LONGEST} -lt ${_SL_MAX_ITEM_LEN} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( LONGEST+2 ))
 
 	[[ ${X_COORD_ARG} -gt 0 ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $((_MAX_ROWS)) ${BOX_HEIGHT})
 	[[ ${Y_COORD_ARG} -gt 0 ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $((_MAX_COLS)) ${SW})
