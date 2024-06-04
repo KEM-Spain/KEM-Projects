@@ -197,7 +197,7 @@ action_do () {
 				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_LOG} | tail -1) 
 				
 				# Scan for errors
-				grep -q -i 'error' <<<${LOG_LINE}
+				grep -q -i 'error\|frag' <<<${LOG_LINE}
 				if [[ ${?} -eq 0 ]];then
 					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive:
 						TITLE=$(get_field title ${M})	
@@ -221,6 +221,7 @@ action_do () {
 						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 							echo "$(get_field author ${M}) - Uncaught:"${LOG_LINE} >> ${_ERROR_LOG}
 							((ERROR_CNT++))
+							_DEBUG=${_YTS_DBG}
 							HAD_ERROR=true
 						;;
 					esac

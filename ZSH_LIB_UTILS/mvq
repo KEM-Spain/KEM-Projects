@@ -54,7 +54,7 @@ action_do () {
 	for M in ${_MARKED};do
 		YR=$(get_field 1 ${M})
 		TITLE=$(get_field 2 ${M})
-		msg_box -p "${TITLE} ${YR}|<Z>|<L>1) review|<L>2) imdb|<L>3) pyts|<Z>|or [n] to skip"
+		msg_box -H1 -p -P"Enter 1-3" "${TITLE} ${YR}|<Z>|<L>1) review|<L>2) imdb|<L>3) pyts|<Z>|or [n] to skip"
 	done
 
 	tput clear

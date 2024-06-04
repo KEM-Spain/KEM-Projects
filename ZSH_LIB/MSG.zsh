@@ -291,9 +291,11 @@ msg_box () {
 			MSG_PAGING=true
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}MESSAGE MSG_PAGING TRIGGERED${RESET}"
 
-			PROMPT_LINE=${MSG_BODY[-1]} # Save the prompt
-			MSG_BODY[-1]=" " # Erase prompt
-			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SAVED PROMPT_LINE:${PROMPT_LINE}"
+			if [[ -n ${MSG_PROMPT} ]];then
+				PROMPT_LINE=${MSG_BODY[-1]} # Save the prompt
+				MSG_BODY[-1]=" " # Erase prompt
+				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SAVED PROMPT_LINE:${PROMPT_LINE}"
+			fi
 
 			# Get the amount of padding necessary to break the page on even boundaries
 			GAP=$(msg_calc_gap ${#MSG_BODY} ${PG_LINES})
@@ -305,8 +307,10 @@ msg_box () {
 			done
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: AFTER GAP PADDING: MSG_BODY:${#MSG_BODY}"
 
-			MSG_BODY[-1]=${PROMPT_LINE} # Move the prompt to the bottom
-			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MOVED PROMPT_LINE:${MSG_BODY[-1]}"
+			if [[ -n ${MSG_PROMPT} ]];then
+				MSG_BODY[-1]=${PROMPT_LINE} # Move the prompt to the bottom
+				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MOVED PROMPT_LINE:${MSG_BODY[-1]}"
+			fi
 		else
 			MSG_PAGING=false
 		fi
