@@ -42,7 +42,7 @@ msg_box () {
 	local MSG_PAGES=0
 	local MSG_PAGING=false
 	local MSG_DTL=0
-	local MSG_LIST=false
+	local MSG_IS_LIST=false
 	local MSG_STR=''
 	local MSG_SEP=''
 	local MSG_X_COORD=0
@@ -144,8 +144,7 @@ msg_box () {
 			X) MSG+="|<Z>|<w>Kill? (y/n)<N>";;
 			*) MSG+="|<Z>|<w>${MSG_PROMPT}<N>";;
 		esac
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ADDED 2 LINES FOR PROMPT:${MSG[-$((${#MSG_PROMPT}+9)),-1]}"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: PROMPT:${MSG_PROMPT}"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ADDED PROMPT:${MSG_PROMPT}"
 	fi
 
 	MSG=$(tr -d "\n" <<<${MSG}) # Convert to string - setup for cut
@@ -154,6 +153,7 @@ msg_box () {
 	# Get message count
 	[[ ${DELIM_ARG} != 'false' ]] && DELIM=${DELIM_ARG} # Assign delimiter
 	MSG_COUNT=$(echo ${MSG} | grep --color=never -o "[${DELIM}]" | wc -l) # Slice MSG into fields and count
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG contains ${MSG_COUNT} lines"
 
 	# Extract item by delim and fold any lines that exceed display
 	DISPLAY_ROWS=0
@@ -175,6 +175,7 @@ msg_box () {
 	[[ -n ${MSG_PROMPT} ]] && ((DISPLAY_ROWS++))
 
 	[[ ${DISPLAY_ROWS} -gt ${USABLE_ROWS} ]] && DISPLAY_ROWS=${USABLE_ROWS} # Limit display lines
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: DISPLAY_ROWS:${DISPLAY_ROWS}"
 
 	if [[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]];then
 		dbg "${functrace[1]} called ${0}:${LINENO}: MAX ROWS:${WHITE_FG}${_MAX_ROWS}${RESET} MAX COLS:${WHITE_FG}${_MAX_COLS}${RESET}"
@@ -188,20 +189,27 @@ msg_box () {
 
 	# Separate headers from body
 	if [[ ${HDR_LINES} -ne 0 ]];then
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HAS HEADERS"
 		MSG_HDRS=(${MSGS[1,$((HDR_LINES))]})
 		MSG_BODY=(${MSGS[HDR_LINES+1,-1]})
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HEADER CONTAINS ${#MSG_HDRS} lines"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG BODY CONTAINS ${#MSG_BODY} lines"
 	else
 		MSG_BODY=(${MSGS})
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HAS ${RED_FG}NO${RESET} HEADERS"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG BODY CONTAINS ${#MSG_BODY} lines"
 	fi
 
 	MSG_STR=$(arr_long_elem ${MSGS}) # Returns trimmed/no markup
 	MSG_COLS=${#MSG_STR}
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: INITIAL MSG_COLS:${MSG_COLS} MSG_STR:${MSG_STR}"
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: INITIAL MSG_COLS:${MSG_COLS}"
 
-	[[ ${MSG_BODY} =~ '<L>' ]] && MSG_LIST=true || MSG_LIST=false # Check for list embeds
+	[[ ${MSG_BODY} =~ '<L>' ]] && MSG_IS_LIST=true || MSG_IS_LIST=false # Check for list embeds
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_IS_LIST:${MSG_IS_LIST}"
 
 	# Handle paged messages
 	if [[ ${#MSGS} -gt ${DISPLAY_ROWS} ]];then
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MESSAGE IS PAGED"
 		# Expand paged MSG container to aoccomodate NAV,MSG_HDRS,SEP as needed
 		if [[ $((${#MSGS} + 2 )) -gt $((DISPLAY_ROWS)) ]];then
 			MSG_STR=$(msg_nomarkup ${NAV_BAR}) # Strip markup
@@ -220,16 +228,27 @@ msg_box () {
 			MSG_HDRS=(${NAV_BAR} ${MSG_HDRS} ${MSG_SEP})
 		fi
 	else
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MESSAGE IS ${RED_FG}NOT${RESET} PAGED"
 		# Non-paged list messages
-		if [[ ${MSG_LIST} == 'true' ]];then
+		if [[ ${MSG_IS_LIST} == 'true' ]];then
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MESSAGE CONTAINS A LIST"
 			MSG_SEP=$(str_unicode_line $((MSG_COLS+4))) # Add separator
 			MSG_HDRS=(${MSG_HDRS} ${MSG_SEP})
 			((HDR_LINES++)) # Added separator
 			PG_LINES=$(( DISPLAY_ROWS - HDR_LINES ))
 		else
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MESSAGE DOES ${RED_FG}NOT${RESET} CONTAIN A LIST"
 			# All other
-			PG_LINES=${DISPLAY_ROWS}
-			MSG_BODY=(${MSGS})
+			if [[ ${HDR_LINES} -ne 0 ]];then
+				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ADDING MESSAGE HEADER SEPARATOR"
+				MSG_SEP=$(str_unicode_line $((MSG_COLS+4))) # Add separator
+				MSG_HDRS=(${MSG_HDRS} ${MSG_SEP})
+				PG_LINES=${#MSG_BODY}
+			else
+				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: PLAIN MESSAGE - ${RED_FG}NO${RESET} HEADER - ${RED_FG}NO${RESET} LISTS"
+				PG_LINES=${DISPLAY_ROWS}
+				MSG_BODY=(${MSGS})
+			fi
 		fi
 	fi
 	((MSG_COLS+=2)) # Add gutter
@@ -245,7 +264,7 @@ msg_box () {
 		[[ ${MSG_X_COORD} -gt ${USABLE_ROWS} ]] && MSG_X_COORD=${USABLE_ROWS}
 		[[ ${MSG_Y_COORD} -lt ${MIN_Y_COORD} ]] && MSG_Y_COORD=${MIN_Y_COORD}
 		[[ ${MSG_Y_COORD} -gt ${USABLE_COLS} ]] && MSG_Y_COORD=${USABLE_COLS}
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SANE COORD limits applied"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SANE COORD limits evaluated"
 	fi
 
 	# Set box coords
@@ -289,7 +308,7 @@ msg_box () {
 		# Handle last page gap
 		if [[ ${#MSG_BODY} -gt $((PG_LINES)) ]];then
 			MSG_PAGING=true
-			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}MESSAGE MSG_PAGING TRIGGERED${RESET}"
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${CYAN_FG}MESSAGE PAGING TRIGGERED${RESET}"
 
 			if [[ -n ${MSG_PROMPT} ]];then
 				PROMPT_LINE=${MSG_BODY[-1]} # Save the prompt
@@ -299,13 +318,13 @@ msg_box () {
 
 			# Get the amount of padding necessary to break the page on even boundaries
 			GAP=$(msg_calc_gap ${#MSG_BODY} ${PG_LINES})
-			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: GAP:${WHITE_FG}${GAP}${RESET}"
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LAST PAGE GAP:${WHITE_FG}${GAP}${RESET}"
 
 			# Pad messages to break evenly across pages
 			for ((GAP_NDX=1;GAP_NDX<=${GAP};GAP_NDX++));do
 				MSG_BODY+=" "
 			done
-			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: AFTER GAP PADDING: MSG_BODY:${#MSG_BODY}"
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: AFTER GAP PADDING: MSG_BODY LINES:${#MSG_BODY}"
 
 			if [[ -n ${MSG_PROMPT} ]];then
 				MSG_BODY[-1]=${PROMPT_LINE} # Move the prompt to the bottom
@@ -352,6 +371,7 @@ msg_box () {
 	else
 		# Headers
 		if [[ ${#MSG_HDRS} -ne 0 ]];then
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${CYAN_FG}GENERATING HEADERS${RESET}"
 			SCR_NDX=${BOX_X_COORD} 
 			DTL_NDX=0
 			for H in ${MSG_HDRS};do
@@ -369,6 +389,7 @@ msg_box () {
 		SCR_NDX=$(( BOX_X_COORD + ${#MSG_HDRS} )) # Move past headers
 		DTL_NDX=0
 
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${CYAN_FG}GENERATING BODY${RESET}"
 		for ((MSG_NDX=1;MSG_NDX<=${#MSG_BODY};MSG_NDX++));do
 			((SCR_NDX++))
 			((DTL_NDX++))
