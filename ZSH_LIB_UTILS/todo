@@ -1,22 +1,28 @@
 #!/usr/bin/zsh
-# Vim: syntax off
-BOLD="\033[1m"
-RESET="\033[m"
+
+#Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
-UNDER="\033[4m"
+RESET="\033[m"
 REVERSE="\033[7m"
 STRIKE="\033[9m"
-RED_FG="\033[31m"
-GREEN_FG="\033[32m"
-YELLOW_FG="\033[33m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
 BLUE_FG="\033[34m"
-MAGENTA_FG="\033[35m"
 CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
 WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -a _SOURCES
+typeset -A _SRC_CLR
+typeset -A _SOURCES
 typeset -aU _TODO_LIST
 typeset -A _SEEN
 typeset GET_PWD=true
@@ -24,11 +30,14 @@ typeset GET_PWD=true
 # Constants
 _THIS=${0:t}
 CACHED_TARGETS=~/.tvi/cached_targets
-_SOURCES+=${PWD}
-_SOURCES+="/usr/local/bin"
-_SOURCES+="/usr/local/bin/system"
-_SOURCES+="/usr/local/lib"
-_SOURCES+="/home/kmiller/Code/LOCAL"
+_SOURCES[${PWD}]=PWD
+_SOURCES[/usr/local/bin]=PROD
+_SOURCES[/usr/local/bin/system]=PROD
+_SOURCES[/usr/local/lib]=PROD
+_SOURCES[/home/kmiller/Code/LOCAL]=DEV
+_SRC_CLR[PROD]=${GREEN_FG}
+_SRC_CLR[DEV]=${RED_FG}
+_SRC_CLR[PWD]=${WHITE_ON_GREY}
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -58,7 +67,7 @@ usage () {
 # Execution
 [[ ${1} == '-H' ]] && usage
 
-echo "${CYAN_FG}${BOLD}Cached edits${WHITE_FG}...${RESET}"
+#echo "${CYAN_FG}${BOLD}Cached edits${WHITE_FG}...${RESET}"
 while read F;do
 	[[ ${F} =~ ${_THIS} ]] && continue
 	FN=$(echo ${F} | cut -d \| -f2 2>/dev/null)
@@ -68,20 +77,21 @@ while read F;do
 	if [[ $? -eq 0 ]];then
 		_SEEN[${FN}]=1
 		echo "File:${WHITE_FG}${FN}${RESET}"
-		TXT=$(grep -P "#TODO" ${FN})
+		TXT=$(grep "#[ ]*TODO" ${FN})
 		TXT=$(echo ${TXT} | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
 		echo "${MAGENTA_FG}$(str_trim ${TXT})${RESET}\n"
 	fi
 done < ${CACHED_TARGETS}
 
 GET_PWD=true
-for S in ${(ou)_SOURCES};do
+for S in ${(k)_SOURCES};do
+	#echo "Scanning directory:${S}"
 	_TODO_LIST+=("${(f)$(find ${S} -maxdepth 2 -type f)}")
 	[[ ${S} == ${PWD} ]] && GET_PWD=false
 done
 [[ ${GET_PWD} == 'true' ]] && _TODO_LIST+=("${(f)$(find ${PWD} -maxdepth 2 -type f)}")
 
-echo "${GREEN_FG}${BOLD}Local source and non cached${WHITE_FG}...${RESET}"
+#echo "${GREEN_FG}${BOLD}Local source and non cached${WHITE_FG}...${RESET}"
 HIT=false
 LAST_FN=?
 for F in ${_TODO_LIST};do
@@ -90,11 +100,16 @@ for F in ${_TODO_LIST};do
 	[[ ${F} =~ ${_THIS} ]] && continue
 	[[ ! $(file -b ${F}) =~ 'zsh' && ! ${F:e} == 'zsh' ]] && continue
 	[[ ! -r ${F} ]] && continue
- 	grep -qP "#TODO" ${F}
+	#echo "Scanning file:${F}"
+ 	grep -q "#[ ]*TODO" ${F}
  	if [[ $? -eq 0 ]];then
+		for K in ${(k)_SOURCES};do
+			grep -q "${K}" <<<${F}
+			[[ $? -eq 0 ]] && echo "${_SRC_CLR[${_SOURCES[${K}]}]}${_SOURCES[${K}]}${RESET}"
+		done
  		HIT=true
  		echo "File:${WHITE_FG}${F}${RESET}"
- 		TXT=$(grep -P "#TODO" ${F})
+ 		TXT=$(grep -P "#[ ]*TODO" ${F})
  		TXT=$(echo ${TXT} | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
  		echo "${MAGENTA_FG}$(str_trim ${TXT})${RESET}\n"
 		_SEEN[${F}]=1

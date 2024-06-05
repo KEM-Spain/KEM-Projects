@@ -469,10 +469,11 @@ selection_list_pos_exitbox () {
 	O_COORDS=($(box_coords_get OUTER))
 	I_COORDS=($(box_coords_get INNER))
 
-	echo $((I_COORDS[X] + 2)) $(((O_COORDS[Y] + O_COORDS[W] / 2) - 14))
+	echo $(( I_COORDS[X] + 2 )) $(( (O_COORDS[Y] + O_COORDS[W] / 2) - (I_COORDS[W] / 2 - 1) ))
 }
 
 selection_list_repaint_section () {
+ # TODO allow for redrawing box top
  # TODO allow for PAGES
 	local -A I_COORDS
 	local -A MB_C=($(box_coords_get MSG))

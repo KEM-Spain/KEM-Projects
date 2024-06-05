@@ -120,7 +120,7 @@ msg_box () {
 
 	# Process MSG arguments
 	MSG=(${@}) # MSG ARGS
-	[[ -z ${MSG} ]] && return # if no MSG
+	[[ -z ${MSG} ]] && return # If no MSG
 
 	# Long messages display feedback while parsing
 	MSG_LEN=${*}
@@ -129,20 +129,20 @@ msg_box () {
 	# Append prompt to msgs
 	if [[ -n ${MSG_PROMPT} ]];then
 		case ${MSG_PROMPT} in
-			B) MSG+="| |<w>Reboot? (y/n)<N>";;
-			C) MSG+="| |<w>Continue? (y/n)<N>";;
-			D) MSG+="| |<w>Delete? (y/n)<N>";;
-			E) MSG+="| |<w>Edit? (y/n)<N>";;
-			G) MSG+="| |<w>Download? (y/n)<N>";;
-			I) MSG+="| |<w>Install? (y/n)<N>";;
-			K) MSG+="| |<w>Press any key...<N>";;
-			M) MSG+="| |<w>More? (y/n)<N>";;
-			N) MSG+="| |<w>Next/Approve all? (y/n/a)<N>";;
-			P) MSG+="| |<w>Proceed? (y/n)<N>";;
-			Q) MSG+="| |<w>Queue? (y/n)<N>";;
-			V) MSG+="| |<w>View? (y/n)<N>";;
-			X) MSG+="| |<w>Kill? (y/n)<N>";;
-			*) MSG+="| |<w>${MSG_PROMPT}<N>";;
+			B) MSG+="|<Z>|<w>Reboot? (y/n)<N>";;
+			C) MSG+="|<Z>|<w>Continue? (y/n)<N>";;
+			D) MSG+="|<Z>|<w>Delete? (y/n)<N>";;
+			E) MSG+="|<Z>|<w>Edit? (y/n)<N>";;
+			G) MSG+="|<Z>|<w>Download? (y/n)<N>";;
+			I) MSG+="|<Z>|<w>Install? (y/n)<N>";;
+			K) MSG+="|<Z>|<w>Press any key...<N>";;
+			M) MSG+="|<Z>|<w>More? (y/n)<N>";;
+			N) MSG+="|<Z>|<w>Next/Approve all? (y/n/a)<N>";;
+			P) MSG+="|<Z>|<w>Proceed? (y/n)<N>";;
+			Q) MSG+="|<Z>|<w>Queue? (y/n)<N>";;
+			V) MSG+="|<Z>|<w>View? (y/n)<N>";;
+			X) MSG+="|<Z>|<w>Kill? (y/n)<N>";;
+			*) MSG+="|<Z>|<w>${MSG_PROMPT}<N>";;
 		esac
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ADDED 2 LINES FOR PROMPT:${MSG[-$((${#MSG_PROMPT}+9)),-1]}"
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: PROMPT:${MSG_PROMPT}"
@@ -220,7 +220,7 @@ msg_box () {
 			MSG_HDRS=(${NAV_BAR} ${MSG_HDRS} ${MSG_SEP})
 		fi
 	else
-		# Non-paged messages
+		# Non-paged list messages
 		if [[ ${MSG_LIST} == 'true' ]];then
 			MSG_SEP=$(str_unicode_line $((MSG_COLS+4))) # Add separator
 			MSG_HDRS=(${MSG_HDRS} ${MSG_SEP})
@@ -270,7 +270,7 @@ msg_box () {
 	# Prepare display
 	[[ ${SO} == 'true' ]] && tput smso # Standout mode
 
-	#call once for CONTINUOUS
+	# Call once for CONTINUOUS
 	if [[ ${CONTINUOUS} == 'true' ]];then
 		if [[ ${_CONT_DATA[BOX]} == 'false' ]];then
 			msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT} ${FRAME_COLOR}
@@ -317,7 +317,6 @@ msg_box () {
 	fi
 
 	# Output MSG lines
-
 	if [[ ${CONTINUOUS} == 'true' ]];then
 		CONT_COORDS=($(box_coords_get CONT))
 		_CONT_DATA[TOP]=${CONT_COORDS[X]} && ((_CONT_DATA[TOP]++))
@@ -382,12 +381,12 @@ msg_box () {
 
 			[[ ${SO} == 'true' ]] && tput smso # Invoke standout
 
-			if [[ ${MSG_PAGING} == 'true' ]];then # pause/pass key to msg_paging or exit
+			if [[ ${MSG_PAGING} == 'true' ]];then # Pause/pass key to msg_paging or exit
 				[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
 				if [[ $((DTL_NDX % PG_LINES)) -eq 0 ]];then # Page break
 					_MSG_KEY=$(get_keys)
 					case ${_MSG_KEY} in
-						27) break;; # esc - Exit
+						27) break;; # Esc - Exit
 						q) exit_request;((MSG_NDX-=PG_LINES));; # No advance if declined
 					esac
 					MSG_NDX=$(msg_paging ${_MSG_KEY} ${MSG_NDX} ${#MSG_BODY} ${PG_LINES})
@@ -453,11 +452,11 @@ msg_box_align () {
 }
 
 msg_box_clear () {
+	local -A MBOX_COORDS=($(box_coords_get MSG))
 	local X_COORD_ARG=${1}
 	local Y_COORD_ARG=${2}
 	local H_COORD_ARG=${3}
 	local W_COORD_ARG=${4}
-	local -A MBOX_COORDS=($(box_coords_get MSG))
 	local X
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  MBOX_COORDS:${(kv)MBOX_COORDS}"

@@ -67,7 +67,7 @@ action_do () {
 	done
 
 	selection_list_set ${(C)${(k)POP_DECODE}}
-	selection_list -w5 -x${TOP_WIN_X} -y${TOP_WIN_Y} "<w>Select Operation<N>"
+	selection_list -O${RED_FG} -w5 -x${TOP_WIN_X} -y${TOP_WIN_Y} "<w>Select Operation<N>"
 	[[ ${?} -gt 0 ]] && clear_list && return 0
 	POP=${POP_DECODE[${_SELECTION_VALUE:l}]}
 
