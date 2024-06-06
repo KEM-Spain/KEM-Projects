@@ -5,6 +5,7 @@ _DEPS_+="MSG.zsh UTILS.zsh"
 _PRE_EXIT_RAN=false
 _EXIT_CALLBACK=''
 _EXIT_LIB_DBG=1
+_EXIT_REQUEST=false
 
 exit_leave () {
 	local MSGS=(${@})
@@ -93,6 +94,7 @@ exit_request () {
 			exit_leave
 		fi
 	else
+		_EXIT_REQUEST=true
 		if [[ ${_LIST_TYPE} == 'classic' ]];then
 			list_repaint_section 3 ${_CURRENT_PAGE}
 		elif [[ ${_LIST_TYPE} == 'select' ]];then

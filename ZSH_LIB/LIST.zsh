@@ -760,6 +760,7 @@ list_select () {
 	
 			# WAIT FOR INPUT - get list selection(s)  - if only 1 item in list, skip selection and process item
 			 
+			[[ ${_EXIT_REQUEST} == 'true' ]] && _EXIT_REQUEST=false && break
 			KEY=$(get_keys ${USER_PROMPT})
 
 			case ${KEY} in
@@ -791,7 +792,7 @@ list_select () {
 				l) DIR_KEY=b;CURSOR_NDX=${MAX_CURSOR};_LIST_NDX=${PAGE_RANGE_BOT};; # 'l' Bottom Row current page
 				n) DIR_KEY=n;PAGE_BREAK=true;break;; # 'n' Next page
 				p) DIR_KEY=p;PAGE_BREAK=true;break;; # 'p' Prev page
-				q) exit_request;; # 'q' Quit app request
+				q) exit_request;;
 				s) [[ ${_LIST_IS_SORTABLE} == 'true' ]] && list_call_sort;_HOLD_PAGE=true;break;; # 's' Sort
 				t) DIR_KEY=fp;PAGE_BREAK=true;break;; # 't' Top row first page
 				z) return -1;; # 'z' Quit loop
