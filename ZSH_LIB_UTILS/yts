@@ -304,8 +304,11 @@ action_warn () {
 delete_favorite () {
 	local FAV=${1}
 	local ENG=''
+	local F1 F2
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	cp ${_YTS_FAVORITES} ${_YTS_FAVORITES}.bak
 
 	[[ ${g_QRY_ENGINE} == 'rumble' ]] && ENG="R" || ENG="Y"
 
@@ -315,7 +318,9 @@ delete_favorite () {
 		if [[ -s ${_YTS_FAVORITES} ]];then
 			[[ -e /tmp/favlist.new ]] && /bin/rm -f /tmp/favlist.new
 			while read LINE;do
-				[[ ${LINE} =~ ${FAV} && ${LINE} =~ "\|${ENG}" ]] && continue
+				F1=$(cut -d '|' -f1 <<<${LINE})
+				F2=$(cut -d '|' -f2 <<<${LINE})
+				[[ ${F1} == ${FAV} && ${F2} =~ ${ENG} ]] && continue
 				echo ${LINE} >> /tmp/favlist.new
 			done < ${_YTS_FAVORITES}
 			mv -f /tmp/favlist.new ${_YTS_FAVORITES}

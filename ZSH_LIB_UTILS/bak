@@ -53,7 +53,6 @@ source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
 get_prod_dir () {
-	# TODO: generating the wrong path
 	local FN=${@}
 	local PROD_DIR
 	local CANDIDATE
@@ -360,9 +359,10 @@ Manage script sources during the development cycle
 \t'bak' regards:
 \t\tthe version in the <PWD> as <DEVELOPMENT> and
 \t\tthe version in <PRODUCTION> (default: ${_PRODUCTION_DIR}) as <PRODUCTION> 
-\n\t'bak <FILE>' default is to copy <PRODUCTION> to <DEVELOPMENT> and optionally create <DEVELOPMENT>.bak 
+\n\t'bak <FILE>' default action is to first create a local backup of the existing 
+\t<PRODUCTION> version and then copy <DEVELOPMENT> to <PRODUCTION>
 \n\tAll operations other than -b (local backup) require a <PRODUCTION> copy to exist
-\tNo actions are taken without consent
+\tNo unalterable actions are taken without consent
 EOF
 
 parse_opts () {

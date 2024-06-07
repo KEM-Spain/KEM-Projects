@@ -20,6 +20,6 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 tput smcup
-ddgr --url-handler=/usr/local/bin/system/launchers/run_google-chrome --num 8 ${@} 2>/dev/null
+ddgr --url-handler=/usr/local/bin/system/launchers/run_google-chrome --num 7 ${@} 2>/dev/null
 tput rmcup
 

@@ -39,36 +39,38 @@ action_do () {
 	local RC
 	local APPROVE_ALL=false
 	local MBOX_OPTS
+	local PROMPT
 
 	[[ ! -e ${_BAK_DIR} ]] && mkdir ${_BAK_DIR} && RC=${?}
 	[[ ${RC} -ne 0 ]] && exit_leave $(msg_warn "Unable to create backup directory: ${_BAK_DIR} (RC=${RC})")
 
-	for M in ${_MARKED};do
+	for M in ${(on)_MARKED};do
 		MATCHES=("${(f)$(perl -ne "if (/${g_FROM_TEXT}/) { print }" ${_LOCAL_LIST[${M}]})}")
 		if ! arr_is_populated "${MATCHES}";then
-			msg_box -p -PK "Nothing matches <w>${(qq)g_FROM_TEXT}<N>| |in File:<w>${_LOCAL_LIST[${M}]}<N>"
+			msg_box -p -PK "Nothing matches <w>${(qq)g_FROM_TEXT}<N>|in File:<w>${_LOCAL_LIST[${M}]}<N>"
 			list_set_selected ${M} 3 # Mark as missing match
 		else
-			if [[ ${APPROVE_ALL} == 'false' && ${#_MARKED} -gt 1 ]];then
-				msg_box -p -PN "Substituting <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>| |$(msg_list ${MATCHES})| |in File:<w>${_LOCAL_LIST[${M}]}<N>"
-				if [[ ${_MSG_KEY} == "n" ]];then
-					list_clear_selected ${M}
-					continue
-				elif [[ ${_MSG_KEY} == "a" ]];then
-					APPROVE_ALL=true
-				fi
+			if [[ ${APPROVE_ALL} == 'false' ]];then
+				[[ ${#_MARKED} -gt 1 ]] && PROMPT=N || PROMPT=C
+				msg_box -H1 -p -P${PROMPT} "Substituting <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>|Lines:|$(msg_list ${MATCHES})|<Z>|in File:<w>${_LOCAL_LIST[${M}]}<N>"
+				case ${_MSG_KEY} in
+					a) APPROVE_ALL=true;;
+					s) list_clear_selected ${M};continue;;
+					*) list_clear_selected ${M};continue;;
+				esac
 			fi
 		fi
 
 		sudo perl -i.bak -pe "s/${g_FROM_TEXT}/${g_TO_TEXT}/g" ${_LOCAL_LIST[${M}]}
 
 		if [[ ${?} -ne 0 ]];then
-			msg_box -p -PK "Substitution <r>failed<N> for <w>${(qq)g_FROM_TEXT}<N>| |in file:<w>${_LOCAL_LIST[${M}]}<N>"
+			msg_box -p -PK "Substitution <r>failed<N> for <w>${(qq)g_FROM_TEXT}<N>|in file:<w>${_LOCAL_LIST[${M}]}<N>"
 			list_set_selected ${M} 4 # Mark as failed
 		else
 			[[ -e ${_LOCAL_LIST[${M}]}.bak ]] && sudo mv ${_LOCAL_LIST[${M}]}.bak ${_BAK_DIR}
-			[[ ${APPROVE_ALL} == 'false' ]] && MBOX_OPTS='-p -PK' && MBOX_OPTS=''
-			msg_box ${MBOX_OPTS} "Substituted <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>| |in file:<w>${_LOCAL_LIST[${M}]}<N>| |A backup file:${_BAK_DIR}/${_LOCAL_LIST[${M}]:t}.bak was created"
+			if [[ ${APPROVE_ALL} == 'false' ]];then
+				msg_box -t1 "Substituted <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>|in file:<w>${_LOCAL_LIST[${M}]}<N>|A backup file:${_BAK_DIR}/${_LOCAL_LIST[${M}]:t}.bak was created"
+			fi
 			sudo chmod 664 ${_BAK_DIR}/${_LOCAL_LIST[${M}]:t}.bak
 			list_set_selected ${M} ${_GHOST_ROW} # Mark as complete
 		fi
@@ -78,7 +80,7 @@ action_do () {
 action_warn () {
 	local M
 
-	msg_box -p -PP "Substituting <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>| |in <w>${#_MARKED}<N> $(str_pluralize file ${#_MARKED})"
+	msg_box -p -PP "Substituting <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>|in <w>${#_MARKED}<N> $(str_pluralize file ${#_MARKED})"
 
 	if [[ ${_MSG_KEY} != "y" ]];then
 		for M in ${_MARKED};do
@@ -176,6 +178,8 @@ g_TO_TEXT=${2}
 
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
+[[ ${g_FROM_TEXT} == ${g_TO_TEXT} ]] && exit_leave $(msg_err "$(opt_type f) and $(opt_type t) are identical")
+
 RAWPATH=$(path_get_raw)
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FPATH=${FPATH:q}
@@ -203,7 +207,7 @@ fi
 
 [[ ${CASE} == 'i' ]] && CASE_MSG="Case insensitive" || CASE_MSG="Case sensitive"
 # Set headings
-list_set_header 'printf "${RED_FG}Substituting${RESET}:${WHITE_FG}%s${RESET} with ${WHITE_FG}%s${RESET}" ${(qq)g_FROM_TEXT} ${(qq)g_TO_TEXT}'
+list_set_header 'printf "${RED_FG}Substituting${RESET}:${WHITE_FG}%s${RESET} with ${WHITE_FG}%s${RESET}" ${(qq)g_FROM_TEXT:gs/\\//} ${(qq)g_TO_TEXT:gs/\\//}'
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST})  Search:${WHITE_FG}${CASE_MSG}${RESET}  Path:${WHITE_FG}%-*s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${#PATHLBL} "${PATHLBL}" ${SELECTED_COUNT}'
 list_add_header_break
 

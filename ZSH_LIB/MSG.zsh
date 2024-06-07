@@ -14,8 +14,8 @@ msg_box () {
 	local -a MSGS=()
 	local -a MSG_HDRS=()
 	local -a MSG_BODY=()
-	local -a MSG_FOLD
-	local -A CONT_COORDS
+	local -a MSG_FOLD=()
+	local -A CONT_COORDS=()
 
 	local MAX_X_COORD=$((_MAX_ROWS-5)) # Not including frame 5 up from bottom, 4 with frame
 	local MAX_Y_COORD=$((_MAX_COLS-10)) # Not including frame 10 from sides, 9 with frame
@@ -136,7 +136,7 @@ msg_box () {
 			I) MSG+="|<Z>|<w>Install? (y/n)<N>";;
 			K) MSG+="|<Z>|<w>Press any key...<N>";;
 			M) MSG+="|<Z>|<w>More? (y/n)<N>";;
-			N) MSG+="|<Z>|<w>Next/Approve all? (y/n/a)<N>";;
+			N) MSG+="|<Z>|<w>(y)es,(s)kip,(a)ll?";;
 			P) MSG+="|<Z>|<w>Proceed? (y/n)<N>";;
 			Q) MSG+="|<Z>|<w>Queue? (y/n)<N>";;
 			V) MSG+="|<Z>|<w>View? (y/n)<N>";;
@@ -151,12 +151,14 @@ msg_box () {
 
 	# Get message count
 	[[ ${DELIM_ARG} != 'false' ]] && DELIM=${DELIM_ARG} # Assign delimiter
-	DELIM_COUNT=$(echo ${MSG} | grep --color=never -o "[${DELIM}]" | wc -l) # Slice MSG into fields and count
+	MSG=$(sed -E "s/[\\\][${DELIM}]/_DELIM_/g" <<<${MSG}) # handle (skip) escaped delimiters
+	DELIM_COUNT=$(grep --color=never -o "[${DELIM}]" <<<${MSG} | wc -l) # Slice MSG into fields and count
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG contains ${WHITE_FG}${DELIM_COUNT}${RESET} delimiters"
 
 	# Extract item by delim and fold any lines that exceed display
 	for (( X=1; X <= $((${DELIM_COUNT}+1)); X++ ));do
 		M=$(cut -d"${DELIM}" -f${X} <<<${MSG})
+	 	M=$(sed "s/_DELIM_/${DELIM}/g" <<<${M}) # Restore escaped delimiters
 		K=$(tr -d '[:space:]' <<<${M})
 		[[ -z ${K} ]] && continue
 		if [[ ${#M} -gt ${MAX_LINE_WIDTH} ]];then
@@ -168,7 +170,7 @@ msg_box () {
 			MSGS+=${M}
 		fi
 	done
-
+	
 	# Separate headers from body
 	if [[ ${HDR_LINES} -ne 0 ]];then
 		MSG_HDRS=(${MSGS[1,$((HDR_LINES))]})
@@ -176,11 +178,14 @@ msg_box () {
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HAS HEADERS"
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HEADER CONTAINS ${#MSG_HDRS} lines"
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG BODY CONTAINS ${#MSG_BODY} lines"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_HDRS:\n---\n$(for M in ${MSG_HDRS};do echo ${M};done)\n---\n"
 	else
 		MSG_BODY=(${MSGS})
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HAS ${RED_FG}NO${RESET} HEADERS"
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG BODY CONTAINS ${#MSG_BODY} lines"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_BODY:\n---\n$(for M in ${MSG_BODY};do echo ${M};done)\n---\n"
 	fi
+
 
 	if [[ ${#MSGS} -gt ${USABLE_ROWS} ]];then
 		MSG_PAGING=true
@@ -200,7 +205,7 @@ msg_box () {
 
 	MSG_STR=$(arr_long_elem ${MSGS}) # Returns trimmed/no markup
 	MSG_COLS=${#MSG_STR}
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: INITIAL MSG_COLS:${MSG_COLS}"
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_STR:${MSG_STR} = INITIAL MSG_COLS:${MSG_COLS}"
 
 	# Process various message types
 	if [[ ${MSG_PAGING}  == 'true' ]];then
@@ -217,17 +222,16 @@ msg_box () {
 		[[ ${PARTIAL} -ne 0 ]] && ((MSG_PAGES++))
 		NAV_BAR=$(sed "s/_MSG_PG/${MSG_PAGES}/" <<< ${NAV_BAR})
 
-		if [[ -n ${MSG_HDRS} ]];then
+		if [[ -n ${MSG_HDRS} ]];then # Has headers
 			MSG_HDRS=(${NAV_BAR} ${MSG_HDRS} ${MSG_SEP}) # Add BAR,HDR,SEP
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FORMAT PAGING HEADER w/BAR,HDR,SEP"
-		else
+		else # No headers
 			MSG_HDRS=(${NAV_BAR} ${MSG_SEP}) # Add BAR,SEP
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FORMAT PAGING HEADER w/BAR,SEP"
 		fi
 	elif [[ -n ${MSG_HDRS} ]];then # Non-paged w/headers
 		MSG_SEP=$(str_unicode_line $((MSG_COLS+4))) # Create separator
 		MSG_HDRS=(${MSG_HDRS} ${MSG_SEP}) # Add separator
-		#((PG_LINES--))
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FORMAT NORMAL HEADER W/ HDRS and SEP"
 	fi
 
@@ -250,9 +254,12 @@ msg_box () {
 	[[ ${MSG_X_COORD_ARG} -eq -1 ]] && MSG_X_COORD=$(( ((_MAX_ROWS-BOX_HEIGHT) / 2) + 1)) || MSG_X_COORD=${MSG_X_COORD_ARG}
 	[[ ${MSG_Y_COORD_ARG} -eq -1 ]] && MSG_Y_COORD=$(( (_MAX_COLS/2)-(MSG_COLS/2) )) || MSG_Y_COORD=${MSG_Y_COORD_ARG}
 
-	# Set box coords
+	# Set box coords - compensate for frame
 	BOX_X_COORD=$((MSG_X_COORD-1))
 	BOX_Y_COORD=$((MSG_Y_COORD-1))
+
+	# Flash progress msg if requested
+	[[ ${_PROC_MSG} == 'true' ]] && msg_proc ${BOX_X_COORD} ${BOX_Y_COORD}
 
 	if [[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]];then
 		dbg "${functrace[1]} called ${0}:${LINENO}:  --- BOX COORDS ---"
@@ -260,6 +267,7 @@ msg_box () {
 		dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_HEIGHT:${WHITE_FG}${BOX_HEIGHT}${RESET}"
 		dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_WIDTH:${WHITE_FG}${BOX_WIDTH}${RESET}"
 	fi
+
 #echo  "BOX COORDS ---"
 #echo  "(final) PG_LINES:${WHITE_FG}${PG_LINES}${RESET}"
 #echo  "(final) MSG_HDRS:${WHITE_FG}${#MSG_HDRS}${RESET}"
@@ -273,13 +281,10 @@ msg_box () {
 	box_coords_set MSG X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH}
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SAVED MSG_BOX_COORDS: $(box_coords_get MSG)"
 
-	# Flash progress msg if set
-	[[ ${_PROC_MSG} == 'true' ]] && msg_proc ${BOX_X_COORD} ${BOX_Y_COORD}
-
 	# Prepare display
 	[[ ${SO} == 'true' ]] && tput smso # Standout mode
 
-	# Call once for CONTINUOUS
+	# Call once for CONTINUOUS messages
 	if [[ ${CONTINUOUS} == 'true' ]];then
 		if [[ ${_CONT_DATA[BOX]} == 'false' ]];then
 			msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT} ${FRAME_COLOR}
@@ -315,8 +320,6 @@ msg_box () {
 				MSG_BODY[-1]=${PROMPT_LINE} # Move the prompt to the bottom
 				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MOVED PROMPT_LINE:${MSG_BODY[-1]}"
 			fi
-		else
-			MSG_PAGING=false
 		fi
 	fi
 
@@ -370,10 +373,10 @@ msg_box () {
 			done
 		fi
 
-		# Body
 		SCR_NDX=$(( BOX_X_COORD + ${#MSG_HDRS} )) # Move past headers
 		DTL_NDX=0
 
+		# Body
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${CYAN_FG}GENERATING BODY${RESET}"
 		for ((MSG_NDX=1;MSG_NDX<=${#MSG_BODY};MSG_NDX++));do
 			((SCR_NDX++))
@@ -381,6 +384,7 @@ msg_box () {
 
 			MSG_OUT=$(msg_box_align ${BOX_WIDTH} ${TEXT_STYLE} ${MSG_BODY[${MSG_NDX}]}) # Apply padding to both sides of msg
 			MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_OUT:${MSG_OUT}"
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
 			echo -n "${MSG_OUT}"
@@ -411,7 +415,7 @@ msg_box () {
 
 	# Restore display
 	tput rc # Restore cursor position
-	tput cup ${_MAX_ROWS} ${_MAX_COLS}
+	tput cup ${_MAX_ROWS} ${_MAX_COLS} # Drop cursor to bottom right corner
 }
 
 msg_box_align () {
@@ -426,7 +430,7 @@ msg_box_align () {
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
 
 	# Justification: List,Left,Center,Normal
-	if [[ ${MSG} =~ '<Z>' ]];then # Blank Line?
+	if [[ ${MSG} =~ '^<Z>$' ]];then # Blank Line?
 		MSG_OUT=" "
 	elif [[ ${MSG} =~ '<L>' ]];then # List?
 		MSG_OUT=$(sed 's/<L>//g' <<<${MSG})
