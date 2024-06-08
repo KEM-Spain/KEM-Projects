@@ -211,7 +211,7 @@ msg_box () {
 	if [[ ${MSG_PAGING}  == 'true' ]];then
 		MSG_STR=$(msg_nomarkup ${NAV_BAR}) # Strip markup
 		[[ ${MSG_COLS} -lt ${#MSG_STR} ]] && MSG_COLS=${#MSG_STR} # Set length of separator
-		MSG_SEP=$(str_unicode_line $((MSG_COLS+4))) # Create separator
+		MSG_SEP=$(str_unicode_line $((MSG_COLS+2))) # Create separator
 
 		# Adding header lines reduces paging area (PG_LINES)
 		[[ -n ${MSG_HDRS} ]] && ((PG_LINES-=2)) || ((PG_LINES--)) # With headers add BAR,HDR,SEP else add BAR,SEP only
@@ -223,14 +223,14 @@ msg_box () {
 		NAV_BAR=$(sed "s/_MSG_PG/${MSG_PAGES}/" <<< ${NAV_BAR})
 
 		if [[ -n ${MSG_HDRS} ]];then # Has headers
-			MSG_HDRS=(${NAV_BAR} ${MSG_HDRS} ${MSG_SEP}) # Add BAR,HDR,SEP
+			MSG_HDRS=(${MSG_HDRS} ${NAV_BAR} ${MSG_SEP}) # Add BAR,HDR,SEP
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FORMAT PAGING HEADER w/BAR,HDR,SEP"
 		else # No headers
 			MSG_HDRS=(${NAV_BAR} ${MSG_SEP}) # Add BAR,SEP
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FORMAT PAGING HEADER w/BAR,SEP"
 		fi
 	elif [[ -n ${MSG_HDRS} ]];then # Non-paged w/headers
-		MSG_SEP=$(str_unicode_line $((MSG_COLS+4))) # Create separator
+		MSG_SEP=$(str_unicode_line $((MSG_COLS+2))) # Create separator
 		MSG_HDRS=(${MSG_HDRS} ${MSG_SEP}) # Add separator
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FORMAT NORMAL HEADER W/ HDRS and SEP"
 	fi
@@ -347,7 +347,6 @@ msg_box () {
 		fi
 
 		MSG_OUT=$(msg_box_align ${_CONT_DATA[W]} ${TEXT_STYLE} ${MSGS[1]}) # Apply padding to both sides of msg
-		MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
 
 		tput cup ${_CONT_DATA[SCR]} ${_CONT_DATA[Y]} # Place cursor
 		tput ech ${_CONT_DATA[COLS]} # Clear line
@@ -366,10 +365,10 @@ msg_box () {
 				((SCR_NDX++))
 				((DTL_NDX++))
 				MSG_OUT=$(msg_box_align ${BOX_WIDTH} ${TEXT_STYLE} ${H}) # Apply justification
-				MSG_OUT=$(msg_markup ${H}) # Apply markup
 				tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 				tput ech ${MSG_COLS} # Clear line
 				echo -n "${MSG_OUT}"
+				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_OUT:${MSG_OUT}"
 			done
 		fi
 
@@ -383,11 +382,10 @@ msg_box () {
 			((DTL_NDX++))
 
 			MSG_OUT=$(msg_box_align ${BOX_WIDTH} ${TEXT_STYLE} ${MSG_BODY[${MSG_NDX}]}) # Apply padding to both sides of msg
-			MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
-			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_OUT:${MSG_OUT}"
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
 			echo -n "${MSG_OUT}"
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_OUT:${MSG_OUT}"
 
 			[[ ${SO} == 'true' ]] && tput smso # Invoke standout
 
@@ -421,7 +419,7 @@ msg_box () {
 msg_box_align () {
 	local BOX_WIDTH=${1}
 	local STYLE=${2}; shift 2
-	local MSG=${@}
+	local MSG="${@}"
 	local MSG_OUT
 	local MSG_PAD_L
 	local MSG_PAD_R
@@ -432,32 +430,38 @@ msg_box_align () {
 	# Justification: List,Left,Center,Normal
 	if [[ ${MSG} =~ '^<Z>$' ]];then # Blank Line?
 		MSG_OUT=" "
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added blank line"
 	elif [[ ${MSG} =~ '<L>' ]];then # List?
 		MSG_OUT=$(sed 's/<L>//g' <<<${MSG})
 		MSG_OUT=$(msg_nomarkup ${MSG_OUT})
 		MSG_OUT=$(str_trim ${MSG_OUT})
-		MSG_OUT=$(sed 's/^/\\u2022 /g' <<<${MSG_OUT})
+		MSG_OUT=$(sed 's/^/\\u2022 /g' <<<${MSG_OUT}) # Add bullet and space
 		MSG_PAD_L=' '
 		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} List item text"
 	elif [[ ${STYLE} == 'l' ]];then # Left
 		MSG_OUT=$(msg_nomarkup ${MSG_OUT})
 		MSG_OUT=$(str_trim ${MSG})
 		MSG_PAD_L=' '
 		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Left justifed text"
 	elif [[ ${STYLE} == 'c' ]];then # Center
 		MSG_OUT=$(msg_nomarkup ${MSG_OUT})
 		MSG_OUT=$(str_trim ${MSG})
 		MSG_PAD_L=$(str_center_pad $((BOX_WIDTH-2)) $(msg_nomarkup ${MSG_OUT}))
 		MSG_PAD_R=$(str_rep_char ' ' $(( ${#MSG_PAD_L}-1 )) )
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Centered text"
 	elif [[ ${STYLE} == 'n' ]];then # Normal
 		MSG_OUT=${MSG}
 		MSG_OUT=$(msg_nomarkup ${MSG_OUT})
 		MSG_PAD_L=' '
 		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Normal text"
 	fi
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:${MSG_PAD_L}${MSG_OUT}${MSG_PAD_R}"
 
+	MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
 	echo "${MSG_PAD_L}${MSG_OUT}${MSG_PAD_R}"
 }
 
@@ -541,7 +545,7 @@ msg_markup () {
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	# Apply markup and print
+	# Apply markup
 	perl -pe 'BEGIN { 
 	%ES=(
 	"B"=>"[1m",

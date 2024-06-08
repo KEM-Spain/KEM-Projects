@@ -28,7 +28,8 @@ _DIR_USER=$(id -nu)
 _DIR_GROUP=$(id -ng)
 _VIM=/usr/bin/vim
 _EDITABLE='ascii\|text\|script\|empty\|regular'
-
+_ROWS=$(tput lines)
+_COLS=$(tput cols)
 
 #Imports
 _LIB_DIR=/usr/local/lib
@@ -247,6 +248,7 @@ fi
 
 [[ ${RC} -eq 0 ]] && SUDO="sudo -E" 
  
+xdotool mousemove 1900 1060 # Move the cursor away from top left corner (stop touchpad from triggering show all windows)
 eval "${SUDO} ${_VIM} ${FN:q}"
  
 ##post process cleanup

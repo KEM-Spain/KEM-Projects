@@ -131,9 +131,9 @@ fi
 [[ ${POWER} == 'true' ]] && POWER=true && MSG_OUT="<r>Powering off..."
 
 msg_box -x3 -y3    "${MSG_OUT}<N>"
-msg_box -x35 -y150 "${MSG_OUT}<N>"
+msg_box -x35 -y140 "${MSG_OUT}<N>"
 msg_box -x35 -y3   "${MSG_OUT}<N>"
-msg_box -x3 -y150  "${MSG_OUT}<N>"
+msg_box -x3 -y140  "${MSG_OUT}<N>"
 
 tput cup  0 0
 sleep 1

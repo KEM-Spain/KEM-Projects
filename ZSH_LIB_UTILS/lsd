@@ -78,7 +78,7 @@ action_warn () {
 	done
 
 	[[ -n ${_INVISIBLE_ROWS_MSG} ]] && ((HDRS++))
-	msg_box -O${RED_FG} -H${HDRS} -c -p -PP "<I>Please respond...<N>|$(str_pluralize ${OBJTYPE} ${CNT} true) queued for deletion|${_INVISIBLE_ROWS_MSG}|$(msg_list ${(o)DLIST})"
+	msg_box -O${RED_FG} -H${HDRS} -c -p -PD "<I><w>Please respond...<N>|$(str_pluralize ${OBJTYPE} ${CNT} true) queued for deletion|${_INVISIBLE_ROWS_MSG}|$(msg_list ${(o)DLIST})"
 	if [[ ${_MSG_KEY} != 'y' ]];then
 		for M in ${_MARKED};do
 			list_clear_selected ${M}

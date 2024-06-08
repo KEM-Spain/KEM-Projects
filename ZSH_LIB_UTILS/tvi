@@ -401,7 +401,7 @@ if [[ ! -x ${_EDITOR_CMD} ]];then
 fi
 
 # Catch missing argument
-[[ $# -eq 0 ]] && exit_leave $(msg_warn "missing $(opt_type f)")
+[[ $# -eq 0 ]] && usage $(msg_warn "missing $(opt_type f)")
 
 # Catch excessive arguments
 if [[ $# -gt 1 ]];then
