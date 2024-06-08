@@ -53,15 +53,25 @@ rep () {
 	echo ${LINE}
 }
 
+do_list () {
+	local D=${1}
+
+	echo "\n"
+	HDR="${D:t}:"
+	echo ${WHITE_FG}${HDR}${RESET}
+	echo $(rep - ${#HDR})
+	/bin/ls --color=always -LXNv --group-directories-first ${D}
+}
+
 list () {
-	LIST=($(find ${ZPATH} -maxdepth 1))
+	local HDR
+	local L
+
+	LIST=($(find ${ZPATH} -maxdepth 2))
+
 	for L in ${LIST};do
 		if [[ -d ${L} && ! ${L:t} =~ ${EXCLUDE} ]];then
-			echo "\n"
-			HDR="${L:t}:"
-			echo ${WHITE_FG}${HDR}${RESET}
-			echo $(rep - ${#HDR})
-			/bin/ls ${L}
+			do_list ${L}
 		fi
 	done
 }

@@ -173,8 +173,8 @@ shift $((OPTIND -1))
 # Execution
 [[ ${#} -ne 2 ]] && usage "2 arguments required:$(opt_type f) ${WHITE_FG}${ITALIC}$(opt_type t)${RESET}"
 
-g_FROM_TEXT=${1}
-g_TO_TEXT=${2}
+[[ ${1} =~ "|" ]] && g_FROM_TEXT=${1:gs/|/\\|} || g_FROM_TEXT=${1} # Escape message box delims
+[[ ${2} =~ "|" ]] && g_TO_TEXT=${2:gs/|/\\|} || g_TO_TEXT=${2} # Escape message box delims
 
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
