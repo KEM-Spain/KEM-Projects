@@ -319,6 +319,14 @@ set_target () {
 }
 
 #--Begin GetOpts--
+read -r -d '' DESC<<EOF
+Searches for files to edit based on predefined locations
+\tAutomatically senses ownership and invokes sudo if needed
+\tOption -u will update the locate DB. Updating of the locate
+\tDB is time consuming but necessary if cache info is out of 
+\tsync with the current file system
+EOF
+
 RESET="\033[m"
 RED_FG="\033[31m"
 WHITE_FG="\033[37m"
@@ -358,21 +366,17 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-a${RESET} force search to use all available methods"
-	echo -e "${WHITE_FG}-i${RESET} ignore cached edits"
 	echo -e "${WHITE_FG}-u${RESET} update locate db"
-	echo -e "${WHITE_FG}-w${RESET} warn if local file"
-	echo -e "\n${WHITE_FG}Desc${RESET}:Searches for files to edit based on predefined or derived locations in the system\n\tOption -a(ll) will invoke locate even if matches have already been found by other more rapid methods.\n\tUpdating of the locate DB is time consuming and is avoided by default.\n"
+	echo -e "${WHITE_FG}-i${RESET} ignore cached edits"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
 	exit_leave ${PENDING_MSGS}
 }
 
-OPTSTR=":HDadiuw"
+OPTSTR=":HDiu"
 
 IGNORE__CACHE=false
-WARN=false
-SEARCH_ALL=false
 UPDATE_LOCATE_DB=false
 
 OPTIND=0
@@ -380,10 +384,8 @@ while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
-     a) SEARCH_ALL=true;;
      i) IGNORE__CACHE=true;;
      u) UPDATE_LOCATE_DB=true;;
-     w) WARN=true;;
      :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
 	esac
