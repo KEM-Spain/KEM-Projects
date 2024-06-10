@@ -6,7 +6,6 @@ typeset -a _DELIMS=('#' '|' ':' ',' '	') # Recognized field delimiters
 typeset -a _POS_ARGS
 typeset -A _KWD_ARGS
 typeset -A _BOX_COORDS
-typeset -A _COORD_TAB
 
 # LIB Vars
 _EXIT_VALUE=0
@@ -76,26 +75,31 @@ boolean_color_word () {
 
 box_coords_get () {
 	local TAG=${1}
-	local KEY=${_BOX_COORDS[${TAG}]}
 
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	[[ -z ${KEY} ]] && return 1
+	echo ${(kv)_BOX_COORDS[${TAG}]}
+}
 
-	echo ${_COORD_TAB[${KEY}]}
-	return 0
+box_coords_upd () {
+	local TAG=${1}
+	local KEY=${2}
+	local VAL=${3}
+	local -A UPD=($(box_coords_get ${TAG}))
+
+	box_coords_set ${TAG} X ${UPD[X]} Y ${UPD[Y]} W ${UPD[W]} H ${UPD[H]} ${KEY} ${VAL}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 }
 
 box_coords_set () {
 	local -a ARGS=(${@})
-	local NDX=$((RANDOM%100))
 	local TAG=${ARGS[1]}
 	local COORDS=${ARGS[2,-1]}
 
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	_COORD_TAB[${TAG}_${NDX}]=${COORDS}
-	_BOX_COORDS[${TAG}]=${TAG}_${NDX}
+	_BOX_COORDS[${TAG}]="${COORDS}"
 }
 
 cmd_get_raw () {

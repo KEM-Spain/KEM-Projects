@@ -55,7 +55,7 @@ action_do () {
 action_warn () {
 	local M
 	
-	msg_box -p -PP "<I>Please respond<N>|$(str_unicode_line 14)| |${#MARKED} items queued for deletion by inode."
+	msg_box -H1 -p -PP "<w><I>Please respond<N>|<Z>|${#MARKED} items queued for deletion by inode."
 
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${MARKED};do

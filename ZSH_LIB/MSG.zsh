@@ -204,7 +204,7 @@ msg_box () {
 	fi
 
 	MSG_STR=$(arr_long_elem ${MSGS}) # Returns trimmed/no markup
-	MSG_COLS=${#MSG_STR}
+	MSG_COLS=$(( ${#MSG_STR} +1 ))
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_STR:${MSG_STR} = INITIAL MSG_COLS:${MSG_COLS}"
 
 	# Process various message types
@@ -278,7 +278,7 @@ msg_box () {
 #echo -n "Waiting...";read
 
 	# Save box coords
-	box_coords_set MSG X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH}
+	box_coords_set MSG X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SAVED MSG_BOX_COORDS: $(box_coords_get MSG)"
 
 	# Prepare display
@@ -288,7 +288,7 @@ msg_box () {
 	if [[ ${CONTINUOUS} == 'true' ]];then
 		if [[ ${_CONT_DATA[BOX]} == 'false' ]];then
 			msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT} ${FRAME_COLOR}
-			box_coords_set CONT X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH}
+			box_coords_set CONT X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}
 			_CONT_DATA[W]=${BOX_WIDTH}
 			_CONT_DATA[HDRS]=${HDR_LINES}
 			_CONT_DATA[OUT]=0
@@ -345,8 +345,9 @@ msg_box () {
 				((_CONT_DATA[OUT]++))
 			done
 		fi
-
-		MSG_OUT=$(msg_box_align ${_CONT_DATA[W]} ${TEXT_STYLE} ${MSGS[1]}) # Apply padding to both sides of msg
+		
+		box_coords_upd CONT S ${TEXT_STYLE}
+		MSG_OUT=$(msg_box_align CONT ${MSGS[1]}) # Apply padding to both sides of msg
 
 		tput cup ${_CONT_DATA[SCR]} ${_CONT_DATA[Y]} # Place cursor
 		tput ech ${_CONT_DATA[COLS]} # Clear line
@@ -364,7 +365,7 @@ msg_box () {
 			for H in ${MSG_HDRS};do
 				((SCR_NDX++))
 				((DTL_NDX++))
-				MSG_OUT=$(msg_box_align ${BOX_WIDTH} ${TEXT_STYLE} ${H}) # Apply justification
+				MSG_OUT=$(msg_box_align ${H}) # Apply justification
 				tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 				tput ech ${MSG_COLS} # Clear line
 				echo -n "${MSG_OUT}"
@@ -381,7 +382,7 @@ msg_box () {
 			((SCR_NDX++))
 			((DTL_NDX++))
 
-			MSG_OUT=$(msg_box_align ${BOX_WIDTH} ${TEXT_STYLE} ${MSG_BODY[${MSG_NDX}]}) # Apply padding to both sides of msg
+			MSG_OUT=$(msg_box_align ${MSG_BODY[${MSG_NDX}]}) # Apply padding to both sides of msg
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
 			echo -n "${MSG_OUT}"
@@ -417,56 +418,58 @@ msg_box () {
 }
 
 msg_box_align () {
-	local BOX_WIDTH=${1}
-	local STYLE=${2}; shift 2
+	local TAG=MSG
+	[[ ${#} -gt 1 ]] && TAG=${1} && shift # Optional arg
 	local MSG="${@}"
-	local MSG_OUT
-	local MSG_PAD_L
-	local MSG_PAD_R
+	local -A BOX_COORDS=($(box_coords_get ${TAG}))
+	local BOX_WIDTH=${BOX_COORDS[W]}
+	local BOX_STYLE=${BOX_COORDS[S]}
+	local MSG_OUT=''
+	local MSG_PAD_L=''
+	local MSG_PAD_R=''
 	local OFFSET=3
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
 
-	# Justification: List,Left,Center,Normal
+	# Justification: List,Left,Center
 	if [[ ${MSG} =~ '^<Z>$' ]];then # Blank Line?
-		MSG_OUT=" "
+		MSG=" "
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added blank line"
+
 	elif [[ ${MSG} =~ '<L>' ]];then # List?
-		MSG_OUT=$(sed 's/<L>//g' <<<${MSG})
-		MSG_OUT=$(msg_nomarkup ${MSG_OUT})
-		MSG_OUT=$(str_trim ${MSG_OUT})
-		MSG_OUT=$(sed 's/^/\\u2022 /g' <<<${MSG_OUT}) # Add bullet and space
+		MSG=$(sed 's/<L>//g' <<<${MSG})
+		MSG=$(msg_nomarkup ${MSG})
+		MSG=$(str_trim ${MSG})
+		MSG=$(sed 's/^/\\u2022 /g' <<<${MSG}) # Add bullet and space
 		MSG_PAD_L=' '
-		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
+		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH - (${#MSG_PAD_L}+${#MSG}) - OFFSET )) )
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} List item text"
-	elif [[ ${STYLE} == 'l' ]];then # Left
-		MSG_OUT=$(msg_nomarkup ${MSG_OUT})
-		MSG_OUT=$(str_trim ${MSG})
+
+	elif [[ ${BOX_STYLE:l} == 'l' ]];then # Left
+		MSG_OUT=$(msg_nomarkup ${MSG})
+		MSG_OUT=$(str_trim ${MSG_OUT})
 		MSG_PAD_L=' '
-		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
+		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH - (${#MSG_PAD_L}+${#MSG_OUT}) - OFFSET )) )
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Left justifed text"
-	elif [[ ${STYLE} == 'c' ]];then # Center
-		MSG_OUT=$(msg_nomarkup ${MSG_OUT})
-		MSG_OUT=$(str_trim ${MSG})
-		MSG_PAD_L=$(str_center_pad $((BOX_WIDTH-2)) $(msg_nomarkup ${MSG_OUT}))
+
+	elif [[ ${BOX_STYLE:l} == 'c' ]];then # Center
+		MSG_OUT=$(msg_nomarkup ${MSG})
+		MSG_OUT=$(str_trim ${MSG_OUT})
+		MSG_PAD_L=$(str_center_pad $(( BOX_WIDTH-2 )) $(msg_nomarkup ${MSG_OUT} ))
 		MSG_PAD_R=$(str_rep_char ' ' $(( ${#MSG_PAD_L}-1 )) )
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Centered text"
-	elif [[ ${STYLE} == 'n' ]];then # Normal
-		MSG_OUT=${MSG}
-		MSG_OUT=$(msg_nomarkup ${MSG_OUT})
-		MSG_PAD_L=' '
-		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH-(${#MSG_PAD_L}+${#MSG_OUT})-${OFFSET} )) )
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Normal text"
 	fi
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:${MSG_PAD_L}${MSG_OUT}${MSG_PAD_R}"
 
-	MSG_OUT=$(msg_markup ${MSG_OUT}) # Apply markup
+	MSG_OUT=$(msg_markup ${MSG}) # Apply markup
 	echo "${MSG_PAD_L}${MSG_OUT}${MSG_PAD_R}"
 }
 
 msg_box_clear () {
-	local -A MBOX_COORDS=($(box_coords_get MSG))
+	local TAG=MSG
+	[[ ${#} -gt 0 ]] && TAG=${1} # Optional arg
+	local -A MBOX_COORDS=($(box_coords_get ${TAG}))
 	local X_COORD_ARG=${1}
 	local Y_COORD_ARG=${2}
 	local H_COORD_ARG=${3}

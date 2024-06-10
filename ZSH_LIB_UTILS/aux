@@ -40,7 +40,7 @@ action_do () {
 
 	for M in ${_MARKED};do
 		M_PID=$(get_pid ${M})
-		msg_box -p -PX "(<c>$(get_owner ${M})<N>) - <c>$(get_cmd ${M})<N>|<w>Process<N>:${M_PID}"
+		msg_box -H2 -p -PX "(<c>$(get_owner ${M})<N>) - <c>$(get_cmd ${M})<N>|<w>Process<N>:${M_PID}"
 		[[ ${_MSG_KEY} == 'y' ]] && sudo kill -9 ${M_PID} >/dev/null 2>&1
 	done
 

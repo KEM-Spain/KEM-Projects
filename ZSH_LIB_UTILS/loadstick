@@ -159,7 +159,7 @@ action_warn () {
 				M_LIST+="${g_CONTEXT}${_LIST[${M}]:t}"
 			done
 
-			msg_box -x15 -c -p -P"<N><w>Ready to Transfer<N>| |<I><w>Transfer<N> (y/n)" "<I>Please respond|$(str_unicode_line 14)|${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected| |$(msg_list ${M_LIST})${DM}"
+			msg_box -H3 -x15 -c -p -P"<N><w>Ready to Transfer<N>|<w><I>Transfer<N> (y/n)|<w><I>Please respond|${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected| |$(msg_list ${M_LIST})${DM}"
 
 			if [[ ${_MSG_KEY} == 'y' ]];then
 				break
@@ -173,7 +173,7 @@ action_warn () {
 		done
 		msg_box_clear
 	elif [[ ${_DISPLAY[MODE]} == 'target' ]];then
-		msg_box -x15 -p -PD "<I>Please respond|$(str_unicode_line 14)|${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected| |$(msg_list ${M_LIST})${DM}"
+		msg_box -H1 -x15 -p -PD "<w><I>Please respond|${#_MARKED} $(str_pluralize ${g_OBJECT} ${#_MARKED}) selected| |$(msg_list ${M_LIST})${DM}"
 	fi
 }
 

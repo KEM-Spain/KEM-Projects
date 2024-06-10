@@ -43,7 +43,7 @@ action_do () {
 
 	for M in ${MARKED};do
 		if [[ $(file ${_LIST[${M}]}) =~ 'text' ]];then
-			msg_box -p -PE "<U><c>Selected File<N>|${_LIST[${M}]}"
+			msg_box -H1 -p -PE "<c>Selected File<N>|${_LIST[${M}]}"
 			[[ ${_MSG_KEY} == 'y' ]] && /bin/vi ${_LIST[${M}]}
 		else
 			msg_box -p -P"File is not editable" "<U><c>Selected File<N>|${_LIST[${M}]}"

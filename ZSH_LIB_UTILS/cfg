@@ -86,7 +86,7 @@ action_warn () {
 	local INFO_MSG
 	
 	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
-	msg_box -p -PP "<I>Please respond<N>|$(str_unicode_line 14)| |$(str_pluralize item $CNT true) queued for editing${INFO_MSG}"
+	msg_box -H1 -p -PP "<w><I>Please respond<N>|<Z>|$(str_pluralize item $CNT true) queued for editing${INFO_MSG}"
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${MARKED};do
 			list_clear_selected ${M}

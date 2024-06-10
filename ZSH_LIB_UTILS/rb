@@ -119,7 +119,7 @@ shift $((OPTIND -1))
 
 if [[ ${#OPTIONS} -eq 0 ]];then
 	MSG_OUT="|Logout, Reboot, or Power Off?"
-	msg_box -p -P "(R)eboot, (L)ogout, (P)ower off, (Q)uit|"  "${MSG_OUT}|$(str_unicode_line ${#MSG_OUT})"
+	msg_box -H1 -p -P "(R)eboot, (L)ogout, (P)ower off, (Q)uit"  "${MSG_OUT}"
 	[[ ${_MSG_KEY:l} == [qn] || ${_MSG_KEY:l} == 'esc' ]] && exit_leave $(msg_warn "Operation cancelled")
 	[[ ${_MSG_KEY:l} == 'l' ]] && LOGOUT=true
 	[[ ${_MSG_KEY:l} == 'r' ]] && REBOOT=true
@@ -131,9 +131,9 @@ fi
 [[ ${POWER} == 'true' ]] && POWER=true && MSG_OUT="<r>Powering off..."
 
 msg_box -x3 -y3    "${MSG_OUT}<N>"
-msg_box -x35 -y140 "${MSG_OUT}<N>"
+msg_box -x35 -y135 "${MSG_OUT}<N>"
 msg_box -x35 -y3   "${MSG_OUT}<N>"
-msg_box -x3 -y140  "${MSG_OUT}<N>"
+msg_box -x3 -y135  "${MSG_OUT}<N>"
 
 tput cup  0 0
 sleep 1

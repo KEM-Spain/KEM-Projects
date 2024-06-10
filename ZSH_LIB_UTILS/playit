@@ -58,7 +58,7 @@ action_do () {
 action_warn () {
 	local M
 	
-	msg_box -p -PQ "<I>Please respond|$(str_unicode_line 14)| |${#_MARKED} $(str_pluralize track ${#_MARKED}) selected"
+	msg_box -H1 -p -PQ "<I>Please respond|<Z>|${#_MARKED} $(str_pluralize track ${#_MARKED}) selected"
 
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${_MARKED};do

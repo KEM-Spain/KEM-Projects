@@ -94,7 +94,7 @@ action_warn () {
 	local INFO_MSG
 	
 	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
-	msg_box -p -PP "<I>Please respond<N>|$(str_unicode_line 14)| |${#_MARKED} unit files queued for action <w>${ACTION}<N>${INFO_MSG}"
+	msg_box -H1 -p -PP "<w><I>Please respond<N>|<Z>|${#_MARKED} unit files queued for action <w>${ACTION}<N>${INFO_MSG}"
 
 	if [[ ${_MSG_KEY} =~ '(n|esc)' ]];then
 		for M in ${_MARKED};do

@@ -38,7 +38,7 @@ action_do () {
 		URL=$(get_url ${M})
 		KEY=$(get_key ${M})
 
-		msg_box -p -P"Change value (y/n)" "Current value for:<y>${KEY}<N>|is:<g>${CUR_VALUE}<N>"
+		msg_box -H1 -p -P"Change value (y/n)" "Current value for:<y>${KEY}<N>|is:<g>${CUR_VALUE}<N>"
 		M_COORDS=($(box_coords_get MSG))
 
 		if [[ ${_MSG_KEY} == 'y' ]];then
@@ -77,7 +77,7 @@ action_do () {
 			fi
 
 			if [[ ${UPDATE} == 'true' ]];then
-				msg_box -p -PP "New Value is:<g>${NEW_VALUE}<N>"
+				msg_box -H1 -p -PP "New Value is:<g>${NEW_VALUE}<N>"
 				if [[ ${_MSG_KEY} == 'y' ]];then
 					gsettings set ${URL} ${KEY} ${NEW_VALUE}
 					_LOCAL_LIST=("${(@f)$(gsettings list-recursively | sort -u | egrep "${SEARCHTERM}" | sed -e 's/: /:/g')}")
@@ -97,7 +97,7 @@ action_warn () {
 	local INFO_MSG
 	
 	[[ ${_SELECT_ALL} == 'true' ]] && INFO_MSG="|(<w><I>current page only<N>)" || INFO_MSG=''
-	msg_box -p -PK "<I>Please respond<N>|$(str_unicode_line 14)| |${#_MARKED} items queued for action${INFO_MSG}"
+	msg_box H1 -p -PK "<w><I>Please respond<N>|<Z>|${#_MARKED} items queued for action${INFO_MSG}"
 
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${_MARKED};do

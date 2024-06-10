@@ -53,7 +53,7 @@ action_warn () {
 	local CNT=$(list_get_selected_count ${MARKED})
 	local M
 	
-	msg_box -p -PE "<I>Pending Action<N>|==============| |$(str_pluralize item $CNT true) queued for editing"
+	msg_box -H1 -p -PE "<w><I>Pending Action<N>|<Z>|$(str_pluralize item $CNT true) queued for editing"
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${MARKED};do
 			list_clear_selected ${M}

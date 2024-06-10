@@ -53,6 +53,7 @@ fi
 
 source ${_LIB_DIR}/ANSI.zsh
 source ${_LIB_DIR}/EXIT.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Initialize traps
 unsetopt localtraps

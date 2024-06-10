@@ -167,7 +167,7 @@ action_warn () {
 	OPT_MSG+=")"
  
 	# Display menu
-	msg_box -jl -s${MSG_DELIM} -p "<m>Options<N>${MSG_DELIM}$(str_unicode_line 7)${MSG_DELIM}${OPT_MSG} or <ENTER> to cancel"
+	msg_box -H1 -jl -s${MSG_DELIM} -p "<m>Options<N>${MSG_DELIM}${MSG_DELIM}${OPT_MSG} or <ENTER> to cancel"
 
 	ACTION_PATTERN="${OPT_INFO[${(k)OPT_LETTER[(r)${_MSG_KEY}]}]}" # Reverse lookup
 	[[ -z ${ACTION_PATTERN} ]] && clear_list && return 1 # No selection

@@ -291,7 +291,7 @@ action_warn () {
 	
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	msg_box -p -PG "<I>Please respond|$(str_unicode_line 14)| |${#_MARKED} $(str_pluralize ${_OBJECT} ${#_MARKED}) selected"
+	msg_box -H1 -p -PG "<w><I>Please respond<N>|<Z>|${#_MARKED} $(str_pluralize ${_OBJECT} ${#_MARKED}) selected"
 
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${_MARKED};do
@@ -640,7 +640,7 @@ select_download () {
 }
 
 set_favorite () {
-	local FAV=${1}
+	local FAV=${(Q)1}
 	local -aU HISTORY
 	local LINE
 	local H
@@ -649,19 +649,24 @@ set_favorite () {
 	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: FAV:${FAV} g_QRY_ENGINE:${g_QRY_ENGINE} g_LIVE:${g_LIVE}"
 
 	FAV=$(str_trim ${FAV})
+	
+	msg_box -H1 -p -PC "<w><I>Please respond<N>|<Z>|Add ${FAV} to favorites?"
+	[[ ${_MSG_KEY} != 'y' ]] && return
 
-	[[ -z ${#FAV} ]] && return
-
-
-# R   - Rumble  - general query
-# RL  - Rumble  - livestream query
-# Y   - YouTube - general query
-# YNS - YouTube - No strict - strict is default
+	# R    - Rumble  - general query
+	# RL   - Rumble  - livestream query
+	# Y    - YouTube - ID query
+	# YNS  - YouTube - ID no strict
+	# PYNS - YouTube - general query
 	
 	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
 		[[ ${g_LIVE} == 'true' ]] && FAV="${FAV}|RL" || FAV="${FAV}|R"
 	else
-		[[ ${g_STRICT} == 'false' ]] && FAV="${FAV}|YNS" || FAV="${FAV}|Y"
+		if [[ ${FAV} =~ ' ' ]];then
+			FAV="${FAV}|PYNS" # Contains spaces
+		else
+			[[ ${g_STRICT} == 'false' ]] && FAV="${FAV}|YNS" || FAV="${FAV}|Y"
+		fi
 	fi
 
 	HISTORY+=${FAV}
@@ -773,7 +778,9 @@ youtube () {
 
 	# Return search status
 	if ! arr_is_populated "${_LOCAL_LIST}";then
-		msg_box -p -PK "No data for query:${g_PROXY_CMD}|${g_STRICT_MSG}|Use option '<w>-S<N>' to disable strict filtering"
+		g_PROXY_CMD=$(str_trim ${(Q)g_PROXY_CMD})
+
+		msg_box -H2 -p -PK "<r>No data for query<N>:${g_PROXY_CMD}|${g_STRICT_MSG}|Use option '<w>-S<N>' to disable strict filtering"
 		return 1
 	fi
 
@@ -888,6 +895,8 @@ clear
 
 # Arg handling for yts.js
 if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
+	ARG="${@}"
+
    if [[ ${HELP_OPT} == 'true' ]];then
 		usage
 		echo "\n${WHITE_ON_GREY}YouTube backend help${RESET}\n"
@@ -902,6 +911,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
 	RCL=$(sed 's/\-l//' <<<${RCL}) # Rumble only option
 
+	[[ ${ARG} =~ ' ' ]] && g_STRICT=false # Multiword arg
 	[[ ${g_STRICT} == 'true' ]] && RCL="${RCL} -s"
 	
 	[[ ${_DEBUG} -ne 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # Front end option only
@@ -914,7 +924,6 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 		[[ ${?} -ne 0 ]] && exit_leave "${RED_FG}Invalid argument${RESET} - valid age arguments: ${WHITE_FG}all,min,day,week,month,year${RESET}"
 	fi
 
-	ARG="${@}"
 	if [[ -n ${ARG} ]];then
 		RCL="${RCL:Q}" # Remove any quotes
 		RCL=$(sed "s/${ARG}//" <<<${RCL}) # Remove arg as passed

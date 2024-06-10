@@ -85,6 +85,8 @@ exit_request () {
 		msg_box -O ${RED_FG} -p ${MSG}
 	fi
 
+	box_coords_set EXR X ${BOX_X} Y ${BOX_Y} W $(( ${#MSG} + 2 )) H 3
+
 	if [[ ${_MSG_KEY} == 'y' ]];then
 		if [[ ${_FUNC_TRAP} == 'true' ]];then
 			exit_pre_exit
