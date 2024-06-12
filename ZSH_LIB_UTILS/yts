@@ -96,6 +96,7 @@ action_do () {
 	local LOG_STALLS=0
 	local NDX=0
 	local PAUSE=2
+	local PID=0
 	local RESUMED_TAG=''
 	local SCAN_LIMIT=0
 	local TITLE=''
@@ -199,7 +200,16 @@ action_do () {
 				# Scan for errors
 				grep -q -i 'error\|frag' <<<${LOG_LINE}
 				if [[ ${?} -eq 0 ]];then
-					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive:
+					if [[ ${LOG_LINE:l} =~ 'frag' ]];then
+						PID=$(pgrep yt-dlp)
+						if [[ -n ${PID} ]];then
+							msg_box -t2 "Job is fragmented - killing job: ${PID}"
+							kill -9 ${PID}
+							_FAILED[${M}]=true
+							break 2 # Exit log scan
+						fi
+					fi
+					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive errors or fragments
 						TITLE=$(get_field title ${M})	
 						EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Network failure<N>|${LOG_LINE}" 
 						msg_box -f80 -p -PK "${EMSG}"

@@ -151,6 +151,8 @@ msg_box () {
 
 	# Get message count
 	[[ ${DELIM_ARG} != 'false' ]] && DELIM=${DELIM_ARG} # Assign delimiter
+	[[ ${#DELIM} -gt 1 ]] && exit_leave $(msg_err "${functrace[1]} called ${0}:${LINENO}: Invalid delimiter:${DELIM}")
+
 	MSG=$(sed -E "s/[\\\][${DELIM}]/_DELIM_/g" <<<${MSG}) # handle (skip) escaped delimiters
 	DELIM_COUNT=$(grep --color=never -o "[${DELIM}]" <<<${MSG} | wc -l) # Slice MSG into fields and count
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG contains ${WHITE_FG}${DELIM_COUNT}${RESET} delimiters"

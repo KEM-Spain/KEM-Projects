@@ -145,7 +145,9 @@ action_warn () {
 	OPT_DESC[4]="Delete row [${MARKED}]"						&& OPT_INFO[4]="${STAMP}"             && OPT_REF[4]="true"  && OPT_LETTER[4]='r'
 	OPT_DESC[5]="<I><U>Execute<N>: [ ${CMD} ${ARGS} ]"		&& OPT_INFO[5]="exec|${CMD} ${ARGS}"  && OPT_REF[5]="true"  && OPT_LETTER[5]='e'
 
+	#TODO: this is failing; figure out what is going on
 	MSG_DELIM=$(parse_find_valid_delim "${CMD}${ARGS}")
+	[[ ${?} -ne 0 ]] && return 1
 
 	for O in ${(ok)OPT_REF};do
 		if [[ ${OPT_REF[${O}]} == 'true' ]];then
@@ -165,10 +167,10 @@ action_warn () {
 		[[ ${OPT_NDX} -le ${O} && ${OPT_NDX} -lt ${#OPT_REF} ]] && OPT_MSG+='/'
 	done
 	OPT_MSG+=")"
- 
+
 	# Display menu
 	msg_box -H1 -jl -s${MSG_DELIM} -p "<m>Options<N>${MSG_DELIM}${MSG_DELIM}${OPT_MSG} or <ENTER> to cancel"
-
+ 
 	ACTION_PATTERN="${OPT_INFO[${(k)OPT_LETTER[(r)${_MSG_KEY}]}]}" # Reverse lookup
 	[[ -z ${ACTION_PATTERN} ]] && clear_list && return 1 # No selection
 

@@ -362,7 +362,7 @@ Manage script sources during the development cycle
 \n\t'bak <FILE>' default action is to first create a local backup of the existing 
 \t<PRODUCTION> version and then copy <DEVELOPMENT> to <PRODUCTION>
 \n\tAll operations other than -b (local backup) require a <PRODUCTION> copy to exist
-\tNo unalterable actions are taken without consent
+\n\tNo unalterable actions are taken without consent
 EOF
 
 parse_opts () {
