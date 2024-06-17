@@ -53,8 +53,7 @@ typeset -a OPTIONS
 read -r -d '' DESC<<EOF
 Attempt to identify and gather all references
 \tto external functions and incorporate them
-\tinto the script body to facilitate running in
-\ta systemd environment as a service
+\tinto the script body to create portable scripts
 \tTwo passes are needed to capture calls made by
 \tfunctions that were added in the first pass
 EOF
@@ -95,6 +94,7 @@ usage () {
 	(
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTSTR}${WHITE_FG}]${RESET} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-b $(opt_type e)${RESET} add to blacklist"
 	echo -e "${WHITE_FG}-e $(opt_type e)${RESET} one or more extra functions to be extracted"
 	echo -e "${WHITE_FG}-r${RESET} retain intermediate files after run"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
@@ -103,7 +103,7 @@ usage () {
 	exit_leave $(msg_err ${PENDING_MSGS})
 }
 
-OPTSTR=":He:r"
+OPTSTR=":Hb:e:r"
 OPTIND=0
 
 KEEP_FILES=false
@@ -111,6 +111,7 @@ KEEP_FILES=false
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
+	  b) _BLACKLIST[${=OPTARG}]=1;;
 	  e) _EXTRA_FUNCS+=(${=OPTARG});;
 	  r) KEEP_FILES=true;;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;

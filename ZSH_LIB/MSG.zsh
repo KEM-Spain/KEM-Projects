@@ -4,6 +4,8 @@ _DEPS_+="ARRAY.zsh DBG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 # LIB Declarations
 typeset -a _CONT_BUFFER=()
 typeset -A _CONT_DATA=(BOX false COLS 0 HDRS 0 MAX 0 OUT 0 SCR 0 TOP 0 Y 0 W 0)
+typeset -A _BOX_COORDS
+typeset -a _BOX_TEXT
 
 # LIB Vars
 _MSG_KEY=''
@@ -51,6 +53,7 @@ msg_box () {
 	local PG_LINES=0
 	local PROMPT_LINE=''
 	local SCR_NDX=0
+	local SEP_LEN=0
 	local H K M T X 
 
 	# OPTIONS
@@ -73,10 +76,11 @@ msg_box () {
 	local QUIET=false
 	local SAFE=true
 	local SO=false
+	local TAG=MSG
 	local TEXT_STYLE=c # Default is center - Values:[(l)eft,(c)enter,(n)ormal] or style embeds:<L> list, <Z> blank, 
 	local TIMEOUT=0
 
-	local OPTSTR=":DH:P:O:CRcf:h:inpqruj:s:t:w:x:y:"
+	local OPTSTR=":DH:P:O:CRT:cf:h:inpqruj:s:t:w:x:y:"
 	OPTIND=0
 
 	while getopts ${OPTSTR} OPTION;do
@@ -87,6 +91,7 @@ msg_box () {
 			O) FRAME_COLOR=${OPTARG};;
 			P) MSG_PROMPT=${OPTARG};;
 			R) _CONT_DATA[BOX]=false;;
+			T) TAG=${OPTARG};;
 			c) CLEAR_MSG=true;;
 			f) FOLD_WIDTH=${OPTARG};;
 			h) BOX_HEIGHT=${OPTARG};;
@@ -166,7 +171,7 @@ msg_box () {
 		if [[ ${#M} -gt ${MAX_LINE_WIDTH} ]];then
 			MSG_FOLD=("${(f)$(fold -s -w${FOLD_WIDTH} <<<${M})}")
 			for T in ${MSG_FOLD};do
-				MSGS+=${T}
+				MSGS+=$(str_trim ${T})
 			done
 		else
 			MSGS+=${M}
@@ -207,13 +212,13 @@ msg_box () {
 
 	MSG_STR=$(arr_long_elem ${MSGS}) # Returns trimmed/no markup
 	MSG_COLS=$(( ${#MSG_STR} +1 ))
+	MSG_SEP="<SEP>"
+
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_STR:${MSG_STR} = INITIAL MSG_COLS:${MSG_COLS}"
 
 	# Process various message types
 	if [[ ${MSG_PAGING}  == 'true' ]];then
 		MSG_STR=$(msg_nomarkup ${NAV_BAR}) # Strip markup
-		[[ ${MSG_COLS} -lt ${#MSG_STR} ]] && MSG_COLS=${#MSG_STR} # Set length of separator
-		MSG_SEP=$(str_unicode_line $((MSG_COLS+2))) # Create separator
 
 		# Adding header lines reduces paging area (PG_LINES)
 		[[ -n ${MSG_HDRS} ]] && ((PG_LINES-=2)) || ((PG_LINES--)) # With headers add BAR,HDR,SEP else add BAR,SEP only
@@ -231,8 +236,8 @@ msg_box () {
 			MSG_HDRS=(${NAV_BAR} ${MSG_SEP}) # Add BAR,SEP
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FORMAT PAGING HEADER w/BAR,SEP"
 		fi
+		MSG_COLS=$(( ${#MSG_STR} +1 )) # Clean NAV_BAR
 	elif [[ -n ${MSG_HDRS} ]];then # Non-paged w/headers
-		MSG_SEP=$(str_unicode_line $((MSG_COLS+2))) # Create separator
 		MSG_HDRS=(${MSG_HDRS} ${MSG_SEP}) # Add separator
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FORMAT NORMAL HEADER W/ HDRS and SEP"
 	fi
@@ -251,6 +256,12 @@ msg_box () {
 	# Set box coords
 	[[ ${BOX_WIDTH} -eq 0 ]] && BOX_WIDTH=$((MSG_COLS+4)) # 1 char gutter per side
 	[[ ${BOX_HEIGHT} -eq 0 ]] && BOX_HEIGHT=$(( PG_LINES + ${#MSG_HDRS} + 2 ))
+
+	# Set separator
+	if [[ -n ${MSG_HDRS} ]];then
+		SEP_LEN=$(str_unicode_line $((BOX_WIDTH-4)))
+		MSG_HDRS[-1]=$(sed "s/<SEP>/${SEP_LEN}/" <<<${MSG_HDRS[-1]})
+	fi
 
 	# Center MSG unless coords were passed
 	[[ ${MSG_X_COORD_ARG} -eq -1 ]] && MSG_X_COORD=$(( ((_MAX_ROWS-BOX_HEIGHT) / 2) + 1)) || MSG_X_COORD=${MSG_X_COORD_ARG}
@@ -280,8 +291,8 @@ msg_box () {
 #echo -n "Waiting...";read
 
 	# Save box coords
-	box_coords_set MSG X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SAVED MSG_BOX_COORDS: $(box_coords_get MSG)"
+	box_coords_set ${TAG} X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SAVED MSG_BOX_COORDS: $(box_coords_get ${TAG})"
 
 	# Prepare display
 	[[ ${SO} == 'true' ]] && tput smso # Standout mode
@@ -367,10 +378,11 @@ msg_box () {
 			for H in ${MSG_HDRS};do
 				((SCR_NDX++))
 				((DTL_NDX++))
-				MSG_OUT=$(msg_box_align ${H}) # Apply justification
+				MSG_OUT=$(msg_box_align ${TAG} ${H}) # Apply justification
 				tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 				tput ech ${MSG_COLS} # Clear line
 				echo -n "${MSG_OUT}"
+				_BOX_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
 				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_OUT:${MSG_OUT}"
 			done
 		fi
@@ -383,11 +395,11 @@ msg_box () {
 		for ((MSG_NDX=1;MSG_NDX<=${#MSG_BODY};MSG_NDX++));do
 			((SCR_NDX++))
 			((DTL_NDX++))
-
-			MSG_OUT=$(msg_box_align ${MSG_BODY[${MSG_NDX}]}) # Apply padding to both sides of msg
+			MSG_OUT=$(msg_box_align ${TAG} ${MSG_BODY[${MSG_NDX}]}) # Apply padding to both sides of msg
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
 			echo -n "${MSG_OUT}"
+			_BOX_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_OUT:${MSG_OUT}"
 
 			[[ ${SO} == 'true' ]] && tput smso # Invoke standout
@@ -420,80 +432,85 @@ msg_box () {
 }
 
 msg_box_align () {
-	local TAG=MSG
-	[[ ${#} -gt 1 ]] && TAG=${1} && shift # Optional arg
-	local MSG="${@}"
+	local TAG=${1};shift
+	local MSG=${@}
 	local -A BOX_COORDS=($(box_coords_get ${TAG}))
 	local BOX_WIDTH=${BOX_COORDS[W]}
 	local BOX_STYLE=${BOX_COORDS[S]}
+	local TEXT_PAD_L=''
+	local TEXT_PAD_R=''
 	local MSG_OUT=''
-	local MSG_PAD_L=''
-	local MSG_PAD_R=''
 	local OFFSET=3
+	local TEXT=''
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
 
 	# Justification: List,Left,Center
-	if [[ ${MSG} =~ '^<Z>$' ]];then # Blank Line?
+	if [[ ${MSG} =~ '<Z>' ]];then # Blank Line?
 		MSG=" "
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added blank line"
+		[[ ${_DEBUG} -ge ${_TEXT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added blank line"
 
 	elif [[ ${MSG} =~ '<L>' ]];then # List?
-		MSG=$(sed 's/<L>//g' <<<${MSG})
-		MSG=$(msg_nomarkup ${MSG})
-		MSG=$(str_trim ${MSG})
-		MSG=$(sed 's/^/\\u2022 /g' <<<${MSG}) # Add bullet and space
-		MSG_PAD_L=' '
-		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH - (${#MSG_PAD_L}+${#MSG}) - OFFSET )) )
+		MSG=$(sed -e 's/<L>/\\u2022 /' <<<${MSG}) # Add bullet and space
+		TEXT=${MSG}
+		TEXT=$(msg_nomarkup ${TEXT})
+		TEXT=$(str_trim ${TEXT})
+		TEXT_PAD_L=' '
+		TEXT_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH - (${#TEXT_PAD_L}+${#TEXT}) - OFFSET -1 )) ) # compensate for bullet/space
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} List item text"
 
 	elif [[ ${BOX_STYLE:l} == 'l' ]];then # Left
-		MSG_OUT=$(msg_nomarkup ${MSG})
-		MSG_OUT=$(str_trim ${MSG_OUT})
-		MSG_PAD_L=' '
-		MSG_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH - (${#MSG_PAD_L}+${#MSG_OUT}) - OFFSET )) )
+		TEXT=$(msg_nomarkup ${MSG})
+		TEXT=$(str_trim ${TEXT})
+		TEXT_PAD_L=' '
+		TEXT_PAD_R=$(str_rep_char ' ' $(( BOX_WIDTH - (${#TEXT_PAD_L}+${#TEXT}) - OFFSET )) )
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Left justifed text"
 
 	elif [[ ${BOX_STYLE:l} == 'c' ]];then # Center
-		MSG_OUT=$(msg_nomarkup ${MSG})
-		MSG_OUT=$(str_trim ${MSG_OUT})
-		MSG_PAD_L=$(str_center_pad $(( BOX_WIDTH-2 )) $(msg_nomarkup ${MSG_OUT} ))
-		MSG_PAD_R=$(str_rep_char ' ' $(( ${#MSG_PAD_L}-1 )) )
+		TEXT=$(msg_nomarkup ${MSG})
+		TEXT=$(str_trim ${TEXT})
+		TEXT_PAD_L=$(str_center_pad $(( BOX_WIDTH-2 )) $(msg_nomarkup ${TEXT} ))
+		TEXT_PAD_R=$(str_rep_char ' ' $(( ${#TEXT_PAD_L}-1 )) )
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Left justifed text"
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Centered text"
 	fi
 
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:${MSG_PAD_L}${MSG_OUT}${MSG_PAD_R}"
-
 	MSG_OUT=$(msg_markup ${MSG}) # Apply markup
-	echo "${MSG_PAD_L}${MSG_OUT}${MSG_PAD_R}"
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:${TEXT_PAD_L}${MSG_OUT}${TEXT_PAD_R}"
+
+	echo "${TEXT_PAD_L}${MSG_OUT}${TEXT_PAD_R}"
 }
 
 msg_box_clear () {
-	local TAG=MSG
-	[[ ${#} -gt 0 ]] && TAG=${1} # Optional arg
-	local -A MBOX_COORDS=($(box_coords_get ${TAG}))
-	local X_COORD_ARG=${1}
-	local Y_COORD_ARG=${2}
-	local H_COORD_ARG=${3}
-	local W_COORD_ARG=${4}
+	local -A MBOX_COORDS=()
+	local TAG
+	local X_COORD_ARG
+	local Y_COORD_ARG
+	local H_COORD_ARG
+	local W_COORD_ARG
 	local X
 
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  MBOX_COORDS:${(kv)MBOX_COORDS}"
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X_COORD_ARG:${X_COORD_ARG}  Y_COORD_ARG:${Y_COORD_ARG} H_COORD_ARG:${H_COORD_ARG} W_COORD_ARG:${W_COORD_ARG}"
+	if [[ ${#} -eq 4 ]];then
+		X_COORD_ARG=${1}
+		Y_COORD_ARG=${2}
+		H_COORD_ARG=${3}
+		W_COORD_ARG=${4}
+	else
+		TAG=${1:=MSG}
+		MBOX_COORDS=($(box_coords_get ${TAG:=MSG}))
+		X_COORD_ARG=${MBOX_COORDS[X]}
+		Y_COORD_ARG=${MBOX_COORDS[Y]}
+		H_COORD_ARG=${MBOX_COORDS[H]}
+		W_COORD_ARG=${MBOX_COORDS[W]}
+	fi
 
-	[[ -z ${MBOX_COORDS} ]] && return # No previously displayed window found
-
-	#  Substitute value from arg or use history value if nothing passed
-	[[ -z ${X_COORD_ARG} || ${X_COORD_ARG} == 'X' ]] && X_COORD_ARG=${MBOX_COORDS[X]}
-	[[ -z ${Y_COORD_ARG} || ${Y_COORD_ARG} == 'Y' ]] && Y_COORD_ARG=${MBOX_COORDS[Y]}
-	[[ -z ${H_COORD_ARG} || ${H_COORD_ARG} == 'H' ]] && H_COORD_ARG=${MBOX_COORDS[H]}
-	[[ -z ${W_COORD_ARG} || ${W_COORD_ARG} == 'W' ]] && W_COORD_ARG=${MBOX_COORDS[W]}
-
-	for ((X=X_COORD_ARG; X<=X_COORD_ARG+H_COORD_ARG-1; X++));do
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  X:${X}, X_COORD_ARG:${X_COORD_ARG}, W_COORD_ARG:${W_COORD_ARG}"
+	for ((X=X_COORD_ARG; X <= X_COORD_ARG + H_COORD_ARG - 1; X++));do
 		tput cup ${X} ${Y_COORD_ARG}
 		tput ech ${W_COORD_ARG}
 	done
+
+	list_repaint ${TAG}
+	box_coords_del ${TAG}
 }
 
 msg_calc_gap () {
@@ -517,6 +534,100 @@ msg_calc_gap () {
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: GAP:${GAP}"
 
 	echo ${GAP}
+}
+
+list_repaint () {
+	local TAG=${1}
+	local -a TEXT=()
+	local BA_X1=0
+	local BA_X2=0
+	local BA_Y1=0
+	local BA_Y2=0
+	local BB_X1=0
+	local BB_X2=0
+	local BB_Y1=0
+	local BB_Y2=0
+	local X5 X6 X7 Y5 Y6 Y7
+	local -A TARGET_COORDS
+	local -a LIST=(${(k)_BOX_COORDS})
+	local -a MSG_LIST=()
+	local -A BOX_B_COORDS
+	local K X
+	local NDX=0
+	local OTAG=''
+
+	for K in ${LIST};do
+		[[ ${K} == ${TAG} ]] && continue
+		BOX_B_COORDS=($(box_coords_get ${K}))
+		MSG_LIST+="${BOX_B_COORDS[T]}|${K}" # time|tag
+	done
+	
+	TARGET_COORDS=($(box_coords_get ${TAG}))
+	BA_X1=${TARGET_COORDS[X]}
+	BA_X2=$(( TARGET_COORDS[X] + TARGET_COORDS[H] - 1 ))
+	BA_Y1=${TARGET_COORDS[Y]}
+	BA_Y2=$(( TARGET_COORDS[Y] + TARGET_COORDS[W] - 1 ))
+
+	# Compare others with TARGET
+	for K in ${(On)MSG_LIST};do # sorted by time desc
+		OTAG=$(cut -d '|' -f2 <<<${K})
+
+		BOX_B_COORDS=($(box_coords_get ${OTAG}))
+
+		BB_X1=${BOX_B_COORDS[X]}
+		BB_X2=$(( BOX_B_COORDS[X] + BOX_B_COORDS[H] - 1 ))
+		BB_Y1=${BOX_B_COORDS[Y]}
+		BB_Y2=$(( BOX_B_COORDS[Y] + BOX_B_COORDS[W] - 1 ))
+
+		X5=$(max ${BA_X1} ${BB_X1}) # Target top vs Other top
+		Y5=$(max ${BA_Y1} ${BB_Y1}) # Target height vs Other height
+		X6=$(min ${BA_X2} ${BB_X2}) # Target left vs Other left
+		Y6=$(min ${BA_Y2} ${BB_Y2}) # Target width vs Other width
+
+#		tput cup ${BA_X1} ${BA_Y1};echo -n "${REVERSE}${GREEN_FG}T${RESET}" # Target 
+#		tput cup ${BA_X2} ${BA_Y2};echo -n "${REVERSE}${GREEN_FG}T${RESET}" # Target 
+#		tput cup ${BB_X1} ${BB_Y1};echo -n "${BOLD}${GREEN_FG}+${RESET}" # Other
+#		tput cup ${BB_X2} ${BB_Y2};echo -n "${BOLD}${GREEN_FG}+${RESET}" # Other
+#
+#		tput cup ${X5} ${Y6};echo -n "${BOLD}${WHITE_ON_GREY}!${CYAN_FG}${MSG2}${RESET}" # Top right
+#		tput cup ${X6} ${Y5};echo -n "${BOLD}${WHITE_ON_GREY}!${CYAN_FG}${MSG2}${RESET}" # Bottom left
+#		tput cup 0 0;tput el;echo -n "                    ${X5} -gt  ${X6}      ||     ${Y5}     -gt   ${Y6}"
+#		tput cup 1 0;tput el;echo -n "${TAG} vs ${OTAG} - max top -gt min left || max height -gt min width"
+#		read -s
+
+		if [[ ${X5} -gt ${X6} || ${Y5} -gt ${Y6} ]];then
+			#tput cup 2 0;tput el;echo -n "No intersection with TARGET:${TAG}"
+			return
+		else
+			msg_unicode_box ${BOX_B_COORDS[X]} ${BOX_B_COORDS[Y]} ${BOX_B_COORDS[W]} ${BOX_B_COORDS[H]}
+			TEXT=("${(f)$(msg_get_text ${OTAG})}")
+			NDX=0
+			for ((X=$((BOX_B_COORDS[X]+1));X<$((BOX_B_COORDS[X]+BOX_B_COORDS[H]-1)); X++));do
+				((NDX++))
+				tput cup ${X} $((BOX_B_COORDS[Y]+1));echo -n ${TEXT[${NDX}]}
+			done
+		fi
+	done
+}
+
+msg_get_text () {
+	local TAG=${1}
+	local -a TEXT
+	local K
+	local MT
+	local MX
+	local MY
+	local MM
+
+	for K in ${_BOX_TEXT};do
+		MT=$(cut -d'|' -f1 <<<${K})
+		MX=$(cut -d'|' -f2 <<<${K})
+		MY=$(cut -d'|' -f3 <<<${K})
+		MM=$(cut -d'|' -f4 <<<${K})
+		if [[ ${MT} == ${TAG} ]];then
+			echo "${MM}"
+		fi
+	done
 }
 
 msg_err () {
@@ -637,7 +748,7 @@ msg_stream () {
 	local -a MSG_LINES
 	local DELIM='|'
 	local STYLE=l
-	local FOLD_WIDTH=120
+	local FOLD_WIDTH=110
 	local FOLD
 	local MSG
 	local LINE_CNT
@@ -669,8 +780,15 @@ msg_stream () {
 	CMD=(${@})
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: CMD:${CMD}"
 
-	# Convert carriage returns to newlines and any '<' to similar unicode to avoid collision with markup
-	coproc { eval "${CMD} ${FOLD}" | sed -e "s//\n/g" -e 's/</\xe2\x98\x87/g'; } 
+	# Convert carriage returns to newlines, kill excess spaces, any '<' to unicode, '|' to 'or' and trim, and fold
+	coproc { eval ${CMD} | \
+		sed -e 's// /g'  \
+		-e 's/  */ /g'  \
+		-e 's/</\xe2\x98\x87/g'  \
+		-e 's/|/or/g'  \
+		-e 's/^[[:blank:]]*//;s/[[:blank:]]*$//' | \
+		fold -s -w ${FOLD_WIDTH}  \
+	}
 
 	LINE_CNT=0
 	while read -p ${COPROC[0]} MSG;do
@@ -690,7 +808,7 @@ msg_stream () {
 	
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG COUNT with BLANK LINES REMOVED:${#MSG_LINES}"
 
-	msg_box -P"<m>Last Page<N>" -pc -s${DELIM} -j${STYLE} ${MSG_LINES} # Display window
+	msg_box -y20 -w$((FOLD_WIDTH+4)) -P"<m>Last Page<N>" -pc -s${DELIM} -j${STYLE} ${MSG_LINES} # Display window
 }
 
 msg_unicode_box () {

@@ -5,7 +5,6 @@ _DEPS_+="DBG.zsh MSG.zsh TPUT.zsh"
 typeset -a _DELIMS=('#' '|' ':' ',' '	') # Recognized field delimiters
 typeset -a _POS_ARGS
 typeset -A _KWD_ARGS
-typeset -A _BOX_COORDS
 
 # LIB Vars
 _EXIT_VALUE=0
@@ -36,6 +35,20 @@ arg_parse () {
 		((NDX++))
 		_POS_ARGS[${NDX}]=${A}
 	done
+}
+
+assoc_del_key () {
+	emulate -LR zsh
+	setopt extended_glob
+
+	if [[ -${(Pt)1}- != *-association-* ]]; then
+		return 120 # Fail early if $1 is not the name of an associative array
+	fi
+
+	set -- "$1" "${(j:|:)${(@b)@[2,$#]}}"
+
+	# Copy all entries except the specified ones
+	: "${(AAP)1::=${(@kv)${(P)1}[(I)^($~2)]}}"
 }
 
 boolean_color () {
@@ -99,7 +112,26 @@ box_coords_set () {
 
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	_BOX_COORDS[${TAG}]="${COORDS}"
+	_BOX_COORDS[${TAG}]="${COORDS} T $(date +%s.%N)"
+}
+
+box_coords_del () {
+	local TAG=${1}
+
+	assoc_del_key _BOX_COORDS ${TAG}
+}
+
+box_coords_dump () {
+	local K
+
+	echo "COORDS"
+	for K in ${(k)_BOX_COORDS};do
+		printf "%s %s\n" ${K} ${_BOX_COORDS[${K}]}
+	done
+	echo "TEXT"
+	for K in ${_BOX_TEXT};do
+		echo ${K}
+	done
 }
 
 cmd_get_raw () {
@@ -436,3 +468,16 @@ parse_get_last_field () {
 	echo -n ${LINE} | rev | cut -d"${DELIM}" -f1 | rev
 }
 
+max () {
+	local N1=${1}
+	local N2=${2}
+
+	[[ ${N1} -gt ${N2} ]] && echo ${N1} || echo ${N2} 
+}
+
+min () {
+	local N1=${1}
+	local N2=${2}
+
+	[[ ${N1} -lt ${N2} ]] && echo ${N1} || echo ${N2} 
+}
