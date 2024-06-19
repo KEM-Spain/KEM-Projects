@@ -86,35 +86,6 @@ boolean_color_word () {
 	esac
 }
 
-box_coords_get () {
-	local TAG=${1}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	echo ${(kv)_BOX_COORDS[${TAG}]}
-}
-
-box_coords_upd () {
-	local TAG=${1}
-	local KEY=${2}
-	local VAL=${3}
-	local -A UPD=($(box_coords_get ${TAG}))
-
-	box_coords_set ${TAG} X ${UPD[X]} Y ${UPD[Y]} W ${UPD[W]} H ${UPD[H]} ${KEY} ${VAL}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-}
-
-box_coords_set () {
-	local -a ARGS=(${@})
-	local TAG=${ARGS[1]}
-	local COORDS=${ARGS[2,-1]}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	_BOX_COORDS[${TAG}]="${COORDS} T $(date +%s.%N)"
-}
-
 box_coords_del () {
 	local TAG=${1}
 
@@ -132,6 +103,101 @@ box_coords_dump () {
 	for K in ${_BOX_TEXT};do
 		echo ${K}
 	done
+}
+
+box_coords_get () {
+	local TAG=${1}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	echo ${(kv)_BOX_COORDS[${TAG}]}
+}
+
+box_coords_overlap () {
+	local TAG=${1}
+	local -A BOX_B_COORDS
+	local -A TARGET_COORDS
+	local -a LIST=(${(k)_BOX_COORDS})
+	local -a MSG_LIST=()
+	local BA_X1=0
+	local BA_X2=0
+	local BA_Y1=0
+	local BA_Y2=0
+	local BB_X1=0
+	local BB_X2=0
+	local BB_Y1=0
+	local BB_Y2=0
+	local X5 X6 X7 Y5 Y6 Y7
+	local K X
+	local NDX=0
+	local OTAG=''
+	local -a RETURN_TAGS=()
+
+	for K in ${LIST};do
+		[[ ${K} == ${TAG} ]] && continue
+		BOX_B_COORDS=($(box_coords_get ${K}))
+		MSG_LIST+="${BOX_B_COORDS[T]}|${K}" # time|tag
+	done
+	
+	TARGET_COORDS=($(box_coords_get ${TAG}))
+	BA_X1=${TARGET_COORDS[X]}
+	BA_X2=$(( TARGET_COORDS[X] + TARGET_COORDS[H] - 1 ))
+	BA_Y1=${TARGET_COORDS[Y]}
+	BA_Y2=$(( TARGET_COORDS[Y] + TARGET_COORDS[W] - 1 ))
+
+	# Compare others with TARGET
+	for K in ${(On)MSG_LIST};do # sorted by time desc
+		OTAG=$(cut -d '|' -f2 <<<${K})
+
+		BOX_B_COORDS=($(box_coords_get ${OTAG}))
+
+		BB_X1=${BOX_B_COORDS[X]}
+		BB_X2=$(( BOX_B_COORDS[X] + BOX_B_COORDS[H] - 1 ))
+		BB_Y1=${BOX_B_COORDS[Y]}
+		BB_Y2=$(( BOX_B_COORDS[Y] + BOX_B_COORDS[W] - 1 ))
+
+		X5=$(max ${BA_X1} ${BB_X1}) # Target top vs Other top
+		Y5=$(max ${BA_Y1} ${BB_Y1}) # Target height vs Other height
+		X6=$(min ${BA_X2} ${BB_X2}) # Target left vs Other left
+		Y6=$(min ${BA_Y2} ${BB_Y2}) # Target width vs Other width
+
+#		tput cup ${BA_X1} ${BA_Y1};echo -n "${REVERSE}${GREEN_FG}T${RESET}" # Target 
+#		tput cup ${BA_X2} ${BA_Y2};echo -n "${REVERSE}${GREEN_FG}T${RESET}" # Target 
+#		tput cup ${BB_X1} ${BB_Y1};echo -n "${BOLD}${GREEN_FG}+${RESET}" # Other
+#		tput cup ${BB_X2} ${BB_Y2};echo -n "${BOLD}${GREEN_FG}+${RESET}" # Other
+#
+#		tput cup ${X5} ${Y6};echo -n "${BOLD}${WHITE_ON_GREY}!${CYAN_FG}${MSG2}${RESET}" # Top right
+#		tput cup ${X6} ${Y5};echo -n "${BOLD}${WHITE_ON_GREY}!${CYAN_FG}${MSG2}${RESET}" # Bottom left
+#		tput cup 0 0;tput el;echo -n "                    ${X5} -gt  ${X6}      ||     ${Y5}     -gt   ${Y6}"
+#		tput cup 1 0;tput el;echo -n "${TAG} vs ${OTAG} - max top -gt min left || max height -gt min width"
+#		read -s
+
+		[[ ${X5} -lt ${X6} || ${Y5} -lt ${Y6} ]] && RETURN_TAGS+=${K}
+	done
+
+	echo ${RETURN_TAGS}
+}
+
+box_coords_set () {
+	local -a ARGS=(${@})
+	local TAG=${ARGS[1]}
+	local COORDS=${ARGS[2,-1]}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	_BOX_COORDS[${TAG}]="${COORDS} T $(date +%s.%N)"
+}
+
+
+box_coords_upd () {
+	local TAG=${1}
+	local KEY=${2}
+	local VAL=${3}
+	local -A UPD=($(box_coords_get ${TAG}))
+
+	box_coords_set ${TAG} X ${UPD[X]} Y ${UPD[Y]} W ${UPD[W]} H ${UPD[H]} ${KEY} ${VAL}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 }
 
 cmd_get_raw () {

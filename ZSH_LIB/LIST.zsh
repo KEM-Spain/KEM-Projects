@@ -1385,6 +1385,7 @@ list_toggle_all () {
 		_LIST_SELECTED_PAGE[${PAGE}]=0 # Clear - unmark page
 		_LIST_SELECTED_PAGE[0]=0 # Clear - unmark all
 		SELECTED=($(list_select_range 1 ${MAX_ITEM}))
+		_MARKED=()
 	fi
 
 	for S in ${SELECTED};do

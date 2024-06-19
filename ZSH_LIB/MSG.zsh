@@ -509,7 +509,7 @@ msg_box_clear () {
 		tput ech ${W_COORD_ARG}
 	done
 
-	list_repaint ${TAG}
+	[[ ${TAG} != "MSG" ]] && msg_repaint ${TAG}
 	box_coords_del ${TAG}
 }
 
@@ -536,77 +536,29 @@ msg_calc_gap () {
 	echo ${GAP}
 }
 
-list_repaint () {
+msg_repaint () {
 	local TAG=${1}
 	local -a TEXT=()
-	local BA_X1=0
-	local BA_X2=0
-	local BA_Y1=0
-	local BA_Y2=0
-	local BB_X1=0
-	local BB_X2=0
-	local BB_Y1=0
-	local BB_Y2=0
-	local X5 X6 X7 Y5 Y6 Y7
-	local -A TARGET_COORDS
-	local -a LIST=(${(k)_BOX_COORDS})
-	local -a MSG_LIST=()
-	local -A BOX_B_COORDS
-	local K X
+	local -A TAG_COORDS
 	local NDX=0
-	local OTAG=''
+	local TAG_LIST=()
+	local T
+	local OTAG
 
-	for K in ${LIST};do
-		[[ ${K} == ${TAG} ]] && continue
-		BOX_B_COORDS=($(box_coords_get ${K}))
-		MSG_LIST+="${BOX_B_COORDS[T]}|${K}" # time|tag
-	done
-	
-	TARGET_COORDS=($(box_coords_get ${TAG}))
-	BA_X1=${TARGET_COORDS[X]}
-	BA_X2=$(( TARGET_COORDS[X] + TARGET_COORDS[H] - 1 ))
-	BA_Y1=${TARGET_COORDS[Y]}
-	BA_Y2=$(( TARGET_COORDS[Y] + TARGET_COORDS[W] - 1 ))
+	TAG_LIST=($(box_coords_overlap ${TAG}))
 
-	# Compare others with TARGET
-	for K in ${(On)MSG_LIST};do # sorted by time desc
-		OTAG=$(cut -d '|' -f2 <<<${K})
+	for T in ${(on)TAG_LIST};do
+		OTAG=$(cut -d '|' -f2 <<<${T})
+		TAG_COORDS=($(box_coords_get ${OTAG}))
+		TEXT=("${(f)$(msg_get_text ${OTAG})}")
 
-		BOX_B_COORDS=($(box_coords_get ${OTAG}))
+		msg_unicode_box ${TAG_COORDS[X]} ${TAG_COORDS[Y]} ${TAG_COORDS[W]} ${TAG_COORDS[H]}
 
-		BB_X1=${BOX_B_COORDS[X]}
-		BB_X2=$(( BOX_B_COORDS[X] + BOX_B_COORDS[H] - 1 ))
-		BB_Y1=${BOX_B_COORDS[Y]}
-		BB_Y2=$(( BOX_B_COORDS[Y] + BOX_B_COORDS[W] - 1 ))
-
-		X5=$(max ${BA_X1} ${BB_X1}) # Target top vs Other top
-		Y5=$(max ${BA_Y1} ${BB_Y1}) # Target height vs Other height
-		X6=$(min ${BA_X2} ${BB_X2}) # Target left vs Other left
-		Y6=$(min ${BA_Y2} ${BB_Y2}) # Target width vs Other width
-
-#		tput cup ${BA_X1} ${BA_Y1};echo -n "${REVERSE}${GREEN_FG}T${RESET}" # Target 
-#		tput cup ${BA_X2} ${BA_Y2};echo -n "${REVERSE}${GREEN_FG}T${RESET}" # Target 
-#		tput cup ${BB_X1} ${BB_Y1};echo -n "${BOLD}${GREEN_FG}+${RESET}" # Other
-#		tput cup ${BB_X2} ${BB_Y2};echo -n "${BOLD}${GREEN_FG}+${RESET}" # Other
-#
-#		tput cup ${X5} ${Y6};echo -n "${BOLD}${WHITE_ON_GREY}!${CYAN_FG}${MSG2}${RESET}" # Top right
-#		tput cup ${X6} ${Y5};echo -n "${BOLD}${WHITE_ON_GREY}!${CYAN_FG}${MSG2}${RESET}" # Bottom left
-#		tput cup 0 0;tput el;echo -n "                    ${X5} -gt  ${X6}      ||     ${Y5}     -gt   ${Y6}"
-#		tput cup 1 0;tput el;echo -n "${TAG} vs ${OTAG} - max top -gt min left || max height -gt min width"
-#		read -s
-
-		if [[ ${X5} -gt ${X6} || ${Y5} -gt ${Y6} ]];then
-			#tput cup 2 0;tput el;echo -n "No intersection with TARGET:${TAG}"
-			return
-		else
-			msg_unicode_box ${BOX_B_COORDS[X]} ${BOX_B_COORDS[Y]} ${BOX_B_COORDS[W]} ${BOX_B_COORDS[H]}
-			TEXT=("${(f)$(msg_get_text ${OTAG})}")
-			NDX=0
-			for ((X=$((BOX_B_COORDS[X]+1));X<$((BOX_B_COORDS[X]+BOX_B_COORDS[H]-1)); X++));do
-				((NDX++))
-				tput cup ${X} $((BOX_B_COORDS[Y]+1));echo -n ${TEXT[${NDX}]}
-			done
-		fi
+		NDX=0
+		for ((X=$((TAG_COORDS[X]+1));X<$((TAG_COORDS[X]+TAG_COORDS[H]-1)); X++));do
+			((NDX++))
+			tput cup ${X} $((TAG_COORDS[Y]+1));echo -n ${TEXT[${NDX}]}
+		done
 	done
 }
 
