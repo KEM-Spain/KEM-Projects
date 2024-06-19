@@ -12,6 +12,7 @@ _MSG_KEY=''
 _MSG_LIB_DBG=4
 _PROC_MSG=false
 
+# Functions
 msg_box () {
 	local -a MSGS=()
 	local -a MSG_HDRS=()
@@ -536,30 +537,13 @@ msg_calc_gap () {
 	echo ${GAP}
 }
 
-msg_repaint () {
-	local TAG=${1}
-	local -a TEXT=()
-	local -A TAG_COORDS
-	local NDX=0
-	local TAG_LIST=()
-	local T
-	local OTAG
+msg_err () {
+	local MSG=${@}
 
-	TAG_LIST=($(box_coords_overlap ${TAG}))
-
-	for T in ${(on)TAG_LIST};do
-		OTAG=$(cut -d '|' -f2 <<<${T})
-		TAG_COORDS=($(box_coords_get ${OTAG}))
-		TEXT=("${(f)$(msg_get_text ${OTAG})}")
-
-		msg_unicode_box ${TAG_COORDS[X]} ${TAG_COORDS[Y]} ${TAG_COORDS[W]} ${TAG_COORDS[H]}
-
-		NDX=0
-		for ((X=$((TAG_COORDS[X]+1));X<$((TAG_COORDS[X]+TAG_COORDS[H]-1)); X++));do
-			((NDX++))
-			tput cup ${X} $((TAG_COORDS[Y]+1));echo -n ${TEXT[${NDX}]}
-		done
-	done
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
+		echo "\\\n[${_SCRIPT}]:[${BOLD}${RED_FG}Error${RESET}]  ${MSG}\\\n"
+	fi
 }
 
 msg_get_text () {
@@ -582,12 +566,12 @@ msg_get_text () {
 	done
 }
 
-msg_err () {
+msg_info () {
 	local MSG=${@}
 
 	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
-		echo "\\\n[${_SCRIPT}]:[${BOLD}${RED_FG}Error${RESET}]  ${MSG}\\\n"
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
+		echo "\\\n[${_SCRIPT}]:${BOLD}${CYAN_FG}${MSG}${RESET}\\\n"
 	fi
 }
 
@@ -693,6 +677,32 @@ msg_proc () {
 	box_coords_set PROC X ${BOX_X} Y ${BOX_Y} W ${BOX_W} H ${BOX_H}
 	_PROC_MSG=false
 	sleep .5
+}
+
+msg_repaint () {
+	local TAG=${1}
+	local -a TEXT=()
+	local -A TAG_COORDS
+	local NDX=0
+	local TAG_LIST=()
+	local T
+	local OTAG
+
+	TAG_LIST=($(box_coords_overlap ${TAG}))
+
+	for T in ${(on)TAG_LIST};do
+		OTAG=$(cut -d '|' -f2 <<<${T})
+		TAG_COORDS=($(box_coords_get ${OTAG}))
+		TEXT=("${(f)$(msg_get_text ${OTAG})}")
+
+		msg_unicode_box ${TAG_COORDS[X]} ${TAG_COORDS[Y]} ${TAG_COORDS[W]} ${TAG_COORDS[H]}
+
+		NDX=0
+		for ((X=$((TAG_COORDS[X]+1));X<$((TAG_COORDS[X]+TAG_COORDS[H]-1)); X++));do
+			((NDX++))
+			tput cup ${X} $((TAG_COORDS[Y]+1));echo -n ${TEXT[${NDX}]}
+		done
+	done
 }
 
 msg_stream () {
@@ -848,15 +858,6 @@ msg_unicode_box () {
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOTTOM RIGHT: BOX_X_COORD:${X} BOX_Y_COORD:${Y}"
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOX DIMENSIONS:$((X-BOX_X_COORD+1)) x $((Y-BOX_Y_COORD+1))"
-}
-
-msg_info () {
-	local MSG=${@}
-
-	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
-		echo "\\\n[${_SCRIPT}]:${BOLD}${CYAN_FG}${MSG}${RESET}\\\n"
-	fi
 }
 
 msg_warn () {
