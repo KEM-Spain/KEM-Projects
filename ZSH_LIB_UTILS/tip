@@ -15157,8 +15157,8 @@ if [[ -n ${ARG} ]];then
 else
 	while true;do
 		do_smcup
-		selection_list_set ${_TIPS}
-		selection_list -O ${CYAN_FG} "<w>Select Tip or <h>(q)uit<N>"
+		sel_list_set ${_TIPS}
+		sel_list -O ${CYAN_FG} "<w>Select Tip or <h>(q)uit<N>"
 		TIP=${_SELECTION_VALUE}
 		if [[ ${_EXTERNAL[${TIP}]} -eq 1 ]];then
 			tip_${TIP}

@@ -66,30 +66,30 @@ action_do () {
 		[[ ${GROUP_LIST[(i)${U}]} -le ${#GROUP_LIST} ]] && USER_GROUP_LIST+=${U}
 	done
 
-	selection_list_set ${(C)${(k)POP_DECODE}}
-	selection_list -O${RED_FG} -w5 -x${TOP_WIN_X} -y${TOP_WIN_Y} "<w>Select Operation<N>"
+	sel_list_set ${(C)${(k)POP_DECODE}}
+	sel_list -O${RED_FG} -w5 -x${TOP_WIN_X} -y${TOP_WIN_Y} "<w>Select Operation<N>"
 	[[ ${?} -gt 0 ]] && clear_list && return 0
 	POP=${POP_DECODE[${_SELECTION_VALUE:l}]}
 
 	if [[ ${POP} == 'sp' ]];then
-		selection_list_set ${(C)${(k)PTYPE_DECODE}}
-		selection_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "<w>Set permissions<N>"
+		sel_list_set ${(C)${(k)PTYPE_DECODE}}
+		sel_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "<w>Set permissions<N>"
 		[[ ${?} -gt 0 ]] && clear_list && return 0
 
 		PTYPE=${PTYPE_DECODE[${_SELECTION_VALUE:l}]}
 
 		STITLE="Select permission for "
 		case ${PTYPE} in
-			a) selection_list_set ${COMBO_PERMS};STITLE="<w>Select combo permissions<N>";;
-			s) selection_list_set ${(C)${(k)SPECIAL_DECODE}};STITLE+="Special";;
-			o) selection_list_set ${(C)${(k)PERM_DECODE}};STITLE+="Owner";;
-			g) selection_list_set ${(C)${(k)PERM_DECODE}};STITLE+="Group";;
-			w) selection_list_set ${(C)${(k)PERM_DECODE}};STITLE+="World";;
+			a) sel_list_set ${COMBO_PERMS};STITLE="<w>Select combo permissions<N>";;
+			s) sel_list_set ${(C)${(k)SPECIAL_DECODE}};STITLE+="Special";;
+			o) sel_list_set ${(C)${(k)PERM_DECODE}};STITLE+="Owner";;
+			g) sel_list_set ${(C)${(k)PERM_DECODE}};STITLE+="Group";;
+			w) sel_list_set ${(C)${(k)PERM_DECODE}};STITLE+="World";;
 			u) UMASK_PERMS=true;;
 		esac
 
 		if [[ ${UMASK_PERMS} == 'false' ]];then 
-			selection_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "${STITLE}"
+			sel_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "${STITLE}"
 			[[ ${?} -gt 0 ]] && clear_list && return 0
 			[[ ${PTYPE} == "a" ]] && PERM_CODE=${_SELECTION_VALUE:l}
 			[[ ${PTYPE} =~ "(o|g|w)" ]] && PERM_CODE=${PERM_DECODE[${_SELECTION_VALUE:l}]}
@@ -97,11 +97,11 @@ action_do () {
 		fi
 	else
 		case ${POP} in
-			co) selection_list_set ${USER_LIST};STITLE="<w>Select User<N>";;
-		  cog) selection_list_set ${USER_GROUP_LIST};STITLE="<w>Select Owner & Group<N>";;
-			cg) selection_list_set ${GROUP_LIST};STITLE="<w>Select Group<N>";;
+			co) sel_list_set ${USER_LIST};STITLE="<w>Select User<N>";;
+		  cog) sel_list_set ${USER_GROUP_LIST};STITLE="<w>Select Owner & Group<N>";;
+			cg) sel_list_set ${GROUP_LIST};STITLE="<w>Select Group<N>";;
 		esac
-		selection_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "${STITLE}"
+		sel_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "${STITLE}"
 		[[ ${?} -gt 0 ]] && clear_list && return 0
 		case ${POP} in
 			co) CHOWN=${_SELECTION_VALUE};;

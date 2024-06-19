@@ -22,7 +22,7 @@ _HILITE_X=0
 _PAGE_OPTION_KEY_HELP=''
 
 # LIB Functions
-selection_list () {
+sel_list () {
 	local -A SKEYS
 	local -a SLIST
 	local MAX_NDX=${#_SELECTION_LIST}
@@ -254,8 +254,8 @@ selection_list () {
 			tput cup ${BOX_ROW} ${BOX_Y}
 			[[ ${BOX_ROW} -eq ${BOX_X} ]] && { tput smso && _HILITE_X=${BOX_X} } || tput rmso # Highlight first item
 			if [[ ${_SL_CATEGORY} == 'true' ]];then
-				F1=$(selection_list_get_cat ${LIST_NDX})
-				F2=$(selection_list_get_label ${LIST_NDX})
+				F1=$(sel_list_get_cat ${LIST_NDX})
+				F2=$(sel_list_get_label ${LIST_NDX})
 				[[ ${LIST_NDX} -eq 1 ]] && _HILITE=${_TITLE_HL} || _HILITE=''
 				printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
 			else
@@ -286,9 +286,9 @@ selection_list () {
 				r) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='r' && break 2;;
 				y) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='y' && break 2;;
 				c) _SELECTION_VALUE=${_SELECTION_LIST[${CURSOR_NDX}]} && _SELECTION_KEY='c' && break 2;;
-				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
-				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(selection_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
-				q) exit_request $(selection_list_pos_exitbox);;
+				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
+				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
+				q) exit_request $(sel_list_pos_exitbox);;
 				1|k) ((CURSOR_ROW--));((CURSOR_NDX--));DIR='U';;
 				2|j) ((CURSOR_ROW++));((CURSOR_NDX++));DIR='D';;
 				3|t) DIR='T';;
@@ -327,21 +327,21 @@ selection_list () {
 
 			# Row and Page changes
 			case ${DIR} in
-				D|U)	selection_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SELECTION_LIST[${CURSOR_NDX}]}
-						selection_list_norm ${LAST_ROW} ${BOX_Y} ${_SELECTION_LIST[${LAST_NDX}]}
+				D|U)	sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SELECTION_LIST[${CURSOR_NDX}]}
+						sel_list_norm ${LAST_ROW} ${BOX_Y} ${_SELECTION_LIST[${LAST_NDX}]}
 						;;
 
 				T) 	if [[ ${CURSOR_NDX} -ne ${LIST_TOP} ]];then
-							selection_list_hilite ${BOX_TOP} ${BOX_Y} ${_SELECTION_LIST[${LIST_TOP}]}
-							selection_list_norm ${CURSOR_ROW} ${BOX_Y} ${_SELECTION_LIST[${CURSOR_NDX}]}
+							sel_list_hilite ${BOX_TOP} ${BOX_Y} ${_SELECTION_LIST[${LIST_TOP}]}
+							sel_list_norm ${CURSOR_ROW} ${BOX_Y} ${_SELECTION_LIST[${CURSOR_NDX}]}
 							CURSOR_NDX=${LIST_TOP}
 							CURSOR_ROW=${BOX_TOP}
 						fi
 						;;
 
 				B)		if [[ ${CURSOR_NDX} -ne ${LIST_BOT} ]];then
-							selection_list_hilite ${BOX_BOT} ${BOX_Y} ${_SELECTION_LIST[${LIST_BOT}]}
-							selection_list_norm ${CURSOR_ROW} ${BOX_Y} ${_SELECTION_LIST[${CURSOR_NDX}]}
+							sel_list_hilite ${BOX_BOT} ${BOX_Y} ${_SELECTION_LIST[${LIST_BOT}]}
+							sel_list_norm ${CURSOR_ROW} ${BOX_Y} ${_SELECTION_LIST[${CURSOR_NDX}]}
 							CURSOR_NDX=${LIST_BOT}
 							CURSOR_ROW=${BOX_BOT}
 						fi
@@ -374,7 +374,7 @@ selection_list () {
 	return 0
 }
 
-selection_list_get_cat () {
+sel_list_get_cat () {
 	local NDX=${1}
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -382,7 +382,7 @@ selection_list_get_cat () {
 	cut -d: -f1 <<<${_SELECTION_LIST[${NDX}]}
 }
 
-selection_list_get_label () {
+sel_list_get_label () {
 	local NDX=${1}
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -390,7 +390,7 @@ selection_list_get_label () {
 	cut -d: -f2 <<<${_SELECTION_LIST[${NDX}]}
 }
 
-selection_list_set_pg() {
+sel_list_set_pg() {
 	local DIR=${1}
 	local NDX=${2}
 	local P
@@ -422,7 +422,7 @@ selection_list_set_pg() {
 	echo ${_PAGE_TOPS[${_CUR_PAGE}]}
 }
 
-selection_list_hilite () {
+sel_list_hilite () {
 	local X=${1}
 	local Y=${2}
 	local TEXT=${3}
@@ -443,7 +443,7 @@ selection_list_hilite () {
 	_HILITE_X=${X}
 }
 
-selection_list_norm () {
+sel_list_norm () {
 	local X=${1}
 	local Y=${2}
 	local TEXT=${3}
@@ -462,7 +462,7 @@ selection_list_norm () {
 	fi
 }
 
-selection_list_pos_exitbox () {
+sel_list_pos_exitbox () {
 	local -A O_COORDS
 	local -A I_COORDS
 
@@ -472,7 +472,7 @@ selection_list_pos_exitbox () {
 	echo $(( I_COORDS[X] + 2 )) $(( (O_COORDS[Y] + O_COORDS[W] / 2) - (I_COORDS[W] / 2 - 1) ))
 }
 
-selection_list_repaint_section () {
+sel_list_repaint_section () {
  # TODO allow for redrawing box top
  # TODO allow for PAGES
 	local -A I_COORDS
@@ -502,8 +502,8 @@ selection_list_repaint_section () {
 		((L_NDX++))
 		if [[ ${_SL_CATEGORY} == 'true' ]];then
 			if [[ ${L_NDX} -le ${#_SELECTION_LIST} ]];then
-				F1=$(selection_list_get_cat ${L_NDX})
-				F2=$(selection_list_get_label ${L_NDX})
+				F1=$(sel_list_get_cat ${L_NDX})
+				F2=$(sel_list_get_label ${L_NDX})
 				tput cup ${CURSOR} ${MB_C[Y]}
 				printf "%*s" ${MB_C[W]} ' ' # Space over msg_box 
 				tput cup ${CURSOR} ${I_COORDS[Y]}
@@ -532,7 +532,7 @@ selection_list_repaint_section () {
 	done
 }
 
-selection_list_set () {
+sel_list_set () {
 	local -a LIST=(${@})
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -543,7 +543,7 @@ selection_list_set () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${0} _SELECTION_LIST:${#_SELECTION_LIST} ITEMS"
 }
 
-selection_list_set_page_help () {
+sel_list_set_page_help () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	_PAGE_OPTION_KEY_HELP=${@}

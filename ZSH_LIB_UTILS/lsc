@@ -63,8 +63,8 @@ action_do () {
 				disabled) ACTION_TABLE+="enable";;
 			esac
 
-			selection_list_set ${ACTION_TABLE}
-			selection_list -x11 -y32 "<w>Select action for: <c>$(cut -d. -f1 <<<${_UNIT_FILES[${M}]}) ${MSG}<N>"
+			sel_list_set ${ACTION_TABLE}
+			sel_list -x11 -y32 "<w>Select action for: <c>$(cut -d. -f1 <<<${_UNIT_FILES[${M}]}) ${MSG}<N>"
 
 			if [[ ${_SELECTION_VALUE} == '?' ]];then
 				list_set_selected ${M} 0

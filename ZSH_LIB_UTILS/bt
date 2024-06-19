@@ -204,19 +204,19 @@ select_device () {
 		tput cup 0 0
 		tput ed
 
-		selection_list_set ${DEVICES}
+		sel_list_set ${DEVICES}
 		_SELECTION_VALUE='?'
 
-		selection_list -x10 -y11 "<c>Select BT Device or (<w>q<c>)uit<N>"
+		sel_list -x10 -y11 "<c>Select BT Device or (<w>q<c>)uit<N>"
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 		DEV=${_SELECTION_VALUE}
 
 		MAC=${(k)_DEV_MAC_NAME[(r)${DEV}]} # Reverse lookup
 		_SELECTED_DEVICE=${MAC}
 
-		selection_list_set ${_ACTIONS}
+		sel_list_set ${_ACTIONS}
 
-		selection_list -x15 -y60 "<c>Select Action for ${DEV} or (<w>q<c>)uit<N>"
+		sel_list -x15 -y60 "<c>Select Action for ${DEV} or (<w>q<c>)uit<N>"
 		[[ ${_SELECTION_VALUE} == '?' ]] && continue
 		ACTION=${_SELECTION_VALUE}
 

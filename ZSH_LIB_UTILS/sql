@@ -65,8 +65,8 @@ list_db () {
 
 select_db () {
 	if set_db_list;then
-		selection_list_set ${(o)_DB_LIST}
-		selection_list "<w>Select database or <h>(q)uit<N>"
+		sel_list_set ${(o)_DB_LIST}
+		sel_list "<w>Select database or <h>(q)uit<N>"
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 		_DB=${_SELECTION_VALUE}
 	fi
@@ -167,10 +167,10 @@ if [[ ${SHOW_SCHEMA} == 'true' ]];then
 	SHOW_DBS=("${(f)$(find . -maxdepth 1 -type f)}")
 
 	if arr_is_populated "${SHOW_DBS}";then
-		selection_list_set ${(o)SHOW_DBS}
+		sel_list_set ${(o)SHOW_DBS}
 
 		_SELECTION_VALUE=?
-		selection_list "<w>Select database or <h>(q)uit<N>"
+		sel_list "<w>Select database or <h>(q)uit<N>"
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 
 		_DB=${_SELECTION_VALUE}
@@ -180,10 +180,10 @@ if [[ ${SHOW_SCHEMA} == 'true' ]];then
 
 	SHOW_TABS=($(query .tables))
 	if arr_is_populated "${SHOW_TABS}";then
-		selection_list_set ${(o)SHOW_TABS}
+		sel_list_set ${(o)SHOW_TABS}
 
 		_SELECTION_VALUE=?
-		selection_list "<w>Select table or <h>(q)uit<N>"
+		sel_list "<w>Select table or <h>(q)uit<N>"
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 
 		_TB=${_SELECTION_VALUE}
@@ -197,10 +197,10 @@ if [[ ${PRINT_TAB} == 'true' ]];then
 	SHOW_DBS=("${(f)$(find . -maxdepth 1 -type f)}")
 
 	if arr_is_populated "${SHOW_DBS}";then
-		selection_list_set ${(o)SHOW_DBS}
+		sel_list_set ${(o)SHOW_DBS}
 
 		_SELECTION_VALUE=?
-		selection_list "<w>Select database or <h>(q)uit<N>"
+		sel_list "<w>Select database or <h>(q)uit<N>"
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 
 		_DB=${_SELECTION_VALUE}
@@ -210,10 +210,10 @@ if [[ ${PRINT_TAB} == 'true' ]];then
 
 	SHOW_TABS=($(query .tables))
 	if arr_is_populated "${SHOW_TABS}";then
-		selection_list_set ${(o)SHOW_TABS}
+		sel_list_set ${(o)SHOW_TABS}
 
 		_SELECTION_VALUE=?
-		selection_list "<w>Select table or <h>(q)uit<N>"
+		sel_list "<w>Select table or <h>(q)uit<N>"
 		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 
 		_TB=${_SELECTION_VALUE}

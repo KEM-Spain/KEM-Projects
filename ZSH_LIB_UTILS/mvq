@@ -204,10 +204,10 @@ do_list () {
 				done
 			fi
 
-			selection_list_set ${(k)_DISPLAY_LIST}
+			sel_list_set ${(k)_DISPLAY_LIST}
 
 			_SELECTION_VALUE=?
-			selection_list "<w>Select ${(C)_LIST_TYPE} or <h>(q)uit<N>"
+			sel_list "<w>Select ${(C)_LIST_TYPE} or <h>(q)uit<N>"
 			[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
 
 			if [[ ${TYPE_ARG} =~ '[ad]' ]];then

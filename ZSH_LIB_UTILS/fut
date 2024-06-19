@@ -1282,9 +1282,9 @@ if [[ ${UTIL} != 'none' ]];then
 else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
-	selection_list_set ${(v)_UTILS_DESC}
+	sel_list_set ${(v)_UTILS_DESC}
 	# Selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"
-	selection_list -O ${CYAN_FG} -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"
+	sel_list -O ${CYAN_FG} -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
 	echo # Clear read

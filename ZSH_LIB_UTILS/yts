@@ -369,15 +369,15 @@ get_favorite () {
 			exit_leave "No favorites have been saved"
 		fi
 
-		selection_list_set ${(o)_DISPLAY_LIST}
-		selection_list_set_page_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>c<N>)ustom list, (<w>d<N>)elete favorite"
+		sel_list_set ${(o)_DISPLAY_LIST}
+		sel_list_set_page_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>c<N>)ustom list, (<w>d<N>)elete favorite"
 
 		clear
 
 		[[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && MSG=' (<c>livestreams toggled<w>)' || MSG=''
 
 		_SELECTION_VALUE=?
-		selection_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>"
+		sel_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>"
 
 		case ${_SELECTION_KEY} in
 			d) delete_favorite ${_SELECTION_VALUE} && _DISPLAY_LIST=() && continue;;

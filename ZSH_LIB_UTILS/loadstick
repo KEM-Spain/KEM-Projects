@@ -381,8 +381,8 @@ load_usb_info () {
 			[[ ${PERMS} =~ 'rw' ]] && LINE_COLOR=${GREEN_FG} || LINE_COLOR=${RED_FG}${STRIKE}
 			SLIST+="${NDX}) ${LINE_COLOR}${TAG}${STICK_MODEL} ${STICK_SIZE} ${STICK_PART} ${STICK_PATH}${RESET} ${WHITE_FG}${PERMS}${RESET}" 
 		done
-		selection_list_set ${SLIST}
-		selection_list -x11 -y32 "<w>Select Stick or <h>(q)uit<N>"
+		sel_list_set ${SLIST}
+		sel_list -x11 -y32 "<w>Select Stick or <h>(q)uit<N>"
 		[[ ${?} -ne 0 ]] && exit_leave $(msg_warn "Operation Cancelled")
 		NDX=$(cut -d')' -f1 <<<${_SELECTION_VALUE})
 		STICK_DATA=${STICKS[${NDX}]}
