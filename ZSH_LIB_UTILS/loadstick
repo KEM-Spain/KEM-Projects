@@ -384,7 +384,7 @@ load_usb_info () {
 		sel_list_set ${SLIST}
 		sel_list -x11 -y32 "<w>Select Stick or <h>(q)uit<N>"
 		[[ ${?} -ne 0 ]] && exit_leave $(msg_warn "Operation Cancelled")
-		NDX=$(cut -d')' -f1 <<<${_SELECTION_VALUE})
+		NDX=$(cut -d')' -f1 <<<${_SEL_VAL})
 		STICK_DATA=${STICKS[${NDX}]}
 	else
 		STICK_DATA=${STICKS[1]}

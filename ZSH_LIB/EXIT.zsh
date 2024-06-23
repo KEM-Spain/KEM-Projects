@@ -75,17 +75,16 @@ exit_pre_exit () {
 }
 
 exit_request () {
-	local BOX_X=${1}
-	local BOX_Y=${2}
+	local -a COORDS=(${1} ${2} ${3})
 	local MSG="Quit application (y/n)"
 
-	if [[ -n ${BOX_X} && -n ${BOX_Y} ]];then
-		msg_box -u -O ${RED_FG} -x ${BOX_X} -y ${BOX_Y} -p ${MSG}
+	if [[ -n ${COORDS} ]];then
+		msg_box -u -O ${RED_FG} -p -x ${COORDS[1]} -y ${COORDS[2]} -w ${COORDS[3]:=$(( ${#MSG} + 4 ))} ${MSG}
 	else
 		msg_box -O ${RED_FG} -p ${MSG}
 	fi
 
-	box_coords_set EXR X ${BOX_X} Y ${BOX_Y} W $(( ${#MSG} + 2 )) H 3
+	box_coords_set EXR X ${COORDS[1]} Y ${COORDS[2]} W ${COORDS[3]:=$(( ${#MSG} + 4 ))} H 3
 
 	if [[ ${_MSG_KEY} == 'y' ]];then
 		if [[ ${_FUNC_TRAP} == 'true' ]];then
@@ -98,9 +97,9 @@ exit_request () {
 	else
 		_EXIT_REQUEST=true
 		if [[ ${_LIST_TYPE} == 'classic' ]];then
-			list_repaint_section 3 ${_CURRENT_PAGE}
+			list_repaint 3 ${_CURRENT_PAGE}
 		elif [[ ${_LIST_TYPE} == 'select' ]];then
-			sel_list_repaint_section 3 ${_CURRENT_PAGE}
+			sel_list_repaint 3 ${_CURRENT_PAGE}
 		else
 			msg_box_clear
 		fi

@@ -376,11 +376,11 @@ get_favorite () {
 
 		[[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && MSG=' (<c>livestreams toggled<w>)' || MSG=''
 
-		_SELECTION_VALUE=?
+		_SEL_VAL=?
 		sel_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>"
 
-		case ${_SELECTION_KEY} in
-			d) delete_favorite ${_SELECTION_VALUE} && _DISPLAY_LIST=() && continue;;
+		case ${_SEL_KEY} in
+			d) delete_favorite ${_SEL_VAL} && _DISPLAY_LIST=() && continue;;
 			l) if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
 					[[ ${g_LIVE_OPT} == 'true' ]] && g_LIVE_OPT=false || g_LIVE_OPT=true
 				else
@@ -397,7 +397,7 @@ get_favorite () {
 		break
 	done
 
-	g_FAVORITE=${_SELECTION_VALUE}
+	g_FAVORITE=${_SEL_VAL}
 }
 
 get_field () {
@@ -658,7 +658,7 @@ set_favorite () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: FAV:${FAV} g_QRY_ENGINE:${g_QRY_ENGINE} g_LIVE:${g_LIVE}"
 
-	FAV=$(str_trim ${FAV})
+	FAV=$(str_trim ${(C)FAV})
 	
 	msg_box -H1 -p -PC "<w><I>Please respond<N>|<Z>|Add ${FAV} to favorites?"
 	[[ ${_MSG_KEY} != 'y' ]] && return

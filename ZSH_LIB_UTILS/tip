@@ -15159,7 +15159,7 @@ else
 		do_smcup
 		sel_list_set ${_TIPS}
 		sel_list -O ${CYAN_FG} "<w>Select Tip or <h>(q)uit<N>"
-		TIP=${_SELECTION_VALUE}
+		TIP=${_SEL_VAL}
 		if [[ ${_EXTERNAL[${TIP}]} -eq 1 ]];then
 			tip_${TIP}
 		else

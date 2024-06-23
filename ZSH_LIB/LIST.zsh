@@ -421,47 +421,6 @@ list_quote_marked_elements () {
 }
 
 list_repaint () {
-	local LIST_NDX=${1}
-	local TOP_OFFSET=${2}
-	local MAX_DISPLAY_ROWS=${3}
-	local MAX_ITEM=${4}
-	local PAGE=${5}
-	local FIRST_ITEM=$((((PAGE*MAX_DISPLAY_ROWS)-MAX_DISPLAY_ROWS)+1))
-	local LAST_ITEM=$((PAGE*MAX_DISPLAY_ROWS))
-	local CURSOR_NDX=1
-	local BARLINE BAR
-	local S R
-	local OUT
-
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	[[ ${LAST_ITEM} -gt ${MAX_ITEM} ]] && LAST_ITEM=${MAX_ITEM} # Partial page
-
-	tput cup ${TOP_OFFSET} 0
-
-	for ((R=0; R<${MAX_DISPLAY_ROWS}; R++));do
-		tput cup $((TOP_OFFSET+CURSOR_NDX-1)) 0
-		if [[ ${LIST_NDX} -le ${MAX_ITEM} ]];then
-			OUT=${LIST_NDX}
-
-			if [[ $_BARLINES == 'true' ]];then
-				BARLINE=$((NDX % 2)) # Barlining 
-				[[ ${BARLINE} -ne 0 ]] && BAR=${BLACK_BG} || BAR="" # Barlining
-			fi
-
-			[[ ${_LIST_SELECTED[${OUT}]} -eq 1 ]] && SHADE=${REVERSE} || SHADE=''
-			eval ${_LIST_LINE_ITEM} # Output the line
-		else
-			printf "\n" # Output filler
-		fi
-		((LIST_NDX++))
-		((CURSOR_NDX++))
-	done
-
-	list_do_header ${PAGE} ${MAX_PAGE}
-}
-
-list_repaint_section () {
 	local -A MC=($(box_coords_get MSG))
 	local ROWS=${1}
 	local PAGE=${2}
@@ -548,7 +507,7 @@ list_search () {
 		msg_box_clear X Y ${H_POS} W  # Clear box containing inline edit 
 
  		if [[ -z ${TARGET} ]];then # User entered nothing
-			list_repaint_section ${H_POS} ${PAGE}
+			list_repaint ${H_POS} ${PAGE}
 			_TARGET_NDX=${_LIST_NDX}
 			_TARGET_CURSOR=${CURSOR_NDX}
 			_TARGET_PAGE=${PAGE}
@@ -564,7 +523,7 @@ list_search () {
 			done
 			msg_box -x$((V_CTR)) -y$((H_CTR+10)) -p -PK "<m>List Search<N>| |\"<w>${TARGET}<N>\" - <r>NOT<N> found" 
 			msg_box_clear
-			list_repaint_section $((H_POS+3)) ${PAGE}
+			list_repaint $((H_POS+3)) ${PAGE}
 			_TARGET_NDX=${_LIST_NDX}
 			_TARGET_CURSOR=${CURSOR_NDX}
 			_TARGET_PAGE=${PAGE}
@@ -573,7 +532,7 @@ list_search () {
 			return # Early return
 		fi
 
-		list_repaint_section $((H_POS+1)) ${PAGE}
+		list_repaint $((H_POS+1)) ${PAGE}
 
 		_TARGET_KEY=$(list_get_page_target ${NEXT})
 		IFS=":" read _TARGET_NDX _TARGET_CURSOR _TARGET_PAGE TNDX <<<${_TARGET_KEY}

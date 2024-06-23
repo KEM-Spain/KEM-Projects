@@ -66,17 +66,17 @@ action_do () {
 			sel_list_set ${ACTION_TABLE}
 			sel_list -x11 -y32 "<w>Select action for: <c>$(cut -d. -f1 <<<${_UNIT_FILES[${M}]}) ${MSG}<N>"
 
-			if [[ ${_SELECTION_VALUE} == '?' ]];then
+			if [[ ${_SEL_VAL} == '?' ]];then
 				list_set_selected ${M} 0
 				continue
 			fi
 
-			if [[ ${_SELECTION_VALUE} == 'view' ]];then
+			if [[ ${_SEL_VAL} == 'view' ]];then
 				msg_stream "sudo systemctl show ${_UNIT_FILES[${NDX}]}"
 			else
-				action_warn ${_SELECTION_VALUE}
+				action_warn ${_SEL_VAL}
 				[[ ${?} -ne 0 ]] && msg_box -p -PK "Operation Cancelled" && return
-				sudo systemctl ${_SELECTION_VALUE} ${_UNIT_FILES[${NDX}]} 2>/dev/null
+				sudo systemctl ${_SEL_VAL} ${_UNIT_FILES[${NDX}]} 2>/dev/null
 				upd_unit ${M}
 			fi
 		done

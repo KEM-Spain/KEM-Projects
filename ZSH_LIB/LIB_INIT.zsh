@@ -27,6 +27,7 @@ _XSET_LOW_RATE="r rate 500 8" # Menu rate
 
 # LIB declarations
 typeset -aU _DEPS_
+typeset -A _BOX_COORDS=()
 
 # LIB var inits
 _CURSOR_STATE=on

@@ -205,11 +205,11 @@ select_device () {
 		tput ed
 
 		sel_list_set ${DEVICES}
-		_SELECTION_VALUE='?'
+		_SEL_VAL='?'
 
 		sel_list -x10 -y11 "<c>Select BT Device or (<w>q<c>)uit<N>"
-		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
-		DEV=${_SELECTION_VALUE}
+		[[ ${_SEL_VAL} == '?' ]] && exit_leave
+		DEV=${_SEL_VAL}
 
 		MAC=${(k)_DEV_MAC_NAME[(r)${DEV}]} # Reverse lookup
 		_SELECTED_DEVICE=${MAC}
@@ -217,8 +217,8 @@ select_device () {
 		sel_list_set ${_ACTIONS}
 
 		sel_list -x15 -y60 "<c>Select Action for ${DEV} or (<w>q<c>)uit<N>"
-		[[ ${_SELECTION_VALUE} == '?' ]] && continue
-		ACTION=${_SELECTION_VALUE}
+		[[ ${_SEL_VAL} == '?' ]] && continue
+		ACTION=${_SEL_VAL}
 
 		if [[ ${ACTION} == 'toggle' ]];then
 			STATUS=$(get_connection_status ${MAC})

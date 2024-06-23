@@ -67,8 +67,8 @@ select_db () {
 	if set_db_list;then
 		sel_list_set ${(o)_DB_LIST}
 		sel_list "<w>Select database or <h>(q)uit<N>"
-		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
-		_DB=${_SELECTION_VALUE}
+		[[ ${_SEL_VAL} == '?' ]] && exit_leave
+		_DB=${_SEL_VAL}
 	fi
 }
 
@@ -169,11 +169,11 @@ if [[ ${SHOW_SCHEMA} == 'true' ]];then
 	if arr_is_populated "${SHOW_DBS}";then
 		sel_list_set ${(o)SHOW_DBS}
 
-		_SELECTION_VALUE=?
+		_SEL_VAL=?
 		sel_list "<w>Select database or <h>(q)uit<N>"
-		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+		[[ ${_SEL_VAL} == '?' ]] && exit_leave
 
-		_DB=${_SELECTION_VALUE}
+		_DB=${_SEL_VAL}
 	fi
 
 	msg_box_clear
@@ -182,11 +182,11 @@ if [[ ${SHOW_SCHEMA} == 'true' ]];then
 	if arr_is_populated "${SHOW_TABS}";then
 		sel_list_set ${(o)SHOW_TABS}
 
-		_SELECTION_VALUE=?
+		_SEL_VAL=?
 		sel_list "<w>Select table or <h>(q)uit<N>"
-		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+		[[ ${_SEL_VAL} == '?' ]] && exit_leave
 
-		_TB=${_SELECTION_VALUE}
+		_TB=${_SEL_VAL}
 	fi
 	echo "${RESET}Schema for TB:${_TB}"
 	query .schema ${_TB} 
@@ -199,11 +199,11 @@ if [[ ${PRINT_TAB} == 'true' ]];then
 	if arr_is_populated "${SHOW_DBS}";then
 		sel_list_set ${(o)SHOW_DBS}
 
-		_SELECTION_VALUE=?
+		_SEL_VAL=?
 		sel_list "<w>Select database or <h>(q)uit<N>"
-		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+		[[ ${_SEL_VAL} == '?' ]] && exit_leave
 
-		_DB=${_SELECTION_VALUE}
+		_DB=${_SEL_VAL}
 	fi
 
 	msg_box_clear
@@ -212,11 +212,11 @@ if [[ ${PRINT_TAB} == 'true' ]];then
 	if arr_is_populated "${SHOW_TABS}";then
 		sel_list_set ${(o)SHOW_TABS}
 
-		_SELECTION_VALUE=?
+		_SEL_VAL=?
 		sel_list "<w>Select table or <h>(q)uit<N>"
-		[[ ${_SELECTION_VALUE} == '?' ]] && exit_leave
+		[[ ${_SEL_VAL} == '?' ]] && exit_leave
 
-		_TB=${_SELECTION_VALUE}
+		_TB=${_SEL_VAL}
 	fi
 	echo "${RESET}Contents of TB:${_TB}"
 	query "select * from ${_TB}"

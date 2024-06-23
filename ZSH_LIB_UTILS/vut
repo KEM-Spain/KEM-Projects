@@ -442,7 +442,7 @@ ___EOF
 
 	sel_list_set ${RESOLUTIONS}
 	sel_list -x3 -y3 "<w>Select Resolution<N>"
-	SCALE=${_SELECTION_VALUE}
+	SCALE=${_SEL_VAL}
 
 	FN_OUT="${FN:r} ${SCALE}.mkv"
 	[[ -e ${FN_OUT} ]] && exit_leave $(msg_warn "File naming confict: ${FN_OUT}")
@@ -568,7 +568,7 @@ else
 	# Selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
 	sel_list -O ${CYAN_FG} -c -w10 "<w>Show Video Utilities usage or <h>(q)uit<N>"
 
-	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
+	_SCRIPT=${(k)_UTILS_DESC[(r)${_SEL_VAL}]}
 	echo # Clear read
 	${_SCRIPT} -H # Call function help
 

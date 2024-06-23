@@ -142,8 +142,8 @@ if [[ ${GET_SIZE} == 'true' ]];then
 
 	sel_list_set ${SIZES}
 	sel_list -x11 -y32 "<w>Select icon size<N>"
-	[[ ${_SELECTION_VALUE} == '?' ]] && echo "${BOLD}${RED_FG}Cancelled...${RESET}" && exit_leave
-	SIZE=${_SELECTION_VALUE}
+	[[ ${_SEL_VAL} == '?' ]] && echo "${BOLD}${RED_FG}Cancelled...${RESET}" && exit_leave
+	SIZE=${_SEL_VAL}
 fi
 
 typeset -aU DIRLIST

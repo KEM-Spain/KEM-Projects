@@ -188,16 +188,19 @@ box_coords_set () {
 	_BOX_COORDS[${TAG}]="${COORDS} T $(date +%s.%N)"
 }
 
-
 box_coords_upd () {
 	local TAG=${1}
 	local KEY=${2}
 	local VAL=${3}
 	local -A UPD=($(box_coords_get ${TAG}))
 
+	[[ ${#UPD} -eq 0 ]] && return 1
+
 	box_coords_set ${TAG} X ${UPD[X]} Y ${UPD[Y]} W ${UPD[W]} H ${UPD[H]} ${KEY} ${VAL}
 
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	return 0
 }
 
 cmd_get_raw () {

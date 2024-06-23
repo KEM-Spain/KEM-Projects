@@ -316,7 +316,7 @@ else
 	# Selection_list -c -O ${CYAN_FG} -x11 -y32 -w10 "<w>Show Text Utilities usage or <h>(q)uit<N>"
 	sel_list -c -O ${CYAN_FG} -w10 "<w>Show Text Utilities usage or <h>(q)uit<N>"
 
-	_SCRIPT=${(k)_UTILS_DESC[(r)${_SELECTION_VALUE}]}
+	_SCRIPT=${(k)_UTILS_DESC[(r)${_SEL_VAL}]}
 	echo # Clear read
 	${_SCRIPT} -H # Call function help
 

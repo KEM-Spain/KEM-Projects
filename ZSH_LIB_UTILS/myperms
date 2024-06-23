@@ -69,14 +69,14 @@ action_do () {
 	sel_list_set ${(C)${(k)POP_DECODE}}
 	sel_list -O${RED_FG} -w5 -x${TOP_WIN_X} -y${TOP_WIN_Y} "<w>Select Operation<N>"
 	[[ ${?} -gt 0 ]] && clear_list && return 0
-	POP=${POP_DECODE[${_SELECTION_VALUE:l}]}
+	POP=${POP_DECODE[${_SEL_VAL:l}]}
 
 	if [[ ${POP} == 'sp' ]];then
 		sel_list_set ${(C)${(k)PTYPE_DECODE}}
 		sel_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "<w>Set permissions<N>"
 		[[ ${?} -gt 0 ]] && clear_list && return 0
 
-		PTYPE=${PTYPE_DECODE[${_SELECTION_VALUE:l}]}
+		PTYPE=${PTYPE_DECODE[${_SEL_VAL:l}]}
 
 		STITLE="Select permission for "
 		case ${PTYPE} in
@@ -91,9 +91,9 @@ action_do () {
 		if [[ ${UMASK_PERMS} == 'false' ]];then 
 			sel_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "${STITLE}"
 			[[ ${?} -gt 0 ]] && clear_list && return 0
-			[[ ${PTYPE} == "a" ]] && PERM_CODE=${_SELECTION_VALUE:l}
-			[[ ${PTYPE} =~ "(o|g|w)" ]] && PERM_CODE=${PERM_DECODE[${_SELECTION_VALUE:l}]}
-			[[ ${PTYPE} == "s" ]] && PERM_CODE=${SPECIAL_DECODE[${_SELECTION_VALUE:l}]}
+			[[ ${PTYPE} == "a" ]] && PERM_CODE=${_SEL_VAL:l}
+			[[ ${PTYPE} =~ "(o|g|w)" ]] && PERM_CODE=${PERM_DECODE[${_SEL_VAL:l}]}
+			[[ ${PTYPE} == "s" ]] && PERM_CODE=${SPECIAL_DECODE[${_SEL_VAL:l}]}
 		fi
 	else
 		case ${POP} in
@@ -104,9 +104,9 @@ action_do () {
 		sel_list -w5 -x$((++TOP_WIN_X)) -y$((++TOP_WIN_Y)) "${STITLE}"
 		[[ ${?} -gt 0 ]] && clear_list && return 0
 		case ${POP} in
-			co) CHOWN=${_SELECTION_VALUE};;
-	  	  cog) CHOWN=${_SELECTION_VALUE} && CHGRP=${_SELECTION_VALUE};;
-			cg) CHGRP=${_SELECTION_VALUE};;
+			co) CHOWN=${_SEL_VAL};;
+	  	  cog) CHOWN=${_SEL_VAL} && CHGRP=${_SEL_VAL};;
+			cg) CHGRP=${_SEL_VAL};;
 		esac
 
 	fi

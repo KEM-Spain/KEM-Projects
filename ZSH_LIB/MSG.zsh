@@ -4,8 +4,7 @@ _DEPS_+="ARRAY.zsh DBG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 # LIB Declarations
 typeset -a _CONT_BUFFER=()
 typeset -A _CONT_DATA=(BOX false COLS 0 HDRS 0 MAX 0 OUT 0 SCR 0 TOP 0 Y 0 W 0)
-typeset -A _BOX_COORDS
-typeset -a _BOX_TEXT
+typeset -a _MSG_TEXT=()
 
 # LIB Vars
 _MSG_KEY=''
@@ -293,7 +292,7 @@ msg_box () {
 
 	# Save box coords
 	box_coords_set ${TAG} X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  SAVED MSG_BOX_COORDS: $(box_coords_get ${TAG})"
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SAVED _BOX_COORDS: $(box_coords_get ${TAG})"
 
 	# Prepare display
 	[[ ${SO} == 'true' ]] && tput smso # Standout mode
@@ -383,7 +382,7 @@ msg_box () {
 				tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 				tput ech ${MSG_COLS} # Clear line
 				echo -n "${MSG_OUT}"
-				_BOX_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
+				_MSG_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
 				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_OUT:${MSG_OUT}"
 			done
 		fi
@@ -400,7 +399,7 @@ msg_box () {
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
 			echo -n "${MSG_OUT}"
-			_BOX_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
+			_MSG_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_OUT:${MSG_OUT}"
 
 			[[ ${SO} == 'true' ]] && tput smso # Invoke standout
@@ -435,9 +434,9 @@ msg_box () {
 msg_box_align () {
 	local TAG=${1};shift
 	local MSG=${@}
-	local -A BOX_COORDS=($(box_coords_get ${TAG}))
-	local BOX_WIDTH=${BOX_COORDS[W]}
-	local BOX_STYLE=${BOX_COORDS[S]}
+	local -A _BOX_COORDS=($(box_coords_get ${TAG}))
+	local BOX_WIDTH=${_BOX_COORDS[W]}
+	local BOX_STYLE=${_BOX_COORDS[S]}
 	local TEXT_PAD_L=''
 	local TEXT_PAD_R=''
 	local MSG_OUT=''
@@ -483,12 +482,12 @@ msg_box_align () {
 }
 
 msg_box_clear () {
-	local -A MBOX_COORDS=()
+	local -A MSG_COORDS=()
 	local TAG
-	local X_COORD_ARG
-	local Y_COORD_ARG
-	local H_COORD_ARG
-	local W_COORD_ARG
+	local X_COORD_ARG=0
+	local Y_COORD_ARG=0
+	local H_COORD_ARG=0
+	local W_COORD_ARG=0
 	local X
 
 	if [[ ${#} -eq 4 ]];then
@@ -498,11 +497,11 @@ msg_box_clear () {
 		W_COORD_ARG=${4}
 	else
 		TAG=${1:=MSG}
-		MBOX_COORDS=($(box_coords_get ${TAG:=MSG}))
-		X_COORD_ARG=${MBOX_COORDS[X]}
-		Y_COORD_ARG=${MBOX_COORDS[Y]}
-		H_COORD_ARG=${MBOX_COORDS[H]}
-		W_COORD_ARG=${MBOX_COORDS[W]}
+		MSG_COORDS=($(box_coords_get ${TAG:=MSG}))
+		X_COORD_ARG=${MSG_COORDS[X]}
+		Y_COORD_ARG=${MSG_COORDS[Y]}
+		H_COORD_ARG=${MSG_COORDS[H]}
+		W_COORD_ARG=${MSG_COORDS[W]}
 	fi
 
 	for ((X=X_COORD_ARG; X <= X_COORD_ARG + H_COORD_ARG - 1; X++));do
@@ -555,7 +554,7 @@ msg_get_text () {
 	local MY
 	local MM
 
-	for K in ${_BOX_TEXT};do
+	for K in ${_MSG_TEXT};do
 		MT=$(cut -d'|' -f1 <<<${K})
 		MX=$(cut -d'|' -f2 <<<${K})
 		MY=$(cut -d'|' -f3 <<<${K})
