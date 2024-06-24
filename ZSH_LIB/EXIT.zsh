@@ -96,13 +96,7 @@ exit_request () {
 		fi
 	else
 		_EXIT_REQUEST=true
-		if [[ ${_LIST_TYPE} == 'classic' ]];then
-			list_repaint 3 ${_CURRENT_PAGE}
-		elif [[ ${_LIST_TYPE} == 'select' ]];then
-			sel_list_repaint 3 ${_CURRENT_PAGE}
-		else
-			msg_box_clear
-		fi
+		msg_box_clear
 	fi
 }
 

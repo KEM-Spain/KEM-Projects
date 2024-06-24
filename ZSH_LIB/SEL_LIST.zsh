@@ -26,8 +26,8 @@ sel_list () {
 	local -A SKEYS
 	local -a SLIST
 	local MAX_NDX=${#_SEL_LIST}
-	local BOX_HEIGHT=$(( MAX_NDX+2 ))
-	local MAX_X_COORD=$((_MAX_ROWS-5)) # Up from bottom 
+	local BOX_HEIGHT=$(( MAX_NDX + 2 ))
+	local MAX_X_COORD=$(( _MAX_ROWS -5 )) # Up from bottom 
 	local BOUNDARY_SET=false
 	local BOX_BOT=0
 	local BOX_NDX=0
@@ -39,6 +39,9 @@ sel_list () {
 	local BOX_X_COORD=0
 	local BOX_Y=0
 	local BOX_Y_COORD=0
+	local EXIT_REQ=false
+	local EXIT_NDX=0
+	local EXIT_ROW=0
 	local CENTER_Y=0
 	local CLEAN_TEXT=''
 	local CURSOR_NDX=0
@@ -104,7 +107,7 @@ sel_list () {
 	  \?) exit_leave "${RED_FG}${0}${RESET}: unknown option -${OPTARG}";;
 		esac
 	done
-	shift $((OPTIND -1))
+	shift $(( OPTIND - 1 ))
 
 	# Args
 	TITLE=${1}
@@ -127,13 +130,13 @@ sel_list () {
 		exit_leave "_SEL_LIST is unset"
 	else
 		if [[ ${_SL_MAX_ITEM_LEN} -eq 0 ]];then
-			_SL_MAX_ITEM_LEN=$(arr_long_elem_len ${_SEL_LIST}); ((_SL_MAX_ITEM_LEN++)) # 1 char pad
-			_SL_MAX_ITEM_LEN=$((_SL_MAX_ITEM_LEN + ITEM_PAD))
+			_SL_MAX_ITEM_LEN=$(arr_long_elem_len ${_SEL_LIST}); (( _SL_MAX_ITEM_LEN++ )) # 1 char pad
+			_SL_MAX_ITEM_LEN=$(( _SL_MAX_ITEM_LEN + ITEM_PAD ))
 		fi
-		BOX_WIDTH=$(( _SL_MAX_ITEM_LEN+2 ))
+		BOX_WIDTH=$(( _SL_MAX_ITEM_LEN + 2 ))
 	fi
 
-	[[ ${MAX_X_COORD} -lt ${BOX_HEIGHT} ]] && BOX_HEIGHT=$((MAX_X_COORD-10 )) # Long list
+	[[ ${MAX_X_COORD} -lt ${BOX_HEIGHT} ]] && BOX_HEIGHT=$(( MAX_X_COORD - 10 )) # Long list
 
 	# Find widest element for box width
 	CLEAN_TEXT=$(msg_nomarkup ${TITLE})
@@ -144,16 +147,16 @@ sel_list () {
 
 	[[ ${LONGEST} -lt ${_SL_MAX_ITEM_LEN} ]] && SW=$(( _SL_MAX_ITEM_LEN+2 )) || SW=$(( LONGEST+2 ))
 
-	[[ ${X_COORD_ARG} -gt 0 ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $((_MAX_ROWS)) ${BOX_HEIGHT})
-	[[ ${Y_COORD_ARG} -gt 0 ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $((_MAX_COLS)) ${SW})
+	[[ ${X_COORD_ARG} -gt 0 ]] && BOX_X_COORD=${X_COORD_ARG} || BOX_X_COORD=$(coord_center $(( _MAX_ROWS )) ${BOX_HEIGHT})
+	[[ ${Y_COORD_ARG} -gt 0 ]] && BOX_Y_COORD=${Y_COORD_ARG} || BOX_Y_COORD=$(coord_center $(( _MAX_COLS )) ${SW})
 
 	SX=$(( BOX_X_COORD-XPAD ))
 	SY=$(( BOX_Y_COORD-YPAD ))
 	SW=$(( YPAD * 2 + SW ))
 	SH=$(( XPAD * 2 + BOX_HEIGHT ))
 
-	[[ $((SW % 2)) -ne 0 ]] && ((SW++)) # Even width cols
-	[[ $((BOX_WIDTH % 2)) -ne 0 ]] && ((BOX_WIDTH++)) # Even width cols
+	[[ $(( SW % 2 )) -ne 0 ]] && (( SW++ )) # Even width cols
+	[[ $(( BOX_WIDTH % 2 )) -ne 0 ]] && (( BOX_WIDTH++ )) # Even width cols
 
 	SL=$(( SX+BOX_HEIGHT + (XPAD * 2) - 1 )) # Loop limit
 
@@ -167,7 +170,7 @@ sel_list () {
 
 	# Set boundaries
 	if [[ ${BOUNDARY_SET} == 'false' ]];then
-		[[ ${BOX_HEIGHT} -lt ${MAX_NDX} ]] && MAX_BOX=$((BOX_HEIGHT-XPAD)) || MAX_BOX=${MAX_NDX} # Set box boundary
+		[[ ${BOX_HEIGHT} -lt ${MAX_NDX} ]] && MAX_BOX=$(( BOX_HEIGHT - XPAD )) || MAX_BOX=${MAX_NDX} # Set box boundary
 		_MAX_PAGE=$(( ${#_SEL_LIST} / MAX_BOX ))
 		REM=$(( ${#_SEL_LIST} % MAX_BOX ))
 		[[ ${REM} -ne 0 ]] && (( _MAX_PAGE++ )) && BOX_PARTIAL=${REM}
@@ -185,7 +188,7 @@ sel_list () {
 		box_coords_set OUTER X ${SX} Y ${SY} W ${SW} H ${SH}
 
 		CLEAN_TEXT=$(msg_nomarkup ${TITLE})
-		tput cup $((SX+1)) $(( SY+(SW/2)-(${#CLEAN_TEXT}/2) ));echo $(msg_markup ${TITLE})
+		tput cup $(( SX+1 )) $(( SY+(SW/2)-(${#CLEAN_TEXT}/2) ));echo $(msg_markup ${TITLE})
 
 		GUIDE_ROW=$(( ${SX}+${SH} - ${GUIDE_OFFSET} ))
 
@@ -204,11 +207,11 @@ sel_list () {
 
 	# Initialize
 	_SEL_LIST_TEXT=()
-	CENTER_Y=$(( SY+(SW/2)-(BOX_WIDTH/2) )) # New Y to center list
+	CENTER_Y=$(( SY+(SW/2) - (BOX_WIDTH/2) )) # New Y to center list
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  CENTER_Y to center:${CENTER_Y}"
 
-	BOX_X=$((BOX_X_COORD+1))
-	BOX_Y=$((CENTER_Y+1))
+	BOX_X=$(( BOX_X_COORD + 1 ))
+	BOX_Y=$(( CENTER_Y + 1 ))
 	BOX_TOP=${BOX_X}
 	BOX_BOT=0
 	LIST_NDX=0
@@ -219,7 +222,7 @@ sel_list () {
 
  # Record page tops
 	for P in ${(onk)_PAGE_TOPS};do
-		Q=$((P+1))
+		Q=$(( P + 1 ))
 		[[ -n ${_PAGE_TOPS[${Q}]} ]] && PG_BOT=${_PAGE_TOPS[${Q}]} || PG_BOT=${MAX_NDX}
 		if [[ ${ROW_ARG} -ge ${_PAGE_TOPS[${P}]} && ${ROW_ARG} -le ${PG_BOT} ]];then
 			LIST_TOP=${_PAGE_TOPS[${P}]}
@@ -252,16 +255,19 @@ sel_list () {
 			_SEL_LIST_TEXT="${GUIDE_ROW}|${BOX_Y}|$(printf "${CYAN_FG}Page:${WHITE_FG}%-2d ${CYAN_FG}of ${WHITE_FG}%d %s${RESET}\n" ${_CUR_PAGE} ${_MAX_PAGE} "(n)ext (p)rev")"
 		fi
 
+
 		# Generate list
 		ROWS_OUT=0
 		for (( LIST_NDX=LIST_TOP; LIST_NDX<=MAX_NDX; LIST_NDX++ ));do
-			[[ $((BOX_NDX++)) -gt ${MAX_BOX} ]] && break # Increments BOX_NDX, break when page is full
+			[[ $(( BOX_NDX++ )) -gt ${MAX_BOX} ]] && break # Increments BOX_NDX, break when page is full
+
 			tput cup ${BOX_ROW} ${BOX_Y}
-			[[ ${BOX_ROW} -eq ${BOX_X} ]] && { tput smso && _HILITE_X=${BOX_X} } || tput rmso # Highlight first item
+			[[ ${EXIT_REQ} == 'false' && ${BOX_ROW} -eq ${BOX_X} ]] && { tput smso && _HILITE_X=${BOX_X} } || tput rmso # Highlight first item
+
 			if [[ ${_SL_CATEGORY} == 'true' ]];then
 				F1=$(sel_list_get_cat ${LIST_NDX})
 				F2=$(sel_list_get_label ${LIST_NDX})
-				[[ ${LIST_NDX} -eq 1 ]] && _HILITE=${_TITLE_HL} || _HILITE=''
+				[[ ${EXIT_REQ} == 'false' && ${LIST_NDX} -eq 1 ]] && _HILITE=${_TITLE_HL} || _HILITE=''
 				printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
 				_SEL_LIST_TEXT+="${BOX_ROW}|${BOX_Y}|$(printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2})"
 			else
@@ -269,17 +275,25 @@ sel_list () {
 				_SEL_LIST_TEXT+="${BOX_ROW}|${BOX_Y}|${_SEL_LIST[${LIST_NDX}]}"
 			fi
 
-			((BOX_ROW++))
-			((ROWS_OUT++))
+			(( BOX_ROW++ ))
+			(( ROWS_OUT++ ))
 		done
 		_HILITE=${_TITLE_HL}
 
 		LIST_BOT=$(( LIST_NDX - 1 ))
 		[[ ${ROWS_OUT} -lt ${MAX_BOX} ]] && BOX_BOT=$(( BOX_ROW-1 )) || BOX_BOT=$(( BOX_X + MAX_BOX - 1 ))
 
-		# Initialize list cursors
-		CURSOR_NDX=${LIST_TOP}
-		CURSOR_ROW=${BOX_TOP}
+		# Initialize list cursors; maintain state if exit request aborted
+		if [[ ${EXIT_REQ} == 'true' ]];then
+			EXIT_REQ=false
+			CURSOR_NDX=${EXIT_NDX}
+			CURSOR_ROW=${EXIT_ROW}
+			#sel_list_norm ${BOX_TOP} ${BOX_Y} ${_SEL_LIST[${LIST_TOP}]}
+			sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
+		else
+			CURSOR_NDX=${LIST_TOP}
+			CURSOR_ROW=${BOX_TOP}
+		fi
 
 		# Get keypress and navigate
 		while true;do
@@ -295,9 +309,9 @@ sel_list () {
 				c) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && _SEL_KEY='c' && break 2;;
 				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
-				q) exit_request $(sel_list_pos_exitbox);;
-				1|k) ((CURSOR_ROW--));((CURSOR_NDX--));DIR='U';;
-				2|j) ((CURSOR_ROW++));((CURSOR_NDX++));DIR='D';;
+				q) exit_request $(sel_list_pos_exitbox);EXIT_REQ=true;EXIT_NDX=${CURSOR_NDX};EXIT_ROW=${CURSOR_ROW};break;;
+				1|k) (( CURSOR_ROW-- ));(( CURSOR_NDX-- ));DIR='U';;
+				2|j) (( CURSOR_ROW++ ));(( CURSOR_NDX++ ));DIR='D';;
 				3|t) DIR='T';;
 				4|b) DIR='B';;
 				27) msg_box_clear; return 2;;
@@ -318,16 +332,16 @@ sel_list () {
 						LAST_NDX=${LIST_BOT}
 						LAST_ROW=${BOX_BOT}
 					else
-						LAST_NDX=$((CURSOR_NDX-1))
-						LAST_ROW=$((CURSOR_ROW-1))
+						LAST_NDX=$(( CURSOR_NDX-1 ))
+						LAST_ROW=$(( CURSOR_ROW-1 ))
 					fi
 					;;
 				U)	if [[ ${CURSOR_NDX} -eq ${LIST_BOT} ]];then
 						LAST_NDX=${LIST_TOP}
 						LAST_ROW=${BOX_TOP}
 					else
-						LAST_NDX=$((CURSOR_NDX+1))
-						LAST_ROW=$((CURSOR_ROW+1))
+						LAST_NDX=$(( CURSOR_NDX+1 ))
+						LAST_ROW=$(( CURSOR_ROW+1 ))
 					fi
 					;;
 			esac
@@ -355,7 +369,7 @@ sel_list () {
 						;;
 
 				N) if [[ $(( _CUR_PAGE+1 )) -le ${_MAX_PAGE} ]];then
-						((_CUR_PAGE++))
+						(( _CUR_PAGE++ ))
 						LIST_TOP=${_PAGE_TOPS[${_CUR_PAGE}]}
 						break
 					else
@@ -366,7 +380,7 @@ sel_list () {
 					;;
 
 				P) if [[ $(( _CUR_PAGE-1 )) -ge 1 ]];then
-						((_CUR_PAGE--))
+						(( _CUR_PAGE-- ))
 						LIST_TOP=${_PAGE_TOPS[${_CUR_PAGE}]}
 						break
 					else
@@ -413,7 +427,7 @@ sel_list_set_pg() {
 			echo ${NDX}
 			return
 		else
-			_CUR_PAGE=$((_CUR_PAGE-1))
+			_CUR_PAGE=$(( _CUR_PAGE - 1 ))
 		fi
 	fi
 
@@ -422,7 +436,7 @@ sel_list_set_pg() {
 			echo ${NDX}
 			return
 		else
-			_CUR_PAGE=$((_CUR_PAGE+1))
+			_CUR_PAGE=$(( _CUR_PAGE + 1 ))
 		fi
 	fi
 
@@ -471,10 +485,21 @@ sel_list_norm () {
 
 sel_list_pos_exitbox () {
 	local -A I_COORDS
+	local MSG_LEN=28
+	local W_ARG
+	local Y_ARG
 
 	I_COORDS=($(box_coords_get INNER))
 
-	echo $(( I_COORDS[X] + 1 )) $(( I_COORDS[Y] - 2 )) $(( I_COORDS[W] + 6 )) # X Y W
+	if [[ $(( I_COORDS[W] + 6 )) -le ${MSG_LEN} ]];then
+		W_ARG=${MSG_LEN}
+		Y_ARG=$(( I_COORDS[Y] - (I_COORDS[W] / 2) +1 ))
+	else
+		W_ARG=$(( I_COORDS[W] + 6 ))
+		Y_ARG=$(( I_COORDS[Y] - 2 ))
+	fi
+
+	echo $(( I_COORDS[X] + 1 )) ${Y_ARG} ${W_ARG} # X Y W
 }
 
 sel_list_repaint () {
@@ -483,8 +508,6 @@ sel_list_repaint () {
 	local LX LY LT
 	local L X
 
-	#TODO: handle highlight in row 1 of list
-	 
 	E_COORDS=($(box_coords_get EXR))
 	for (( X=E_COORDS[X] -1; X <= ( E_COORDS[X] + E_COORDS[H] -1 ) - 1; X++ ));do
 		tput cup ${X} $(( E_COORDS[Y] -1 ))

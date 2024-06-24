@@ -2468,7 +2468,7 @@ else
 	list_set_type select
 
 	sel_list_set ${(v)_UTILS_DESC}
-	sel_list -O ${GREEN_FG} -x11 -y32 -c -w10 "<w>Show System Utilities usage or <h>(q)uit<N>"
+	sel_list -O ${GREEN_FG} -c -w10 "<w>Show System Utilities usage or <h>(q)uit<N>"
 
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SEL_VAL}]}
 	${_SCRIPT} -H # Call function help
