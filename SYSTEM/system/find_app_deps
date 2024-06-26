@@ -19,11 +19,14 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
+# Declarations
 typeset -A LIB_FUNC_LIST
 typeset -A LIB_DEP_LIST
 typeset -a _LIBS=(ARRAY.zsh DATE.zsh DBG.zsh DURABLE.zsh LIST.zsh MSG.zsh PATH.zsh SEL_LIST.zsh STR.zsh TPUT.zsh UTILS.zsh VALIDATE.zsh WIN.zsh EXIT.zsh)
 
+# Constants
 _LIB=/usr/local/lib
+_DEFAULT_LIBS=(EXIT.zsh ANSI.zsh LIB_DEPS.zsh)
 
 # Imports
 source ${_LIB}/LIB_INIT.zsh
@@ -117,7 +120,9 @@ app_scan () {
 
 	NDX=0
 	for V in ${(uov)APP_LIB_FUNC_LIST};do
+		echo "APP_LIB_FUNC_LIST:${V}"
 		for K in ${(ok)LIB_DEP_LIST};do
+			echo "LIB_DEP_LIST:${K}"
 			if [[ ${V:t} == ${LIB_DEP_LIST[${K}]:t} ]];then
 				((NDX++)) 
 				printf "${WHITE_FG}%d${RESET}) %-18s ${ITALIC}includes${RESET}: ${WHITE_FG}%s${RESET}\n" ${NDX} ${LIB_DEP_LIST[${K}]:t} ${K}
@@ -146,6 +151,7 @@ app_scan () {
 		[[ ${CNT} -eq ${LIB_CNT} ]] && ONE_LIB=true && ONE_LIB_ID=${LIB} && LINE_LEN=41
 
 		for N in ${APP_LIBS};do
+			#echo "LIB:${LIB} CNT:${CNT} LIB_SCORE:${LIB_SCORE[${K}]}"
 			grep -iq ${N} <<<${LIB_SCORE[${K}]}
 			[[ ${?} -eq 0 ]] && NEEDED_LIBS=("${(@)NEEDED_LIBS:#${N}}") # Found lib - delete from needed
 		done
@@ -168,6 +174,7 @@ app_scan () {
 
 	echo
 	for N in ${NEEDED_LIBS};do
+		[[ ${_DEFAULT_LIBS[(i)${N}]} -le ${#_DEFAULT_LIBS} ]] && continue
 		[[ ${N} == ${ONE_LIB_ID} || ${N} == ${PRIMARY_LIB_ID} ]] && continue
 		printf "${CYAN_FG}Additional lib required${RESET}: ${WHITE_FG}%s${RESET}\n" ${N}
 	done
@@ -190,3 +197,12 @@ for F in ${FILES};do
 	app_scan ${F}
 	[[ ${?} -ne 0 ]] && echo "No dependencies for:${WHITE_FG}${F}${RESET}"
 done
+
+#echo Functions in LIBS
+#for K in ${(ok)LIB_FUNC_LIST};do
+#	printf "KEY:%s VAL:%s\n" ${K} ${LIB_FUNC_LIST[${K}]}
+#done
+#echo Functions in APP
+#for K in ${(uov)APP_LIB_FUNC_LIST};do
+#	printf "KEY:%s VAL:%s\n" ${K} ${APP_LIB_FUNC_LIST[${K}]}
+#done

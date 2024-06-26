@@ -309,7 +309,7 @@ sel_list () {
 				c) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && _SEL_KEY='c' && break 2;;
 				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
-				q) exit_request $(sel_list_pos_exitbox);EXIT_REQ=true;EXIT_NDX=${CURSOR_NDX};EXIT_ROW=${CURSOR_ROW};break;;
+				q) exit_request $(sel_list_pos_exitbox);EXIT_REQ=true;EXIT_NDX=${CURSOR_NDX};EXIT_ROW=${CURSOR_ROW};break;; # Save state
 				1|k) (( CURSOR_ROW-- ));(( CURSOR_NDX-- ));DIR='U';;
 				2|j) (( CURSOR_ROW++ ));(( CURSOR_NDX++ ));DIR='D';;
 				3|t) DIR='T';;
