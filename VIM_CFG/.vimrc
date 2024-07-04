@@ -46,7 +46,7 @@ if !has("gui_running")
 	iabbrev ZD set -xv<CR>set +xv;read<ESC>
 	iabbrev ZV for L in ${LIST};do<CR>printf "L:%s\n" ${L}<CR>done<ESC>
 	iabbrev ZKV for K in ${(k)X};do<CR>printf "KEY:%s VAL:%s\n" ${K} ${X[${K}]}<CR>done<ESC>
-	iabbrev ZDB [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} "<ESC>
+	iabbrev ZDB [[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"<ESC>
 	iabbrev MW $(msg_warn <ESC>
 	iabbrev ME $(msg_err <ESC>
 

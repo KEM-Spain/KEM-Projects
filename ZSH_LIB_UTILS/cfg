@@ -6,9 +6,12 @@ typeset -a _APP_DIRS
 typeset -a _LOOP_LIST
 typeset -a _RAWLIST
 typeset -aU _LOCAL_LIST
+typeset -a _GNOME_EXT
 
 # Constants
 _LIB_DIR=/usr/local/lib
+_GNOME_EXT=(/usr/share/gnome-shell/extensions /home/kmiller/.local/share/gnome-shell/extensions)
+
 CFGDIRS=(
 /home/kmiller \
 /home/kmiller/.local/share \
@@ -22,7 +25,7 @@ CFGDIRS=(
 /var/lib/snapd/desktop/applications\
 )
 
-EXCLUDE=" \
+_EXCLUDE=" \
 ! -name '*arb' \
 ! -name '*bak' \
 ! -name '*dll*' \
@@ -151,7 +154,7 @@ shift $((${OPTIND} - 1))
 #--End GetOpts--
 
 #---Execution---
-[[ ${_DEBUG} -eq 0 ]] && do_smcup
+#[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 SEARCHTERM=${@}
 [[ -z ${SEARCHTERM} ]] && usage "Missing arg ${WHITE_FG}<APP>${RESET}"
@@ -161,17 +164,19 @@ DEPTH=2
  
 # Search
 echo "Finding candidates..."
+_GNOME_LIST=$(eval "sudo zsh -c \"find ${_GNOME_EXT} -maxdepth 3 -name '*${SEARCHTERM}*' -type d"\") # gnome extensions
+
 _RAWLIST=$(eval "sudo zsh -c \"find ~ -maxdepth 1 -name '.*${SEARCHTERM}*'"\") # Home
 if arr_is_populated "${_RAWLIST}";then
 	_APP_DIRS=(${_RAWLIST})
 fi
 
-_RAWLIST=$(eval "sudo zsh -c \"find ~/.config -maxdepth 2 -name '*${SEARCHTERM}*'"\") # Home .config
+_RAWLIST=$(eval "sudo zsh -c \"find ~/.config -maxdepth 3 -name '*${SEARCHTERM}*'"\") # Home .config
 if arr_is_populated "${_RAWLIST}";then
 	_APP_DIRS+=(${_RAWLIST})
 fi
 
-_RAWLIST=$(eval "sudo zsh -c \"find ~/.local/share -maxdepth 2 -name '*${SEARCHTERM}*'"\") # Home .local/share
+_RAWLIST=$(eval "sudo zsh -c \"find ~/.local/share -maxdepth 3 -name '*${SEARCHTERM}*'"\") # Home .local/share
 if arr_is_populated "${_RAWLIST}";then
 	_APP_DIRS+=(${_RAWLIST})
 fi
@@ -190,7 +195,7 @@ ONCE=true
 for D in ${CFGDIRS};do
 	[[ -n $(in_array ${D} ${_APP_DIRS}) ]] && INAME='' || INAME="-name '*${SEARCHTERM}*'"
 
-	CMD="sudo find ${D} -maxdepth ${DEPTH} \( -type f -o -type l \) ${INAME} ${EXCLUDE}"
+	CMD="sudo find ${D} -maxdepth ${DEPTH} \( -type f -o -type l \) ${INAME} ${_EXCLUDE}"
 	[[ ${_DEBUG} -gt 0 && ${ONCE} == 'true' ]] && dbg "${0}:${LINENO} CMD:${CMD}" && ONCE=false
 
 	_LOOP_LIST=("${(f)$(eval "${CMD}" 2>/dev/null)}")
@@ -201,6 +206,18 @@ for D in ${CFGDIRS};do
 done
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _RAWLIST:${#_RAWLIST} ${=_RAWLIST[1,20]} ...truncated"
+
+if arr_is_populated "${_GNOME_LIST}";then
+	echo "Found ${WHITE_FG}gnome extension${RESET} for '${SEARCHTERM}' in:${WHITE_FG}${_GNOME_LIST}${RESET}"
+
+	echo -n "Continue search?"
+	read -q RESPONSE
+	echo
+	if [[ ${RESPONSE} != "y" ]];then
+		echo "${RED_FG}Operation cancelled${RESET}..."
+		exit_leave
+	fi
+fi
 
 if ! arr_is_populated "${_RAWLIST}";then
 	exit_leave $(msg_warn "No cfg file(s) found for:${SEARCHTERM}")

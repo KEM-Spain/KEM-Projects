@@ -21,6 +21,7 @@ _DEPTH=1
 # Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/ARRAY.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/STR.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
@@ -38,7 +39,7 @@ WHITE_FG="\033[37m"
 read -r -d '' DESC<<EOF
 Find files and/or directories in or below the current directory
 \tNOTE: -r is a convenience regex and accepts one or more plain 
-\Tchars to find files in the current dir. It can also 
+\tchars to find files in the current dir. It can also 
 \tcontain additional regex syntax (quoted) but is still limited 
 \tto files in the current dir. -R is a generic regex and is unlimited.
 \tIf regex -[rR] not passed then <SEARCHTERM> is used to match files
@@ -98,7 +99,7 @@ usage () {
 typeset -a OPTIONS
 
 LISTING=false
-OBJ_TYPE="-type f"
+TYPE="f"
 OPTIND=0
 REGEX=''
 FIND_PATH=${PWD}
@@ -112,8 +113,8 @@ while getopts ${OPTSTR} OPTION;do
      d) depth_set_level;;
      l) LISTING=true;;
      p) FIND_PATH=${OPTARG};;
-     r) REGEX="-regex ${OPTARG}";;
-     t) OBJ_TYPE="-type ${OPTARG}";;
+     r) REGEX="${OPTARG}";;
+     t) TYPE="${OPTARG}";;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
 	esac
@@ -125,12 +126,18 @@ shift $((OPTIND -1))
 # Execution
 MAXDEPTH=${_DEPTH}
 
+INAME=${1}
+INAME="${INAME}*"
+INAME=${(qqq)INAME}
+REGEX=${REGEX:='.*'}
+REGEX=${(qqq)REGEX}
+
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LISTING:${LISTING}\nMAXDEPTH:${MAXDEPTH}\nREGEX:${REGEX}\nOBJ_TYPE:${OBJ_TYPE:-both}"
-CMD="sudo find ${FIND_PATH} -maxdepth ${MAXDEPTH} -iname '${(q)1}*' ${REGEX} ${OBJ_TYPE}"
+CMD="sudo find ${FIND_PATH} -maxdepth ${MAXDEPTH} -iname ${INAME} -regex ${REGEX} -type ${TYPE}"
+echo "${WHITE_FG}Command${RESET}: sudo find ${WHITE_FG}${FIND_PATH}${RESET} -maxdepth ${WHITE_FG}${MAXDEPTH}${RESET} -iname ${WHITE_FG}${INAME}${RESET} -regex ${WHITE_FG}${REGEX}${RESET} -type ${WHITE_FG}${TYPE}${RESET}"
 
 LIST=("${(f)$(eval ${CMD})}")
 if ! arr_is_populated "${LIST}" ;then
-	echo "\nCommand: ${CMD}"
 	exit_leave $(msg_warn "No results for query")
 fi
 

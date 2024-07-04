@@ -1,5 +1,4 @@
 # LIB Dependencies
-TERM=${TERM:=xterm}
 _DEPS_+="DBG.zsh"
 
 # LIB Vars
@@ -25,7 +24,7 @@ coord_center () {
 	REM=$((CTR % 2))
 	[[ ${REM} -ne 0 ]] && OC=$((CTR+1)) || OC=${CTR}
 
-	echo $((AC-OC))
+	echo $((AC-OC+1))
 }
 
 cursor_off () {

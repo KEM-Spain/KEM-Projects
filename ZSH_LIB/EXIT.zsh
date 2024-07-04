@@ -79,9 +79,9 @@ exit_request () {
 	local MSG="Quit application (y/n)"
 
 	if [[ -n ${COORDS} ]];then
-		msg_box -u -O ${RED_FG} -p -x ${COORDS[1]} -y ${COORDS[2]} -w ${COORDS[3]:=$(( ${#MSG} + 4 ))} ${MSG}
+		msg_box -jc -u -O ${RED_FG} -p -x ${COORDS[1]} -y ${COORDS[2]} -w ${COORDS[3]:=$(( ${#MSG} + 4 ))} ${MSG}
 	else
-		msg_box -O ${RED_FG} -p ${MSG}
+		msg_box -jc -O ${RED_FG} -p ${MSG}
 	fi
 
 	box_coords_set EXR X ${COORDS[1]} Y ${COORDS[2]} W ${COORDS[3]:=$(( ${#MSG} + 4 ))} H 3

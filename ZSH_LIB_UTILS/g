@@ -125,7 +125,7 @@ while getopts ${OPTSTR} OPTION;do
      r) RECURSE_OPT=-r;RECURSE=true;;
      w) WORD_OPT=-w;;
      :) print -u2 "${_SCRIPT}: Option: -${OPTARG} requires an argument"; usage;;
-    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}${BOLD}${RED_FG}Unknown option${RESET}${RESET} - ${OPTARG}"; usage;;
+    \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} - ${OPTARG}"; usage;;
 	esac
 done
 shift $((OPTIND -1))
@@ -242,6 +242,7 @@ else
 		else
 			printf "${BAR}${WHITE_FG}%-*s ${RESET}%-*.${REM}s\n" ${LONGEST_FN} ${FN} ${LONGEST_LN} ${LN}
 		fi
+		echo -n ${RESET}
 	done
 	} | mypager wait
 fi

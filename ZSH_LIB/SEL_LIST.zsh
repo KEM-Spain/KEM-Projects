@@ -157,6 +157,7 @@ sel_list () {
 
 	[[ $(( SW % 2 )) -ne 0 ]] && (( SW++ )) # Even width cols
 	[[ $(( BOX_WIDTH % 2 )) -ne 0 ]] && (( BOX_WIDTH++ )) # Even width cols
+	box_coords_upd INNER W ${BOX_WIDTH}
 
 	SL=$(( SX+BOX_HEIGHT + (XPAD * 2) - 1 )) # Loop limit
 
@@ -493,7 +494,7 @@ sel_list_pos_exitbox () {
 
 	if [[ $(( I_COORDS[W] + 6 )) -le ${MSG_LEN} ]];then
 		W_ARG=${MSG_LEN}
-		Y_ARG=$(( I_COORDS[Y] - (I_COORDS[W] / 2) +1 ))
+		Y_ARG=$(( I_COORDS[Y] - 2 ))
 	else
 		W_ARG=$(( I_COORDS[W] + 6 ))
 		Y_ARG=$(( I_COORDS[Y] - 2 ))

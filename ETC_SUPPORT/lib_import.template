@@ -1,5 +1,6 @@
 #Imports
-source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIB_INIT.zsh # Must be first
+
 source ${_LIB_DIR}/LIST.zsh
 
-source ${_LIB_DIR}/GET_DEPS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last

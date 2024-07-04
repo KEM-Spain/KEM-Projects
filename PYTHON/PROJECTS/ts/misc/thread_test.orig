@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+import gi
+
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk, GLib
+from time import sleep
+import threading
+import sys
+import time
+import random
+
+# define the global variables
+return_val = None
+task_list = []
+
+# task to be completed by thread
+def get_list():
+    run_time = random.randint(1, 6)
+    time.sleep(run_time)
+    task_list = []
+    for ndx in range(0, 10):
+        task_list.append(ndx)
+    return run_time, task_list
+
+class Win(Gtk.Window):
+    def __init__(self):
+
+        Gtk.Window.__init__(self)
+
+        # Window setup
+        self.set_title("Testing Spinner Display During Thread Execution")
+        self.set_default_size(500, 250)
+        self.set_border_width(10)
+        self.set_position(Gtk.WindowPosition.CENTER_ALWAYS)
+        self.set_keep_above(True)
+        self.set_resizable(False)
+        self.connect('delete-event', self.on_quit)  # window closed
+
+        self.infomsg_1 = Gtk.Label(label="Waiting...")
+        self.infomsg_2 = Gtk.Label()
+
+        self.infomsg_1.set_xalign(0.0)  # left align label
+        self.infomsg_2.set_xalign(0.0)  # left align label
+
+        self.spinner = Gtk.Spinner()
+
+        self.button_1 = Gtk.Button(label="Click to start thread...")
+        self.button_1.connect("clicked", self.do_task)
+
+        self.button_2 = Gtk.Button(label="Exit")
+        self.button_2.connect("clicked", self.on_quit)
+
+        # Create a grid container
+        grid = Gtk.Grid(column_homogeneous=True, column_spacing=20, row_spacing=10)
+        grid.set_column_homogeneous(True)
+        grid.set_row_homogeneous(True)
+        self.add(grid)  # add grid to window
+
+        # Setup the grid
+        grid.attach(self.infomsg_1, 0, 0, 2, 1)  # row, col, width, height
+        grid.attach_next_to(self.spinner, self.infomsg_1, Gtk.PositionType.RIGHT, 1, 1)
+        grid.attach_next_to(self.infomsg_2, self.infomsg_1, Gtk.PositionType.RIGHT, 1, 1)
+        grid.attach_next_to(self.button_1, self.infomsg_1, Gtk.PositionType.BOTTOM, 1, 1)
+        grid.attach_next_to(self.button_2, self.button_1, Gtk.PositionType.RIGHT, 1, 1)
+
+        self.show_all()
+        Gtk.main()
+
+    def do_task(self, button_1):
+        self.spinner.start()
+        self.infomsg_2.set_label("")
+        self.infomsg_1.set_label("Thread running...")
+        thread = threading.Thread(target=self.threaded_task)
+        thread.daemon = True
+        thread.start()
+
+    def threaded_task(self):
+        global task_list
+        global return_val
+
+        return_val, task_list = get_list()
+        print(return_val, task_list)
+
+        GLib.idle_add(self.task_complete)
+
+    def task_complete(self):
+        self.spinner.stop()
+        self.infomsg_2.set_label("Thread has finished...")
+        self.infomsg_1.set_label("Waiting...")
+
+    def on_quit(self, button_1, data=None):
+        Gtk.main_quit()
+        sys.exit(0)
+
+
+Win()
+

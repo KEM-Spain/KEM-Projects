@@ -41,7 +41,7 @@ _ERROR_LOG=/tmp/yts.err
 _FIELD_LEN[age]=30
 _FIELD_LEN[agetime]=40
 _FIELD_LEN[author]=26
-_FIELD_LEN[title]=90
+_FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
 _OBJECT=video
 _YTS_FAVORITES=~/.yts_history
@@ -167,7 +167,7 @@ action_do () {
 				HDR_LEN=$((HDR_LEN + FRAME_PAD))
 				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
 				[[ ${HDR_LEN} -gt ${COORDS[W]} ]] && COORDS[W]=${HDR_LEN} && COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
-				msg_box -c -C -R -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} ${HDR_TXT}
+				msg_box -c -C -I -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} ${HDR_TXT}
 				msg_box -C -jl "<m>Downloading: <c>${DEST_2[1,60]}<N>"
 				msg_box -C -jl "<m>$(str_unicode_line $((COORDS[W]-4)))<N>"
 				HDRS_OUT=true
@@ -198,7 +198,7 @@ action_do () {
 				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_LOG} | tail -1) 
 				
 				# Scan for errors
-				grep -q -i 'error\|frag' <<<${LOG_LINE}
+				grep -q -i 'error' <<<${LOG_LINE}
 				if [[ ${?} -eq 0 ]];then
 					((ERROR_CNT++))
 					HAD_ERROR=true
@@ -209,15 +209,6 @@ action_do () {
 						_FAILED[${M}]=true
 						_DOWNLOADS[${M}]=false
 						break 2 # Exit log scan
-					fi
-					if [[ ${LOG_LINE:l} =~ 'fragment' ]];then
-						PID=$(pgrep yt-dlp)
-						if [[ -n ${PID} ]];then
-							msg_box -t2 "Job is fragmented - killing job: ${PID}"
-							kill -9 ${PID}
-							_FAILED[${M}]=true
-							break 2 # Exit log scan
-						fi
 					fi
 					case ${LOG_LINE:l} in
 						*"giving up"*)	
@@ -522,8 +513,8 @@ rumble () {
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'r' ]] && g_LIVE=false
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
-		[[ ${g_LIVE} == 'true' ]] && MSG="Searching for livestreams" || MSG="Searching for videos"
-		msg_box -c ${MSG}
+		[[ ${g_LIVE} == 'true' ]] && MSG="Searching for livestreams..." || MSG="Searching for videos..."
+		msg_box -R INNER -c ${MSG}
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams")
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 		[[ ${PG:l} =~ "no videos found" ]] && msg_box -c "<r>No livestreams<N> for ${SEARCHTERM}|Falling back to defaults..." && PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
