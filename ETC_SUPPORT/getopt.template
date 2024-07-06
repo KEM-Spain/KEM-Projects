@@ -50,7 +50,7 @@ usage () {
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err "${PENDING_MSGS}")
+	echo ${PENDING_MSGS}
 }
 
 OPTSTR=":HD"

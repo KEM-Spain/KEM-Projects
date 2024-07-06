@@ -312,7 +312,7 @@ msg_box () {
 
 	# Call once for CONTINUOUS messages
 	if [[ ${CONTINUOUS} == 'true' ]];then
-		if [[ ${_CONT_DATA[BOX]} == 'false' ]];then
+		if [[ ${_CONT_DATA[BOX]} == 'false' ]];then # Trigger initial box generation
 			msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT} ${FRAME_COLOR}
 			box_coords_set CONT X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}
 			_CONT_DATA[W]=${BOX_WIDTH}

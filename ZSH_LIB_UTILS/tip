@@ -9660,7 +9660,7 @@ if ((\${array}[(Ie)\${value}])); then
 	echo "HIT"
 fi
 
-Searching for text
+${E_WHITE_FG}Searching for text${E_RESET}
 
 Array snippet - elements 14:20
 
@@ -9672,10 +9672,10 @@ Array snippet - elements 14:20
 5250:10:132:miles
 5276:36:132:miles
 
-echo ${LIST[(r)*last]} 5017:17:126:miles:last
-echo ${LIST[(R)*last]} 5054:14:127:miles:last
-echo ${LIST[(i)*last]} 16
-echo ${LIST[(I)*last]} 18
+echo \${LIST[(r)*last]} 5017:17:126:miles:last
+echo \${LIST[(R)*last]} 5054:14:127:miles:last
+echo \${LIST[(i)*last]} 16
+echo \${LIST[(I)*last]} 18
 
 
 ${E_WHITE_FG}To prepend an element in array${E_RESET}

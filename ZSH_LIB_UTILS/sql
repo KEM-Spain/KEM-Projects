@@ -16,9 +16,9 @@ typeset -a _TB_LIST
 typeset -a TABLES
 
 # Globals
-_DELIM=' '
-_DB=''
-_TB=''
+g_DELIM=' '
+g_DB=''
+g_TB=''
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -30,24 +30,27 @@ source ${_LIB_DIR}/LIB_DEPS.zsh
 # Functions
 query () {
 	local SQL=(${@})
-	sqlite3 -separator ${_DELIM} ${_DB} <<____END_SQL
+
+sqlite3 -separator ${g_DELIM} ${g_DB} <<____END_SQL
 .headers on
 ${SQL}
 ____END_SQL
+
+return ${?}
 }
 
 set_db_list () {
 	local -a LIST
+	local L
 
 	_DB_LIST=()
 	LIST=("${(f)$(find . -maxdepth 1 -type f)}")
 
 	for L in ${LIST};do
-		[[ $(file ${L:l}) =~ "database" ]] && _DB_LIST+=${L}
+		[[ $(file ${L:l}) =~ "database\|sqlite" ]] && _DB_LIST+=${L}
 	done
 
 	if ! arr_is_populated "${_DB_LIST}";then
-		exit_leave "No sqlite3 databases found"
 		return 1
 	fi
 	return 0
@@ -68,12 +71,12 @@ select_db () {
 		sel_list_set ${(o)_DB_LIST}
 		sel_list "<w>Select database or <h>(q)uit<N>"
 		[[ ${_SEL_VAL} == '?' ]] && exit_leave
-		_DB=${_SEL_VAL}
+		g_DB=${_SEL_VAL}
 	fi
 }
 
 list_tab () {
-		echo "${RESET}Tables in DB:${_DB}"
+		echo "${RESET}Tables in DB:${g_DB}"
 		query .tables
 		exit_leave
 }
@@ -116,14 +119,17 @@ opt_type () {
 		f) echo "<FILE>";;
 		s) echo "<SEPARATOR>";;
 		t) echo "<FILE_TYPE>";;
+		q) echo "<SQL_QUERY>";;
 	esac
 }
 
 usage () {
 	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
 	local OPTS=$(parse_opts ${OPTSTR})
 	local -a PENDING_MSGS=(${@})
-	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type q)]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-l${RESET} list DB's in current directory"
@@ -131,7 +137,8 @@ usage () {
 	echo -e "${WHITE_FG}-s $(opt_type s)${RESET} separator"
 	echo -e "${WHITE_FG}-t${RESET} show tables in DB"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
-	exit_leave "\n${PENDING_MSGS}\n"
+
+	echo "${PENDING_MSGS}"
 }
 
 typeset -a OPTIONS
@@ -142,13 +149,14 @@ SHOW_DBS=false
 SHOW_TABS=false
 SHOW_SCHEMA=false
 PRINT_TAB=false
+QUERY_STR=''
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
      l) SHOW_DBS=true;;
-     d) _DELIM=${OPTARG};;
+     d) g_DELIM=${OPTARG};;
      p) PRINT_TAB=true;;
      s) SHOW_SCHEMA=true;;
      t) SHOW_TABS=true;;
@@ -161,68 +169,100 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-[[ ${_DEBUG} -eq 0 ]] && do_smcup
+#[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ ${#} -eq 0 && ${#OPTIONS} -eq 0 ]] && usage $(msg_warn "No operation specified") || QUERY_STR=${@}
 
-if [[ ${SHOW_SCHEMA} == 'true' ]];then
-	SHOW_DBS=("${(f)$(find . -maxdepth 1 -type f)}")
-
-	if arr_is_populated "${SHOW_DBS}";then
-		sel_list_set ${(o)SHOW_DBS}
+if [[ ${SHOW_DBS} == 'true' ]];then
+	set_db_list
+	RC=${?}
+	if [[ ${RC} -eq 0 ]];then
+		sel_list_set ${(o)DB_LIST}
 
 		_SEL_VAL=?
 		sel_list "<w>Select database or <h>(q)uit<N>"
 		[[ ${_SEL_VAL} == '?' ]] && exit_leave
 
-		_DB=${_SEL_VAL}
+		g_DB=${_SEL_VAL}
+
+		msg_box_clear
+	else
+		exit_leave $(msg_warn "No databases found")
+	fi
+fi
+
+if [[ ${SHOW_SCHEMA} == 'true' ]];then
+	DB_LIST=("${(f)$(find . -maxdepth 1 -type f)}")
+
+	if arr_is_populated "${DB_LIST}";then
+		sel_list_set ${(o)DB_LIST}
+
+		_SEL_VAL=?
+		sel_list "<w>Select database or <h>(q)uit<N>"
+		[[ ${_SEL_VAL} == '?' ]] && exit_leave
+
+		g_DB=${_SEL_VAL}
+
+		msg_box_clear
+	else
+		msg_box -p -PK "No databases found"
 	fi
 
-	msg_box_clear
-
-	SHOW_TABS=($(query .tables))
-	if arr_is_populated "${SHOW_TABS}";then
-		sel_list_set ${(o)SHOW_TABS}
+	TAB_LIST=($(query .tables))
+	if arr_is_populated "${TAB_LIST}";then
+		sel_list_set ${(o)TAB_LIST}
 
 		_SEL_VAL=?
 		sel_list "<w>Select table or <h>(q)uit<N>"
 		[[ ${_SEL_VAL} == '?' ]] && exit_leave
 
-		_TB=${_SEL_VAL}
+		g_TB=${_SEL_VAL}
+	else
+		msg_box -p -PK "No tables found"
 	fi
-	echo "${RESET}Schema for TB:${_TB}"
-	query .schema ${_TB} 
+
+	echo "${RESET}Schema for TB:${g_TB}"
+	query .schema ${g_TB} 
+	RC=${?}
+	[[ ${RC} -ne 0 ]] && echo $(msg_warn "sqlite3 returned an error:${RC}")
 	exit_leave
 fi
 
 if [[ ${PRINT_TAB} == 'true' ]];then
-	SHOW_DBS=("${(f)$(find . -maxdepth 1 -type f)}")
+	DB_LIST=("${(f)$(find . -maxdepth 1 -type f)}")
 
-	if arr_is_populated "${SHOW_DBS}";then
-		sel_list_set ${(o)SHOW_DBS}
+	if arr_is_populated "${DB_LIST}";then
+		sel_list_set ${(o)DB_LIST}
 
 		_SEL_VAL=?
 		sel_list "<w>Select database or <h>(q)uit<N>"
 		[[ ${_SEL_VAL} == '?' ]] && exit_leave
 
-		_DB=${_SEL_VAL}
+		g_DB=${_SEL_VAL}
 	fi
 
 	msg_box_clear
 
-	SHOW_TABS=($(query .tables))
-	if arr_is_populated "${SHOW_TABS}";then
-		sel_list_set ${(o)SHOW_TABS}
+	TAB_LIST=($(query .tables))
+	if arr_is_populated "${TAB_LIST}";then
+		sel_list_set ${(o)TAB_LIST}
 
 		_SEL_VAL=?
 		sel_list "<w>Select table or <h>(q)uit<N>"
 		[[ ${_SEL_VAL} == '?' ]] && exit_leave
 
-		_TB=${_SEL_VAL}
+		g_TB=${_SEL_VAL}
 	fi
-	echo "${RESET}Contents of TB:${_TB}"
-	query "select * from ${_TB}"
+
+	echo "${RESET}Contents of TB:${g_TB}"
+	query "select * from ${g_TB}"
+	RC=${?}
+	[[ ${RC} -ne 0 ]] && echo $(msg_warn "sqlite3 returned an error:${RC}")
+
 	exit_leave
 fi
 
-query ${@}
+[[ -n ${QUERY_STR} ]] && query ${QUERY_STR}
+RC=${?}
+[[ ${RC} -ne 0 ]] && exit_leave $(msg_err "sqlite3 returned an error:${RC}")
 
 exit_leave
