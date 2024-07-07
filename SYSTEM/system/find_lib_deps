@@ -59,7 +59,7 @@ app_scan () {
 	local SCORE=0
 
 	# All functions defined in application
-	APP_FUNCS=("${(f)$(grep -H --color=never '() {$' ${FN} | sed -E 's/\s+[(][)] \{//' | sort)}")
+	APP_FUNCS=("${(f)$(grep -H --color=never '() {' ${FN} | sed -E 's/\s+[(][)] \{//' | sort)}")
 	for F in ${APP_FUNCS};do
 		APP=$(cut -d':' -f1 <<<${F})
 		FUNC=$(cut -d':' -f2 <<<${F})
