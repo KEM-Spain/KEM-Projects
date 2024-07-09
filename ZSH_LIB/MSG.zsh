@@ -166,6 +166,9 @@ msg_box () {
 	DELIM_COUNT=$(grep --color=never -o "[${DELIM}]" <<<${MSG} | wc -l) # Slice MSG into fields and count
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG contains ${WHITE_FG}${DELIM_COUNT}${RESET} delimiters"
 
+	# Flash progress msg if requested
+	[[ ${_PROC_MSG} == 'true' ]] && msg_proc
+
 	# Extract item by delim and fold any lines that exceed display
 	for (( X=1; X <= $((${DELIM_COUNT}+1)); X++ ));do
 		M=$(cut -d"${DELIM}" -f${X} <<<${MSG})
@@ -283,9 +286,6 @@ msg_box () {
 
 	[[ $(( BOX_X_COORD )) -lt 0 ]] && exit_leave $(msg_err "BOX_X_COORD is negative:${BOX_X_COORD}")
 	[[ $(( BOX_Y_COORD )) -lt 0 ]] && exit_leave $(msg_err "BOX_Y_COORD is negative:${BOX_Y_COORD}")
-
-	# Flash progress msg if requested
-	[[ ${_PROC_MSG} == 'true' ]] && msg_proc ${BOX_X_COORD} ${BOX_Y_COORD}
 
 	if [[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]];then
 		dbg "${functrace[1]} called ${0}:${LINENO}:  --- BOX COORDS ---"
@@ -691,14 +691,14 @@ msg_paging () {
 }
 
 msg_proc () {
-	local BOX_X=${1}
-	local BOX_Y=${2}
 	local BOX_W=20
 	local BOX_H=3
+	local H_CTR=$(coord_center $((_MAX_COLS-3)) 20) # Horiz center
+	local V_CTR=$((_MAX_ROWS/2 - BOX_H))
 
-	msg_unicode_box ${BOX_X} ${BOX_Y} ${BOX_W} ${BOX_H}
-	tput cup $((BOX_X+1)) $((BOX_Y+2));echo -n "${GREEN_FG}Processing...${RESET}"
-	box_coords_set PROC X ${BOX_X} Y ${BOX_Y} W ${BOX_W} H ${BOX_H}
+	msg_unicode_box ${V_CTR} ${H_CTR} ${BOX_W} ${BOX_H}
+	tput cup $((V_CTR+1)) $((H_CTR+2));echo -n "${GREEN_FG}Processing...${RESET}"
+	box_coords_set PROC X ${V_CTR} Y ${H_CTR} W ${BOX_W} H ${BOX_H}
 	_PROC_MSG=false
 	sleep .5
 }

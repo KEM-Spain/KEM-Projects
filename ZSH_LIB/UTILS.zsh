@@ -64,6 +64,7 @@ boolean_color () {
 		true) echo -n ${GREEN_FG};;
 		valid) echo -n ${GREEN_FG};;
 		running) echo -n ${GREEN_FG};;
+		pass) echo -n ${GREEN_FG};;
 		*) echo -n ${RED_FG};;
 	esac
 }
@@ -79,6 +80,8 @@ boolean_color_word () {
 	case ${STATE} in
 		0) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${GREEN_FG}true${RESET}" || echo -n "${E_GREEN_FG}true${E_RESET}";;
 		1) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${RED_FG}false${RESET}" || echo -n "${E_RED_FG}false${E_RESET}";;
+		pass) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${GREEN_FG}${STATE}${RESET}" || echo -n "${E_GREEN_FG}${STATE}${E_RESET}";;
+		fail) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${RED_FG}${STATE}${RESET}" || echo -n "${E_RED_FG}${STATE}${E_RESET}";;
 		true) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${GREEN_FG}${STATE}${RESET}" || echo -n "${E_GREEN_FG}${STATE}${E_RESET}";;
 		valid) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${GREEN_FG}${STATE}${RESET}" || echo -n "${E_GREEN_FG}${STATE}${E_RESET}";;
 		active) [[ ${ANSI_ECHO} == "false" ]] && echo -n "${GREEN_FG}${STATE}${RESET}" || echo -n "${E_GREEN_FG}${STATE}${E_RESET}";;
@@ -287,7 +290,7 @@ get_delim_field_cnt () {
 
 	if [[ -n ${DELIM} ]];then
 		FCNT=$(echo ${DELIM_ROW} | grep -o ${DELIM} | wc -l)
-		echo $(( ++FCNT ))
+		echo ${FCNT}
 		return 0
 	else
 		return 1

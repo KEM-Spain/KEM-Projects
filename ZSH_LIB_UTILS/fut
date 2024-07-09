@@ -970,7 +970,7 @@ ______EOF
 		local LONGEST
 		local TARGET_TYPE
 
-		echo "\n${0} - Scanning:depth level ${WHITE_FG}${FIND_DEPTH}${RESET} of ${WHITE_FG}$(realpath ${CMD_PATH})${RESET}..."
+		echo "\n[${0}] Scanning:depth level ${WHITE_FG}${FIND_DEPTH}${RESET} of ${WHITE_FG}$(realpath ${CMD_PATH})${RESET}..."
 
 		pushd ${CMD_PATH} # Run in path
 
@@ -1126,7 +1126,7 @@ ______EOF
 		[[ -z ${ARGS} ]] && ARGS=${PWD} # Default to pwd
 		[[ $(is_dir ${ARGS}) -eq 0 ]] && CMD_PATH=${ARGS} || usage "path is invalid:${ARGS}"
 
-		echo "\n${0} - Scanning:depth level ${WHITE_FG}${FIND_DEPTH}${RESET} of ${WHITE_FG}$(realpath ${CMD_PATH})${RESET}\n"
+		echo "\n[${0}] Scanning:depth level ${WHITE_FG}${FIND_DEPTH}${RESET} of ${WHITE_FG}$(realpath ${CMD_PATH})${RESET} for ${WHITE_FG}${CTIME}${RESET} $(str_pluralize day ${CTIME}) ago\n"
 
 		local HDR
 		local -a LIST

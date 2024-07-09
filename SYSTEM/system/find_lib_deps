@@ -59,7 +59,7 @@ app_scan () {
 	local SCORE=0
 
 	# All functions defined in application
-	APP_FUNCS=("${(f)$(grep -H --color=never '() {' ${FN} | sed -E 's/\s+[(][)] \{//' | sort)}")
+	APP_FUNCS=("${(f)$(grep -PH --color=never '() {\s?$' ${FN} | sed -E 's/\s+[(][)] \{//' | sort)}")
 	for F in ${APP_FUNCS};do
 		APP=$(cut -d':' -f1 <<<${F})
 		FUNC=$(cut -d':' -f2 <<<${F})
@@ -149,11 +149,17 @@ func_by_lib () {
 
 find_func () {
 	local FUNC=${1}
-	if [[ -n ${_LIB_FUNC_LIST[${FUNC}]} ]];then
-		echo "Function:${WHITE_FG}${FUNC}${RESET} is located in:${WHITE_FG}${_LIB_FUNC_LIST[${FUNC}]}${RESET}"
-	else
-		echo "Function:${WHITE_FG}${FUNC}${RED_FG} not found${RESET}"
-	fi
+	local F
+	local HIT=false
+
+	for F in ${(k)_LIB_FUNC_LIST};do
+		if [[ ${F} =~ "${FUNC}" ]];then
+			HIT=true
+			echo "Function:${WHITE_FG}${F}${RESET} is located in:${WHITE_FG}${_LIB_FUNC_LIST[${F}]}${RESET}"
+		fi
+	done
+
+	[[ ${HIT} == 'false' ]] && echo "Function:${WHITE_FG}${FUNC}${RED_FG} not found${RESET}"
 }
 
 #--Begin GetOpts--
@@ -163,7 +169,7 @@ local DESC
 
 read -r -d '' DESC<<EOF
 1) Map application functions to library
-\t2) Locate a function within library
+\t2) Locate a function (fuzzy match) within library
 \t3) View all library functions
 EOF
 

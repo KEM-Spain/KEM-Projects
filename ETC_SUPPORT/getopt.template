@@ -51,6 +51,7 @@ usage () {
 	) >&2
 
 	echo ${PENDING_MSGS}
+	exit_leave
 }
 
 OPTSTR=":HD"
