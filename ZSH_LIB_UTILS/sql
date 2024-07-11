@@ -22,6 +22,9 @@ source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
+# Globals
+g_DEPTH=1
+
 # Functions
 query () {
 	local SQL=(${@})
@@ -56,11 +59,13 @@ set_db_list () {
 	local -a LIST
 	local L
 
+	msg_box -x12 "Searching ${g_DEPTH} levels deep for databases..."
+
 	_DB_LIST=()
-	LIST=("${(f)$(find . -maxdepth 1 -type f)}")
+	LIST=("${(f)$(find $(realpath .) -maxdepth ${g_DEPTH} -type f 2>/dev/null)}")
 
 	for L in ${LIST};do
-		[[ $(file ${L:l}) =~ "database" ]] && _DB_LIST+=${L}
+		[[ $(file ${L} 2>/dev/null) =~ "SQLite" ]] && _DB_LIST+=${L}
 	done
 
 	if ! arr_is_populated "${_DB_LIST}";then
@@ -152,7 +157,7 @@ usage () {
 }
 
 typeset -a OPTIONS
-OPTSTR=":HDld:pst"
+OPTSTR=":HDld:pstz"
 OPTIND=0
 
 SHOW_DBS=false
@@ -171,6 +176,7 @@ while getopts ${OPTSTR} OPTION;do
      p) PRINT_TAB=true;;
      s) SHOW_SCHEMA=true;;
      t) SHOW_TABS=true;;
+	  z) ((g_DEPTH++));;
      :) print -u2 "${RED_FG}${SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
 	esac

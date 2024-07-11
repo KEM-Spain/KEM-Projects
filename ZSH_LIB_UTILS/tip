@@ -1287,6 +1287,9 @@ tip_perl () {
 echo ${E_BOLD}${E_WHITE_FG}${(C)${0/tip_/}} Tips${E_RESET}
 cat << tip_perl_EOF_1
 
+${E_WHITE_FG}Search file for text:${E_RESET}
+perl -wln -e "/${1}/ and print;" ${2}
+
 ${E_WHITE_FG}Word is in KW:${E_RESET}
 perl -nle "if (index('${KW}', \$_) == 0) { exit 0 } else { exit 1 }" <<<${ARG}
 

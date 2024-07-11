@@ -1,0 +1,32 @@
+#!/usr/bin/zsh
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+INPUT_FN=${1}
+OUTPUT_FN=${2}
+shift 2
+OPTS=${@}
+
+echo " INPUT_FN:${WHITE_FG}${INPUT_FN}${RESET}"
+echo "OUTPUT_FN:${WHITE_FG}${OUTPUT_FN}${RESET}"
+echo "  OPTIONS:${WHITE_FG}${OPTS}${RESET}"
+vut length ${INPUT_FN}
+echo ffmpeg -loglevel error -stats -i ${INPUT_FN} ${OPTS} -o ${OUTPUT_FN}
+eval ffmpeg -loglevel error -stats -i ${INPUT_FN} ${OPTS} ${OUTPUT_FN}

@@ -256,7 +256,6 @@ sel_list () {
 			_SEL_LIST_TEXT="${GUIDE_ROW}|${BOX_Y}|$(printf "${CYAN_FG}Page:${WHITE_FG}%-2d ${CYAN_FG}of ${WHITE_FG}%d %s${RESET}\n" ${_CUR_PAGE} ${_MAX_PAGE} "(n)ext (p)rev")"
 		fi
 
-
 		# Generate list
 		ROWS_OUT=0
 		for (( LIST_NDX=LIST_TOP; LIST_NDX<=MAX_NDX; LIST_NDX++ ));do
@@ -319,6 +318,8 @@ sel_list () {
 			esac
 
 			# Ensure sane index boundaries
+			[[ ${MAX_NDX} -eq 1 ]] && break 
+
 			if [[ ${CURSOR_NDX} -lt ${LIST_TOP} ]];then
 				CURSOR_NDX=${LIST_BOT}
 				CURSOR_ROW=${BOX_BOT}

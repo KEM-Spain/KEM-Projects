@@ -53,7 +53,6 @@ msg_box () {
 	local PG_LINES=0
 	local PROMPT_LINE=''
 	local SCR_NDX=0
-	local SEP_LEN=0
 	local H K M T X 
 
 	# OPTIONS
@@ -263,12 +262,6 @@ msg_box () {
 	[[ ${BOX_WIDTH} -eq 0 ]] && BOX_WIDTH=$((MSG_COLS+4)) # 1 char gutter per side
 	[[ ${BOX_HEIGHT} -eq 0 ]] && BOX_HEIGHT=$(( PG_LINES + ${#MSG_HDRS} + 2 ))
 
-	# Set header separator
-	if [[ -n ${MSG_HDRS} ]];then
-		SEP_LEN=$(str_unicode_line $((BOX_WIDTH-4)))
-		MSG_HDRS[-1]=$(sed "s/<SEP>/${SEP_LEN}/" <<<${MSG_HDRS[-1]})
-	fi
-
 	# Center MSG unless coords were passed
 	[[ ${MSG_X_COORD_ARG} -eq -1 ]] && MSG_X_COORD=$(( ((_MAX_ROWS-BOX_HEIGHT) / 2) + 1)) || MSG_X_COORD=${MSG_X_COORD_ARG}
 	[[ ${MSG_Y_COORD_ARG} -eq -1 ]] && MSG_Y_COORD=$(( (_MAX_COLS/2)-(MSG_COLS/2) )) || MSG_Y_COORD=${MSG_Y_COORD_ARG}
@@ -463,6 +456,12 @@ msg_box_align () {
 	if [[ ${MSG} =~ '<Z>' ]];then # Blank Line?
 		MSG=" "
 		[[ ${_DEBUG} -ge ${_TEXT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added blank line"
+
+	# Handle embed:<SEP> Message separator
+	elif [[ ${MSG} =~ '<SEP>' ]];then # Separator?
+		MSG=$(str_unicode_line $((BOX_WIDTH-4)) )
+		TEXT_PAD_L=$(str_center_pad $(( BOX_WIDTH+1 )) ${MSG} )
+		TEXT_PAD_R=$(str_rep_char ' ' $(( ${#TEXT_PAD_L} - 1 )) )
 
 	# Handle embed: <L> List item
 	elif [[ ${MSG} =~ '<L>' ]];then # List?
@@ -846,6 +845,9 @@ msg_unicode_box () {
 	fi
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TOP LEFT: BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD}"
+
+	# Reset standout (if set)
+	tput rmso
 
 	# Color
 	echo -n ${BOX_COLOR}

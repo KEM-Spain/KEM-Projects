@@ -303,6 +303,7 @@ str_unicode_line () {
 
 	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
 
+	tput rmso;
 	printf "\\u2500%.0s" {1..$((${LENGTH}))}
 }
 

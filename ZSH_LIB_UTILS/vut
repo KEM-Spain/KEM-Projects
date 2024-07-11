@@ -571,7 +571,7 @@ else
 	_SCRIPT=${(k)_UTILS_DESC[(r)${_SEL_VAL}]}
 	echo # Clear read
 	${_SCRIPT} -H # Call function help
-
-	exit_leave
 fi
+
+exit_leave
 
