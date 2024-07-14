@@ -189,7 +189,8 @@ ___EOF
 		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		exit_leave $(msg_err ${PENDING_MSGS})
+		echo "\n$(msg_warn ${PENDING_MSGS})"
+		exit_leave
 	}
 
 	OPTSTR=":HD"
@@ -572,7 +573,8 @@ info () {
 		echo -e "${WHITE_FG}\nDesc${RESET}:Display system information"
 		) >&2
 
-		exit_leave ${PENDING_MSGS}
+		echo "\n$(msg_warn ${PENDING_MSGS})"
+		exit_leave
 	}
 
 	OPTSTR=":HDv"
@@ -761,7 +763,8 @@ ___EOF
 		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		exit_leave $(msg_err ${PENDING_MSGS})
+		echo "\n$(msg_warn ${PENDING_MSGS})"
+		exit_leave
 	}
 
 	OPTSTR=":HDr"
@@ -858,7 +861,8 @@ ___EOF
 		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		exit_leave $(msg_err ${PENDING_MSGS})
+		echo "\n$(msg_warn ${PENDING_MSGS})"
+		exit_leave
 	}
 
 	OPTSTR=":HDbs"
@@ -1607,7 +1611,8 @@ ___EOF
 		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		exit_leave $(msg_err ${PENDING_MSGS})
+		echo $(msg_err "${PENDING_MSGS}")
+		exit_leave
 	}
 
 	function status {
@@ -1936,7 +1941,8 @@ ppamgr () {
 		echo -e "\n${WHITE_FG}Desc${RESET}:Manage/show PPA repositories or show package with PPA\n"
 		) >&2
 
-		exit_leave $(msg_err ${PENDING_MSGS})
+		echo "\n$(msg_warn ${PENDING_MSGS})"
+		exit_leave
 	}
 
 	OPTSTR=":DHa:r:f:l:p:k:u"
@@ -2175,7 +2181,8 @@ ___EOF
 		echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		exit_leave $(msg_err "${PENDING_MSGS}")
+		echo "\n$(msg_warn ${PENDING_MSGS})"
+		exit_leave
 	}
 
 	local OPTSTR=":HD:"
@@ -2293,7 +2300,8 @@ ___EOF
 		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 		) >&2
 
-		exit_leave $(msg_err "${PENDING_MSGS}")
+		echo "\n$(msg_warn ${PENDING_MSGS})"
+		exit_leave
 	}
 
 	OPTSTR=":HDa"
@@ -2434,7 +2442,8 @@ usage () {
 	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err "${PENDING_MSGS}")
+	echo "\n$(msg_warn ${PENDING_MSGS})"
+	exit_leave
 }
 
 OPTSTR=":HD"

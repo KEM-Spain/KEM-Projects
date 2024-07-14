@@ -158,7 +158,7 @@ RAWLIST=("${(f)$(eval ${CMD})}")
 LONGEST_FN=0
 LONGEST_LN=0
 NDX=0
-for L in ${RAWLIST};do
+for L in ${(uo)RAWLIST};do
 	((NDX++))
 	if [[ ${FILELIST} == 'false' ]];then
 		clear

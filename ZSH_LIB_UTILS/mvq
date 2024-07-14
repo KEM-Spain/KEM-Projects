@@ -353,7 +353,8 @@ usage () {
 	echo -e "${WHITE_FG}-y${RESET} year (4 digits - ${WHITE_ON_GREY}default${RESET})"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 
-	exit_leave $(msg_err "${PENDING_MSGS}")
+	echo "\n$(msg_warn ${PENDING_MSGS})"
+	exit_leave
 }
 
 OPTSTR=":HDa:d:e:ly:"

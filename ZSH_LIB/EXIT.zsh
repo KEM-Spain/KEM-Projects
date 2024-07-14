@@ -27,7 +27,6 @@ exit_leave () {
 	fi
 
 	if [[ ${functrace[1]} =~ 'usage' && -z ${MSGS} ]];then
-		echo "\n"
 		set_exit_value 1
 	else
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage

@@ -519,13 +519,24 @@ msg_box_clear () {
 		Y_COORD_ARG=${2}
 		H_COORD_ARG=${3}
 		W_COORD_ARG=${4}
-	else
+	elif [[ ${#} -le 1 ]];then
 		TAG=${1:=MSG}
 		MSG_COORDS=($(box_coords_get ${TAG:=MSG}))
 		X_COORD_ARG=${MSG_COORDS[X]}
 		Y_COORD_ARG=${MSG_COORDS[Y]}
 		H_COORD_ARG=${MSG_COORDS[H]}
 		W_COORD_ARG=${MSG_COORDS[W]}
+	else
+		exit_leave "${_SCRIPT} ${0}: Unrecognized argument pattern: Count:${#} Pattern:|${@}|"
+	fi
+	
+	# Handle placeholders
+	if [[ ${X_COORD_ARG} == 'X' || ${Y_COORD_ARG} == 'Y' || ${H_COORD_ARG} == 'H' || ${W_COORD_ARG} == 'W' ]];then
+		[[ -z ${MSG_COORDS} ]] && MSG_COORDS=($(box_coords_get ${TAG:=MSG}))
+		[[ ${X_COORD_ARG} == 'X' ]] && X_COORD_ARG=${MSG_COORDS[X]}
+		[[ ${Y_COORD_ARG} == 'Y' ]] && Y_COORD_ARG=${MSG_COORDS[Y]}
+		[[ ${H_COORD_ARG} == 'H' ]] && H_COORD_ARG=${MSG_COORDS[H]}
+		[[ ${W_COORD_ARG} == 'W' ]] && W_COORD_ARG=${MSG_COORDS[W]}
 	fi
 
 	for ((X=X_COORD_ARG; X <= X_COORD_ARG + H_COORD_ARG - 1; X++));do
@@ -563,9 +574,11 @@ msg_calc_gap () {
 msg_err () {
 	local MSG=${@}
 
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	if [[ -n ${MSG} ]];then
 		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
-		echo "\\\n[${_SCRIPT}]:[${BOLD}${RED_FG}Error${RESET}]  ${MSG}\\\n"
+		printf "[%s]:[${BOLD}${RED_FG}Error${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }
 
@@ -592,9 +605,11 @@ msg_get_text () {
 msg_info () {
 	local MSG=${@}
 
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	if [[ -n ${MSG} ]];then
 		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
-		echo "\\\n[${_SCRIPT}]:${BOLD}${CYAN_FG}${MSG}${RESET}\\\n"
+		printf "[%s]:${BOLD}${CYAN_FG} %s${RESET}" ${_SCRIPT} "${MSG}"
 	fi
 }
 
@@ -897,9 +912,11 @@ msg_unicode_box () {
 msg_warn () {
 	local MSG=${@}
 
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
 	if [[ -n ${MSG} ]];then
 		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
-		echo "\\\n[${_SCRIPT}]:${BOLD}${RED_FG}${MSG}${RESET}\\\n"
+		printf "[%s]:${BOLD}${RED_FG}%s${RESET}" ${_SCRIPT} "${MSG}"
 	fi
 }
 

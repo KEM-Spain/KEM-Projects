@@ -152,7 +152,7 @@ usage () {
 	echo -e "${WHITE_FG}-t${RESET} show tables in DB"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 
-	echo "${PENDING_MSGS}"
+	echo "\n$(msg_warn ${PENDING_MSGS})"
 	exit_leave
 }
 

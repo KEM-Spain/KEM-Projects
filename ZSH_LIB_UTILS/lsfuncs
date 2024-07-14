@@ -33,7 +33,6 @@ action_do () {
 	local M
 	local NDX=0
 
-	# TODO implement a page hold
 	for M in ${(on)MARKED};do
 		((NDX++))
 		for F in ${_FUNC_MATCH};do
@@ -137,7 +136,8 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	echo "\n$(msg_warn ${PENDING_MSGS})"
+	exit_leave
 }
 
 OPTSTR=":HDanlf"
@@ -226,8 +226,10 @@ if [[ ${_DEBUG} -gt 0 ]];then
 fi
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Searching FPATH:${FPATH}"
-
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} find ${FPATH} -maxdepth 1 -type f ${FGLOB} ! -path ${FPATH}"
+
+[[ ! -e ${FPATH} ]] && exit_leave $(msg_err "PATH:${FPATH} not found")
+
 RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 -type f ${FGLOB} ! -path ${FPATH}")}")
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} RAWLIST:${#RAWLIST}"
 
@@ -236,8 +238,10 @@ if ! arr_is_populated "${RAWLIST}";then
 	exit_leave $(msg_err "File not found: RAWPATH:${RAWPATH} FPATH:${FPATH} FGLOB:${FGLOB}")
 fi
 
+HIT=false
 for R in ${(o)RAWLIST};do
 	[[ ! $(file ${R}) =~ 'script' && ${R:e} != 'zsh' ]] && continue # Only zsh script files
+	HIT=true
 	[[ ${R:h} == \. ]] && FN=${R:t} || FN=${R} # Cut path for pwd
 
 	FUNC_LIST=("${(f)$(grep -P '^\S*\s\(\) {' ${FN})}")
@@ -256,6 +260,8 @@ for R in ${(o)RAWLIST};do
 		fi
 	done
 done
+
+[[ ${HIT} == 'false' ]] && usage $(msg_warn "No eligible files found")
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${#_LOCAL_LIST}"
 
