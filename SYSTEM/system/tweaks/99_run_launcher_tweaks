@@ -1,1 +1,2 @@
+# Add to: /etc/apt/apt.conf.d/
 DPkg::Post-Invoke {"/usr/local/bin/system/launcher-tweaks 2>/dev/null || true";};

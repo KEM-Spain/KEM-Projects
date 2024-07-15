@@ -462,6 +462,7 @@ msg_box_align () {
 		MSG=$(str_unicode_line $((BOX_WIDTH-4)) )
 		TEXT_PAD_L=$(str_center_pad $(( BOX_WIDTH+1 )) ${MSG} )
 		TEXT_PAD_R=$(str_rep_char ' ' $(( ${#TEXT_PAD_L} - 1 )) )
+		[[ ${_DEBUG} -ge ${_TEXT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added heading separator"
 
 	# Handle embed: <L> List item
 	elif [[ ${MSG} =~ '<L>' ]];then # List?
