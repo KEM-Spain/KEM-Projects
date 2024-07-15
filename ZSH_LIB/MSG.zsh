@@ -572,17 +572,6 @@ msg_calc_gap () {
 	echo ${GAP}
 }
 
-msg_err () {
-	local MSG=${@}
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
-		printf "[%s]:[${BOLD}${RED_FG}Error${RESET}] %s" ${_SCRIPT} "${MSG}"
-	fi
-}
-
 msg_get_text () {
 	local TAG=${1}
 	local -a TEXT
@@ -601,17 +590,6 @@ msg_get_text () {
 			echo "${MM}"
 		fi
 	done
-}
-
-msg_info () {
-	local MSG=${@}
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
-		printf "[%s]:${BOLD}${CYAN_FG} %s${RESET}" ${_SCRIPT} "${MSG}"
-	fi
 }
 
 msg_list () {
@@ -916,8 +894,29 @@ msg_warn () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
-		printf "[%s]:${BOLD}${RED_FG}%s${RESET}" ${_SCRIPT} "${MSG}"
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
+		printf "[${WHITE_FG}%s${RESET}]:[${RED_FG}Notice${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }
 
+msg_err () {
+	local MSG=${@}
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
+		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${RED_FG}Error${RESET}] %s" ${_SCRIPT} "${MSG}"
+	fi
+}
+
+msg_info () {
+	local MSG=${@}
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
+		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${CYAN_FG}Info${RESET}] %s" ${_SCRIPT} "${MSG}"
+	fi
+}

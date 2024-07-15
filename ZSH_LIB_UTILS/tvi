@@ -371,7 +371,8 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave ${PENDING_MSGS}
+	echo "\n$(msg_warn ${PENDING_MSGS})"
+	exit_leave
 }
 
 OPTSTR=":HDiu"
@@ -403,7 +404,7 @@ if [[ ! -x ${_EDITOR_CMD} ]];then
 fi
 
 # Catch missing argument
-[[ $# -eq 0 ]] && usage $(msg_warn "missing $(opt_type f)")
+[[ $# -eq 0 ]] && usage "missing argument:$(opt_type f)"
 
 # Catch excessive arguments
 if [[ $# -gt 1 ]];then

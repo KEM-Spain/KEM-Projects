@@ -261,16 +261,16 @@ for R in ${(o)RAWLIST};do
 	done
 done
 
-[[ ${HIT} == 'false' ]] && usage $(msg_warn "No eligible files found")
+[[ ${HIT} == 'false' ]] && usage "No eligible files found"
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${#_LOCAL_LIST}"
 
 if ! arr_is_populated "${_LOCAL_LIST}";then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} empty _LOCAL_LIST - exit"
 	if [[ -n ${SEARCHTERM} ]];then
-		exit_leave $(msg_warn "No function matches:${SEARCHTERM}")
+		exit_leave $(msg_info "No function matches:${SEARCHTERM}")
 	elif [[ -n ${FILE_ARG} ]];then
-		exit_leave $(msg_warn "No functions found in:${FILE_ARG}")
+		exit_leave $(msg_info "No functions found in:${FILE_ARG}")
 	fi
 fi
 

@@ -189,8 +189,8 @@ shift $((OPTIND -1))
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 _SESSION_DATA[DELIM]='|' # set default delim
 
-[[ ${#} -eq 0 && ${#OPTIONS} -eq 0 ]] && usage $(msg_warn "No operation specified") || QUERY_STR=${@}
-[[ ${#} -ne 0 && ${#} -ne 2 ]] && usage $(msg_err "Query requires 2 arguments:$(opt_type b) $(opt_type q)")
+[[ ${#} -eq 0 && ${#OPTIONS} -eq 0 ]] && usage "No operation specified" || QUERY_STR=${@}
+[[ ${#} -ne 0 && ${#} -ne 2 ]] && usage "Query requires 2 arguments:$(opt_type b) $(opt_type q)"
 [[ ${#} -eq 2 ]] && QUERY_DB=${1} && QUERY_STR=${2}
 
 if [[ ${SHOW_DBS} == 'true' ]];then

@@ -97,7 +97,7 @@ shift $((OPTIND -1))
 #Execution
  
 if [[ ${#} -ne 2 ]];then
-	usage $(msg_warn "Need 2 arguments: $(opt_type f) $(opt_type t)")
+	usage "Need 2 arguments:$(opt_type f) $(opt_type t)"
 else
 	FROM_EXT=${1}
 	TO_EXT=${2}
