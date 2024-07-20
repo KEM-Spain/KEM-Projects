@@ -131,7 +131,8 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave ${PENDING_MSGS}
+	echo "\n$(msg_warn ${PENDING_MSGS})"
+	exit_leave
 }
 
 typeset -a OPTIONS

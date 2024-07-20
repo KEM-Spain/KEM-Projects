@@ -2,7 +2,6 @@
 _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh PATH.zsh STR.zsh TPUT.zsh UTILS.zsh VALIDATE.zsh"
 
 # LIB Declarations
-typeset -A _CAL_SORT=(year F6 month E5 week D4 day C3 hour B2 minute A1)
 typeset -a _LIST_ACTION_MSGS=() # Holds text for contextual prompts
 typeset -a _LIST_HEADER=() # Holds header lines
 typeset -a _LIST=() # Holds the values to be managed by the menu
@@ -986,25 +985,25 @@ list_set_pages () {
 }
 
 list_set_prompt () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	[[ -n ${@} ]] && _LIST_PROMPT=${@}
 }
 
 list_set_searchable () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_LIST_IS_SEARCHABLE=${1}
 }
 
 list_set_selectable () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_SELECTABLE=${1}
 }
 
 list_set_select_callback () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_SELECT_CALLBACK_FUNC=${1}
 }
@@ -1019,25 +1018,25 @@ list_set_selected () {
 }
 
 list_set_selection_limit () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_SELECTION_LIMIT=${1}
 }
 
 list_set_sortable () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_LIST_IS_SORTABLE=${1}
 }
 
 list_set_sort_cols () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_SORT_COLS=(${@})
 }
 
 list_set_sort_col_default () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_LIST_SORT_COL_DEFAULT=${1}
 	if validate_is_integer ${_LIST_SORT_COL_DEFAULT};then
@@ -1048,7 +1047,7 @@ list_set_sort_col_default () {
 }
 
 list_set_max_sort_col () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_LIST_SORT_COL_MAX=${1}
 	if validate_is_integer ${_LIST_SORT_COL_MAX};then
@@ -1059,7 +1058,7 @@ list_set_max_sort_col () {
 }
 
 list_set_sort_type () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_LIST_SORT_TYPE=${1}
 }
@@ -1070,7 +1069,7 @@ list_set_targets () {
 	local C P R
 	local -A PAGES=($(list_set_pages))
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	_TARGETS=("${(f)$(
 	for P in ${(onk)PAGES};do
@@ -1090,14 +1089,14 @@ list_set_targets () {
 list_show_key () {
 	local KEY=${@}
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	[[ ${KEY} == '-' ]] && echo -n - '-' >&2 && return # Show dash and return
 	echo -n ${KEY} >&2 # Show key value
 }
 
 list_verify_sort_params () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	if ! validate_is_integer ${_LIST_SORT_COL_MAX};then
 		msg_box -p -PK "Invalid sort column:${_LIST_SORT_COL_MAX}"
@@ -1118,7 +1117,7 @@ list_sort () {
 	local SORT_COL=${1}
 	local FIELD_MAX
 	
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	if ! list_verify_sort_params;then
 		return 1
@@ -1145,7 +1144,9 @@ list_sort () {
 	list_sort_set_direction ${SORT_COL}
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort direction set:${_SORT_DIRECTION[${SORT_COL}]}"
 
-	_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} ${SORT_COL} ${_SORT_DIRECTION[${SORT_COL}]} _LIST)}") # Forward sort default
+	#_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} ${SORT_COL} ${_SORT_DIRECTION[${SORT_COL}]} _LIST)}") # Forward sort default
+	
+	_LIST=("${(f)$(list_sort_flat _LIST ${SORT_COL} ${_SORT_DIRECTION[${SORT_COL}]} ${_LIST_DELIM})}") # Forward sort default
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: list SORTED:${_LIST[1]}"
 }
@@ -1158,7 +1159,7 @@ list_sort_assoc () {
 	local SORT_CMD
 	local S
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	if ! list_verify_sort_params;then
 		return 1
@@ -1208,64 +1209,52 @@ list_sort_assoc () {
 }
 
 list_sort_flat () {
-	local DELIM=${1}
-	local SORT_COL=${2}
-	local DIRECTION=${3}
-	local ARR_NAME=${4}
-	local -a RANKED=()
-	local RANK_COL=0
-	local S L
+	local ARR_NAME=${1}
+	local SORT_COL=${2:=1}
+	local DIR=${3:='a'}
+	local DELIM=${4:='|'}
+	local -A _CAL_SORT=(year G7 month F6 week E5 day D4 hour C3 minute B2 second A1)
+	local -a ARR_SORTED=()
+	local SORT_KEY=''
+	local L
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGS:DELIM:${DELIM}, SORT_COL:${SORT_COL}, DIRECTION:${DIRECTION}, ARR_NAME:${ARR_NAME}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	for L in ${(P)ARR_NAME};do
 		if [[ -n ${_SORT_COLS} ]];then
-			RANK_COL=$(cut -d "${DELIM}" -f ${_SORT_COLS[${SORT_COL}]} <<<${L}) # Mapped columns
+			SORT_KEY=$(cut -d "${DELIM}" -f ${_SORT_COLS[${SORT_COL}]} <<<${L}) # Mapped order
 		else
-			RANK_COL=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L}) # Natural order
+			SORT_KEY=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L}) # Natural order
 		fi
-		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LINE:${L} DELIM:${DELIM} SORT_COL:${SORT_COL}"
-		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RANK_COL:${RANK_COL}"
-		
-		[[ ${RANK_COL} =~ 'year' ]] && RANKED+="${_CAL_SORT[year]}${RANK_COL}|${L}" && continue
-		[[ ${RANK_COL} =~ 'month' ]] && RANKED+="${_CAL_SORT[month]}${RANK_COL}|${L}" && continue
-		[[ ${RANK_COL} =~ 'week' ]] && RANKED+="${_CAL_SORT[week]}${RANK_COL}}|${L}" && continue
-		[[ ${RANK_COL} =~ 'day' ]] && RANKED+="${_CAL_SORT[day]}${RANK_COL}|${L}" && continue
-		[[ ${RANK_COL} =~ 'hour' ]] && RANKED+="${_CAL_SORT[hour]}${RANK_COL}|${L}" && continue
-		[[ ${RANK_COL} =~ 'minute' ]] && RANKED+="${_CAL_SORT[minute]}${RANK_COL}|${L}" && continue
-		[[ ${RANK_COL} =~ ':' ]] && RANKED+="B999|${L}" && continue
-		[[ ${RANK_COL} =~ '-' ]] && RANKED+="A888|${L}" && continue
-		[[ ${RANK_COL} =~ '^\d{4}-\d{2}-\d{2}' ]] && RANKED+="${L[1-10]}|${L}" && continue
-		[[ ${RANK_COL} =~ '\d{4}$' ]] && RANKED+="ZZZZ|$(echo ${L} | perl -pe 's/(.*)(\d{4})$/\2\1\2/g')" && continue
-		[[ ${RANK_COL} =~ '\d[.]\d\D' ]] && RANKED+="ZZZZ|$(echo ${L} | perl -pe 's/([.]\d)(.*)((G|M).*)$/${1}0 ${3}/g')" && continue
-		[[ ${RANK_COL} =~ 'Mi?B' ]] && RANKED+="A888|${L}" && continue
-		[[ ${RANK_COL} =~ 'Gi?B' ]] && RANKED+="B999|${L}" && continue
-		RANKED+="${RANK_COL}|${L}"
-		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RANKED:${RANKED}"
+		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_COL:${SORT_COL} SORT_KEY:${SORT_KEY}"
+
+		[[ ${SORT_KEY} =~ 'year' ]] && ARR_SORTED+="${_CAL_SORT[year]}${SORT_KEY}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ 'month' ]] && ARR_SORTED+="${_CAL_SORT[month]}${SORT_KEY}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ 'week' ]] && ARR_SORTED+="${_CAL_SORT[week]}${SORT_KEY}}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ 'day' ]] && ARR_SORTED+="${_CAL_SORT[day]}${SORT_KEY}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ 'hour' ]] && ARR_SORTED+="${_CAL_SORT[hour]}${SORT_KEY}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ 'min' ]] && ARR_SORTED+="${_CAL_SORT[minute]}${SORT_KEY}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ 'sec' ]] && ARR_SORTED+="${_CAL_SORT[second]}${SORT_KEY}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ '^\d{4}-\d{2}-\d{2}' ]] && ARR_SORTED+="${SORT_KEY[1,10]}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ '\d{4}$' ]] && ARR_SORTED+="ZZZZ${DELIM}$(echo ${L} | perl -pe 's/(.*)(\d{4})$/\2\1\2/g')" && continue
+		[[ ${SORT_KEY} =~ '\d[.]\d\D' ]] && ARR_SORTED+="ZZZZ${DELIM}$(echo ${L} | perl -pe 's/([.]\d)(.*)((G|M).*)$/${1}0 ${3}/g')" && continue
+		[[ ${SORT_KEY} =~ 'Mi?B' ]] && ARR_SORTED+="A888${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ 'Gi?B' ]] && ARR_SORTED+="B999${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ ':' ]] && ARR_SORTED+="B999${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ '-' ]] && ARR_SORTED+="A888${DELIM}${L}" && continue
+
+		ARR_SORTED+="${SORT_KEY}${DELIM}${L}"
 	done
 
-# Debugging ranked data
-#	/bin/rm -f /tmp/ranked.srt
-#	/bin/rm -f /tmp/list_sorted.asc
-#	/bin/rm -f /tmp/list_sorted.dsc
-#	for L in ${RANKED};do
-#		printf "L:%s\n" ${L}
-#	done >> /tmp/ranked.srt
-#	for S in ${(on)RANKED};do
-#		echo ${S} >> /tmp/list_sorted.asc
-#	done
-#	for S in ${(On)RANKED};do
-#		echo ${S} >> /tmp/list_sorted.dsc
-#	done
-
-	if [[ ${DIRECTION} == 'd' ]];then # Descending
-		for S in ${(On)RANKED};do
-			cut -d '|' -f2- <<<${S}
+	if [[ ${DIR} == 'a' ]];then
+		for L in ${(on)ARR_SORTED};do
+			[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_LINE:${L}"
+			cut -d"${DELIM}" -f2- <<<${L}
 		done
 	else
-		for S in ${(on)RANKED};do # Ascending
-			cut -d '|' -f2- <<<${S}
+		for L in ${(On)ARR_SORTED};do
+			[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_LINE:${L}"
+			cut -d"${DELIM}" -f2- <<<${L}
 		done
 	fi
 }

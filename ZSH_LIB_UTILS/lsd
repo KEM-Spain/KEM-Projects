@@ -88,8 +88,9 @@ action_warn () {
 
 item_decorate () {
 	local NDX=${1}
+	local _MAX=$((_MAX_COLS - 10))
 
-	[[ ${_LIST_SELECTED[${NDX}]} -eq 2 ]] && echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}]}${E_RESET} ${E_ITALIC}deleted${E_RESET}" || echo -n ${_LIST[${NDX}]}
+	[[ ${_LIST_SELECTED[${NDX}]} -eq 2 ]] && echo -n "${E_STRIKE}${E_RED_FG}${_LIST[${NDX}][1,${_MAX}]}${E_RESET} ${E_ITALIC}deleted${E_RESET}" || echo -n ${_LIST[${NDX}][1,${_MAX}]}
 }
 
 sort_option () {
@@ -169,7 +170,7 @@ shift $((OPTIND -1))
 #--End GetOpts--
  
 #--Execution
-#[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ ${#} -ne 0 ]] && SEARCHTERM=(${@}) || SEARCHTERM=''
 
 # Set content

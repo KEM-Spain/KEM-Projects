@@ -36,7 +36,7 @@ typeset -a _LOCAL_LIST
 #_JS_SCRIPT=./yts.js
 _ACTION=download
 _DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
-_ERROR_LIMIT=10
+_ERROR_LIMIT=5
 _ERROR_LOG=/tmp/yts.err
 _FIELD_LEN[age]=30
 _FIELD_LEN[agetime]=40
@@ -202,7 +202,7 @@ action_do () {
 				if [[ ${?} -eq 0 ]];then
 					((ERROR_CNT++))
 					HAD_ERROR=true
-					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # 10 consecutive errors or fragments
+					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
 						TITLE=$(get_field title ${M})	
 						EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Errors:${ERROR_CNT} Network failure<N>|${LOG_LINE}" 
 						msg_box -f80 -p -PK "${EMSG}"
@@ -213,7 +213,9 @@ action_do () {
 					case ${LOG_LINE:l} in
 						*"giving up"*)	
 						ERROR_CNT=${_ERROR_LIMIT}	
-						break 2 # While loop
+						_FAILED[${M}]=true
+						_DOWNLOADS[${M}]=false
+						break 2 # Exit scan
 						;;
 						*unreachable*|*retrying*|*timed\ out*)	
 							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
@@ -809,14 +811,15 @@ Query either Youtube or Rumble for videos.
 \titems are downloaded via yt-dlp. By default, Rumble queries
 \tare for livestreams and fall back to general search if no 
 \tlivestreams are found. The -L option will override this behavior. 
-\tWhen saving favorites, query, platform, and search type are recorded.
-\tHidden keys: 'l' during menu selection will toggle livestreams.
+\tWhen saving favorites, query, platform, and search type are cached.
+\tHidden keys: 'l' during menu selection will toggle livestream search.
 \t             'r' during download will reset the connection.
 EOF
 
 opt_type () {
 	local OPT=${1}
 	case ${OPT} in
+		a) echo "<AGE_FILTER> [all,min,hour,day,week,month,year]";;
 		f) echo "<SEARCHTERM>";;
 	esac
 }
@@ -845,13 +848,13 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-L${RESET} toggle stored livestream option (Rumble)"
+	echo -e "${WHITE_FG}-L${RESET} toggle cached livestream option (${MAGENTA_FG}Rumble only${RESET})"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
-	echo -e "${WHITE_FG}-S${RESET} Disable strict filtering (YouTube)"
-	echo -e "${WHITE_FG}-V${RESET} yt-search version (YouTube)"
-	echo -e "${WHITE_FG}-l${RESET} search for livestreams (Rumble)"
-	echo -e "${WHITE_FG}-a${RESET} age filter [all,min,hour,day,week,month,year] (YouTube)"
-	echo -e "${WHITE_FG}-s${RESET} disable strict filter [author must match query] (YouTube)"
+	echo -e "${WHITE_FG}-S${RESET} Disable strict filtering (${MAGENTA_FG}YouTube only${RESET})"
+	echo -e "${WHITE_FG}-V${RESET} yt-search version (${MAGENTA_FG}YouTube only${RESET})"
+	echo -e "${WHITE_FG}-l${RESET} search for livestreams (${MAGENTA_FG}Rumble only${RESET})"
+	echo -e "${WHITE_FG}-a${RESET} $(opt_type a) (${MAGENTA_FG}YouTube only${RESET})"
+	echo -e "${WHITE_FG}-s${RESET} disable strict filter [author must match query] (${MAGENTA_FG}YouTube only${RESET})"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 }
@@ -898,7 +901,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 
    if [[ ${HELP_OPT} == 'true' ]];then
 		usage
-		echo "\n${WHITE_ON_GREY}YouTube backend help${RESET}\n"
+		echo "\nYouTube backend:${WHITE_ON_GREY}${_JS_SCRIPT}${RESET} help\n"
 		eval "node ${_JS_SCRIPT} -h" >&2
 		exit_leave
 	fi

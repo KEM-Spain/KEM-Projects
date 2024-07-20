@@ -329,7 +329,7 @@ if [[ ${_DEBUG} -ge 4 ]];then
 	done | dbg
 fi
 
-_LOCAL_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} 2 a _LOCAL_LIST)}") # Forward sort default type asc
+_LOCAL_LIST=("${(f)$(list_sort_flat _LOCAL_LIST 2 a ${_LIST_DELIM})}") # Forward sort default type asc
 
 # Verify existence of data
 if ! arr_is_populated "${_LOCAL_LIST}";then
