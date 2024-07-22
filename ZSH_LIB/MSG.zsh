@@ -455,14 +455,14 @@ msg_box_align () {
 	# Handle embed:<Z> Blank line
 	if [[ ${MSG} =~ '<Z>' ]];then # Blank Line?
 		MSG=" "
-		[[ ${_DEBUG} -ge ${_TEXT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added blank line"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added blank line"
 
 	# Handle embed:<SEP> Message separator
 	elif [[ ${MSG} =~ '<SEP>' ]];then # Separator?
 		MSG=$(str_unicode_line $((BOX_WIDTH-4)) )
 		TEXT_PAD_L=$(str_center_pad $(( BOX_WIDTH+1 )) ${MSG} )
 		TEXT_PAD_R=$(str_rep_char ' ' $(( ${#TEXT_PAD_L} - 1 )) )
-		[[ ${_DEBUG} -ge ${_TEXT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added heading separator"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Added heading separator"
 
 	# Handle embed: <L> List item
 	elif [[ ${MSG} =~ '<L>' ]];then # List?

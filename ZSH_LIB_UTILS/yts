@@ -21,7 +21,7 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -A COORDS=(X 15 Y 38 H 10 W 86)
+typeset -A COORDS=(X 10 Y 38 H 10 W 86)
 typeset -A _DOWNLOADS
 typeset -A _FAILED
 typeset -A _FAVORITE_ENGINE
@@ -44,7 +44,9 @@ _FIELD_LEN[author]=26
 _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
 _OBJECT=video
-_YTS_FAVORITES=~/.yts_history
+_YTS_DIR=~/.yts
+_DOWNLOAD_LOG=${_YTS_DIR}/yts.downloads
+_YTS_FAVORITES=${_YTS_DIR}/.yts_history
 _YTS_DBG=2
 
 # Globals
@@ -69,6 +71,13 @@ source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
+log_download () {
+	local ST=$(stat -c"%Y %n" ${_DOWNLOAD_DIR}/* | sort | head -1)
+	local TM=$(cut -d' ' -f1 <<<${ST})
+	local FN=$(cut -d' ' -f2- <<<${ST})
+	echo "${TM}|${FN:t}" >> ${_DOWNLOAD_LOG}
+}
+
 action_do () {
 	local -a MSGS
 	local DEST=''
@@ -257,6 +266,7 @@ action_do () {
 								fi
 								_DOWNLOADS[${M}]=true
 								post_process
+								log_download
 								break # Exit log scan
 							fi
 						else
@@ -577,10 +587,25 @@ rumble () {
 
 select_download () {
 	local SEARCHTERM=${1:=Unknown}
-	local SEARCHTYPE
+	local SEARCHTYPE=''
+	local L F
+	local TITLE
+	local FLST
+	local STR
+	local -a FTIME
+	local -a DLOAD
+	local TM
+	local FN
 
 	list_set_type classic
-	
+
+#	FTIME=("${(f)$(stat -c"%Y" ${_DOWNLOAD_DIR}/*)}")
+#	while read LINE;do
+#		TM=$(cut -d'|' -f1 <<<${LINE})
+#		FN=$(cut -d'|' -f2 <<<${LINE})
+#		[[ ${FTIME[(i)${TM}]} -le ${#FTIME} ]] && echo "${FN} Downloaded" >>x
+#	done < ${_DOWNLOAD_LOG}
+
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 
