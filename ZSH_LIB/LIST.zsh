@@ -48,6 +48,7 @@ _LIST_TOGGLE_STATE=off
 _LIST_USER_PROMPT_STYLE=none
 _MSG_KEY=n
 _NO_TOP_OFFSET=false
+_PAGE_CALLBACK_FUNC=''
 _PROMPT_KEYS=''
 _ROW_OVERRIDE=false
 _SELECTABLE=true
@@ -680,6 +681,8 @@ list_select () {
 			[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} && -n ${_LIST[${_LIST_NDX}]} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _LIST display loop - ROW:${R} _LIST_NDX:${_LIST_NDX} - _LIST:${_LIST[${_LIST_NDX}]}"
 			((_LIST_NDX++)) # Increment array index
 
+			[[ -n ${_PAGE_CALLBACK_FUNC} ]] && ${_PAGE_CALLBACK_FUNC} ${_LIST_NDX}
+
 			if [[ $_BARLINES == 'true' ]];then # Barlining 
 				[[ ${PAGE_BREAK} == 'false' ]] && BARLINE=$((_LIST_NDX % 2))
 				[[ ${BARLINE} -ne 0 ]] && BAR=${BLACK_BG} || BAR=""
@@ -877,6 +880,12 @@ list_set_header_callback () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	_HEADER_CALLBACK_FUNC=${1}
+}
+
+list_set_page_callback () {
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	_PAGE_CALLBACK_FUNC=${1}
 }
 
 list_set_header_init () {

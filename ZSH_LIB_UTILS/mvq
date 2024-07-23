@@ -21,20 +21,20 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -A TEMPLATE=()
 typeset -A _DISPLAY_LIST=()
 typeset -A _LIST_OPTIONS=()
 typeset -A _HEADERS=()
-typeset -a _g_DECADE_LIST=()
+typeset -a _DECADE_LIST=()
 typeset -a LIST=()
 typeset -a RAWLIST=()
 typeset -a _SLIST=()
 
 # Constants
-_g_ACTOR_FILE=/usr/local/etc/.actors
+_MVQ_DIR=~/.mvq
+_ACTOR_LIST=${_MVQ_DIR}/actor_list.txt
+_DIRECTOR_LIST=${_MVQ_DIR}/director_list.txt
 _CACHE_DIR=~/.mvq
-_g_DECADE_LIST=(1960 1970 1980 1990 2000 2010 2020)
-_g_DIRECTOR_FILE=/usr/local/etc/.directors
+_DECADE_LIST=(1960 1970 1980 1990 2000 2010 2020)
 _LIB_DIR=/usr/local/lib
 _LIST_OPTIONS=(Actor A Director D Decade E Year Y)
 _LOG=/tmp/mvqry.log
@@ -43,13 +43,7 @@ _HEADERS=(A "Movies starring:" D "Movies directed by:" E "Movies for the decade:
 # Globals
 g_LIST_VALUE=''
 g_LIST_TYPE=''
-g_ACTOR=''
-g_DIRECTOR=''
-g_DECADE=''
-g_YEAR=''
 
-TEMPLATE[1]="1-4"
-TEMPLATE[2]="6-81"
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -99,10 +93,10 @@ get_cache () {
 
 	[[ -z ${ARGS} ]] && return 1
 
-	[[ ${g_ACTOR} == 'true' ]] && CACHE_FN+="_ACT_${ARGS:gs/ /_/}"
-	[[ ${g_DIRECTOR} == 'true' ]] && CACHE_FN+="_DIR_${ARGS:gs/ /_/}"
-	[[ ${g_DECADE} == 'true' ]] && CACHE_FN+="_DEC_${1}"
-	[[ ${g_YEAR} == 'true' ]] && CACHE_FN+="_YR_${1}"
+	[[ ${ACTOR_ARG} == 'true' ]] && CACHE_FN+="_ACT_${ARGS:gs/ /_/}"
+	[[ ${DIRECTOR_ARG} == 'true' ]] && CACHE_FN+="_DIR_${ARGS:gs/ /_/}"
+	[[ ${DECADE_ARG} == 'true' ]] && CACHE_FN+="_DEC_${1}"
+	[[ ${YEAR_ARG} == 'true' ]] && CACHE_FN+="_YR_${1}"
 
 	if [[ -e "${_CACHE_DIR}/${CACHE_FN}" ]];then
 		while read LINE;do
@@ -121,10 +115,10 @@ set_cache () {
 
 	[[ -z ${ARGS} ]] && return 1
 
-	[[ ${g_ACTOR} == 'true' ]] && CACHE_FN+="_ACT_${ARGS:gs/ /_/}"
-	[[ ${g_DIRECTOR} == 'true' ]] && CACHE_FN+="_DIR_${ARGS:gs/ /_/}"
-	[[ ${g_DECADE} == 'true' ]] && CACHE_FN+="_DEC_${1}"
-	[[ ${g_YEAR} == 'true' ]] && CACHE_FN+="_YR_${1}"
+	[[ ${ACTOR_ARG} == 'true' ]] && CACHE_FN+="_ACT_${ARGS:gs/ /_/}"
+	[[ ${DIRECTOR_ARG} == 'true' ]] && CACHE_FN+="_DIR_${ARGS:gs/ /_/}"
+	[[ ${DECADE_ARG} == 'true' ]] && CACHE_FN+="_DEC_${1}"
+	[[ ${YEAR_ARG} == 'true' ]] && CACHE_FN+="_YR_${1}"
 
 	if [[ ! -e "${_CACHE_DIR}/${CACHE_FN}" ]];then
 		for S in ${_SLIST};do
@@ -183,12 +177,12 @@ url_quote () {
 	local TXT=${@}
 	local PY_SCRIPT
 
-	read -r -d '' PY_SCRIPT <<___EOF
+	read -r -d '' PY_SCRIPT <<_EOF
 
 import urllib.parse
 print(urllib.parse.quote_plus("${TXT}", safe=''))
 
-___EOF
+_EOF
 
 python <<<${PY_SCRIPT}
 }
@@ -262,13 +256,13 @@ do_list () {
 
 	case ${_LIST_OPTIONS[${_SEL_VAL}]:l} in
 		a) g_LIST_TYPE=actor
-			load_list_file ${_g_ACTOR_FILE}
+			load_list_file ${_ACTOR_LIST}
 			;;
 		d) g_LIST_TYPE=director
-			load_list_file ${_g_DIRECTOR_FILE}
+			load_list_file ${_DIRECTOR_LIST}
 			;;
 		e) g_LIST_TYPE=decade
-			for D in ${(k)_g_DECADE_LIST};do
+			for D in ${(k)_DECADE_LIST};do
 				_DISPLAY_LIST[${D}]=1
 			done
 			;;
@@ -281,7 +275,7 @@ do_list () {
 	if [[ ${g_LIST_TYPE} != 'year' ]];then
 			sel_list_set ${(k)_DISPLAY_LIST}
 
-			msg_box -t.5 "loading ${(C)g_LIST_TYPE} list..."
+			msg_box "loading ${(C)g_LIST_TYPE} list..."
 
 			_SEL_VAL=?
 			sel_list "<w>Select ${(C)g_LIST_TYPE} or <h>(q)uit<N>"
@@ -360,21 +354,21 @@ usage () {
 OPTSTR=":HDa:d:e:ly:"
 OPTIND=0
 
-g_ACTOR=''
-g_DIRECTOR=''
-g_DECADE=''
-g_YEAR=''
+ACTOR_ARG=''
+DIRECTOR_ARG=''
+DECADE_ARG=''
+YEAR_ARG=''
 DO_LIST=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
-     a) g_ACTOR=${OPTARG};;
-     d) g_DIRECTOR=${OPTARG};;
-     e) g_DECADE=${OPTARG};;
+     a) ACTOR_ARG=${OPTARG};;
+     d) DIRECTOR_ARG=${OPTARG};;
+     e) DECADE_ARG=${OPTARG};;
      l) DO_LIST=true;;
-     y) g_YEAR=${OPTARG};;
+     y) YEAR_ARG=${OPTARG};;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
 	esac
@@ -395,35 +389,38 @@ if [[ ${DO_LIST} == 'true' ]];then
 	do_list
 
 	case ${g_LIST_TYPE:l} in
-		   actor)	QRY="actor=${g_LIST_VALUE}" && HEADER=${_HEADERS[A]}
-						[[ $(wc -w <<<${QRY}) -gt 1 ]] && QRY=$(sed 's/ /+/g' <<<${QRY})
-						SEARCHTERM=${g_LIST_VALUE}
-						g_ACTOR=true
-						;;
-		director)	QRY="director=${g_LIST_VALUE}" && HEADER=${_HEADERS[D]}
-						[[ $(wc -w <<<${QRY}) -gt 1 ]] && QRY=$(sed 's/ /+/g' <<<${QRY})
-						SEARCHTERM=${g_LIST_VALUE}
-						g_DIRECTOR=true
-						;;
-		  decade)	QRY="decade=${g_LIST_VALUE}" && HEADER=${_HEADERS[E]}
-						SEARCHTERM=${g_LIST_VALUE}
-						g_DECADE=true
-						;;
-		    year)	QRY="year=${g_LIST_VALUE}" && HEADER=${_HEADERS[Y]}
-						SEARCHTERM=${g_LIST_VALUE}
-						g_YEAR=true
-						;;
+		actor)	FN=$(cut -d, -f2 <<<${g_LIST_VALUE} | tr -d '[:space:]')
+					LN=$(cut -d, -f1 <<<${g_LIST_VALUE} | tr -d '[:space:]')
+					QRY="actor='${FN} ${LN}'" && HEADER=${_HEADERS[A]}
+					SEARCHTERM="${FN} ${LN}"
+					ACTOR_ARG=true
+					;;
+	director)	FN=$(cut -d, -f2 <<<${g_LIST_VALUE} | tr -d '[:space:]')
+					LN=$(cut -d, -f1 <<<${g_LIST_VALUE} | tr -d '[:space:]')
+					QRY="director=${FN}+${LN}" && HEADER=${_HEADERS[D]}
+					[[ $(wc -w <<<${QRY}) -gt 1 ]] && QRY=$(sed 's/ /+/g' <<<${QRY})
+					SEARCHTERM="${FN} ${LN}"
+					DIRECTOR_ARG=true
+					;;
+	  decade)	QRY="decade=${g_LIST_VALUE}" && HEADER=${_HEADERS[E]}
+					SEARCHTERM=${g_LIST_VALUE}
+					DECADE_ARG=true
+					;;
+	    year)	QRY="year=${g_LIST_VALUE}" && HEADER=${_HEADERS[Y]}
+					SEARCHTERM=${g_LIST_VALUE}
+					YEAR_ARG=true
+					;;
 	esac
 else
-	[[ ${#OPTIONS} -eq 0 ]] && g_YEAR=${1} # invoke default
-	[[ -n ${g_YEAR} && ! ${g_YEAR} =~ '[0-9][0-9][0-9][0-9]' ]] && usage "Invalid argument for <g_YEAR>:${g_YEAR}"
-	[[ -n ${g_YEAR} ]] && QRY="year=${g_YEAR}" && HEADER=${_HEADERS[Y]} && SEARCHTERM=${g_YEAR} && g_YEAR=true
+	[[ ${#OPTIONS} -eq 0 ]] && YEAR_ARG=${1} # invoke default
+	[[ -n ${YEAR_ARG} && ! ${YEAR_ARG} =~ '[0-9][0-9][0-9][0-9]' ]] && usage "Invalid argument for <YEAR_ARG>:${YEAR_ARG}"
+	[[ -n ${YEAR_ARG} ]] && QRY="year=${YEAR_ARG}" && HEADER=${_HEADERS[Y]} && SEARCHTERM=${YEAR_ARG} && YEAR_ARG=true
 
-	[[ -n ${g_DECADE} && ! ${g_DECADE} =~ '[0-9][0-9][0-9]0' ]] && usage "Invalid argument for <g_DECADE>:${g_DECADE}"
-	[[ -n ${g_DECADE} ]] && QRY="decade=${g_DECADE}" && HEADER=${_HEADERS[E]} && SEARCHTERM=${g_DECADE} && g_DECADE=true
+	[[ -n ${DECADE_ARG} && ! ${DECADE_ARG} =~ '[0-9][0-9][0-9]0' ]] && usage "Invalid argument for <DECADE_ARG>:${DECADE_ARG}"
+	[[ -n ${DECADE_ARG} ]] && QRY="decade=${DECADE_ARG}" && HEADER=${_HEADERS[E]} && SEARCHTERM=${DECADE_ARG} && DECADE_ARG=true
 
-	[[ -n ${g_ACTOR} ]] && QRY="actor=${g_ACTOR}" && HEADER=${_HEADERS[A]} && SEARCHTERM=${(C)g_ACTOR} && g_ACTOR=true
-	[[ -n ${g_DIRECTOR} ]] && QRY="director=${g_DIRECTOR}" && HEADER=${_HEADERS[D]} && SEARCHTERM=${(C)g_DIRECTOR} && g_DIRECTOR=true
+	[[ -n ${ACTOR_ARG} ]] && QRY="actor=${ACTOR_ARG}" && HEADER=${_HEADERS[A]} && SEARCHTERM=${(C)ACTOR_ARG} && ACTOR_ARG=true
+	[[ -n ${DIRECTOR_ARG} ]] && QRY="director=${DIRECTOR_ARG}" && HEADER=${_HEADERS[D]} && SEARCHTERM=${(C)DIRECTOR_ARG} && DIRECTOR_ARG=true
 fi
 
 HEADER="${HEADER}"

@@ -67,7 +67,7 @@ app_scan () {
 	done
 
 	(
-	echo "Found:${WHITE_FG}${#APP_FUNCS}${RESET} functions ${CYAN_FG}${ITALIC}defined${RESET} in ${WHITE_FG}${APP}${RESET}"
+	echo "Found:${WHITE_FG}${#APP_FUNCS}${RESET} functions ${CYAN_FG}${ITALIC}locally defined${RESET} in ${WHITE_FG}${APP}${RESET}"
 	echo $(str_unicode_line 80)
 	NDX=0
 	for L in ${APP_FUNCS};do
