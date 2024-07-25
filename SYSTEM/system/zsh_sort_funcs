@@ -182,6 +182,7 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
+#TODO: dropping last function
 FN=${1}
 [[ ! -e ${FN} ]] && usage "Missing argument:$(opt_type f)"
 [[ ! -e ${PWD}/${FN:t} ]] && ln -s ${FN} ${PWD} # Link file

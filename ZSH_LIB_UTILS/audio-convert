@@ -57,8 +57,9 @@ opt_exists () {
 opt_type () {
 	local OPT=${1}
 	case ${OPT} in
-		f) echo "<FROM_EXT>";;
+		f) echo "<FILE>";;
 		t) echo "<TO_EXT>";;
+		u) echo "<URL>";;
 	esac
 }
 
@@ -73,6 +74,7 @@ usage () {
 	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type f) $(opt_type t)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "${WHITE_FG}-i${RESET} list available formats $(opt_type u)"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 
@@ -80,13 +82,16 @@ usage () {
 	exit_leave
 }
 
-OPTSTR=":HD"
+OPTSTR=":HDi:"
 OPTIND=0
+
+DL_URL=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
+	  i) DL_URL=${OPTARG};;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
 	esac
@@ -95,30 +100,43 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 #Execution
- 
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
+
+if [[ ${DL_URL} != 'false' ]];then
+	if ! curl --connect-timeout 3 --head --silent "${DL_URL}" >/dev/null 2>&1;then
+		exit_leave $(msg_err "invalid $(opt_type u)")
+	fi
+	YT_NM=$(yt --no-warnings -j ${DL_URL} | jq ."filename" 2>/dev/null | tr -d '["]')
+
+	echo Title:${WHITE_FG}${YT_NM:t}${RESET}
+
+	yt --no-warnings --list-formats ${DL_URL} | grep -q audio
+	if [[ ${?} -eq 0 ]];then
+		echo "\n${CYAN_FG}-- Valid audio formats available for this title --${RESET}\n"
+		yt --no-warnings --list-formats ${DL_URL} | grep audio | cut -d' ' -f2 | sort -u
+	else
+		exit_leave $(msg_err "No audio formats for this URL")
+	fi
+
+	echo "\n${WHITE_FG}Press any key...${RESET}";read -k1
+	exit_leave
+fi
+
 if [[ ${#} -ne 2 ]];then
 	usage "Need 2 arguments:$(opt_type f) $(opt_type t)"
 else
-	FROM_EXT=${1}
+	FN=${1}
+	FROM_EXT=${1:e}
 	TO_EXT=${2}
 fi
+[[ ! -e ${FN} ]] exit_leave $(msg_err "File:${FN} not found")
 
-LIST=("${(f)$(find . -maxdepth 1 -type f -name "*${FROM_EXT}")}")
+FTYPE=$(file ${FN})
+[[ ! ${FTYPE:l} =~ 'audio' ]] && exit_leave $(msg_err "Not an audio file")
+[[ -e ${FN:r}.${TO_EXT} ]] && exit_leave $(msg_err "File: ${FN:r}.${TO_EXT} exists")
 
-if ! arr_is_populated "${LIST}";then
-	exit_leave $(msg_warn "No files with extension:${FROM_EXT} found")
-fi
+echo "Converting ${FN:q} to ${FN:r:q}.${TO_EXT}"
 
-NDX=0
-for L in ${LIST};do
-	[[ ! $(file ${L}) =~ 'audio' ]] && continue
-
-	((NDX++))
-	echo "Converting ${L:q} to ${L:r:q}.${TO_EXT} ${WHITE_FG}${NDX}${RESET} of ${WHITE_FG}${#LIST}${RESET}"
-
-	[[ -e ${L:r}.${TO_EXT} ]] && continue # no overwrites
-
-	ffmpeg -loglevel quiet -i ${L} -c:v copy -c:a libmp3lame -q:a 0 ${L:r}.${TO_EXT}
-done
+ffmpeg -loglevel error -i ${FN} -c:v copy -c:a libmp3lame -q:a 0 ${FN:r}.${TO_EXT}
 
 exit_leave 

@@ -437,6 +437,7 @@ msg_box () {
 	tput cup ${_MAX_ROWS} ${_MAX_COLS} # Drop cursor to bottom right corner
 }
 
+#TODO: getting messages too long for container frame
 msg_box_align () {
 	local TAG=${1};shift
 	local MSG=${@}

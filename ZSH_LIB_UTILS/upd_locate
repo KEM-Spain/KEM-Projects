@@ -132,7 +132,7 @@ while getopts ${OPTSTR} OPTION;do
      D) dbg_set_level;;
      I) INTERACTIVE=false;;
      f) FORCE=true;;
-     s) last_locate ${_MARKER};exit;;
+	  s) echo "Last update was $(last_locate ${_MARKER})";exit;;
      i) INFO=true;;
      :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
@@ -146,30 +146,33 @@ shift $((OPTIND -1))
 g_LAST_RUN=$(last_locate ${_MARKER})
 
 # Info option
-[[ ${INFO} == 'true' ]] && msg_box -p -PK "Last locate update was ${WHITE_FG}${g_LAST_RUN}${RESET}" && exit_leave
+#[[ ${INFO} == 'true' ]] && msg_box -p -PK "Last locate update was ${WHITE_FG}${g_LAST_RUN}${RESET}" && exit_leave
+[[ ${INFO} == 'true' ]] && msg_box -p -PK "Last locate update was ${WHITE_FG}XXX${RESET}" && exit_leave
 
 if [[ (${INTERACTIVE} == 'true' && -f ${_MARKER}) && (${FORCE} == "false") && (${g_LAST_RUN:l} =~ 'today') ]];then
 	msg_box -p -P"Press F to Force"  "Last locate update was ${g_LAST_RUN}"
 	if [[ ${_MSG_KEY:l} != 'f' ]];then
 		exit_leave $(msg_warn "Operation Cancelled")
 	fi
+	FORCE=true
 fi
 
 clear
 
 # Update locate
-if [[ (! ${g_LAST_RUN:l} =~ 'today') ]];then
-	echo "locate database update started: $(date)" >>${_LOGFILE}
-	echo "Options: ${LOCATE_OPTS}" >>${_LOGFILE}
+if [[ (! ${g_LAST_RUN:l} =~ 'today') || ${FORCE} == 'true' ]];then
+	echo "locate database update started: $(date)" | tee -a ${_LOGFILE}
+	echo "Options: ${LOCATE_OPTS}" | tee -a ${_LOGFILE}
 
-	echo "sudo updatedb ${LOCATE_OPTS}" >>${_LOGFILE}
-	sudo updatedb ${LOCATE_OPTS} 2>/dev/null >>${_LOGFILE}
+	echo "${GREEN_FG}Running...${RESET}"
+	sudo updatedb ${LOCATE_OPTS} 2>/dev/null | tee -a ${_LOGFILE}
 	RC=${?}
 	[[ ${RC} -ne 0 ]] && echo "updatedb had an error:${RC}" | tee -a ${_LOGFILE}
 
-	echo "Locate database update ended..." >>${_LOGFILE}
+	echo "locate database update ended... $(date)" | tee -a ${_LOGFILE}
 
 	touch ${_MARKER}
+	echo "${WHITE_FG}Press any key...${RESET}";read -k1
 fi
 
 exit_leave

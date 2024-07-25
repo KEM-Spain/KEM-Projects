@@ -520,10 +520,28 @@ last_update () {
 
 log_download () {
 	local NDX=${1}
-	local ST=$(stat -c"%Y %n" ${_DOWNLOAD_DIR}/* | sort | head -1)
-	local TM=$(cut -d' ' -f1 <<<${ST})
+	local ST=$(stat -c"%Y|%i|%n" ${_DOWNLOAD_DIR}/* | sort | head -1)
+	local IN=$(cut -d'|' -f2 <<<${ST})
 	local FN=$(get_field title ${NDX})
-	echo "${TM}|${FN}" >> ${_DOWNLOAD_LOG}
+	echo "${IN}|${FN}" >> ${_DOWNLOAD_LOG}
+}
+
+clean_log () {
+	local FN_HIT=''
+	local LINE=''
+	local IN=''
+	local NEW_LOG=/tmp/log.new
+	local L
+
+	[[ -e /tmp/log.new ]] && /bin/rm -f ${NEW_LOG}
+
+	while read LINE;do
+		IN=$(cut -d'|' -f1 <<<${LINE})
+		FN_HIT=$(find ${_DOWNLOAD_DIR} -maxdepth 1 -inum ${IN})
+		[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} >> ${NEW_LOG}
+	done < ${_DOWNLOAD_LOG}
+
+	[[ -e /tmp/log.new ]] && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
 }
 
 post_process () {
@@ -795,6 +813,57 @@ total_rejects () {
 	echo "${RJ_PCT}%"
 }
 
+youtube () { 
+	local DATA
+	local LINE
+	local PROXY_CMD
+	local NDX
+	local STR
+
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	[[ ${_FAVORITE_ENGINE[${1}]:l} == 'yns' ]] && g_STRICT=false && g_PROXY_CMD=$(sed 's/\-s//' <<<${g_PROXY_CMD}) # No strict requested
+	[[ -n ${g_FAVORITE} ]] && PROXY_CMD="${g_PROXY_CMD} ${g_FAVORITE:q}" || PROXY_CMD="${g_PROXY_CMD}"
+
+	# Command line processing is in the js script - only proxy the script
+	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} PROXY COMMAND: ${WHITE_FG}${PROXY_CMD}${RESET}"
+
+	_LOCAL_LIST=()
+
+	NDX=0
+	while read LINE;do
+		[[ ${LINE:l} =~ 'matched' ]] && DATA=true && continue
+		((NDX++))
+		[[ ${LINE:l} =~ 'rejected' ]] && _REJECTS[${NDX}]=true || _REJECTS[${NDX}]=false
+		[[ ${LINE:l} =~ 'usage' && ${DATA} != 'true' ]] && DATA=info
+		[[ ${LINE:l} =~ 'error' && ${DATA} != 'true' ]] && DATA=info
+		STR=$(iconv -f utf-8 -t ascii//translit <<<${LINE}) # Scrub non ascii
+		[[ ${STR} =~ '[?][?][?]*' ]] && continue # Skip garbage items
+		[[ ${_REJECTS[${NDX}]} == 'false' && ${DATA} == 'true' ]] && _LOCAL_LIST+=${STR:s/Streamed //}
+	done< <(eval ${PROXY_CMD})
+
+	[[ ${g_STRICT} == 'true' ]] && g_STRICT_MSG="$(total_rejects ${NDX})" || g_STRICT_MSG=''
+
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${_LOCAL_LIST};do printf "TITLE:%s\n" "$(cut -d'|' -f3 <<<${L})" ;done )"
+
+	[[ ${_SMCUP} == 'false' ]] && do_smcup
+
+	if [[ ${DATA} == 'info' ]];then
+		exit_leave
+	fi
+
+	# Return search status
+	if ! arr_is_populated "${_LOCAL_LIST}";then
+		g_PROXY_CMD=$(str_trim ${(Q)g_PROXY_CMD})
+
+		msg_box -H2 -p -PK "<r>No data for query<N>:${g_PROXY_CMD}|${g_STRICT_MSG}|Use option '<w>-S<N>' to disable strict filtering"
+		return 1
+	fi
+
+	return 0
+}
+
 #--Begin GetOpts--
 read -r -d '' DESC<<EOF
 Query either Youtube or Rumble for videos.
@@ -882,6 +951,7 @@ shift $((OPTIND -1))
 
 # Execution
 g_LAST_UPD=$(last_update ${_MARKER})
+clean_log
 
 RAWPATH=$(path_get_raw)
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
