@@ -896,7 +896,7 @@ msg_warn () {
 
 	if [[ -n ${MSG} ]];then
 		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
-		printf "[${WHITE_FG}%s${RESET}]:[${RED_FG}Notice${RESET}] %s" ${_SCRIPT} "${MSG}"
+		printf "[${WHITE_FG}%s${RESET}]:[${RED_FG}Issue${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }
 
@@ -906,7 +906,7 @@ msg_err () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
 		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${RED_FG}Error${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }

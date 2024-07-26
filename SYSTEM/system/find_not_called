@@ -1,0 +1,450 @@
+#!/usr/bin/zsh
+# Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+# Declarations
+typeset -A _BLACKLIST=(usage 1 parse_opts 1 opt_type 1 opt_exists 1 dbg 1 dbg_msg 1 dbg_set_level 1)
+typeset -A _FOUND
+typeset -A _LIB_FUNC_MASTER
+typeset -A _SEEN
+typeset -a _APP_FUNC_LIST
+typeset -a _FLIST
+typeset -a _LIB_FUNC_LIST
+typeset -aU _APP_FUNC_CALLS
+typeset -aU _APP_LIB_CALLS
+typeset -aU _LIB_FUNCS_CALLED_BY_SCRIPTS
+typeset -aU _LIB_FUNCS_CALLED_WITHIN_LIB
+typeset -i _VERBOSE_LVL=0
+
+# Constants
+typeset -a _LIBS=(
+ARRAY.zsh 
+DATE.zsh 
+DBG.zsh 
+DURABLE.zsh 
+EXIT.zsh
+LIST.zsh 
+MSG.zsh 
+PATH.zsh 
+SEL_LIST.zsh 
+STR.zsh 
+TPUT.zsh 
+UTILS.zsh 
+VALIDATE.zsh 
+WIN.zsh 
+)
+_SCRIPT_PATH=/usr/local/bin
+_APP_FUNC_BODIES=/tmp/app_func_bodies.out
+_LIB_FUNC_BODIES=/tmp/lib_func_bodies.out
+_APP_BODY=/tmp/app_body.out
+ 
+# Globals
+g_MODE=app_utilization
+ 
+# Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/MSG.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
+
+# Functions
+get_lib_funcs () {
+	local -a FUNCS
+	local F L K
+	local LIB
+	local FUNC
+
+	# All library functions
+	for L in ${_LIBS};do
+		FUNCS=("${(f)$(grep -H --color=never '() {' ${_LIB_DIR}/${L} | sed -E 's/\s+[(][)] \{//' | sort)}")
+		for F in ${FUNCS};do
+			LIB=$(cut -d':' -f1 <<<${F})
+			FUNC=$(cut -d':' -f2 <<<${F})
+			_LIB_FUNC_MASTER[${FUNC}]=${LIB}
+		done
+	done
+
+	for K in ${(k)_LIB_FUNC_MASTER};do
+		save_funcs ${_LIB_FUNC_MASTER[${K}]} ${K} ${_LIB_FUNC_BODIES}
+	done
+}
+
+verbose_set_level () {
+	((_VERBOSE_LVL++))
+}
+
+summarize () {
+	local FN=${1}
+	local -F TL_FUNCS=${2}
+	local -F FUNCS_NOT_CALLED=${3}
+	local FUNCS_CALLED=$(( TL_FUNCS - FUNCS_NOT_CALLED ))
+	local TITLE
+	local TAG
+
+	TITLE="Current Utilization for:${FN}"
+	TAG=$(( 34 - ${#TITLE} )) # Longest detail is 34
+	[[ ${TAG} -le 0 ]] && TAG=0
+
+	printf "\n${CYAN_FG}%s${RESET}:${WHITE_FG}%s${RESET}\n" "Current Utilization for" ${FN}
+	echo $(str_unicode_line $(( ${#TITLE} + TAG )) )
+	printf "${CYAN_FG}%26s${RESET}:${WHITE_FG}%d${RESET}\n" "Total Function Count" ${TL_FUNCS}
+	printf "${CYAN_FG}%26s${RESET}:${WHITE_FG}%d${RESET}\n" "Total Functions Called" ${FUNCS_CALLED}
+	printf "${CYAN_FG}%26s${RESET}:${WHITE_FG}%d${RESET}\n" "Total Functions NOT Called" ${FUNCS_NOT_CALLED}
+	printf "${CYAN_FG}%26s${RESET}:${WHITE_FG}%.2f%%${RESET}\n\n" "Percent Utilized" $(( (FUNCS_CALLED/TL_FUNCS) * 100 ))
+}
+
+collect_funcs () {
+	local FN=${1}
+	local -a FUNCS
+	local F
+
+	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} collecting funcs in:${FN}"
+	[[ ${_VERBOSE_LVL} -ge 4 ]] && echo "${0}:collecting funcs in:${FN}" >&2
+
+	FUNCS=($(grep -P "^\S.*\(\) {$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'))
+	
+	for F in ${FUNCS};do
+		[[ ${IGNORE_BLACKLIST} == 'false' && ${_BLACKLIST[${F}]} -eq 1 ]] && continue
+		echo ${F}
+	done
+}
+
+has_funcs () {
+	local FN=${1}
+
+	grep -qP "^\S.*\(\) {$" ${FN}
+	return ${?}
+}
+
+save_funcs () {
+	local FN=${1}
+	local FUNC=${2}
+	local SAVE_AS=${3}
+	local NDX=0
+	local L
+	local -a BODY
+
+	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} saving lines of func:${FUNC} in:${FN}"
+	[[ ${_VERBOSE_LVL} -ge 4 ]] && echo "${0}:saving lines of func:${FUNC} in:${FN}" >&2
+
+	perl -ne "print if /^${FUNC}\s+\(\)\s+{$/ .. /^}$/" ${FN} >>${SAVE_AS}
+	sed -i '/\(\) {$/d' ${SAVE_AS} # Remove any declarations
+}
+
+delete_funcs () {
+	local FN=${1}
+	local FUNC=${2}
+
+	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} deleting func:${FUNC} in:${FN}"
+	[[ ${_VERBOSE_LVL} -ge 4 ]] && echo "${0}:deleting func:${FUNC} in:${FN}" >&2
+
+	sed -i -E "/^${FUNC}\s+[(][)]\s+[{]$/,/^[}]$/d" ${_APP_BODY} # Pattern inclusive
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Scan individual files for function usage
+\tUnused functions are identified
+\tOptionally scan all scripts for library utilization
+\tUnused library functions are identified
+\tNOTE: trivial arg processing functions are blacklisted by default
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	(
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type f)]\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "${WHITE_FG}-L${RESET} test all scripts for lib utilization"
+	echo -e "${WHITE_FG}-i${RESET} ignore blacklist"
+	echo -e "${WHITE_FG}-v${RESET} verbosity (repeats increase level)"
+	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
+	) >&2
+
+	echo "\n$(msg_warn ${PENDING_MSGS})"
+	exit_leave
+}
+
+typeset -a OPTIONS
+OPTSTR=":HDLiv"
+OPTIND=0
+
+IGNORE_BLACKLIST=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     L) g_MODE=lib_utilization;;
+     i) IGNORE_BLACKLIST=true;;
+     v) verbose_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+# Execution
+if [[ ${g_MODE} == 'lib_utilization' ]];then
+	[[ ${#} -ne 0 ]] && usage "Too many arguments. Option:-L requires no argument"
+else
+	[[ ${#} -eq 0 ]] && usage "Missing argument:$(opt_type f)"
+	[[ ${#} -gt 1 ]] && usage "Too many arguments:$(opt_type f)"
+	[[ ! -e ${1} ]] && usage "File not found:${1}"
+	if ! has_funcs ${1};then
+		exit_leave $(msg_warn "File:${1} has no functions")
+	fi
+fi
+
+[[ -e ${_LIB_FUNC_BODIES} ]] && rm -f ${_LIB_FUNC_BODIES}
+[[ -e ${_APP_FUNC_BODIES} ]] && rm -f ${_APP_FUNC_BODIES}
+[[ -e ${_APP_BODY} ]] && rm -f ${_APP_BODY}
+
+get_lib_funcs
+
+if [[ ${g_MODE} == 'app_utilization' ]];then
+	ORIG_FN=${1}
+	cp ${ORIG_FN} /tmp/${ORIG_FN:t}
+	TMP_FN=/tmp/${ORIG_FN:t}
+
+	_APP_FUNC_LIST=("${(f)$(collect_funcs ${TMP_FN})}")
+
+	for L in ${_APP_FUNC_LIST};do
+		save_funcs ${TMP_FN} ${L} ${_APP_FUNC_BODIES}
+	done
+ 
+	cp ${TMP_FN} ${_APP_BODY}
+
+	for L in ${_APP_FUNC_LIST};do
+		delete_funcs ${_APP_BODY} ${L}
+	done
+
+	# Test for lib calls
+	_APP_LIB_CALLS=()
+	for L in ${(k)_LIB_FUNC_MASTER};do
+		if grep --color=never -q -m1 -w ${L} ${_APP_FUNC_BODIES};then
+			_APP_LIB_CALLS+=${L}
+		fi
+	done 
+	
+	# Test for lib calls
+	for L in ${(k)_LIB_FUNC_MASTER};do
+		if grep --color=never -q -m1 -w ${L} ${_APP_BODY};then
+			_APP_LIB_CALLS+=${L}
+		fi
+	done 
+
+	if [[ ${#_APP_LIB_CALLS} -gt 0 ]];then
+		printf "${WHITE_FG}%3d${RESET} library functions called\n" ${#_APP_LIB_CALLS}
+		for F in ${(o)_APP_LIB_CALLS};do
+			if [[ ${_VERBOSE_LVL} -ge 3 ]];then
+				printf "\t${CYAN_FG}%-30s${RESET}\n" ${F}
+			fi
+		done
+	fi
+
+	printf "${WHITE_FG}%3d${RESET} functions declared in ${WHITE_FG}${ORIG_FN}${RESET}\n" ${#_APP_FUNC_LIST}
+	if [[ ${_VERBOSE_LVL} -ge 2 ]];then
+		for L in ${_APP_FUNC_LIST};do
+			printf "\t${CYAN_FG}%-30s${RESET}\n" ${L}
+		done
+	fi
+
+	# Test for calls to app functions
+	_APP_FUNC_CALLS=()
+	for L in ${_APP_FUNC_LIST};do
+		_FOUND[${L}]=0
+		if grep -q ${L} ${_APP_FUNC_BODIES};then
+			_FOUND[${L}]=1
+			_APP_FUNC_CALLS+=${L}
+		fi
+	done 
+
+	if [[ ${#_APP_FUNC_CALLS} -gt 0 ]];then
+		printf "${WHITE_FG}%3d${RESET} functions called within functions\n" ${#_APP_FUNC_CALLS}
+		for F in ${(o)_APP_FUNC_CALLS};do
+			if [[ ${_VERBOSE_LVL} -ge 1 ]];then
+				printf "\t${CYAN_FG}%-30s${RESET} called by function\n" ${F}
+			fi
+		done
+	fi
+
+	# Test for calls from app body
+	_APP_BODY_CALLS=()
+	for F in ${_APP_FUNC_LIST};do
+		if grep -q ${F} ${_APP_BODY};then
+			_FOUND[${F}]=1
+			_APP_BODY_CALLS+=${F}
+		fi
+	done 
+
+	if [[ ${#_APP_BODY_CALLS} -gt 0 ]];then
+		printf "${WHITE_FG}%3d${RESET} functions called in body\n" ${#_APP_BODY_CALLS}
+		for F in ${(o)_APP_BODY_CALLS};do
+			if [[ ${_VERBOSE_LVL} -ge 1 ]];then
+				printf "\t${CYAN_FG}%-30s${RESET} called in body\n" ${F}
+			fi
+		done
+	fi
+
+	# Test for uncalled functions
+	_APP_FUNC_NOT_CALLED=()
+	NO_CALL=0
+	for F in ${_APP_FUNC_LIST};do
+		if [[ ${_FOUND[${F}]} -eq 0 ]];then
+			((NO_CALL++))
+			_APP_FUNC_NOT_CALLED+=${F}
+		fi
+	done
+
+	if [[ ${NO_CALL} -gt 0 ]];then
+		printf "${WHITE_FG}%3d${RESET} uncalled functions\n" ${#_APP_FUNC_NOT_CALLED}
+		for F in ${(o)_APP_FUNC_NOT_CALLED};do
+			if [[ ${_VERBOSE_LVL} -ge 1 ]];then
+				printf "\t${CYAN_FG}%-30s${RESET} was ${RED_FG}not${RESET} called\n" ${F}
+			fi
+		done
+	else
+		printf "${WHITE_FG}%3d${RESET} functions were called\n"  $(( ${#_APP_FUNC_LIST}  + ${#_APP_LIB_CALLS} ))
+	fi
+
+	echo
+	summarize ${ORIG_FN} ${#_APP_FUNC_LIST} ${NO_CALL}
+
+else # Lib utilization
+
+	echo "${GREEN_FG}Scanning libraries for internal calls...${RESET}"
+
+	# Test for calls of lib functions within lib itself
+	for K in ${(k)_LIB_FUNC_MASTER};do
+		LINE=$(grep --color=never -m1 -w ${K} ${_LIB_FUNC_BODIES})
+		[[ ${?} -ne 0 ]] && continue
+		FUNC=$(grep --color=never -o ${K} <<<${LINE})
+		_LIB_FUNCS_CALLED_WITHIN_LIB+=${FUNC}
+	done
+
+	MSG=true
+	for F in ${(o)_LIB_FUNCS_CALLED_WITHIN_LIB};do
+		_FOUND[${F}]=1
+		 if [[ ${_VERBOSE_LVL} -ge 1 || ${_DEBUG} -gt 0 ]];then
+			[[ ${_VERBOSE_LVL} -ge 1 && ${MSG} == 'true' ]] && echo "${BOLD}${MAGENTA_FG}Library functions that are called internally${RESET}"
+			MSG=false
+			[[ -z ${_SEEN[${F}]} ]] && echo "Function ${CYAN_FG}${F}${RESET} called ${ITALIC}within${RESET} library" >&2
+			_SEEN[${F}]=1
+		 fi
+	done
+
+	SCRIPT_LIST=("${(f)$(find ${_SCRIPT_PATH} -maxdepth 1 -type f)}")
+
+	for F in ${SCRIPT_LIST};do
+		grep -q "LIB_INIT" ${F} # Identify scripts that utilize libraries
+		[[ ${?} -eq 0 ]] && _FLIST+=${F}
+	done
+
+	SCRIPTLIST=("${(f)$(grep -Pl '\(\)\s+\{' ${_FLIST})}")
+
+	echo "${GREEN_FG}Scanning scripts for calls to library...${RESET}"
+
+	# Test for calls to lib functions
+	for S in ${SCRIPTLIST};do
+		for K in ${(k)_LIB_FUNC_MASTER};do
+			grep -q ${K} ${S}
+			RC=${?}
+			if [[ ${RC} -eq 0 ]];then
+				_LIB_FUNCS_CALLED_BY_SCRIPTS+="${K}:${S:t}"
+			fi
+		done
+	done
+
+	MSG=true
+	for L in ${(o)_LIB_FUNCS_CALLED_BY_SCRIPTS};do
+		FUNC=$(cut -d: -f1 <<<${L})
+		SCRIPT=$(cut -d: -f2 <<<${L})
+		[[ ${_VERBOSE_LVL} -ge 1 && ${MSG} == 'true' ]] && echo "${BOLD}${MAGENTA_FG}Library functions that are called from scripts${RESET}"
+		MSG=false
+		_FOUND[${FUNC}]=1
+		 if [[ ${_VERBOSE_LVL} -eq 1 || ${_DEBUG} -gt 0 ]];then
+			[[ -z ${_SEEN[${FUNC}]} ]] && echo "Function ${CYAN_FG}${FUNC}${RESET} was called from a script" >&2
+			_SEEN[${FUNC}]=1
+		 elif [[ ${_VERBOSE_LVL} -eq 2 ]];then
+			echo "Function ${CYAN_FG}${FUNC}${RESET} called from:${WHITE_FG}${SCRIPT}${RESET}" >&2
+		 fi
+	done
+
+	echo "${GREEN_FG}Scanning for uncalled library functions...${RESET}"
+
+	NO_CALL=0
+	for F in ${(k)_LIB_FUNC_MASTER};do
+		if [[ ${_FOUND[${F}]} -eq 0 ]];then
+			((NO_CALL++))
+			[[ ${_VERBOSE_LVL} -ge 1 && ${NO_CALL} -eq 1 ]] && echo "${BOLD}${MAGENTA_FG}Library functions that were never called${RESET}"
+			[[ ${_VERBOSE_LVL} -ge 1 ]] && echo "Function ${CYAN_FG}${F}${RESET} was ${RED_FG}not${RESET} called"
+		fi
+	done
+
+	summarize "LIBS" ${#_LIB_FUNC_MASTER} ${NO_CALL}
+fi
+ 
+# Cleanup
+[[ -e ${_LIB_FUNC_BODIES} ]] && rm -f ${_LIB_FUNC_BODIES}
+[[ -e ${_APP_FUNC_BODIES} ]] && rm -f ${_APP_FUNC_BODIES}
+[[ -e ${_APP_BODY} ]] && rm -f ${_APP_BODY}
+[[ -e ${TMP_FN} ]] && rm -f ${TMP_FN}
+
+exit_leave

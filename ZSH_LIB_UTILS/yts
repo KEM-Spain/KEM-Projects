@@ -272,7 +272,7 @@ action_do () {
 					fi
 				fi
 			fi
-			sleep 1
+			sleep 2
 		done
 		NDX=0
 		clear_log "action_do"
@@ -448,16 +448,6 @@ get_field () {
 		echo -n ${STR[1,65]}
 }
 
-is_download () {
-	local NDX=${1}
-	local FN=$(get_field title ${NDX})
-
-	if [[ -n ${FN} ]];then
-		grep -q ${FN} ${_DOWNLOAD_LOG}
-		[[ ${?} -eq 0 ]] && _DOWNLOADS[${NDX}]=true
-	fi
-}
-
 item_decorate () {
 	local NDX=${1}
 	local STR
@@ -520,13 +510,24 @@ last_update () {
 
 log_download () {
 	local NDX=${1}
-	local ST=$(stat -c"%Y|%i|%n" ${_DOWNLOAD_DIR}/* | sort | head -1)
+	local ST=$(stat -c"%W|%i|%n" ${_DOWNLOAD_DIR}/* | sort -t'|' -k1 -r | head -1) # Sort by birth date; grab most recent
 	local IN=$(cut -d'|' -f2 <<<${ST})
-	local FN=$(get_field title ${NDX})
-	echo "${IN}|${FN}" >> ${_DOWNLOAD_LOG}
+	local FN=$(cut -d'|' -f3 <<<${ST})
+	local TL=$(get_field title ${NDX})
+	echo "${IN}|${TL}|${FN:t}" >> ${_DOWNLOAD_LOG}
 }
 
-clean_log () {
+log_find () {
+	local NDX=${1}
+	local FN=$(get_field title ${NDX})
+
+	if [[ -n ${FN} ]];then
+		grep -q ${FN} ${_DOWNLOAD_LOG}
+		[[ ${?} -eq 0 ]] && _DOWNLOADS[${NDX}]=true
+	fi
+}
+
+log_update () {
 	local FN_HIT=''
 	local LINE=''
 	local IN=''
@@ -541,7 +542,7 @@ clean_log () {
 		[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} >> ${NEW_LOG}
 	done < ${_DOWNLOAD_LOG}
 
-	[[ -e /tmp/log.new ]] && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
+	[[ -e ${NEW_LOG} ]] && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
 }
 
 post_process () {
@@ -696,7 +697,7 @@ select_download () {
 		list_set_sort_col_default 0
 	fi
 	list_set_barlines true
-	list_set_page_callback is_download 
+	list_set_page_callback log_find 
 
 	while true;do
 	 # Get selection
@@ -951,7 +952,7 @@ shift $((OPTIND -1))
 
 # Execution
 g_LAST_UPD=$(last_update ${_MARKER})
-clean_log
+log_update
 
 RAWPATH=$(path_get_raw)
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
