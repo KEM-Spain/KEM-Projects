@@ -120,6 +120,10 @@ action_do () {
 		URL=$(get_field url ${M})
 		HDRS_OUT=false
 
+		unsetopt localtraps
+		trap kill_job INT
+		stty -echo
+
 		start_job ${URL}
 		msg_box -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "Download requested..."
 
@@ -128,10 +132,6 @@ action_do () {
 			[[ ${NDX} -gt 10 ]] && exit_leave "${g_LOG} not detected" # No activity
 		fi
 
-		unsetopt localtraps
-		trap kill_job INT
-
-		stty -echo
 		while true;do
 			((NDX++))
 			
@@ -522,7 +522,7 @@ log_find () {
 	local FN=$(get_field title ${NDX})
 
 	if [[ -n ${FN} ]];then
-		grep -q ${FN} ${_DOWNLOAD_LOG}
+		grep -q ${FN[1,-4]} ${_DOWNLOAD_LOG}
 		[[ ${?} -eq 0 ]] && _DOWNLOADS[${NDX}]=true
 	fi
 }
@@ -534,15 +534,17 @@ log_update () {
 	local NEW_LOG=/tmp/log.new
 	local L
 
-	[[ -e /tmp/log.new ]] && /bin/rm -f ${NEW_LOG}
+	{
+		[[ -e /tmp/log.new ]] && /bin/rm -f ${NEW_LOG}
 
-	while read LINE;do
-		IN=$(cut -d'|' -f1 <<<${LINE})
-		FN_HIT=$(find ${_DOWNLOAD_DIR} -maxdepth 1 -inum ${IN})
-		[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} >> ${NEW_LOG}
-	done < ${_DOWNLOAD_LOG}
+		while read LINE;do
+			IN=$(cut -d'|' -f1 <<<${LINE})
+			FN_HIT=$(find ${_DOWNLOAD_DIR} -maxdepth 1 -inum ${IN})
+			[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} >> ${NEW_LOG}
+		done < ${_DOWNLOAD_LOG}
 
-	[[ -e ${NEW_LOG} ]] && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
+		[[ -e ${NEW_LOG} ]] && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
+	} 2>/dev/null
 }
 
 post_process () {

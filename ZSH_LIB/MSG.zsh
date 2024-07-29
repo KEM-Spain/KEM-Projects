@@ -403,6 +403,7 @@ msg_box () {
 			((DTL_NDX++))
 			MSG_OUT=$(msg_box_align ${TAG} ${MSG_BODY[${MSG_NDX}]}) # Apply padding to both sides of msg
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Clearing messsage line: msg len:${#MSG_OUT}, clearing ${MSG_COLS} cols"
 			tput ech ${MSG_COLS} # Clear line
 			echo -n "${MSG_OUT}"
 			_MSG_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
@@ -437,7 +438,6 @@ msg_box () {
 	tput cup ${_MAX_ROWS} ${_MAX_COLS} # Drop cursor to bottom right corner
 }
 
-#TODO: getting messages too long for container frame
 msg_box_align () {
 	local TAG=${1};shift
 	local MSG=${@}
@@ -541,7 +541,9 @@ msg_box_clear () {
 		[[ ${W_COORD_ARG} == 'W' ]] && W_COORD_ARG=${MSG_COORDS[W]}
 	fi
 
+	#TODO: erasing too many chars
 	for ((X=X_COORD_ARG; X <= X_COORD_ARG + H_COORD_ARG - 1; X++));do
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Clearing messsage line: clearing ${W_COORD_ARG} cols"
 		tput cup ${X} ${Y_COORD_ARG}
 		tput ech ${W_COORD_ARG}
 	done
@@ -861,6 +863,7 @@ msg_unicode_box () {
 	printf ${TOP_RIGHT}
 
 	# Sides
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOX_WIDTH:${BOX_WIDTH}"
 	for (( X=${T_SPAN}; X<=${B_SPAN}; X++ ));do
 		tput cup ${X} ${BOX_Y_COORD}
 		printf ${VERT_BAR}
@@ -880,6 +883,7 @@ msg_unicode_box () {
 	done
 
 	# Bottom right corner
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOX_HEIGHT:${BOX_HEIGHT}"
 	tput cup ${X} ${Y}
 	printf ${BOT_RIGHT}
 
