@@ -127,7 +127,7 @@ shift $((OPTIND -1))
 MAXDEPTH=${_DEPTH}
 
 INAME=${1}
-INAME="${INAME}*"
+INAME="*${INAME}*"
 INAME=${(qqq)INAME}
 REGEX=${REGEX:='.*'}
 REGEX=${(qqq)REGEX}

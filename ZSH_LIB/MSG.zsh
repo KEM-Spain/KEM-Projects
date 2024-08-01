@@ -548,7 +548,7 @@ msg_box_clear () {
 		tput ech ${W_COORD_ARG}
 	done
 
-	[[ ${TAG} != "MSG" ]] && msg_repaint ${TAG}
+	# [[ ${TAG} != "MSG" ]] && msg_repaint ${TAG}
 	box_coords_del ${TAG}
 }
 
@@ -706,14 +706,14 @@ msg_repaint () {
 	local NDX=0
 	local TAG_LIST=()
 	local T
-	local OTAG
+	local TAG_COORDS
 
 	TAG_LIST=($(box_coords_overlap ${TAG}))
 
 	for T in ${(on)TAG_LIST};do
-		OTAG=$(cut -d '|' -f2 <<<${T})
-		TAG_COORDS=($(box_coords_get ${OTAG}))
-		TEXT=("${(f)$(msg_get_text ${OTAG})}")
+		TAG_COORDS=$(cut -d '|' -f2 <<<${T})
+		TAG_COORDS=($(box_coords_get ${TAG_COORDS}))
+		TEXT=("${(f)$(msg_get_text ${TAG_COORDS})}")
 
 		msg_unicode_box ${TAG_COORDS[X]} ${TAG_COORDS[Y]} ${TAG_COORDS[W]} ${TAG_COORDS[H]}
 
@@ -895,33 +895,45 @@ msg_unicode_box () {
 
 msg_warn () {
 	local MSG=${@}
+	local LABEL='Warning'
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
+	grep -q '|' <<<${MSG}
+	[[ ${?} -eq 0 ]] && LABEL=$(cut -d '|' -f1 <<<${MSG}) && MSG=$(cut -d '|' -f2 <<<${MSG})
+
 	if [[ -n ${MSG} ]];then
 		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
-		printf "[${WHITE_FG}%s${RESET}]:[${RED_FG}Issue${RESET}] %s" ${_SCRIPT} "${MSG}"
+		printf "[${WHITE_FG}%s${RESET}]:[${RED_FG}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }
 
 msg_err () {
 	local MSG=${@}
+	local LABEL='Error'
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
+	grep -q '|' <<<${MSG}
+	[[ ${?} -eq 0 ]] && LABEL=$(cut -d '|' -f1 <<<${MSG}) && MSG=$(cut -d '|' -f2 <<<${MSG})
+
 	if [[ -n ${MSG} ]];then
 		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
-		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${RED_FG}Error${RESET}] %s" ${_SCRIPT} "${MSG}"
+		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${RED_FG}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }
 
 msg_info () {
 	local MSG=${@}
+	local LABEL='Info'
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
+	grep -q '|' <<<${MSG}
+	[[ ${?} -eq 0 ]] && LABEL=$(cut -d '|' -f1 <<<${MSG}) && MSG=$(cut -d '|' -f2 <<<${MSG})
+
 	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\S+)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
-		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${CYAN_FG}Info${RESET}] %s" ${_SCRIPT} "${MSG}"
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
+		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${CYAN_FG}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }

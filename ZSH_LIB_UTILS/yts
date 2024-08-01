@@ -21,7 +21,8 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -A COORDS=(X 10 Y 38 H 10 W 86)
+typeset -A _COORDS=(X 10 Y 38 H 10 W 86)
+typeset -A _PARTIALS
 typeset -A _DOWNLOADS
 typeset -A _FAILED
 typeset -A _FAVORITE_ENGINE
@@ -125,7 +126,7 @@ action_do () {
 		stty -echo
 
 		start_job ${URL}
-		msg_box -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} "Download requested..."
+		msg_box -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} "Download requested..."
 
 		# Detect missing log
 		if [[ ! -e ${g_LOG} ]];then
@@ -149,7 +150,7 @@ action_do () {
 				LOG_STALLS=0 # Log is growing
 			else
 				((LOG_STALLS++))
-				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Job Stalled<N>"
+				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t.2 -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Job Stalled<N>"
 				LAST_LOG_SIZE=${LOG_SIZE}
 				sleep 1 # Extra sleep 
 				continue
@@ -172,10 +173,10 @@ action_do () {
 				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR_TXT})} ))
 				HDR_LEN=$((HDR_LEN + FRAME_PAD))
 				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
-				[[ ${HDR_LEN} -gt ${COORDS[W]} ]] && COORDS[W]=${HDR_LEN} && COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
-				msg_box -c -C -I -H3 -jl -x${COORDS[X]} -y${COORDS[Y]} -h${COORDS[H]} -w${COORDS[W]} ${HDR_TXT}
+				[[ ${HDR_LEN} -gt ${_COORDS[W]} ]] && _COORDS[W]=${HDR_LEN} && _COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
+				msg_box -c -C -I -H3 -jl -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} ${HDR_TXT}
 				msg_box -C -jl "<m>Downloading: <c>${DEST_2[1,60]}<N>"
-				msg_box -C -jl "<m>$(str_unicode_line $((COORDS[W]-4)))<N>"
+				msg_box -C -jl "<m>$(str_unicode_line $((_COORDS[W]-4)))<N>"
 				HDRS_OUT=true
 			fi
 
@@ -224,10 +225,10 @@ action_do () {
 						break 2 # Exit scan
 						;;
 						*unreachable*|*retrying*|*timed\ out*)	
-							msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+							msg_box -t.2 -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 							echo "$(get_field author ${M}) - Caught:"${LOG_LINE} >> ${_ERROR_LOG}
 						;;
-						*) msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+						*) msg_box -t.2 -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 							echo "$(get_field author ${M}) - Uncaught:"${LOG_LINE} >> ${_ERROR_LOG}
 							_DEBUG=${_YTS_DBG}
 						;;
@@ -258,7 +259,7 @@ action_do () {
 								if [[ ${#_MARKED} -gt 1 ]];then
 									msg_box -C -jc "<w>$(str_unicode_line 10)<N>"
 									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-										msg_box -t${PAUSE} -x$(( COORDS[X]+4 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+										msg_box -t${PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
 									fi
 								fi
 								_DOWNLOADS[${M}]=true
@@ -299,7 +300,7 @@ action_warn () {
 	
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	msg_box -H1 -p -PG "<w><I>Please respond<N>|<Z>|${#_MARKED} $(str_pluralize ${_OBJECT} ${#_MARKED}) selected"
+	msg_box -H1 -x${_COORDS[X]} -p -PG "<w><I>Please respond<N>|<Z>|${#_MARKED} $(str_pluralize ${_OBJECT} ${#_MARKED}) selected"
 
 	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${_MARKED};do
@@ -460,6 +461,8 @@ item_decorate () {
 		STR="Failed..."
 	elif [[ ${_FUTURE[${NDX}]} == 'true' ]];then
 		STR="Future..."
+	elif [[ ${_PARTIALS[${NDX}]} == 'true' ]];then
+		STR="Partial..."
 	else
 		STR="$(get_field agetime ${NDX})"
 	fi
@@ -519,11 +522,16 @@ log_download () {
 
 log_find () {
 	local NDX=${1}
-	local FN=$(get_field title ${NDX})
+	local TITLE=$(get_field title ${NDX})
+	local LINE=''
+	local FN=''
 
-	if [[ -n ${FN} ]];then
-		grep -q ${FN[1,-4]} ${_DOWNLOAD_LOG}
-		[[ ${?} -eq 0 ]] && _DOWNLOADS[${NDX}]=true
+	if [[ -n ${TITLE} ]];then
+		LINE=$(grep -m1 ${TITLE} ${_DOWNLOAD_LOG})
+		if [[ -n ${LINE} ]];then
+			FN=$(cut -d '|' -f3 <<<${FN})
+			[[ ${FN:e} != 'part' ]] && _PARTIALS[${NDX}]=true
+		fi
 	fi
 }
 
@@ -543,7 +551,7 @@ log_update () {
 			[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} >> ${NEW_LOG}
 		done < ${_DOWNLOAD_LOG}
 
-		[[ -e ${NEW_LOG} ]] && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
+		[[ -e ${NEW_LOG} ]] && sort -u -o ${NEW_LOG} ${NEW_LOG} && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
 	} 2>/dev/null
 }
 
@@ -553,7 +561,7 @@ post_process () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	msg_box -x$(( COORDS[X]+4 )) "Post processing..."
+	msg_box -x$(( _COORDS[X]+1 )) "Post processing..."
 
 	for K in ${KEYWORDS};do
 		fsub -iy ${K} ${_DOWNLOAD_DIR} >/dev/null 2>&1
@@ -565,7 +573,7 @@ reset_job () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	kill_job
-	msg_box -t.2 -x$((COORDS[X]+5)) -y$((COORDS[Y] + COORDS[W] -25)) "<m>Job Restarted<N>"
+	msg_box -t.2 -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -25)) "<m>Job Restarted<N>"
 }
 
 rumble () {
@@ -779,6 +787,7 @@ set_item_color () {
 		downloaded*) echo ${GREEN_FG};;
 		failed*) echo ${RED_FG};;
 		future*) echo ${CYAN_FG};;
+		partial*) echo ${WHITE_ON_GREY};;
 		*) echo '';;
 	esac
 }
@@ -962,6 +971,7 @@ FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
 if [[ (! -f ${_MARKER}) || (-f ${_MARKER} && (! ${g_LAST_UPD:l} =~ 'today')) ]];then
+	clear
 	msg_box "Updating yts-dlp..."
 	pushd ${_YTS_GIT}
 	git pull

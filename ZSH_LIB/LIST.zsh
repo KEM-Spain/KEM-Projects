@@ -421,17 +421,17 @@ list_quote_marked_elements () {
 }
 
 list_repaint () {
-	local -A MC=($(box_coords_get MSG))
+	local -A MSG_COORDS=($(box_coords_get MSG))
 	local ROWS=${1}
 	local PAGE=${2}
-	local START_ROW=${MC[X]}
+	local START_ROW=${MSG_COORDS[X]}
 	local END_ROW=0
 	local HDR_OFFSET=${#_LIST_HEADER}
 	local SAVED_NDX=${_LIST_NDX}
 	local CURSOR=0
 	local DISPLAY_ROWS=0
-	local START_COL=${MC[Y]}
-	local END_COL=$((START_COL+${MC[W]}))
+	local START_COL=${MSG_COORDS[Y]}
+	local END_COL=$((START_COL+${MSG_COORDS[W]}))
 	local LINE_SNIP=''
 	local R
 
