@@ -135,7 +135,7 @@ usage () {
 	echo -e "\n${WHITE_FG}DESC${RESET}:Search for system config files based on search phrase (case sensitive)\n"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 OPTSTR=":HDd"
@@ -220,7 +220,7 @@ if arr_is_populated "${_GNOME_LIST}";then
 fi
 
 if ! arr_is_populated "${_RAWLIST}";then
-	exit_leave $(msg_warn "No cfg file(s) found for:${SEARCHTERM}")
+	exit_leave $(msg_exit W "No cfg file(s) found for:${SEARCHTERM}")
 fi
 
 # Only include files that can be edited or viewed
@@ -249,7 +249,7 @@ _LOCAL_LIST=($(for L in ${_LOCAL_LIST};do
 done | sort -t: -k2 | sed 's!:!/!g'))
 
 if ! arr_is_populated "${_LOCAL_LIST}";then
-	exit_leave $(msg_warn "No editable cfg file(s) found for:${SEARCHTERM}")
+	exit_leave $(msg_exit W "No editable cfg file(s) found for:${SEARCHTERM}")
 fi
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${#_LOCAL_LIST} ${=_LOCAL_LIST[1,20]} ...truncated"

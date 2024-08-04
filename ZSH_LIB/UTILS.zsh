@@ -267,20 +267,20 @@ func_delete () {
 func_list () {
 	local FN=${1}
 
-	grep --color=never -P "^\S.*\(\) {$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//'
+	grep --color=never -P "^\S.*() {\s*$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//'
+}
+
+func_print () {
+	local FN=${1}
+	local FUNC=$(str_trim ${2})
+	
+	perl -ne "print if /^${FUNC}.*() {\s*$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
 }
 
 func_normalize () {
 	local FN=${1}
 
 	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g' < ${FN} > ${FN}.normalized
-}
-
-func_print () {
-	local FUNC=${1}
-	local FN=${2}
-	
-	perl -ne "print if /^${FUNC} \(\) {$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
 }
 
 get_delim_field_cnt () {

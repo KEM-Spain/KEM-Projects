@@ -86,7 +86,7 @@ usage () {
 	echo -e "${WHITE_FG}-w${RESET} whole word match"
 	echo -e "\n${WHITE_FG}Desc${RESET}:find files containing <SEARCHTERM> in or below the current directory\n"
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 OPTSTR=":HDIcef:lLm:nop:rw"
@@ -136,11 +136,11 @@ SEARCHTERM=${@}
 [[ ${_DEBUG} -eq 0 && FILELIST == 'false' ]] && do_smcup
 
 [[ -z ${SEARCHTERM} ]] && usage "Missing argument:<SEARCHTERM>"
-[[ ! -t 0 ]] && exit_leave $(msg_warn "Unable to accept piped input")
+[[ ! -t 0 ]] && exit_leave $(msg_exit W "Unable to accept piped input")
 
 if [[ -n ${MY_FILE} ]];then # If file was passed
 	if [[ ! -e ${MY_PATH}/${MY_FILE} ]];then # And not found
-		exit_leave $(msg_warn "file not found:${MY_PATH}/${MY_FILE}") # Exit not found
+		exit_leave $(msg_exit W "file not found:${MY_PATH}/${MY_FILE}") # Exit not found
 	else
 		MY_GREP_ARG="${MY_PATH}/${MY_FILE}" # Limit to file name
 	fi
@@ -188,7 +188,7 @@ done
 echo "\n" >&2
 
 if ! arr_is_populated "${LIST}";then
-	exit_leave $(msg_warn "No file(s) found containing:${SEARCHTERM}\\\n${MAGENTA_FG}Grep command was${RESET}:${CMD}")
+	exit_leave $(msg_exit W "No file(s) found containing:${SEARCHTERM}\\\n${MAGENTA_FG}Grep command was${RESET}:${CMD}")
 fi
 
 if [[ ${FILELIST} == 'true' ]];then

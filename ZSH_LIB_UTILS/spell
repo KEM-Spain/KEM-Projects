@@ -73,7 +73,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 

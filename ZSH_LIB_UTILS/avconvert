@@ -82,7 +82,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 
@@ -104,7 +104,7 @@ shift $((OPTIND -1))
 [[ -z ${1} ]] && usage "missing $(opt_type f)" || FN=${1}
 [[ -z ${2} ]] && usage "missing $(opt_type e)" || EXT=${2}
 
-[[ ! -e ${FN} ]] && exit_leave $(msg_err "file not found:${1}")
+[[ ! -e ${FN} ]] && exit_leave $(msg_exit E "file not found:${1}")
 
 FN_EXT=${FN:e}
 
@@ -122,17 +122,17 @@ done
 FTYPE=false
 [[ ${_VID_EXT[(i)${FN_EXT}]} -le ${#_VID_EXT} ]] && FTYPE=video
 [[ ${_AUD_EXT[(i)${FN_EXT}]} -le ${#_AUD_EXT} ]] && FTYPE=audio
-[[ ${FTYPE} == 'false' ]] && exit_leave $(msg_err "unsupported file type:${FN:e}")
+[[ ${FTYPE} == 'false' ]] && exit_leave $(msg_exit E "unsupported file type:${FN:e}")
 
 ETYPE=false
 [[ ${_VID_EXT[(i)${EXT}]} -le ${#_VID_EXT} ]] && ETYPE=video
 [[ ${_AUD_EXT[(i)${EXT}]} -le ${#_AUD_EXT} ]] && ETYPE=audio
-[[ ${ETYPE} == 'false' ]] && exit_leave $(msg_err "unsupported extension:${EXT}")
+[[ ${ETYPE} == 'false' ]] && exit_leave $(msg_exit E "unsupported extension:${EXT}")
 
-[[ ${FTYPE} != ${ETYPE} ]] && exit_leave $(msg_err "${WHITE_FG}${FTYPE}${RESET}${ITALIC} not convertable to${RESET} ${WHITE_FG}${ETYPE}${RESET}")
+[[ ${FTYPE} != ${ETYPE} ]] && exit_leave $(msg_exit E "${WHITE_FG}${FTYPE}${RESET}${ITALIC} not convertable to${RESET} ${WHITE_FG}${ETYPE}${RESET}")
 
-[[ ${FTYPE} == 'video' && ! $(file -i ${FN}) =~ 'video' ]] && exit_leave $(msg_err "not a video file:${FN}")
-[[ ${FTYPE} == 'audio' && ! $(file -i ${FN}) =~ 'audio' ]] && exit_leave $(msg_err "not an audio file:${FN}")
+[[ ${FTYPE} == 'video' && ! $(file -i ${FN}) =~ 'video' ]] && exit_leave $(msg_exit E "not a video file:${FN}")
+[[ ${FTYPE} == 'audio' && ! $(file -i ${FN}) =~ 'audio' ]] && exit_leave $(msg_exit E "not an audio file:${FN}")
 
 echo "Processing ${FTYPE} file:${FN}"
 

@@ -156,7 +156,7 @@ ___EOF
 		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -211,7 +211,7 @@ ___EOF
 		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -219,10 +219,10 @@ ___EOF
 	[[ ${1} == '-H' ]] && usage
 
 	[[ ${#} -eq 0 ]] && usage "missing video filename" || FN=${1}
-	[[ ! -f ${FN} ]] && exit_leave $(msg_err "file not found:${FN}")
+	[[ ! -f ${FN} ]] && exit_leave $(msg_exit E "file not found:${FN}")
 
 	file ${FN} | grep -qi 'media\|matroska\|video'
-	[[ ${?} -ne 0 ]] && exit_leave $(msg_err "not a video file:${FN}")
+	[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "not a video file:${FN}")
 
 	echo "The duration length of:${WHITE_FG}${FN}${RESET}"
 	ffmpeg -i "${FN}"  2>&1 | grep Duration 
@@ -295,7 +295,7 @@ ___EOF
 		echo "${WHITE_FG}-o $(opt_type f)${RESET} output file name"
 		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -321,16 +321,16 @@ ___EOF
 
 	WORKFILES=(${@})
 	for F in ${WORKFILES};do 
-		[[ ! -e ${F} ]] && exit_leave $(msg_err "file:${F} not found")
+		[[ ! -e ${F} ]] && exit_leave $(msg_exit E "file:${F} not found")
 		file ${F} | grep -qi 'media\|matroska\|video'
-		[[ ${?} -ne 0 ]] && exit_leave $(msg_err "file:${F} is not of type video")
+		[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "file:${F} is not of type video")
 	done
 
 	DESTINATION_FILE=${_DEFAULT_OUT}.${1:e}
 
 	if [[ -e ${DESTINATION_FILE} ]];then
 		echo -n "Overwrite ${DESTINATION_FILE} (y/n):"; read -q RESPONSE
-		[[ ${RESPONSE} == 'n' ]] && exit_leave "operation cancelled" || echo
+		[[ ${RESPONSE} == 'n' ]] && exit_leave "Operation cancelled" || echo
 		rm ${DESTINATION_FILE}
 	fi
 
@@ -340,7 +340,7 @@ ___EOF
 	echo -n "\nPlease review...Continue (y/n):"; read -q RESPONSE
 	echo
 
-	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_warn "operation cancelled")
+	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_exit W "Operation cancelled")
 
 	echo "Merging:${WHITE_FG}${WORKFILES}${RESET} to ${WHITE_FG}${DESTINATION_FILE}${RESET} using APP:${WHITE_FG}${APP}${RESET}"
 	case ${APP} in
@@ -420,7 +420,7 @@ ___EOF
 		echo -e "${WHITE_FG}-D${RESET} debug"
 		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -449,7 +449,7 @@ ___EOF
 	SCALE=${_SEL_VAL}
 
 	FN_OUT="${FN:r} ${SCALE}.mkv"
-	[[ -e ${FN_OUT} ]] && exit_leave $(msg_warn "File naming confict: ${FN_OUT}")
+	[[ -e ${FN_OUT} ]] && exit_leave $(msg_exit W "File naming confict: ${FN_OUT}")
 
 	ffmpeg -i ${FN} -vf scale=${SCALE} ${FN_OUT}
 }
@@ -473,7 +473,7 @@ ___EOF
 		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] <VIDEO_FILE>\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -481,7 +481,7 @@ ___EOF
 	[[ ${1} == '-H' ]] && usage
 
 	[[ ${#} -eq 0 ]] && usage "missing argument:<VIDEO_FILE>" || FN=${1}
-	[[ ! -e ${FN} ]] && exit_leave $(msg_err "file not found:${FN}")
+	[[ ! -e ${FN} ]] && exit_leave $(msg_exit E "file not found:${FN}")
 
 	ffmpeg -i ${FN} -map 0 -map 0:a -c copy -c:a:1 ac3 -b:a:1 640k ${FN:r}_ac3.mkv
 }
@@ -537,7 +537,7 @@ usage () {
 	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
 	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 

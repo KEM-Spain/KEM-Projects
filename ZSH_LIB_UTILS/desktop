@@ -149,7 +149,7 @@ else
 	_LOCAL_LIST=(${_RAWLIST})
 fi
 
-[[ ${#_LOCAL_LIST} -eq 0 ]] && exit_leave $(msg_warn "Nothing found for:${SEARCHTERM}")
+[[ ${#_LOCAL_LIST} -eq 0 ]] && exit_leave $(msg_exit W "Nothing found for:${SEARCHTERM}")
 
 # Set headings
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST})${RESET} Filter:${WHITE_FG}%s${RESET}  Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} "${SEARCHTERM}" ${SELECTED_COUNT}'

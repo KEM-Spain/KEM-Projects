@@ -68,7 +68,7 @@ sort_functions () {
 	local FN=${1}
 	local -a LIST
 	local L
-	local NDX=0
+	local -R3 NDX=0
 
 	[[ ! -e ${FN}.normalized ]] && echo "Unable to proceed.  No file containing normalized functions found." && cleanup
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${FN}.normalized was created..."
@@ -88,7 +88,7 @@ sort_functions () {
 			echo "${WHITE_FG}${NDX}${RESET}) ${L}"
 		else
 			tput el; printf "\rProcessing function ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} functions ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#LIST} $(( NDX * 100. / ${#LIST} ))
-			func_print ${L} ${FN}.normalized >>${FN}.sorted.functions
+			func_print ${FN}.normalized ${L} >>${FN}.sorted.functions
 		fi
 	done
 	[[ ${LIST_FUNCS} == 'false' ]] && echo "\n${WHITE_FG}${NDX}${RESET} ${FN} functions written\nto:${WHITE_FG}${FN}.sorted.functions${RESET}\nby function name in alphanumeric order"
@@ -182,7 +182,6 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-#TODO: dropping last function
 FN=${1}
 [[ ! -e ${FN} ]] && usage "Missing argument:$(opt_type f)"
 [[ ! -e ${PWD}/${FN:t} ]] && ln -s ${FN} ${PWD} # Link file

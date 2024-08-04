@@ -893,6 +893,27 @@ msg_unicode_box () {
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOX DIMENSIONS:$((X-BOX_X_COORD+1)) x $((Y-BOX_Y_COORD+1))"
 }
 
+msg_exit () {
+	local LEVEL=${1}
+	local MSG=${2}
+	local LABEL=''
+	local LCOLOR=''
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	case ${LEVEL} in 
+		W) LABEL="Warning";LCOLOR=${ITALIC}${BOLD}${MAGENTA_FG};;
+		E) LABEL="Error";LCOLOR=${ITALIC}${BOLD}${RED_FG};;
+		I) LABEL="Info";LCOLOR=${ITALIC}${CYAN_FG};;
+		*) LABEL=${LEVEL};LCOLOR=${WHITE_FG};;
+	esac
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
+		printf "[${WHITE_FG}%s${RESET}]:[${LCOLOR}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
+	fi
+}
+
 msg_warn () {
 	local MSG=${@}
 	local LABEL='Warning'

@@ -42,7 +42,7 @@ action_do () {
 	local PROMPT
 
 	[[ ! -e ${_BAK_DIR} ]] && mkdir ${_BAK_DIR} && RC=${?}
-	[[ ${RC} -ne 0 ]] && exit_leave $(msg_warn "Unable to create backup directory: ${_BAK_DIR} (RC=${RC})")
+	[[ ${RC} -ne 0 ]] && exit_leave $(msg_exit W "Unable to create backup directory: ${_BAK_DIR} (RC=${RC})")
 
 	for M in ${(on)_MARKED};do
 		MATCHES=("${(f)$(perl -ne "if (/${g_FROM_TEXT}/) { print }" ${_LOCAL_LIST[${M}]})}")
@@ -54,15 +54,16 @@ action_do () {
 				[[ ${#_MARKED} -gt 1 ]] && PROMPT=N || PROMPT=C
 				msg_box -H1 -p -P${PROMPT} "Substituting <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>|Lines:|$(msg_list ${MATCHES})|<Z>|in File:<w>${_LOCAL_LIST[${M}]}<N>"
 				case ${_MSG_KEY} in
-					a) APPROVE_ALL=true;;
+					a|y) APPROVE_ALL=true;;
 					s) list_clear_selected ${M};continue;;
 					*) list_clear_selected ${M};continue;;
 				esac
 			fi
 		fi
 
-		sudo perl -i.bak -pe "s/${g_FROM_TEXT}/${g_TO_TEXT}/g" ${_LOCAL_LIST[${M}]}
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} perl command: sudo perl -i.bak -pe "s/${g_FROM_TEXT}/${g_TO_TEXT}/g" ${_LOCAL_LIST[${M}]}"
 
+		sudo perl -i.bak -pe "s/${g_FROM_TEXT}/${g_TO_TEXT}/g" ${_LOCAL_LIST[${M}]}
 		if [[ ${?} -ne 0 ]];then
 			msg_box -p -PK "Substitution <r>failed<N> for <w>${(qq)g_FROM_TEXT}<N>|in file:<w>${_LOCAL_LIST[${M}]}<N>"
 			list_set_selected ${M} 4 # Mark as failed
@@ -150,7 +151,7 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 OPTSTR=":HDi"
@@ -178,7 +179,7 @@ shift $((OPTIND -1))
 
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
-[[ ${g_FROM_TEXT} == ${g_TO_TEXT} ]] && exit_leave $(msg_err "$(opt_type f) and $(opt_type t) are identical")
+[[ ${g_FROM_TEXT} == ${g_TO_TEXT} ]] && exit_leave $(msg_exit E "$(opt_type f) and $(opt_type t) are identical")
 
 RAWPATH=$(path_get_raw)
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
@@ -190,7 +191,7 @@ _RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 -type f" 2>/dev/null )}")
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${GREEN_FG}LIST COUNT${RESET}:${#_RAWLIST}"
 
 if ! arr_is_populated "${_RAWLIST}";then
-	exit_leave $(msg_warn "No files match:${@}")
+	exit_leave $(msg_exit W "No files match:${@}")
 fi
 
 for R in ${(o)_RAWLIST};do
@@ -202,7 +203,7 @@ for R in ${(o)_RAWLIST};do
 done
 
 if ! arr_is_populated "${_LOCAL_LIST}";then
-	exit_leave $(msg_warn "No ${ITALIC}text${RESET} files contain candidates:${WHITE_FG}${(qq)g_FROM_TEXT}${RESET}")
+	exit_leave $(msg_exit W "No ${ITALIC}text${RESET} files contain candidates:${WHITE_FG}${(qq)g_FROM_TEXT}${RESET}")
 fi
 
 [[ ${CASE} == 'i' ]] && CASE_MSG="Case insensitive" || CASE_MSG="Case sensitive"

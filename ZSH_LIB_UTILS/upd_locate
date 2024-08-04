@@ -61,7 +61,7 @@ last_locate () {
 		LB_LAST_RUN=$(stat -c "%y" ${MARKER_ARG} | cut -d' ' -f1)
 	else
 		touch ${_MARKER}
-		exit_leave $(msg_warn "${_SCRIPT}: Last locate update is unknown")
+		exit_leave $(msg_exit W "${_SCRIPT}: Last locate update is unknown")
 	fi
 
 	[[ -e ${MARKER_ARG} ]] && LB_LAST_TIME=$(stat -c"%x" ${MARKER_ARG} | cut -d. -f1 | cut -d' ' -f2 | cut -d: -f1,2) 
@@ -152,7 +152,7 @@ g_LAST_RUN=$(last_locate ${_MARKER})
 if [[ (${INTERACTIVE} == 'true' && -f ${_MARKER}) && (${FORCE} == "false") && (${g_LAST_RUN:l} =~ 'today') ]];then
 	msg_box -p -P"Press F to Force"  "Last locate update was ${g_LAST_RUN}"
 	if [[ ${_MSG_KEY:l} != 'f' ]];then
-		exit_leave $(msg_warn "Operation Cancelled")
+		exit_leave $(msg_exit I "Operation cancelled")
 	fi
 	FORCE=true
 fi

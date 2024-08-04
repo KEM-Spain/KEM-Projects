@@ -188,7 +188,7 @@ do_finalize () {
 	done
 
 	if ! arr_is_populated "${FINAL}";then
-		exit_leave $(msg_warn "No files qualified as candidates")
+		exit_leave $(msg_exit W "No files qualified as candidates")
 	fi
 
 	if [[ ${_DEBUG} -ne 0 ]];then
@@ -732,7 +732,7 @@ usage () {
 	echo -e "${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 OPTSTR=":HDSabe:irscCdm:pnNTt:uxy"
@@ -852,9 +852,9 @@ SEARCH_REPLACE=false
 
 _FIND_PATH=${_FIND_PATH:=null}
 if [[ ${MEDIA_FILE} == 'false' ]];then
-	#[[ -e ${_FIND_PATH} && ! -d ${_FIND_PATH} ]] && exit_leave $(msg_err "Filename detected - required arg should be path")
+	#[[ -e ${_FIND_PATH} && ! -d ${_FIND_PATH} ]] && exit_leave $(msg_exit E "Filename detected - required arg should be path")
 	[[ ${_FIND_PATH} == 'null' ]] && _FIND_PATH=${PWD}
-	#[[ ! -d ${_FIND_PATH} ]] && exit_leave $(msg_err "Path:${_FIND_PATH} is invalid")
+	#[[ ! -d ${_FIND_PATH} ]] && exit_leave $(msg_exit E "Path:${_FIND_PATH} is invalid")
 fi
 
 if [[ ${SEARCH_REPLACE} == 'true' ]];then
@@ -903,7 +903,7 @@ else
 fi
 
 if ! arr_is_populated "${_FILE_IN_LIST}";then
-	exit_leave $(msg_warn "${_SCRIPT}:Can't continue - ${g_LIST_METHOD} failed - _FILE_IN_LIST is empty")
+	exit_leave $(msg_exit W "${_SCRIPT}:Can't continue - ${g_LIST_METHOD} failed - _FILE_IN_LIST is empty")
 fi
 
 if [[ ${_DEBUG} -gt 0 ]];then

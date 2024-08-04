@@ -77,7 +77,7 @@ ___EOF
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -174,7 +174,7 @@ ___EOF
 		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -324,7 +324,7 @@ ___EOF
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -355,7 +355,7 @@ ___EOF
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -436,7 +436,7 @@ ___EOF
 		echo -e "${WHITE_FG}-i${RESET} run as inline util - no prompting"
 		echo -e "${WHITE_FG}\nDesc${RESET}:Display system information"
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -569,7 +569,7 @@ ___EOF
 		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -655,7 +655,7 @@ ___EOF
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -688,7 +688,7 @@ ___EOF
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -729,7 +729,7 @@ ___EOF
 		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -743,7 +743,7 @@ ___EOF
 	if [[ ${RESPONSE} != "n" ]];then
 		echo "${WHITE_FG}Toggling Network Services${RESET}"
 	else
-		exit_leave $(msg_warn "Operation cancelled")
+		exit_leave $(msg_exit I "Operation cancelled")
 	fi
 
 	echo "Switching networking off..."
@@ -853,7 +853,7 @@ ___EOF
 		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -942,7 +942,7 @@ usage () {
 	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 

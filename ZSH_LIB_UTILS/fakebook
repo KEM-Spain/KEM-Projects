@@ -128,7 +128,7 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -163,7 +163,7 @@ done
 )}")
 
 if ! arr_is_populated "${_RAWLIST}";then
-	exit_leave $(msg_warn "No titles matching:${SEARCHTERM} were found")
+	exit_leave $(msg_exit W "No titles matching:${SEARCHTERM} were found")
 fi
 
 for L in ${_RAWLIST};do

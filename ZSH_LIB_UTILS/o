@@ -275,7 +275,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 
@@ -326,7 +326,7 @@ else
 	HDR_MSG="Processing file list"
 	_RAWLIST=(${@})
 	for F in ${_RAWLIST};do
-		[[ ! -e ${F} ]] && exit_leave $(msg_err "File:${F} not found")
+		[[ ! -e ${F} ]] && exit_leave $(msg_exit E "File:${F} not found")
 	done
 fi
 
@@ -338,7 +338,7 @@ NDX=0
 for F in ${_RAWLIST};do
 	((NDX++))
 	FN=$(realpath ${F}) # Add full path
-	[[ ${?} -ne 0 ]] && exit_leave $(msg_err "realpath error: ${FN}")
+	[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "realpath error: ${FN}")
 	_RAWLIST[${NDX}]=${FN}
 done
 

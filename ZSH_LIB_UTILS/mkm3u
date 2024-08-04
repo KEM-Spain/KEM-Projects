@@ -38,7 +38,7 @@ else
 	MUSIC_DIR=(/media/kmiller/KEM_Misc/Music/KEM-B9)
 fi
 
-[[ ! -e ${AGREP} ]] && exit_leave $(msg_err "Requires ${AGREP}")
+[[ ! -e ${AGREP} ]] && exit_leave $(msg_exit E "Requires ${AGREP}")
 
 #--Begin GetOpts--
 RESET="\033[m"
@@ -101,7 +101,7 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -250,7 +250,7 @@ done
 
 [[ ${VERBOSE} == 'true' ]] && echo "Resulting FILTERED_LIST contains ${WHITE_FG}${#FILTERED_LIST}${RESET} entries"
 
-[[ ${#FILTERED_LIST} -eq 0 ]] && exit_leave $(msg_warn "No results")
+[[ ${#FILTERED_LIST} -eq 0 ]] && exit_leave $(msg_exit W "No results")
 
 [[ ${VERBOSE} == 'true' ]] && echo "STEP 4:Build playlist..."
 

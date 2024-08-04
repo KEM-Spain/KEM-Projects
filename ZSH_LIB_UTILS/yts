@@ -503,7 +503,7 @@ last_update () {
 		LAST_UPD=$(stat -c "%y" ${MARKER_ARG} | cut -d' ' -f1)
 	else
 		touch ${_MARKER}
-		exit_leave $(msg_warn "${_SCRIPT}: Last update date is unknown")
+		exit_leave $(msg_exit W "${_SCRIPT}: Last update date is unknown")
 	fi
 
 	[[ -e ${MARKER_ARG} ]] && LAST_TIME=$(stat -c"%x" ${MARKER_ARG} | cut -d. -f1 | cut -d' ' -f2 | cut -d: -f1,2) 
@@ -530,7 +530,7 @@ log_find () {
 		LINE=$(grep -m1 ${TITLE} ${_DOWNLOAD_LOG})
 		if [[ -n ${LINE} ]];then
 			FN=$(cut -d '|' -f3 <<<${FN})
-			[[ ${FN:e} != 'part' ]] && _PARTIALS[${NDX}]=true
+			[[ ${FN:e} == 'part' ]] && _PARTIALS[${NDX}]=true || _DOWNLOADS[${NDX}]=true
 		fi
 	fi
 }

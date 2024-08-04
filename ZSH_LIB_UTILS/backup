@@ -102,7 +102,7 @@ last_backup () {
 		LB_LAST_RUN=$(stat -c "%y" ${MARKER_ARG} | cut -d' ' -f1)
 	else
 		touch ${_MARKER}
-		exit_leave $(msg_warn "${_SCRIPT}: Last backup date is unknown")
+		exit_leave $(msg_exit W "${_SCRIPT}: Last backup date is unknown")
 	fi
 
 	[[ -e ${MARKER_ARG} ]] && LB_LAST_TIME=$(stat -c"%x" ${MARKER_ARG} | cut -d. -f1 | cut -d' ' -f2 | cut -d: -f1,2) 
@@ -218,7 +218,7 @@ g_LAST_RUN=$(last_backup ${_MARKER})
 GHOST_NDX=0
 while true;do
 	((GHOST_NDX++))
-	[[ ${GHOST_NDX} -gt 1 ]] && exit_leave $(msg_err "Unable to clear ghost mounts")
+	[[ ${GHOST_NDX} -gt 1 ]] && exit_leave $(msg_exit E "Unable to clear ghost mounts")
 	if [[ -e ${_MOUNTPOINT}/${_DEST_ID}1 ]];then
 		msg_box "Detected ghost mounts - attempting removal"
 		dut external -u
@@ -234,7 +234,7 @@ done
 if [[ (-f ${_MARKER}) && (${FORCE} == "false") && (${g_LAST_RUN:l} =~ 'today') ]];then
 	msg_box -H1 -p -P"Enter 'F' to Force"  "Backup Status|Last backup was ${g_LAST_RUN}"
 	if [[ ${_MSG_KEY:l} != 'f' ]];then
-		exit_leave $(msg_warn "Operation Cancelled")
+		exit_leave $(msg_exit I "Operation cancelled")
 	fi
 fi
 
@@ -252,7 +252,7 @@ while true;do
 		[[ ${?} -ne 0 ]] && exit_leave "\nNo external drives available"
 	fi
 done
-[[ g_FOUND_EXT == 'false' ]] && exit_leave $(msg_warn "Failed to mount ${_DEST_ID:l}")
+[[ g_FOUND_EXT == 'false' ]] && exit_leave $(msg_exit W "Failed to mount ${_DEST_ID:l}")
 
 # Backup
 echo

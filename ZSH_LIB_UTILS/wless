@@ -41,7 +41,7 @@ source ${_LIB_DIR}/LIB_DEPS.zsh
 connection_off () {
 	local SSID=${1}
 
-	[[ ${_WIFI_STATE} != "enabled" ]] && exit_leave $(msg_warn "${_SCRIPT}: Wifi is not enabled")
+	[[ ${_WIFI_STATE} != "enabled" ]] && exit_leave $(msg_exit W "${_SCRIPT}: Wifi is not enabled")
 	sudo nmcli con down id ${SSID} > /dev/null 2>&1
 	return $?
 }
@@ -49,7 +49,7 @@ connection_off () {
 connection_on () {
 	local SSID=${1}
 
-	[[ ${_WIFI_STATE} != "enabled" ]] && exit_leave $(msg_warn "${_SCRIPT}: Wifi is not enabled")
+	[[ ${_WIFI_STATE} != "enabled" ]] && exit_leave $(msg_exit W "${_SCRIPT}: Wifi is not enabled")
 	sudo nmcli --wait ${_TIMEOUT} con up ${SSID} >/dev/null 2>&1
 	return $?
 }
@@ -125,7 +125,7 @@ ssid_choose () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${#_LOCAL_LIST}"
 
 	if ! arr_is_populated "${_LOCAL_LIST}";then
-		exit_leave $(msg_warn "No SSIDs found")
+		exit_leave $(msg_exit W "No SSIDs found")
 	fi
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _LOCAL_LIST:${#_LOCAL_LIST}"
@@ -288,7 +288,7 @@ done
 shift $(($OPTIND - 1))
 
 # Execution 
-[[ ! -e ${_NMCLI} ]] && exit_leave $(msg_warn "Required application:${_NMCLI} not found")
+[[ ! -e ${_NMCLI} ]] && exit_leave $(msg_exit W "Required application:${_NMCLI} not found")
 
 load_ssid_signals
 [[ ${OPTIND} -eq 1 ]] && echo "\n${GREEN_FG}Best signal is${RESET}: ${WHITE_FG}${g_BEST_SIGNAL}${RESET}\n"
@@ -305,15 +305,15 @@ fi
 # Execute indicated command
 if [[ ${1:l} == "off" ]];then # Switch wifi off
 	if wifi_off;then
-		exit_leave $(msg_warn "Turning off wireless")
+		exit_leave $(msg_exit W "Turning off wireless")
 	else
-		exit_leave $(msg_warn "Error: turning off wireless")
+		exit_leave $(msg_exit W "Error: turning off wireless")
 	fi
 elif [[ ${1:l} == "on" ]];then # Switch wifi on
 	if wifi_off;then
-		exit_leave $(msg_warn "Turning on wireless")
+		exit_leave $(msg_exit W "Turning on wireless")
 	else
-		exit_leave $(msg_warn "Error${RESET}: turning on wireless")
+		exit_leave $(msg_exit W "Error${RESET}: turning on wireless")
 	fi
 elif [[ -n ${SSID_ARG} ]];then # Connect to SSID
 	if [[ "${g_ACTIVE_SSID}" != "${SSID_ARG}" ]];then

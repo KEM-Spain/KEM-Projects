@@ -82,7 +82,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -112,7 +112,7 @@ MDIR=${@}
 
 LIST=("${(f)$(find ${MDIR} -type f -name '*mp3' -o -name '*flac')}")
 if ! arr_is_populated "${LIST}";then
-	exit_leave $(msg_warn "No files found: ${MDIR}")
+	exit_leave $(msg_exit W "No files found: ${MDIR}")
 fi
 
 HIT=false

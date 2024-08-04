@@ -189,7 +189,7 @@ ___EOF
 		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -213,7 +213,7 @@ ___EOF
 
 	_LOCAL_LIST=("${(f)$(sudo find ${AUTODIRS} -iname "*${SEARCHTERM}*desktop")}") 
 	if ! arr_is_populated "${_LOCAL_LIST}";then
-		[[ -n ${SEARCHTERM} ]] && exit_leave $(msg_warn "No autostart applications found matching:${WHITE_FG}${SEARCHTERM}${RESET}")
+		[[ -n ${SEARCHTERM} ]] && exit_leave $(msg_exit W "No autostart applications found matching:${WHITE_FG}${SEARCHTERM}${RESET}")
 	fi
 
 	# Set headings
@@ -354,7 +354,7 @@ ___EOF
 	fi
 
 	echo -n "Restart cups daemon and clear spool? (y/n):"; read -q RESPONSE
-	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_warn "Operation cancelled")
+	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_exit I "Operation cancelled")
 
 	sudo service cups stop
 	sudo rm -r /var/spool/cups
@@ -378,7 +378,7 @@ ___EOF
 	fi
 
 	echo -n "Perform a low level (dd) copy of /dev/sda to /dev/sdb?"; read -q RESPONSE
-	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_warn "Operation cancelled")
+	[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_exit I "Operation cancelled")
 
 	dd if=/dev/sda of=/dev/sdb status=progress conv=noerror,sync bs=4k
 }
@@ -408,7 +408,7 @@ ___EOF
 	fi
 
 	FAN_FILE=$(find ${CONTROL_DIR} -name 'pwm1_enable')
-	[[ -z ${FAN_FILE} ]] && exit_leave $(msg_err "Unable to locate fan control file:pwm1_enable")
+	[[ -z ${FAN_FILE} ]] && exit_leave $(msg_exit E "Unable to locate fan control file:pwm1_enable")
 
 	echo ${TITLE}
 	echo $(str_unicode_line ${#PROMPT})
@@ -573,7 +573,7 @@ info () {
 		echo -e "${WHITE_FG}\nDesc${RESET}:Display system information"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -763,7 +763,7 @@ ___EOF
 		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -861,7 +861,7 @@ ___EOF
 		echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -1611,7 +1611,7 @@ ___EOF
 		echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -1941,7 +1941,7 @@ ppamgr () {
 		echo -e "\n${WHITE_FG}Desc${RESET}:Manage/show PPA repositories or show package with PPA\n"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -2181,7 +2181,7 @@ ___EOF
 		echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -2300,7 +2300,7 @@ ___EOF
 		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -2323,12 +2323,12 @@ ___EOF
 	[[ ${#} -ne 0 ]] && SEARCHTERM=${1} && echo "Searching for keyword: ${SEARCHTERM}"
 
 	call_xdg_app () {
-		[[ ! -e /usr/bin/xdg-mime ]] && exit_leave $(msg_err "xdg-mime not found")
+		[[ ! -e /usr/bin/xdg-mime ]] && exit_leave $(msg_exit E "xdg-mime not found")
 		xdg-mime query default ${1}
 	}
 
 	call_gio_app () {
-		[[ ! -e /usr/bin/gio ]] && exit_leave $(msg_err "gio not found")
+		[[ ! -e /usr/bin/gio ]] && exit_leave $(msg_exit E "gio not found")
 		gio mime ${1}
 	}
 
@@ -2442,7 +2442,7 @@ usage () {
 	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 

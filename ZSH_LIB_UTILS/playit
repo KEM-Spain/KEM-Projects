@@ -224,7 +224,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -255,7 +255,7 @@ shift $((OPTIND -1))
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 RAWPATH=$(path_get_raw)
-[[ ${?} -ne 0 ]] && exit_leave $(msg_warn "path_get_raw had errors:${@}")
+[[ ${?} -ne 0 ]] && exit_leave $(msg_exit W "path_get_raw had errors:${@}")
 
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FPATH=${FPATH:q}
@@ -287,9 +287,9 @@ fi
 # Early exit if no rows
 if ! arr_is_populated "${_RAW_LIST}";then
 	if [[ -n ${SEARCHTERM} ]];then
-		exit_leave $(msg_warn "No audio files matching:${SEARCHTERM} were found")
+		exit_leave $(msg_exit W "No audio files matching:${SEARCHTERM} were found")
 	else
-		exit_leave $(msg_warn "No audio files were found")
+		exit_leave $(msg_exit W "No audio files were found")
 	fi
 fi
 
@@ -339,7 +339,7 @@ if [[ -n ${g_ARTIST} ]];then
 	fi
 
 	if ! arr_is_populated "${_LOCAL_LIST}";then
-		exit_leave $(msg_warn "No artists matching:${g_ARTIST} found")
+		exit_leave $(msg_exit W "No artists matching:${g_ARTIST} found")
 	fi
 fi
 
@@ -352,16 +352,16 @@ if [[ -n ${g_TITLE} ]];then
 	_LOCAL_LIST=(${T_LIST})
 
 	if ! arr_is_populated "${_LOCAL_LIST}";then
-		exit_leave $(msg_warn "No titles matching:${g_TITLE} found")
+		exit_leave $(msg_exit W "No titles matching:${g_TITLE} found")
 	fi
 fi
 
 # Early exit if no rows
 if ! arr_is_populated "${_LOCAL_LIST}";then
 	if [[ -n ${SEARCHTERM} ]];then
-		exit_leave $(msg_warn "No audio files matching:${SEARCHTERM} were found")
+		exit_leave $(msg_exit W "No audio files matching:${SEARCHTERM} were found")
 	else
-		exit_leave $(msg_warn "No audio files were found")
+		exit_leave $(msg_exit W "No audio files were found")
 	fi
 fi
 

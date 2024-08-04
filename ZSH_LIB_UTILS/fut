@@ -115,7 +115,7 @@ ______EOF
 		echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
-		echo "\n$(msg_warn ${PENDING_MSGS})"
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
 		exit_leave
 	}
 
@@ -254,7 +254,7 @@ surface () {
 				if [[ ${DO_PROMPTS} = 'true' ]];then
 					echo -n "Should files from ${GREEN_FG}${1}${RESET} be moved to ${TARGET_DIR_MSG}? (y/n):"
 					if ! get_response;then
-						exit_leave $(msg_warn "Operation cancelled")
+						exit_leave $(msg_exit I "Operation cancelled")
 					fi
 				fi
 			fi
@@ -423,7 +423,7 @@ _____EOF
 			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 			) >&2
 
-			echo "\n$(msg_warn ${PENDING_MSGS})"
+			echo "\n$(msg_exit W ${PENDING_MSGS})"
 			exit_leave
 		}
 
@@ -451,15 +451,15 @@ _____EOF
 		# Execution
 		[[ ${DO_SIM} == 'true' ]] && echo "${WHITE_ON_GREY}SIMULATION MODE${RESET}"
 
-		[[ ${#} -eq 0 ]] && exit_leave $(msg_err "Missing argument:$(opt_type d)") || SOURCE_DIR=${@:=${PWD}}
-		[[ ! -d ${SOURCE_DIR} ]] && exit_leave $(msg_err "Argument not a directory:${SOURCE_DIR}")
+		[[ ${#} -eq 0 ]] && exit_leave $(msg_exit E "Missing argument:$(opt_type d)") || SOURCE_DIR=${@:=${PWD}}
+		[[ ! -d ${SOURCE_DIR} ]] && exit_leave $(msg_exit E "Argument not a directory:${SOURCE_DIR}")
 
 		if [[ ${DO_SIM} == 'false' ]];then
 			if [[ ! -d ${g_TARGET_DIR} ]];then
 				mkdir ${g_TARGET_DIR} # Create destination directory if needed
 				RC=${?}
 			fi
-			[[ ${RC} -ne 0 ]] && exit_leave $(msg_err "Unable to create directory:${g_TARGET_DIR}")
+			[[ ${RC} -ne 0 ]] && exit_leave $(msg_exit E "Unable to create directory:${g_TARGET_DIR}")
 			[[ ${_DEBUG} -ge 1 ]] && dbg "${0}: ${LINENO} created target directory:${g_TARGET_DIR}"
 		else
 			[[ ! -d ${g_TARGET_DIR} ]] && echo "Target:${g_TARGET_DIR} ${RED_FG}not found${RESET} - would create target dir:${WHITE_FG}${g_TARGET_DIR}${RESET}"
@@ -520,7 +520,7 @@ _____EOF
 					echo "Removing ${WHITE_FG}${D}${RESET}"
 					[[ ${DO_SIM} == 'false' ]] && /bin/rm -rf ${D} >/dev/null 2>&1
 				else
-					exit_leave $(msg_warn "Operation cancelled")
+					exit_leave $(msg_exit I "Operation cancelled")
 				fi
 			fi  
 		done
@@ -611,7 +611,7 @@ ______EOF
 			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 			) >&2
 
-			echo "\n$(msg_warn ${PENDING_MSGS})"
+			echo "\n$(msg_exit W ${PENDING_MSGS})"
 			exit_leave
 		}
 
@@ -699,7 +699,7 @@ ______EOF
 			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 			) >&2
 
-			echo "\n$(msg_warn ${PENDING_MSGS})"
+			echo "\n$(msg_exit W ${PENDING_MSGS})"
 			exit_leave
 		}
 
@@ -805,7 +805,7 @@ ______EOF
 			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 			) >&2
 
-			echo "\n$(msg_warn ${PENDING_MSGS})"
+			echo "\n$(msg_exit W ${PENDING_MSGS})"
 			exit_leave
 		}
 
@@ -938,7 +938,7 @@ ______EOF
 			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 			) >&2
 
-			echo "\n$(msg_warn ${PENDING_MSGS})"
+			echo "\n$(msg_exit W ${PENDING_MSGS})"
 			exit_leave
 		}
 
@@ -1104,7 +1104,7 @@ ______EOF
 			echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 			) >&2
 
-			echo "\n$(msg_warn ${PENDING_MSGS})"
+			echo "\n$(msg_exit W ${PENDING_MSGS})"
 			exit_leave
 		}
 
@@ -1258,7 +1258,7 @@ usage () {
 	echo -e "\n${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 

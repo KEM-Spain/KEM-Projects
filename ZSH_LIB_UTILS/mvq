@@ -268,7 +268,7 @@ do_list () {
 			;;
 		y) g_LIST_TYPE=year
 			g_LIST_VALUE=$(get_year)
-			[[ ${?} -ne 0 ]] && exit_leave $(msg_err "Year:${g_LIST_VALUE} is invalid")
+			[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "Year:${g_LIST_VALUE} is invalid")
 			;;
 	esac
 
@@ -347,7 +347,7 @@ usage () {
 	echo -e "${WHITE_FG}-y${RESET} year (4 digits - ${WHITE_ON_GREY}default${RESET})"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 

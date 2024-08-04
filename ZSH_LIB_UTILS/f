@@ -38,11 +38,6 @@ WHITE_FG="\033[37m"
 
 read -r -d '' DESC<<EOF
 Find files and/or directories in or below the current directory
-\tNOTE: -r is a convenience regex and accepts one or more plain 
-\tchars to find files in the current dir. It can also 
-\tcontain additional regex syntax (quoted) but is still limited 
-\tto files in the current dir. -R is a generic regex and is unlimited.
-\tIf regex -[rR] not passed then <SEARCHTERM> is used to match files
 EOF
 
 parse_opts () {
@@ -84,34 +79,36 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type s)]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug; when repeated increases level"
+	echo -e "${WHITE_FG}-L${RESET} add listing detail"
 	echo -e "${WHITE_FG}-d${RESET} depth; when repeated increases depth"
-	echo -e "${WHITE_FG}-f${RESET} path (default pwd)"
-	echo -e "${WHITE_FG}-l${RESET} add listing detail"
-	echo -e "${WHITE_FG}-r${RESET} arg is a 'regex' (PWD)"
-	echo -e "${WHITE_FG}-R${RESET} arg is a 'regex' (ANY)"
-	echo -e "${WHITE_FG}-t $(opt_type t)${RESET} (f)ile|(d)ir  Default:${WHITE_FG}both${RESET}"
+	echo -e "${WHITE_FG}-l${RESET} matches anchored to beginning of filename (leading match)"
+	echo -e "${WHITE_FG}-p${RESET} search path (default pwd)"
+	echo -e "${WHITE_FG}-r${RESET} arg is a 'regex'"
+	echo -e "${WHITE_FG}-t $(opt_type t)${RESET} (any valid type:f,d,l,p,c,s,b)  Default:${WHITE_FG}any${RESET}"
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
 
 LISTING=false
-TYPE="f"
+LEADING=false
+TYPE=''
 OPTIND=0
 REGEX=''
 FIND_PATH=${PWD}
 
-OPTSTR=":HDdp:lr:t:"
+OPTSTR=":HDLdp:lr:t:"
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
+     L) LISTING=true;;
      d) depth_set_level;;
-     l) LISTING=true;;
+     l) LEADING=true;;
      p) FIND_PATH=${OPTARG};;
      r) REGEX="${OPTARG}";;
      t) TYPE="${OPTARG}";;
@@ -124,21 +121,34 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
+# Marshall find command args
 MAXDEPTH=${_DEPTH}
 
 INAME=${1}
-INAME="*${INAME}*"
+[[ ${LEADING} == 'true' ]] && INAME="${INAME}*" || INAME="*${INAME}*"
 INAME=${(qqq)INAME}
 REGEX=${REGEX:='.*'}
 REGEX=${(qqq)REGEX}
 
-[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LISTING:${LISTING}\nMAXDEPTH:${MAXDEPTH}\nREGEX:${REGEX}\nOBJ_TYPE:${OBJ_TYPE:-both}"
-CMD="sudo find ${FIND_PATH} -maxdepth ${MAXDEPTH} -iname ${INAME} -regex ${REGEX} -type ${TYPE}"
-echo "${WHITE_FG}Command${RESET}: sudo find ${WHITE_FG}${FIND_PATH}${RESET} -maxdepth ${WHITE_FG}${MAXDEPTH}${RESET} -iname ${WHITE_FG}${INAME}${RESET} -regex ${WHITE_FG}${REGEX}${RESET} -type ${WHITE_FG}${TYPE}${RESET}"
+case ${TYPE} in
+	f) TYPE='-type f';TDESC='Regular File';;
+	d) TYPE='-type d';TDESC='Directory';;
+	l) TYPE='-type l';TDESC='Symbolic Link';;
+	p) TYPE='-type p';TDESC='Named Pipe';;
+	c) TYPE='-type c';TDESC='Char Special';;
+	s) TYPE='-type s';TDESC='Socket';;
+	b) TYPE='-type b';TDESC='Block Special';;
+	*) TYPE='';TDESC='None';;
+esac
+
+[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LISTING:${LISTING}\nMAXDEPTH:${MAXDEPTH}\nREGEX:${REGEX}\nOBJ_TYPE:${OBJ_TYPE:-any}"
+
+CMD="sudo find ${FIND_PATH} -maxdepth ${MAXDEPTH} -iname ${INAME} -regex ${REGEX} ${TYPE}"
+echo "${WHITE_FG}Command${RESET}: sudo find ${WHITE_FG}${FIND_PATH}${RESET} -maxdepth ${WHITE_FG}${MAXDEPTH}${RESET} -iname ${WHITE_FG}${INAME}${RESET} -regex ${WHITE_FG}${REGEX}${RESET} ${WHITE_FG}Type Filter${RESET}:${CYAN_FG}${TDESC}${RESET}"
 
 LIST=("${(f)$(eval ${CMD})}")
 if ! arr_is_populated "${LIST}" ;then
-	exit_leave $(msg_warn "No results for query")
+	exit_leave $(msg_exit W "No results for query")
 fi
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} CMD:${CMD}"

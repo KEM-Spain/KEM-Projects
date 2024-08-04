@@ -148,7 +148,7 @@ for L in ${_LIB_LIST};do
 done
 
 for K in ${(ok)_FUNC_MAP};do
-	func_print ${K} ${_FUNC_MAP[${K}]} >> ${_LIB_FUNCS}
+	func_print ${_FUNC_MAP[${K}]} ${K} >> ${_LIB_FUNCS}
 done
 
 # 1st pass
@@ -170,7 +170,7 @@ echo "${WHITE_FG}1st pass${RESET}: Adding functions..."
 for L in ${_NEEDED_FUNCS};do
 	[[ ${_SEEN[${L}]} -eq 1 ]] && continue
 	[[ ${_BLACKLIST[${L}]} -eq 1 ]] && continue
-	func_print ${L} ${_LIB_FUNCS}
+	func_print ${_LIB_FUNCS} ${L}
 	[[ ${?} -eq 0 ]] && echo "${GREEN_FG}Added${RESET}:${L}" >&2 || echo "Error:print_func :${L}"
 	_SEEN[${L}]=1
 done > ${LOCAL_FUNC_LIST}
@@ -196,7 +196,7 @@ echo "${WHITE_FG}2nd pass${RESET}: ${#_NEEDED_FUNCS} library functions identifie
 if arr_is_populated "${_NEEDED_FUNCS}";then
 	echo "${WHITE_FG}2nd pass${RESET}: Adding functions..."
 	for L in ${_NEEDED_FUNCS};do
-		func_print ${L} ${_LIB_FUNCS}
+		func_print ${_LIB_FUNCS} ${L}
 		[[ ${?} -eq 0 ]] && echo "${GREEN_FG}Added${RESET}:${L}" >&2 || echo "Error:print_func :${L}"
 	done > ${LOCAL_FUNC_LIST}
 else

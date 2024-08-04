@@ -84,7 +84,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 
@@ -114,11 +114,11 @@ shift $((OPTIND -1))
 if [[ -n ${@} ]];then
 	[[ ${#OPTIONS} -ne 0 ]] && usage "Conflicting option"
 	echo "${(C)@}" >> ${_REMINDERS}
-	exit_leave $(msg_warn "Reminder added")
+	exit_leave $(msg_exit W "Reminder added")
 fi
 
 if [[ ! -e ${_REMINDERS} ]];then
-	exit_leave $(msg_warn "No reminders found")
+	exit_leave $(msg_exit W "No reminders found")
 fi
 
 if [[ ${EDIT_REMINDER} == 'true' ]];then
@@ -132,7 +132,7 @@ if [[ ${DELETE_REMINDER} == 'true' ]];then
 	if [[ -e ${_REMINDERS} ]];then
 		CNT=$(wc -l < ${_REMINDERS})
 		/bin/rm -f ${_REMINDERS}
-		exit_leave $(msg_warn "$(str_pluralize reminder ${CNT} true) deleted")
+		exit_leave $(msg_exit W "$(str_pluralize reminder ${CNT} true) deleted")
 	fi
 fi
 

@@ -99,7 +99,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -116,7 +116,7 @@ while getopts ${OPTSTR} OPTION;do
 	  l) if is_valid_int ${OPTARG};then
            g_LIMIT=${OPTARG}
         else
-			  exit_leave $(msg_warn "Invalid integer")
+			  exit_leave $(msg_exit W "Invalid integer")
         fi;;
      p) PRINT_PATHS=true;;
      s) GET_SIZE=true;;
@@ -205,14 +205,14 @@ MSG="\nFound:${WHITE_FG}${#LIST}${RESET} icon file(s)"
 [[ -n ${SEARCHTERM} ]] && MSG+=" matching SEARCH:${WHITE_FG}${SEARCHTERM}${RESET}"
 
 if ! arr_is_populated "${LIST}";then
-	exit_leave $(msg_warn "No icons found:${MSG:l}")
+	exit_leave $(msg_exit W "No icons found:${MSG:l}")
 else
 	echo ${MSG}
 fi
 
 echo -n "Continue (y/n)?"
 read -sq RESPONSE
-[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_warn "Operation Cancelled")
+[[ ${RESPONSE} == 'n' ]] && exit_leave $(msg_exit I "Operation cancelled")
 
 SHOWN=0
 NDX=0

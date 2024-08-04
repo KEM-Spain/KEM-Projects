@@ -199,7 +199,7 @@ done
 if ! arr_is_populated "${_LOCAL_LIST}";then
 	[[ ${NOEXEC} == 'true' ]] && MSG1="non executable " || MSG1=''
 	[[ ${#} -ne 0 ]] && MSG2=" matching ${RESET}\"${WHITE_FG}${SEARCHTERM}${RESET}\"" || MSG2=''
-	exit_leave $(msg_warn "No regular ${MSG1}${RESET}${BOLD}${ITALIC}$(str_pluralize ${OBJTYPE})${RESET} found${MSG2}")
+	exit_leave $(msg_exit W "No regular ${MSG1}${RESET}${BOLD}${ITALIC}$(str_pluralize ${OBJTYPE})${RESET} found${MSG2}")
 fi
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} echo LOCAL_LIST:${_LOCAL_LIST}"

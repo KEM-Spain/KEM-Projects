@@ -311,7 +311,7 @@ set_package_list () {
 	if [[ ${#RAWLIST} -ge 10000 ]];then
 		msg_box -p -PP "${BOLD}${#RAWLIST} is a lot of rows.${RESET} This could take $(printf "%.2f" ${ROWTIME}) minutes. HINT:add a search term to limit rows"
 		if [[ ${_MSG_KEY} != 'y' ]];then
-			exit_leave $(msg_warn "Operation cancelled")
+			exit_leave $(msg_exit I "Operation cancelled")
 		fi
 	fi
 
@@ -473,7 +473,7 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 
@@ -579,7 +579,7 @@ fi
 
 # Get data
 set_package_list ${PATTERN}
-[[ -z ${_LOCAL_LIST} ]] && exit_leave $(msg_warn "No package:${SEARCHTERM} found...")
+[[ -z ${_LOCAL_LIST} ]] && exit_leave $(msg_exit W "No package:${SEARCHTERM} found...")
 
 if [[ ${PRINT} == 'true' ]];then
 	[[ ${_SMCUP} == 'true' ]] && do_rmcup

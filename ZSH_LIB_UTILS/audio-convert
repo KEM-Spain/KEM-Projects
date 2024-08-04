@@ -78,7 +78,7 @@ usage () {
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_err ${PENDING_MSGS})"
+	echo "\n$(msg_exit E ${PENDING_MSGS})"
 	exit_leave
 }
 
@@ -100,11 +100,11 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 #Execution
-[[ ${_DEBUG} -eq 0 ]] && do_smcup
+#[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 if [[ ${DL_URL} != 'false' ]];then
 	if ! curl --connect-timeout 3 --head --silent "${DL_URL}" >/dev/null 2>&1;then
-		exit_leave $(msg_err "invalid $(opt_type u)")
+		exit_leave $(msg_exit E "invalid $(opt_type u)")
 	fi
 	YT_NM=$(yt --no-warnings -j ${DL_URL} | jq ."filename" 2>/dev/null | tr -d '["]')
 
@@ -115,7 +115,7 @@ if [[ ${DL_URL} != 'false' ]];then
 		echo "\n${CYAN_FG}-- Valid audio formats available for this title --${RESET}\n"
 		yt --no-warnings --list-formats ${DL_URL} | grep audio | cut -d' ' -f2 | sort -u
 	else
-		exit_leave $(msg_err "No audio formats for this URL")
+		exit_leave $(msg_exit E "No audio formats for this URL")
 	fi
 
 	echo "\n${WHITE_FG}Press any key...${RESET}";read -k1
@@ -129,11 +129,11 @@ else
 	FROM_EXT=${1:e}
 	TO_EXT=${2}
 fi
-[[ ! -e ${FN} ]] exit_leave $(msg_err "File:${FN} not found")
+[[ ! -e ${FN} ]] && exit_leave $(msg_exit E "File:${FN} not found")
 
 FTYPE=$(file ${FN})
-[[ ! ${FTYPE:l} =~ 'audio' ]] && exit_leave $(msg_err "Not an audio file")
-[[ -e ${FN:r}.${TO_EXT} ]] && exit_leave $(msg_err "File: ${FN:r}.${TO_EXT} exists")
+[[ ! ${FTYPE:l} =~ 'audio' ]] && exit_leave $(msg_exit E "Not an audio file")
+[[ -e ${FN:r}.${TO_EXT} ]] && exit_leave $(msg_exit E "File: ${FN:r}.${TO_EXT} exists")
 
 echo "Converting ${FN:q} to ${FN:r:q}.${TO_EXT}"
 

@@ -191,7 +191,7 @@ done
 # Abort if SEARCH failed
 if [[ -n ${SEARCHTERM} ]];then
 	if ! arr_is_populated "${_LOCAL_LIST}";then
-		exit_leave $(msg_warn "No matches for:${SEARCHTERM}")
+		exit_leave $(msg_exit W "No matches for:${SEARCHTERM}")
 	fi
 fi
 

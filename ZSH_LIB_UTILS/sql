@@ -69,7 +69,7 @@ set_db_list () {
 	done
 
 	if ! arr_is_populated "${_DB_LIST}";then
-		exit_leave $(msg_warn "No databases found")
+		exit_leave $(msg_exit W "No databases found")
 	fi
 }
 
@@ -152,7 +152,7 @@ usage () {
 	echo -e "${WHITE_FG}-t${RESET} show tables in DB"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 
@@ -236,7 +236,7 @@ if [[ -n ${QUERY_STR} ]];then
 	echo $(str_unicode_line ${#STR})
 	query ${QUERY_STR}
 	RC=${?}
-	[[ ${RC} -ne 0 ]] && exit_leave $(msg_err "sqlite3 returned an error:${RC}")
+	[[ ${RC} -ne 0 ]] && exit_leave $(msg_exit E "sqlite3 returned an error:${RC}")
 fi
 
 exit_leave

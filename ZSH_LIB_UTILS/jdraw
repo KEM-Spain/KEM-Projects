@@ -103,7 +103,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 
@@ -122,7 +122,7 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 # Execution
-[[ ! -e ${JAR} ]] && exit_leave $(msg_err "${JAR} not found")
+[[ ! -e ${JAR} ]] && exit_leave $(msg_exit E "${JAR} not found")
 
 (
 	nohup java -jar ${JAR} &

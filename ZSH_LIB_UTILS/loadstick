@@ -323,12 +323,12 @@ load_list () {
 	fi
 
 	if ! arr_is_populated "${_LOCAL_LIST}";then
-		exit_leave $(msg_warn "No file(s) found ${MSG}")
+		exit_leave $(msg_exit W "No file(s) found ${MSG}")
 	fi
 
 	for L in ${_LOCAL_LIST};do
 		if [[ -d ${L} && ${L} =~ " $" ]];then
-			exit_leave $(msg_warn "Dir:\"${L:t:Q}\" contains trailing space - will cause rsync failure")
+			exit_leave $(msg_exit W "Dir:\"${L:t:Q}\" contains trailing space - will cause rsync failure")
 		else
 			_LIST+=$(str_trim ${L})
 		fi
@@ -366,8 +366,8 @@ load_usb_info () {
 	STICKS=("${(f)$(usb_stick_path -d)}")
 	RC=${?}
 
-	[[ ${RC} -eq 1 ]] && exit_leave $(msg_warn "No stick detected")
-	[[ ${RC} -eq 2 ]] && exit_leave $(msg_warn "Unmounted stick detected")
+	[[ ${RC} -eq 1 ]] && exit_leave $(msg_exit W "No stick detected")
+	[[ ${RC} -eq 2 ]] && exit_leave $(msg_exit W "Unmounted stick detected")
 	
 	if [[ ${#STICKS} -gt 1 ]];then
 		NDX=0
@@ -383,7 +383,7 @@ load_usb_info () {
 		done
 		sel_list_set ${SLIST}
 		sel_list -x11 -y32 "<w>Select Stick or <h>(q)uit<N>"
-		[[ ${?} -ne 0 ]] && exit_leave $(msg_warn "Operation Cancelled")
+		[[ ${?} -ne 0 ]] && exit_leave $(msg_exit I "Operation cancelled")
 		NDX=$(cut -d')' -f1 <<<${_SEL_VAL})
 		STICK_DATA=${STICKS[${NDX}]}
 	else
@@ -577,7 +577,7 @@ set_tally () {
 	_SELECTION[TL_BYTES]=0
 
 	set_stick_info ${_USB_INFO[PATH]}
-	[[ ${?} -ne 0 ]] && exit_leave $(msg_err "Unable to access stick information:${_USB_INFO[PATH]}")
+	[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "Unable to access stick information:${_USB_INFO[PATH]}")
 
 	# 1024 blocks
 	TL_AVAIL=${_STICK_INFO[SIZE]}
@@ -662,7 +662,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -743,7 +743,7 @@ else
 	_TARGET_STATS=(TL_AVAIL ${TL_AVAIL} CUR_AVAIL ${CUR_AVAIL} TL_USED ${TL_USED} PCT_USED ${PCT_USED})
 fi
 
-[[ ${PWD} =~ ${_USB_INFO[PATH]:t} ]] && exit_leave $(msg_err "Source dir cannot be the stick dir - navigate to another directory")
+[[ ${PWD} =~ ${_USB_INFO[PATH]:t} ]] && exit_leave $(msg_exit E "Source dir cannot be the stick dir - navigate to another directory")
 
 load_list
 

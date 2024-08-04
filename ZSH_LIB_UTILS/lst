@@ -334,9 +334,9 @@ _LOCAL_LIST=("${(f)$(list_sort_flat _LOCAL_LIST 2 a ${_LIST_DELIM})}") # Forward
 # Verify existence of data
 if ! arr_is_populated "${_LOCAL_LIST}";then
 	if [[ ${TYPE_ONLY} != 'false' ]];then
-		exit_leave $(msg_warn "No file types matched:${TYPE_ONLY}")
+		exit_leave $(msg_exit W "No file types matched:${TYPE_ONLY}")
 	else
-		exit_leave $(msg_warn "No known file types found")
+		exit_leave $(msg_exit W "No known file types found")
 	fi
 fi
 

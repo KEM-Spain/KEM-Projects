@@ -157,7 +157,7 @@ shift $((OPTIND -1))
 
 # Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
-[[ ${#} -ne 0 && ! -e ${1} ]] && exit_leave $(msg_warn "No files found matching:${1}")
+[[ ${#} -ne 0 && ! -e ${1} ]] && exit_leave $(msg_exit W "No files found matching:${1}")
 
 RAWPATH=$(path_get_raw)
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
@@ -169,7 +169,7 @@ _RAWLIST=("${(f)$(eval "find ${FPATH} -maxdepth 1 ${FGLOB} ! -path ${FPATH}")}")
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} find ${FPATH} -maxdepth 1 ${FGLOB} ! -path ${FPATH}"
 
 if ! arr_is_populated "${_RAWLIST}";then
-	exit_leave $(msg_warn "Nothing found for: ${FPATH}")
+	exit_leave $(msg_exit W "Nothing found for: ${FPATH}")
 fi
 
 LONGEST=0

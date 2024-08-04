@@ -156,7 +156,7 @@ get_current_state () {
 		done
 
 		if ! arr_is_populated "${_LOCAL_LIST}";then
-			exit_leave $(msg_warn "No countries matched:${SEARCHTERM}")
+			exit_leave $(msg_exit W "No countries matched:${SEARCHTERM}")
 		fi
 
 		list_set_header 'printf "Found:${WHITE_FG}%-*d${RESET} $(str_pluralize country ${#__LOCAL_LIST}) providing VPN  ${_PG}" ${#${#_LOCAL_LIST}} ${#_LOCAL_LIST}'

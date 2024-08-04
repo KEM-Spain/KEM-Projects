@@ -463,7 +463,7 @@ tput cup 0 0
 get_hist ${SEARCHTERM}
 
 if ! arr_is_populated "${_LOCAL_LIST}";then
-	exit_leave $(msg_warn "No matching items")
+	exit_leave $(msg_exit W "No matching items")
 fi
 
 if [[ ${TOFILE} == 'true' ]];then
@@ -476,7 +476,7 @@ if [[ ${TOFILE} == 'true' ]];then
 		S=$(get_stamp ${_LOCAL_LIST[${NDX}]})
 		echo "${C}|${A}|${S}" >> ${TOFILE_FN}
 	done
-	exit_leave $(msg_warn "Wrote ${#_LOCAL_LIST} lines to ${TOFILE_FN}")
+	exit_leave $(msg_exit W "Wrote ${#_LOCAL_LIST} lines to ${TOFILE_FN}")
 fi
 
 # Pre-process

@@ -190,7 +190,7 @@ msg_box_clear
 
 if ! arr_is_populated "${_LOCAL_LIST}";then
 	if [[ ${KEYWORD} != '?' ]];then
-		exit_leave $(msg_warn "No matches for:${KEYWORD}")
+		exit_leave $(msg_exit W "No matches for:${KEYWORD}")
 	else
 		exit_leave
 	fi
