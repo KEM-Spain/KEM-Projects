@@ -1,11 +1,5 @@
 #!/usr/bin/zsh
  
-PID=$(pgrep -f /opt/viber/viber.AppImage)
-if [[ -n ${PID} ]];then
-	echo "Instance running...killing"
-	kill -9 ${PID}
-fi
-
-echo "Launching..."
-/opt/viber/viber.AppImage &
+/opt/viber/Viber &
+sleep 1
 win_max viber &

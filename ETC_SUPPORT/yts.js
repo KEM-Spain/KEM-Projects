@@ -1,5 +1,5 @@
 (async function(){
-	const mods = "/home/kmiller/.npm-packages/lib/node_modules"
+	const mods = "/home/kmiller/node_modules"
 	
 	const { Command } = require(mods+'/commander');
 	const app = new Command();

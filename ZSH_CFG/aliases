@@ -32,7 +32,7 @@ alias ns='netstat -avpunt'
 alias prt='libreoffice -p'
 alias rgxd="perl -MRegexp::Debugger -E 'Regexp::Debugger::rxrx(@ARGV)'"
 alias top='/usr/local/bin/system/launchers/run_top'
-alias vi='/usr/local/bin/system/launchers/run_vi'
+alias vi='/usr/local/bin/system/launchers/run_vim'
 
 # conversion
 alias c2f='/usr/local/bin/conversion/c2f'

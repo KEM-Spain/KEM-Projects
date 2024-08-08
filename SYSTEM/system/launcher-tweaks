@@ -1,21 +1,31 @@
 #!/usr/bin/zsh
-RESET="\033[m"
-RED_FG="\033[31m"
-GREEN_FG="\033[32m"
-YELLOW_FG="\033[33m"
-BLUE_FG="\033[34m"
-MAGENTA_FG="\033[35m"
-CYAN_FG="\033[36m"
-WHITE_FG="\033[37m"
+#Inline ansi
 BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -a _DESKTOP_LIST=()
-typeset -A _APP_ALT_NAMES=(deluge deluge-gtk org.kde.haruna haruna)
+typeset -A _LAUNCHER_DESKTOP=()
 
 # Constants
 _DESKTOP_DIR=/usr/share/applications
 _LAUNCHER_DIR=/usr/local/bin/system/launchers
+_ORIGINALS_DIR=/usr/local/bin/system/launchers/originals
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -95,6 +105,7 @@ usage () {
 	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
 	echo -e "${WHITE_FG}-f${RESET} force tweak"
 	echo -e "${WHITE_FG}-s${RESET} simulation mode"
+	echo -e "${WHITE_FG}-v${RESET} verbose output"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 
@@ -102,11 +113,12 @@ usage () {
 	exit_leave
 }
 
-OPTSTR=":HDfs"
+OPTSTR=":HDfsv"
 OPTIND=0
 
 SIMULATE=false
 FORCE=false
+VERBOSE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
@@ -114,6 +126,7 @@ while getopts ${OPTSTR} OPTION;do
      D) dbg_set_level;;
      f) FORCE=true;;
      s) SIMULATE=true;;
+     v) VERBOSE=true;;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
 	esac
@@ -123,56 +136,79 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-[[ -n ${1} ]] && FILE_ARG=${1} || FILE_ARG=''
+[[ -n ${1} ]] && APP_ARG=${1} || APP_ARG=''
 
-_LAUNCHER_LIST=("${(f)$(find ${_LAUNCHER_DIR}/run_*)}") # Launchers format: run_<APPNAME>
+typeset -a LAUNCHERS=()
+typeset -a LAUNCHER_LIST=()
 
-for L in ${_LAUNCHER_LIST};do
-	APP=$(echo ${L} | cut -d '_' -f2) # Remove 'run_' prefix of launcher
-	DESKTOP_FILE=$(find ${_DESKTOP_DIR} -iname "${APP}.desktop" 2>/dev/null) # Find matching system desktop file
-	[[ -n ${DESKTOP_FILE} ]] && _DESKTOP_LIST+=${DESKTOP_FILE:t}
+LAUNCHERS=("${(f)$(find ${_LAUNCHER_DIR}/run_* -executable )}") # Launchers format: run_<APPNAME> (only executable)
+
+
+# Get launchers
+for L in ${LAUNCHERS};do
+	if [[ -n ${APP_ARG} ]];then # If an arg was passed isolate target
+		grep -qi ${APP_ARG} <<<${L}
+		[[ ${?} -ne 0 ]] && continue || (LAUNCHER_LIST+=${L} && break)
+	fi
+
+	LAUNCHER_LIST+=${L} # All launchers
+done
+
+# Get matching desktop
+for L in ${LAUNCHER_LIST};do
+	APP_NAME=$(echo ${L:t} | cut -d '_' -f2) # Remove 'run_' prefix of launcher
+	DESKTOPS=("${(f)$(find ${_DESKTOP_DIR} -iname "*${APP_NAME}*" 2>/dev/null)}")
+
+	HIT=false
+	HIT_COUNT=0
+	for D in ${DESKTOPS};do
+		grep -qi "${APP_NAME}.desktop" <<<${D}
+		[[ ${?} -ne 0 ]] && continue
+		[[ ${VERBOSE} == 'true' ]] && echo "Matched ${WHITE_FG}${D:t}${RESET} to ${CYAN_FG}${APP_NAME}${RESET}"
+		_LAUNCHER_DESKTOP[${L}]=${D}
+		HIT=true && ((HIT_COUNT++))
+	done
+	[[ ${HIT} == 'false' && ${VERBOSE} == 'true' ]] && echo "${RED_FG}No desktop file found${RESET} for:${CYAN_FG}${APP_NAME}${RESET}"
+	[[ ${HIT_COUNT} -gt 1 ]] && exit_leave $(msg_exit E "${APP_NAME}:matched more than 1 desktop file")
 done
 
 # Scan desktop files for stale versions
-for L in ${_DESKTOP_LIST};do
-	APP="run_${L:r}"
-	STATUS=$(get_file_state ${_DESKTOP_DIR}/${L})
+for L in ${(ok)_LAUNCHER_DESKTOP};do
+	DESKTOP_FILE=${_LAUNCHER_DESKTOP[${L}]}
+	APP="${L:t:r}"
 
-	if [[ -n ${FILE_ARG} ]];then
-		if [[ ! ${L:r} == ${FILE_ARG} ]];then
-			continue
-		fi
-	fi
+	[[ ${SIMULATE} == 'true' ]] && SIM_TAG="[${WHITE_FG}simulation${RESET}]" || SIM_TAG=''
 
-	if [[ ${SIMULATE} == 'true' ]];then
-		printf "[${WHITE_FG}%15s${RESET}] Desktop file:${WHITE_FG}%s${RESET} is $(boolean_color ${STATUS})%-10s${RESET}\n" ${0:t} ${L} ${STATUS}
-	fi
+	STATUS=$(get_file_state ${DESKTOP_FILE})
+	[[ ${VERBOSE} == 'true' || ${SIMULATE} == 'true' ]] && printf "${SIM_TAG} [${WHITE_FG}%15s${RESET}] Desktop file:${WHITE_FG}%s${RESET} is $(boolean_color ${STATUS})%-10s${RESET}\n" ${0:t} ${DESKTOP_FILE:t} ${STATUS}
 
 	if [[ ${STATUS} == "stale" || ${FORCE} == 'true' ]];then
-		[[ ${FORCE} == 'true' ]] && echo "${BOLD}${RED_FG}FORCE${RESET} will update ${WHITE_FG}${L:r}${RESET} regardless of status"
 		if [[ ${SIMULATE} == 'true' ]];then
-			echo "${MAGENTA_FG}SIMULATE${RESET}: ${WHITE_FG} create backup:${_DESKTOP_DIR}/${L} to ${_DESKTOP_DIR}/${L}.orig${RESET}"
+			[[ ${FORCE} == 'true' ]] && echo "${SIM_TAG} ${BOLD}${RED_FG}FORCE REQUEST${RESET}: update ${WHITE_FG}${L:r}${RESET} regardless of status"
+			echo "${SIM_TAG} sudo cp ${DESKTOP_FILE} ${_ORIGINALS_DIR}" # Backup original system file
 		else
-			sudo cp ${_DESKTOP_DIR}/${L} ${_DESKTOP_DIR}/${L}.orig # Backup original
+			[[ ${FORCE} == 'true' ]] && echo "${BOLD}${RED_FG}FORCE REQUEST${RESET}:updating ${WHITE_FG}${L:r}${RESET} regardless of status"
+			sudo cp ${DESKTOP_FILE} ${_ORIGINALS_DIR} # Backup original system file
 		fi
 
-		APP_RUNNER=${_LAUNCHER_DIR}/${APP}
-		APP_NAME=${_APP_ALT_NAMES[${L}]}
-		[[ -z ${APP_NAME} ]] && APP_NAME=${L}
+		EXEC=$(grep Exec ${DESKTOP_FILE} | head -1 | cut -d= -f2 | cut -d' ' -f1)
 
-		EXEC=$(grep Exec ${_DESKTOP_DIR}/${APP_NAME} | head -1 | cut -d= -f2 | cut -d' ' -f1)
-
-		if [[ ${SIMULATE} == 'true' ]];then
-			echo "${MAGENTA_FG}SIMULATE${RESET}: ${WHITE_FG} extract Exec lines from desktop file...${RESET}"
-			echo ${EXEC}
+		if [[ ${VERBOSE} == 'true' || ${SIMULATE} == 'true' ]];then
+			echo "${SIM_TAG} Current \"Exec\" line from desktop file:${WHITE_FG}${EXEC}${RESET}"
 		fi
 
 		if [[ ${SIMULATE} == 'true' ]];then
-			echo "${MAGENTA_FG}SIMULATE${RESET}: ${WHITE_FG} apply edits to original desktop file...${WHITE_FG}Exec=${APP_RUNNER}${RESET}"
+			echo "${SIM_TAG} Modifying \"Exec\" line in desktop file with:${WHITE_FG}Exec=${L}${RESET}"
 		else
-			sudo sed -i "s#Exec=${EXEC}#Exec=${APP_RUNNER}#g" ${_DESKTOP_DIR}/${L}
-			[[ ${?} -eq 0 ]] && MSG="SUCCESS - desktop file was modified" || MSG="ERROR - desktop file was NOT modified"
-			printf "${BOLD}Desktop file${RESET}:%s ... %s to %s\n" ${_DESKTOP_DIR}/${L} ${MSG} ${_LAUNCHER_DIR}/${APP}
+			sudo sed -i "s#Exec=${EXEC}#Exec=${L}#g" ${DESKTOP_FILE}
+			if [[ ${?} -eq 0 ]];then
+				MSG="desktop file was modified"
+				RESULT=SUCCESS
+			else
+				MSG="desktop file was NOT modified"
+				RESULT=ERROR
+			fi
+			printf "${BOLD}Desktop file${RESET}:%s ${BOLD}%s${RESET}:%s to call:${BOLD}${ITALIC}%s${RESET}\n" ${DESKTOP_FILE} ${RESULT} ${MSG} ${L}
 		fi
 	fi
 done

@@ -215,7 +215,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 	) >&2
 
-	echo "\n$(msg_warn ${PENDING_MSGS})"
+	echo "\n$(msg_exit W ${PENDING_MSGS})"
 	exit_leave
 }
 
@@ -248,7 +248,7 @@ else
 	[[ ${#} -gt 1 ]] && usage "Too many arguments:$(opt_type f)"
 	[[ ! -e ${1} ]] && usage "File not found:${1}"
 	if ! has_funcs ${1};then
-		exit_leave $(msg_warn "File:${1} has no functions")
+		exit_leave $(msg_exit W "File:${1} has no functions")
 	fi
 fi
 

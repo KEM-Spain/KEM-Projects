@@ -242,7 +242,7 @@ list_add_header_break
 list_set_line_item '
 printf "${WHITE_FG}%4s${RESET}) ${BAR}${SHADE}%-*s${RESET}\n" ${_LIST_NDX} ${_COL_WIDTHS[FN]} "${_LIST[${_LIST_NDX}]}"
 '
-list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to open (${ITALIC}or exit if none selected${RESET})."
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select file(s) then <${GREEN_FG}ENTER${RESET}> to open ${ITALIC}or exit if none selected${RESET}"
 list_set_action_msgs open file
 
 while true;do

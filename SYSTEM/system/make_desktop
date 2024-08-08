@@ -185,7 +185,7 @@ shift $((OPTIND -1))
 APPFILE=${1:l}
 APPNAME=${(C)APPFILE}
 
-[[ ${#} -eq 0 ]] && usage $(msg_err "Missing arguments $(opt_type a)")
+[[ ${#} -eq 0 ]] && usage $(msg_exit E "Missing arguments $(opt_type a)")
 
 echo "Working..."
 # EH=$(get_hint exec ${APPFILE})

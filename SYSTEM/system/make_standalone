@@ -100,7 +100,7 @@ usage () {
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err ${PENDING_MSGS})
+	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
 OPTSTR=":Hb:e:r"
@@ -177,7 +177,7 @@ done > ${LOCAL_FUNC_LIST}
 
 # Insert sorted funcs
 grep -q ${_FUNC_TAG} ${FN}
-[[ ${?} -ne 0 ]] && exit_leave $(msg_err "Missing tag: [# Functions] in ${FN}.standalone.1 - sed insert will fail")
+[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "Missing tag: [# Functions] in ${FN}.standalone.1 - sed insert will fail")
 sed "/${_FUNC_TAG}/r ${LOCAL_FUNC_LIST}" ${FN} >${FN}.standalone.1
 
 _NEEDED_FUNCS=() # Reset
@@ -205,7 +205,7 @@ fi
 
 # Insert sorted funcs
 grep -q ${_FUNC_TAG} ${FN}.standalone.1 
-[[ ${?} -ne 0 ]] && exit_leave $(msg_err "Missing tag: [# Functions] in ${FN}.standalone.1 - sed insert will fail")
+[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "Missing tag: [# Functions] in ${FN}.standalone.1 - sed insert will fail")
 sed "/${_FUNC_TAG}/r ${LOCAL_FUNC_LIST}" ${FN}.standalone.1 >${FN}.standalone
 [[ -e ${FN:t}.standalone ]] && echo "${WHITE_FG}${FN}.standalone${RESET} created" && chmod 775 ${FN}.standalone
 

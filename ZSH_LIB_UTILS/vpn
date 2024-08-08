@@ -162,7 +162,7 @@ get_current_state () {
 		list_set_header 'printf "Found:${WHITE_FG}%-*d${RESET} $(str_pluralize country ${#__LOCAL_LIST}) providing VPN  ${_PG}" ${#${#_LOCAL_LIST}} ${#_LOCAL_LIST}'
 		list_add_header_break
 
-		list_set_prompt "Hit <SPACE> to select server then <ENTER> to connect (or exit if none selected)."
+		list_set_prompt "Hit <SPACE> to select server then <ENTER> to connect ${ITALIC}or exit if none selected${RESET}"
 		list_set_action_msgs connect "to country"
 		list_set_selection_limit 1
 

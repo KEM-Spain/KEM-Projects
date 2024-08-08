@@ -154,7 +154,7 @@ usage () {
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_err "${PENDING_MSGS}")
+	exit_leave $(msg_exit E "${PENDING_MSGS}")
 }
 
 OPTSTR=":HDRBb:lr"
@@ -203,21 +203,21 @@ sort_functions ${FN} # Extract sorted functions
 
 # Early exits
 [[ ${LIST_FUNCS} == 'true' ]] && exit_leave # Option was invoked in sort_functions
-[[ ! -e ${FN}.sorted.functions ]] && exit_leave $(msg_err "sort_functions: failed to create and output. Exiting.")
+[[ ! -e ${FN}.sorted.functions ]] && exit_leave $(msg_exit E "sort_functions: failed to create and output. Exiting.")
 
 # Processing
 grep ${_FUNC_REGEX} < ${FN}.sorted.functions | sort | uniq -c | grep -v -P '\s+1\s+'
-[[ ${?} -ne 1 ]] && exit_leave $(msg_warn "WARNING:Found duplicates")
+[[ ${?} -ne 1 ]] && exit_leave $(msg_exit W "WARNING:Found duplicates")
 
 if [[ ${REPLACE_FILE} == 'true' || ${REPLACE_SORTED} == 'true' ]];then 
 	replace_functions ${FN}
-	[[ ! -e ${FN}.normalized ]] && exit_leave $(msg_err "Option -r failed - unable to locate ${FN}.normalized")
+	[[ ! -e ${FN}.normalized ]] && exit_leave $(msg_exit E "Option -r failed - unable to locate ${FN}.normalized")
 	cat -s ${FN}.normalized | cat -s > ${FN}.new
 	echo "Modified script with functions sorted in file:${FN}.new"
 fi
 
 if [[ ${REPLACE_FILE} == 'true' ]];then 
-	[[ ! -e ${FN}.new ]] && exit_leave $(msg_err "Option -R failed - unable to locate ${FN}.new")
+	[[ ! -e ${FN}.new ]] && exit_leave $(msg_exit E "Option -R failed - unable to locate ${FN}.new")
 	mv -f ${FN}.new ${FN}
 	chmod 775 ${FN}
 	[[ ! -e ${FN}.sort_functions ]] && rm -f ${FN}.sort_functions # Cleanup

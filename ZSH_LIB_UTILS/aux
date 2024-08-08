@@ -214,7 +214,7 @@ list_set_line_item '
 printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%${_LBL_WIDTH[p]}s %${_LBL_WIDTH[o]}s %-${_LBL_WIDTH[c]}s${RESET}\n" ${_LIST_NDX} "$(get_pid ${_LIST_NDX})"  "$(get_owner ${_LIST_NDX})"  "$(item_decorate ${_LIST_NDX})" 
 '
 
-list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select process then <${GREEN_FG}ENTER${RESET}> to kill (${ITALIC}or exit if none selected${RESET})."
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select process then <${GREEN_FG}ENTER${RESET}> to kill ${ITALIC}or exit if none selected${RESET}"
 list_set_action_msgs kill process
 
 while true;do

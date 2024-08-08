@@ -188,7 +188,7 @@ list_set_header 'printf "%*s${MAGENTA_FG}%*s   %*s %*s${RESET}" 6 "" ${_COL_WIDT
 list_set_line_item '
 printf "${WHITE_FG}%4s${RESET}) ${BAR}${SHADE}%-*s   %-*s %-*s${RESET}\n" ${_LIST_NDX} ${_COL_WIDTHS[BOOK]} "$(get_book ${_LIST[${_LIST_NDX}]})" ${_COL_WIDTHS[TITLE]} "$(get_title ${_LIST[${_LIST_NDX}]})" ${_COL_WIDTHS[PG]} "$(get_pg ${_LIST[${_LIST_NDX}]})"
 '
-list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select song(s) then <${GREEN_FG}ENTER${RESET}> to view (${ITALIC}or exit if none selected${RESET})."
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select song(s) then <${GREEN_FG}ENTER${RESET}> to view ${ITALIC}or exit if none selected${RESET}"
 
 while true;do
 	# Get selection

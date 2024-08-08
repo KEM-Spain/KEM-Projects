@@ -130,6 +130,24 @@ set_cache () {
 	fi
 }
 
+show_cache () {
+	local LIST=("${(f)$(find ${_CACHE_DIR} -name '_*' -type f)}")
+	local L
+	local TXT
+
+	for L in ${(o)LIST};do
+		TXT=$(cut -d'_' -f3- <<<${L:t} | sed 's/_/ /g')
+		case ${L:t} in
+			_ACT*) echo "    Actor:${WHITE_FG}${TXT}${RESET}";;
+			_DEC*) echo "   Decade:${WHITE_FG}${TXT}${RESET}";;
+			_DIR*) echo " Director:${WHITE_FG}${TXT}${RESET}";;
+			_YR*)  echo "     Year:${WHITE_FG}${TXT}${RESET}";;
+			*)     echo "Undefined:${WHITE_FG}${L:t}${RESET}";;
+		esac
+	done
+	echo "${CYAN_FG}Press any key...${RESET}";read
+}
+
 imdb () {
 	local STR=${@}
 	local URL
@@ -268,7 +286,7 @@ do_list () {
 			;;
 		y) g_LIST_TYPE=year
 			g_LIST_VALUE=$(get_year)
-			[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "Year:${g_LIST_VALUE} is invalid")
+			[[ ${?} -ne 0 ]] && exit_leave $(msg_err "Year:${g_LIST_VALUE} is invalid")
 			;;
 	esac
 
@@ -340,6 +358,7 @@ usage () {
 	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type y)]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "${WHITE_FG}-C${RESET} show cached queries"
 	echo -e "${WHITE_FG}-a${RESET} actor ('Jack Nicholson')"
 	echo -e "${WHITE_FG}-d${RESET} director ('François Truffaut')"
 	echo -e "${WHITE_FG}-e${RESET} decade (1990 2000 2010 etc.)"
@@ -347,11 +366,11 @@ usage () {
 	echo -e "${WHITE_FG}-y${RESET} year (4 digits - ${WHITE_ON_GREY}default${RESET})"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 
-	echo "\n$(msg_exit W ${PENDING_MSGS})"
+	echo "\n$(msg_warn ${PENDING_MSGS})"
 	exit_leave
 }
 
-OPTSTR=":HDa:d:e:ly:"
+OPTSTR=":HDCa:d:e:ly:"
 OPTIND=0
 
 ACTOR_ARG=''
@@ -359,11 +378,13 @@ DIRECTOR_ARG=''
 DECADE_ARG=''
 YEAR_ARG=''
 DO_LIST=false
+SHOW_CACHE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
+     C) SHOW_CACHE=true;;
      a) ACTOR_ARG=${OPTARG};;
      d) DIRECTOR_ARG=${OPTARG};;
      e) DECADE_ARG=${OPTARG};;
@@ -384,6 +405,8 @@ shift $((OPTIND -1))
 [[ ! -e ${_CACHE_DIR} ]] && mkdir ${_CACHE_DIR}
 
 # Process arguments
+[[ ${SHOW_CACHE} == 'true' ]] && show_cache && exit_leave
+
 SEARCHTERM=${@}
 if [[ ${DO_LIST} == 'true' ]];then
 	do_list

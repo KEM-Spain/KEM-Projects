@@ -1,7 +1,6 @@
 eval $(dircolors /etc/zsh/DIR_COLORS)
 
 FUNCTIONS=/etc/zsh/system_wide/functions
-NPM_PACKAGES="${HOME}/.npm-packages"
 ZSH=/etc/zsh
 ZSH_USER=~/.zsh
 
@@ -12,7 +11,6 @@ PATHS=(
 ${ZSH_USER} \
 ${ZSH} \
 ~/.local/bin \
-${NPM_PACKAGES}/bin \
 /usr/local/bin \
 /usr/local/src \
 /usr/local/bin/system \
@@ -39,9 +37,8 @@ export HISTFILE=~/.zsh_history
 export HISTSIZE=10000000
 export JAVA_HOME="/usr/lib/jvm/java-1.17.0-openjdk-amd64"
 export LC_ALL="en_US.UTF-8"
-export MANPATH="${MANPATH-$(manpath)}:$NPM_PACKAGES/share/man"
+export MANPATH="${MANPATH-$(manpath)}"
 export MOZILLA_FIVE_HOME=/usr/lib/xulrunner-1.9.2.17
-export NPM_PACKAGES=${HOME}/.npm-packages
 export PATH=$MYPATH
 export PATH=${PATH}:${GOROOT}/bin
 export PROMPT_EOL_MARK='%<<'

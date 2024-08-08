@@ -462,7 +462,7 @@ ___EOF
 		list_set_key_msg '
 		printf "Press ${WHITE_FG}Home End PgUp PgDn${RESET}, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}, <${WHITE_FG}s${RESET}>ort columns"
 		'
-		list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select partition(s) then <${GREEN_FG}ENTER${RESET}> to mount/unmount (${WHITE_FG}${ITALIC}or exit if none selected${RESET})."
+		list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select partition(s) then <${GREEN_FG}ENTER${RESET}> to mount/unmount ${ITALIC}or exit if none selected${RESET}"
 		list_set_barlines true
 		list_set_clear_ghosts true
 		list_set_sortable true

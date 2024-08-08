@@ -252,7 +252,7 @@ list_set_line_item '
 printf "${BOLD}${WHITE_FG}%4d${RESET}) ${SHADE}${BAR}${MAGENTA_FG}%-${_MAX_FIELD}s${RESET} ${SHADE}${BAR}${YELLOW_FG}%-${_MAX_FIELD}s${RESET} ${SHADE}${BAR}${GREEN_FG}%-${_MAX_FIELD}s${RESET}\n" ${_LIST_NDX} "${$(get_url ${_LIST_NDX})[1,40]}" "${$(get_key ${_LIST_NDX})[1,40]}" "${$(get_val ${_LIST_NDX})[1,40]}"
 '
 
-list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select line item then <${GREEN_FG}ENTER${RESET}> to edit value (${ITALIC}or exit if none selected${RESET})"
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select line item then <${GREEN_FG}ENTER${RESET}> to edit value ${ITALIC}or exit if none selected${RESET}"
 list_set_barlines true
 list_set_clear_ghosts true
 

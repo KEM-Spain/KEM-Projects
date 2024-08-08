@@ -1,0 +1,264 @@
+#!/usr/bin/zsh
+
+#vim: syntax off
+RESET="\033[m"
+BOLD="\033[1m"
+ITALIC="\033[3m"
+UNDER="\033[4m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+
+BLACK_FG="\033[30m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+#Constants
+COLORS=/usr/local/etc/color.template
+HEADERS=/usr/local/etc/app.template
+APPEXEC=/usr/local/etc/app_exec.template
+GETOPTS=/usr/local/etc/getopt.template
+CURSOR=/usr/local/etc/list_cursor.template
+_LIB=/usr/local/lib
+_DIR_USER=$(id -nu)
+_DIR_GROUP=$(id -ng)
+_VIM=/usr/bin/vim
+_EDITABLE='ascii\|text\|script\|empty\|regular'
+_ROWS=$(tput lines)
+_COLS=$(tput cols)
+
+#Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/STR.zsh
+source ${_LIB_DIR}/ARRAY.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
+
+#Declarations
+typeset -a FILES
+
+#Functions
+is_text () {
+	local FILE=${1}
+
+	[[ -z ${1} ]] && exit_leave $(msg_err "${0}:Missing argument:FILE")
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "Checking 'file -L ${FILE}' for ${_EDITABLE}"
+	file -L ${FILE} 2>/dev/null | grep -qi ${_EDITABLE} #filter editable result
+	[[ $? -eq 0 ]]	&& return 0 || return 1
+}
+
+need_sudo () {
+	local FN=${1}
+	local RC
+	local FQFN=$(realpath ${FN})
+
+	[[ -z ${1} ]] && exit_leave $(msg_err "${0}:Missing argument:FILE")
+
+	if [[ -e ${FQFN} ]];then
+		[[ -r ${FQFN} ]] && RC=1 || RC=0
+		[[ -w ${FQFN} ]] && RC=1 || RC=0
+	else
+		[[ -r ${FQFN:h} ]] && RC=1 || RC=0
+		[[ -w ${FQFN:h} ]] && RC=1 || RC=0
+	fi
+
+	if [[ ${_DEBUG} -gt 0 ]];then
+		[[ ${RC} -eq 0 ]] && dbg "editing ${FQFN} as root" >&2 || echo "editing ${FQFN} as ${USER}" >&2
+	fi
+	
+	return ${RC}
+}
+
+make_zsh () {
+	local FN=${1}
+
+	case ${MAKE_TYPE} in
+		ZSH_LIST)	echo '#!/usr/bin/zsh' > ${FN}
+						cat ${COLORS} >> ${FN} 
+						cat ${CURSOR} >> ${FN} 
+						;;
+		ZSH_FULL)	echo '#!/usr/bin/zsh' > ${FN}
+						cat ${COLORS} >> ${FN} 
+						echo >> ${FN}
+						cat ${HEADERS} >> ${FN} 
+						echo >> ${FN}
+						cat ${GETOPTS} >> ${FN} 
+						echo >> ${FN}
+						cat ${APPEXEC} >> ${FN} 
+						echo >> ${FN}
+						;;
+		  ZSH)		echo '#!/usr/bin/zsh' > ${FN}
+						cat ${COLORS} >> ${FN} 
+						;;
+	esac
+	return ${?}
+}
+
+make_perl () {
+	local FN=${1}
+
+	echo '#!/usr/bin/env perl' > ${FN}
+	echo 'use warnings;'>> ${FN}
+	echo 'use strict;'>> ${FN}
+	echo 'use diagnostics;'>> ${FN}
+	return ${?}
+}
+
+make_python () {
+	local FN=${1}
+
+	echo '#!/usr/bin/env python' > ${FN}
+	return ${?}
+}
+
+#--Begin GetOpts--
+RESET="\033[m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+
+read -r -d '' DESC<<EOF
+Frontend for vi with added convenience features
+EOF
+
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		f) echo "<FILE>";;
+	esac
+}
+
+function parse_opts {
+	local OPTS=${@}
+	local -a OPTSTRING
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTRING+="<PARAM>" && continue
+		OPTSTRING+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTRING}
+}
+
+SCRIPT=vi
+usage () {
+	local OPTS=$(parse_opts ${OPTSTR})
+	local -a PENDING_MSGS=(${@})
+
+	tabs 5
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${OPTS} $(opt_type f)\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-A${RESET} create scrollable list stub"
+	echo -e "${WHITE_FG}-E${RESET} create enhanced zsh shell script stub"
+	echo -e "${WHITE_FG}-f${RESET} force open"
+	echo -e "${WHITE_FG}-P${RESET} create python script"
+	echo -e "${WHITE_FG}-e${RESET} create zsh script"
+	echo -e "${WHITE_FG}-p${RESET} create perl script"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+
+	exit_leave ${PENDING_MSGS}
+}
+
+OPTSTR=":HDAEPefp"
+
+MAKE_SCRIPT=false
+ZSH_SCRIPT=false
+PERL_SCRIPT=false
+PYTHON_SCRIPT=false
+FORCE=false
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case ${OPTION} in
+     H) usage;;
+     D) dbg_set_level;;
+     A) MAKE_SCRIPT=true;MAKE_TYPE=ZSH_LIST;;
+     E) MAKE_SCRIPT=true;MAKE_TYPE=ZSH_FULL;;
+     P) MAKE_SCRIPT=true;MAKE_TYPE=PYTHON;;
+     e) MAKE_SCRIPT=true;MAKE_TYPE=ZSH;;
+     p) MAKE_SCRIPT=true;MAKE_TYPE=PERL;;
+     f) FORCE=true;;
+     :) print -u2 "${SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${SCRIPT}: unknown option -${OPTARG}"; usage;;
+	esac
+done
+
+shift $((OPTIND -1))
+#--End GetOpts--
+
+#--Execution--
+FILES=(${@})
+SIZE=0
+
+[[ ${#} -eq 0 ]] && usage $(msg_err "Missing arg:$(opt_type f)")
+
+if [[ ${#} -gt 1 ]];then
+	${_VIM} ${@:q} # multiple file args simply run and the OS will handle any permission errors etc.
+	exit_leave
+fi
+
+#From here onward there is only a single file name to manage
+FN=${1}
+if [[ ${MAKE_SCRIPT} == 'true' ]];then
+	if [[ -f ${FN} ]];then #ignore for existing files
+		echo "FILE:${FN} exists - editing existing file"
+		echo "Press any key..."; read
+	else
+		case ${MAKE_TYPE} in
+			ZSH*)		make_zsh ${FN};RC=${?};;
+			PERL)		make_perl ${FN};RC=${?};;
+			PYTHON)	make_python ${FN};RC=${?};;
+		esac
+
+		[[ ${RC} -ne 0 ]] && exit_leave $(msg_err "Unable to create ${MAKE_TYPE} stub - check permissions")
+
+		SIZE=$(stat -c '%s' ${FN} 2>/dev/null)
+		if [[ -e ${FN} ]];then
+			sudo chmod 755 ${FN}
+			sudo chown ${_DIR_USER}:${_DIR_GROUP} ${FN}
+		fi
+	fi
+fi
+
+if [[ -e ${FN} && ${FORCE} == 'false' ]];then
+	if ! is_text ${FN};then
+		exit_leave $(msg_err "File: ${FN} is not a text file ($(file ${FN} | cut -d',' -f1 | cut -d':' -f2 | sed 's/^ //'))")
+	fi
+fi
+
+SUDO=''
+need_sudo ${FN}
+RC=${?}
+
+if [[ ${RC} -eq 0 ]];then
+	tput smcup
+	msg_box -p -PK "Editing ${FN} as root"
+	tput rmcup
+fi
+
+[[ ${RC} -eq 0 ]] && SUDO="sudo -E" 
+ 
+xdotool mousemove 1900 1060 # Move the cursor away from top left corner (stop touchpad from triggering show all windows)
+eval "${SUDO} ${_VIM} ${FN:q}"
+ 
+##post process cleanup
+if [[ ${MAKE_SCRIPT} == "true" && ${MAKE_TYPE} != 'ZSH_FULL' ]];then
+	if [[ -f ${FN} ]];then
+		if [[ $(stat -c '%s' ${FN} 2>/dev/null) == ${SIZE} ]];then
+			echo "Stub:${FN} was abandoned. Removing..."
+			rm -f ${FN} #rm if file was abandoned
+		fi
+	fi
+fi
+
+exit_leave

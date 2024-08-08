@@ -377,7 +377,7 @@ usage () {
 
 OPTSTR=":HDiu"
 
-IGNORE__CACHE=false
+IGNORE_CACHE=false
 UPDATE_LOCATE_DB=false
 
 OPTIND=0
@@ -385,7 +385,7 @@ while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
-     i) IGNORE__CACHE=true;;
+     i) IGNORE_CACHE=true;;
      u) UPDATE_LOCATE_DB=true;;
      :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
@@ -430,7 +430,7 @@ fi
 
 # Search for matching cache entries
 FILE_IS_CACHED=false
-if [[ ${IGNORE__CACHE} == "false" ]];then
+if [[ ${IGNORE_CACHE} == "false" ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Inspecting cached edits..."
 	read_cache
 	for T in ${(k)CACHED_TARGETS};do

@@ -1,3 +1,11 @@
 #!/usr/bin/zsh
 /usr/bin/haruna &
+
+NDX=0
+while true;do
+	((NDX++))
+	pgrep haruna
+	[[ ${?} -eq 0 || ${NDX} -gt 20 ]] && break
+	sleep 1
+done
 win_max haruna &

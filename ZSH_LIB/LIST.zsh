@@ -424,18 +424,24 @@ list_repaint () {
 	local -A MSG_COORDS=($(box_coords_get MSG))
 	local ROWS=${1}
 	local PAGE=${2}
-	local START_ROW=${MSG_COORDS[X]}
-	local END_ROW=0
-	local HDR_OFFSET=${#_LIST_HEADER}
-	local SAVED_NDX=${_LIST_NDX}
 	local CURSOR=0
 	local DISPLAY_ROWS=0
-	local START_COL=${MSG_COORDS[Y]}
-	local END_COL=$((START_COL+${MSG_COORDS[W]}))
+	local END_COL=0
+	local END_ROW=0
+	local HDR_OFFSET=${#_LIST_HEADER}
 	local LINE_SNIP=''
+	local SAVED_NDX=${_LIST_NDX}
+	local START_COL=0
+	local START_ROW=0
 	local R
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	[[ -z ${MSG_COORDS} ]] && exit_leave $(msg_exit E "${0}: MSG_COORDS is empty: unable to continue")
+
+	START_COL=${MSG_COORDS[Y]}
+	START_ROW=${MSG_COORDS[X]}
+	END_COL=$((START_COL+${MSG_COORDS[W]}))
 
 	DISPLAY_ROWS=$(( ${_LIST_INDEX_RANGE[2]} - ${_LIST_INDEX_RANGE[1]} +1 ))
 	CURSOR=$(( START_ROW - 1 ))
@@ -507,7 +513,8 @@ list_search () {
 		msg_box_clear X Y ${H_POS} W  # Clear box containing inline edit 
 
  		if [[ -z ${TARGET} ]];then # User entered nothing
-			list_repaint ${H_POS} ${PAGE}
+			#list_repaint ${H_POS} ${PAGE}
+			msg_box "H_POS:${H_POS} PAGE:${PAGE}"
 			_TARGET_NDX=${_LIST_NDX}
 			_TARGET_CURSOR=${CURSOR_NDX}
 			_TARGET_PAGE=${PAGE}
@@ -523,7 +530,8 @@ list_search () {
 			done
 			msg_box -x$((V_CTR)) -y$((H_CTR+10)) -p -PK "<m>List Search<N>| |\"<w>${TARGET}<N>\" - <r>NOT<N> found" 
 			msg_box_clear
-			list_repaint $((H_POS+3)) ${PAGE}
+			#list_repaint $((H_POS+3)) ${PAGE}
+			msg_box "H_POS:$((H_POS+3)) PAGE:${PAGE}"
 			_TARGET_NDX=${_LIST_NDX}
 			_TARGET_CURSOR=${CURSOR_NDX}
 			_TARGET_PAGE=${PAGE}
@@ -532,7 +540,8 @@ list_search () {
 			return # Early return
 		fi
 
-		list_repaint $((H_POS+1)) ${PAGE}
+		#list_repaint $((H_POS+1)) ${PAGE}
+		msg_box "H_POS:$((H_POS+1)) PAGE:${PAGE}"
 
 		_TARGET_KEY=$(list_get_page_target ${NEXT})
 		IFS=":" read _TARGET_NDX _TARGET_CURSOR _TARGET_PAGE TNDX <<<${_TARGET_KEY}

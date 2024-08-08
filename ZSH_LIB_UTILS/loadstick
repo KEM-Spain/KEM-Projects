@@ -765,7 +765,7 @@ list_set_header_callback header_callback
 
 # Set line item
 list_set_line_item 'printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"'
-list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${_DISPLAY[MODE]} (${ITALIC}or exit if none selected${RESET}) ${WHITE_FG}Special Keys${RESET}:(${WHITE_FG}d${RESET}) Adjust Depth, (${WHITE_FG}z${RESET}) Switch Context"
+list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${g_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${_DISPLAY[MODE]} ${ITALIC}or exit if none selected${RESET} ${WHITE_FG}Special Keys${RESET}:(${WHITE_FG}d${RESET}) Adjust Depth, (${WHITE_FG}z${RESET}) Switch Context"
 list_set_barlines true
 list_set_key_callback 100 key_callback # 'd' key adjusts depth
 list_set_select_callback select_callback

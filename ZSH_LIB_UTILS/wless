@@ -143,7 +143,7 @@ ssid_choose () {
 	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%-*s${RESET} ${SHADE}${BAR}%7d${RESET} ${GREEN_FG}%s${RESET}\n" ${_LIST_NDX} ${LONGEST} ${_LIST[${_LIST_NDX}]} ${_SSID_SIGNAL[${_LIST[${_LIST_NDX}]}]} $(is_active ${_LIST_NDX})
 	'
 
-	list_set_prompt "Hit <SPACE> to select SSID then <ENTER> to connect (or exit if none selected)."
+	list_set_prompt "Hit <SPACE> to select SSID then <ENTER> to connect ${ITALIC}or exit if none selected${RESET}"
 	list_set_action_msgs connect "to SSID"
 	list_set_selection_limit 1
 
