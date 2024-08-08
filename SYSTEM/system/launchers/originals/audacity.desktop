@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Name=Audacity
+Comment=Audio Editor
+Exec=/usr/local/bin/system/launchers/run_audacity
+Icon=/usr/share/icons/Yaru/32x32@2x/mimetypes/application-x-audacity-project.png
+Type=Application
+Categories=audio

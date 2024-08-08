@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Musescore
+Comment=Music Notation
+TryExec=/usr/local/bin/system/launchers/run_musescore
+Exec=/usr/local/bin/system/launchers/run_musescore %U
+Icon=/opt/musescore/musescore3_mscore3.png
+Type=Application
+Categories=notation

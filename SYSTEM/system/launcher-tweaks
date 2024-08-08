@@ -21,9 +21,12 @@ WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
 typeset -A _LAUNCHER_DESKTOP=()
+typeset -a _DESKTOP_DIRS
 
 # Constants
-_DESKTOP_DIR=/usr/share/applications
+_DESKTOP_DIRS+="/usr/share/applications"
+_DESKTOP_DIRS+="/var/lib/snapd/desktop/applications"
+
 _LAUNCHER_DIR=/usr/local/bin/system/launchers
 _ORIGINALS_DIR=/usr/local/bin/system/launchers/originals
 
@@ -61,8 +64,8 @@ local OPTION
 local DESC
 
 read -r -d '' DESC<<EOF
-Modify desktop file in ${_DESKTOP_DIR} to
-\texecute a custom launcher instead of the default
+Modify system desktop file to execute 
+\ta custom launcher instead of the default
 EOF
 
 parse_opts () {
@@ -157,14 +160,14 @@ done
 # Get matching desktop
 for L in ${LAUNCHER_LIST};do
 	APP_NAME=$(echo ${L:t} | cut -d '_' -f2) # Remove 'run_' prefix of launcher
-	DESKTOPS=("${(f)$(find ${_DESKTOP_DIR} -iname "*${APP_NAME}*" 2>/dev/null)}")
+	DESKTOPS=("${(f)$(find ${_DESKTOP_DIRS} -iname "*${APP_NAME}*" 2>/dev/null)}")
 
 	HIT=false
 	HIT_COUNT=0
 	for D in ${DESKTOPS};do
-		grep -qi "${APP_NAME}.desktop" <<<${D}
+		grep -qi "${APP_NAME}.desktop$" <<<${D}
 		[[ ${?} -ne 0 ]] && continue
-		[[ ${VERBOSE} == 'true' ]] && echo "Matched ${WHITE_FG}${D:t}${RESET} to ${CYAN_FG}${APP_NAME}${RESET}"
+		[[ ${VERBOSE} == 'true' ]] && echo "Matched ${WHITE_FG}${D}${RESET} to ${CYAN_FG}${APP_NAME}${RESET}"
 		_LAUNCHER_DESKTOP[${L}]=${D}
 		HIT=true && ((HIT_COUNT++))
 	done
@@ -177,10 +180,10 @@ for L in ${(ok)_LAUNCHER_DESKTOP};do
 	DESKTOP_FILE=${_LAUNCHER_DESKTOP[${L}]}
 	APP="${L:t:r}"
 
-	[[ ${SIMULATE} == 'true' ]] && SIM_TAG="[${WHITE_FG}simulation${RESET}]" || SIM_TAG=''
+	[[ ${SIMULATE} == 'true' ]] && SIM_TAG="[${WHITE_FG}simulation${RESET}] " || SIM_TAG=''
 
 	STATUS=$(get_file_state ${DESKTOP_FILE})
-	[[ ${VERBOSE} == 'true' || ${SIMULATE} == 'true' ]] && printf "${SIM_TAG} [${WHITE_FG}%15s${RESET}] Desktop file:${WHITE_FG}%s${RESET} is $(boolean_color ${STATUS})%-10s${RESET}\n" ${0:t} ${DESKTOP_FILE:t} ${STATUS}
+	[[ ${VERBOSE} == 'true' || ${SIMULATE} == 'true' ]] && printf "${SIM_TAG}[${WHITE_FG}%15s${RESET}] Desktop file:${CYAN_FG}%s/${WHITE_FG}%s${RESET} is $(boolean_color ${STATUS})%-10s${RESET}\n" ${0:t} ${DESKTOP_FILE:h} ${DESKTOP_FILE:t} ${STATUS}
 
 	if [[ ${STATUS} == "stale" || ${FORCE} == 'true' ]];then
 		if [[ ${SIMULATE} == 'true' ]];then
@@ -191,7 +194,7 @@ for L in ${(ok)_LAUNCHER_DESKTOP};do
 			sudo cp ${DESKTOP_FILE} ${_ORIGINALS_DIR} # Backup original system file
 		fi
 
-		EXEC=$(grep Exec ${DESKTOP_FILE} | head -1 | cut -d= -f2 | cut -d' ' -f1)
+		EXEC=$(grep -m1 Exec= ${DESKTOP_FILE})
 
 		if [[ ${VERBOSE} == 'true' || ${SIMULATE} == 'true' ]];then
 			echo "${SIM_TAG} Current \"Exec\" line from desktop file:${WHITE_FG}${EXEC}${RESET}"
@@ -200,7 +203,7 @@ for L in ${(ok)_LAUNCHER_DESKTOP};do
 		if [[ ${SIMULATE} == 'true' ]];then
 			echo "${SIM_TAG} Modifying \"Exec\" line in desktop file with:${WHITE_FG}Exec=${L}${RESET}"
 		else
-			sudo sed -i "s#Exec=${EXEC}#Exec=${L}#g" ${DESKTOP_FILE}
+			sudo sed -i "s#Exec=.*#Exec=${L}#g" ${DESKTOP_FILE}
 			if [[ ${?} -eq 0 ]];then
 				MSG="desktop file was modified"
 				RESULT=SUCCESS

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Jubler
+Comment=Edit Subtitles
+TryExec=/usr/local/bin/system/launchers/run_jubler
+Exec=/usr/local/bin/system/launchers/run_jubler %U
+Icon=/opt/jubler/jubler.png
+Type=Application
+Categories=subtitles

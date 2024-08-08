@@ -1,0 +1,4 @@
+#!/usr/bin/zsh
+/snap/bin/haruna ${@} &
+sleep 1
+win_max haruna &

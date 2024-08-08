@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Anthemscore
+Comment=Music Transcription
+TryExec=/usr/local/bin/system/launchers/run_anthemscore
+Exec=/usr/local/bin/system/launchers/run_anthemscore %U
+Icon=/opt/anthemscore/anthemscore.png
+Type=Application
+Categories=transcription
