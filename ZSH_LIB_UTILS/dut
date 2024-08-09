@@ -631,7 +631,7 @@ ___EOF
 			printf "%16s %6s %6s %6s %8s %-20s\n" ${FS} ${SZ} ${US} ${AV} ${PU} ${MN}
 		done
 
-		echo "\n${WHITE_FG}  Current Directory${RESET}:$(pwd)\n"
+		echo "\n${WHITE_FG}  Current Directory${RESET}:${CYAN_FG}$(pwd)${RESET}"
 
 		local -A NORMAL
 		local -A HIDDEN

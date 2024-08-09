@@ -15,7 +15,7 @@ WHITE_FG="\033[37m"
 _ADD_PATH=/usr/local/bin/system/launchers
 _CACHE=~/.${0:t}/cached_targets
 _EDITABLE='ascii\|text\|script\|json'
-_EDITOR_CMD="/usr/local/bin/system/launchers/run_vi"
+_EDITOR_CMD="/usr/local/bin/system/launchers/run_vim"
 _FUNCTIONS=/etc/zsh/system_wide/functions
 _GAL=/usr/local/bin/gal
 _LIB_DIR=/usr/local/lib
@@ -458,7 +458,7 @@ else
 			exit_leave
 		fi
 
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} FN:${FN} is editable, calling ${_FUNCTIONS}/run_vi for editing..."
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} FN:${FN} is editable, calling ${_FUNCTIONS}/run_vim for editing..."
 
 		# Cache this edit
 		write_cache "${FILE_ARG}" "${FN}"
