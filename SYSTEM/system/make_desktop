@@ -33,10 +33,10 @@ source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
 
 search_exe () {
 	local FN=${1}
-	local -a LIST
-	local HIT=false
-	local L WI
 	local -a HITS
+	local -a LIST
+	local H L WI
+	local HIT=false
 
 	LIST=("${(f)$(find /opt -type f -iname "*${FN}*" 2>/dev/null)}")
 	for L in ${LIST};do
@@ -56,6 +56,7 @@ search_exe () {
 			done
 		done
 	fi
+
 	for H in ${(o)HITS};do
 		[[ ${H:t} == ${FN} ]] && echo ${H} && break
 	done
@@ -108,7 +109,7 @@ emsg () {
 
 	case ${E_ERR} in
 		pop) tput cup ${R} 0; echo -n "${RED_FG}Error${RESET}:${WHITE_FG}${E_FIELD} ${RED_FG}not populated${RESET}";;
-		nof) tput cup ${R} 0; echo -n "${RED_FG}Error${RESET}:${WHITE_FG}${E_FIELD} ${RED_FG}not found${RESET}";;
+		nof) tput cup ${R} 0; echo -n "${RED_FG}Error${RESET}:${WHITE_FG}${E_FIELD}${RESET}:${CYAN_FG}${E_VAL} ${RED_FG}not found${RESET}";;
 	esac
 }
 
@@ -187,9 +188,10 @@ APPNAME=${(C)APPFILE}
 
 [[ ${#} -eq 0 ]] && usage $(msg_exit E "Missing arguments $(opt_type a)")
 
-echo "Working..."
-# EH=$(get_hint exec ${APPFILE})
+tput clear
+tput cup 0 0;tput el;echo "Finding exec..."
 EH=$(search_exe ${APPFILE})
+tput cup 1 0;tput el;echo "Finding icon..."
 IH=$(get_hint icon ${APPFILE})
 
 while true;do
@@ -198,23 +200,24 @@ while true;do
 	[[ -n ${EH} ]] && APPEXEC=${EH}
 	[[ -n ${IH} ]] && APPICON=${IH}
 
-	tput cup ${ROW} 0; tput ed
-	tput cup ${ROW} 0; echo "Creating desktop file for:${CYAN_FG}${APPNAME}${RESET}"; ((ROW+=2))
-	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Name:${APPNAME}${RESET}"; ((ROW++))
-	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Desc:${(C)APPDESC}${RESET}"; ((ROW++))
-	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Exec:${GREEN_FG}${APPEXEC}${RESET}"; ((ROW++))
-	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Icon:${GREEN_FG}${APPICON}${RESET}"; ((ROW++))
-	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Cats:${(C)APPCATS}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; tput el
+	tput cup ${ROW} 0; tput el;echo "Creating desktop file for:${CYAN_FG}${APPNAME}${RESET}"; ((ROW+=2))
+	tput cup ${ROW} 0; tput el;echo -n "${WHITE_FG}App Name:${APPNAME}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; tput el;echo -n "${WHITE_FG}App Desc:${(C)APPDESC}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; tput el;echo -n "${WHITE_FG}App Exec:${GREEN_FG}${APPEXEC}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; tput el;echo -n "${WHITE_FG}App Icon:${GREEN_FG}${APPICON}${RESET}"; ((ROW++))
+	tput cup ${ROW} 0; tput el;echo -n "${WHITE_FG}App Cats:${(C)APPCATS}${RESET}"; ((ROW++))
 
 	((ROW -= _FIELDS))
-	tput cup ${ROW} 9 && read APPDESC_IN;
-	APPDESC=${APPDESC_IN:=${APPDESC:=''}}
+	#tput cup ${ROW} 9 && read APPDESC_IN;
+	#APPDESC=${APPDESC_IN:=${APPDESC:=''}}
 
+	GOT_VAL=false
 	while [[ -z ${APPDESC} ]];do
 		tput cup ${ROW} 0; echo -n "${WHITE_FG}App Desc:${RED_FG}${APPDESC}${RESET}"
-		emsg "Desc" pop
+		[[ ${GOT_VAL} == 'true' && -z ${APPDESC_IN} ]] && emsg "Desc" pop
 		tput cup ${ROW} 9 && read APPDESC_IN
-		[[ -n ${APPDESC_IN} ]] && APPDESC=${APPDESC_IN}; tput cup ${ROW} 9; tput el
+		[[ -n ${APPDESC_IN} ]] && GOT_VAL=true && APPDESC=${APPDESC_IN}; tput cup ${ROW} 9; tput el
 	done
 	eclr
 	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Desc:${GREEN_FG}${APPDESC}${RESET}"
@@ -223,11 +226,14 @@ while true;do
 	tput cup ${ROW} 9 && read APPEXEC_IN
 	APPEXEC=${APPEXEC_IN:=${APPEXEC:=''}}
 
+	GOT_VAL=false
 	while ! is_exe ${APPEXEC};do
 		tput cup ${ROW} 0; echo -n "${WHITE_FG}App Exec:${RED_FG}${APPEXEC}${RESET}"
-		[[ -z ${APPEXEC} ]] && emsg "Exec" pop || emsg "Exec" nof ${APPEXEC}
+		if [[ ${GOT_VAL} == 'true' ]];then
+			[[ -z ${APPEXEC_IN} ]] && emsg "Exec" pop || emsg "Exec" nof ${APPEXEC}
+		fi
 		tput cup ${ROW} 9 && read APPEXEC_IN
-		[[ -n ${APPEXEC_IN} ]] && APPEXEC=${APPEXEC_IN}; tput cup ${ROW} 9; tput el
+		[[ -n ${APPEXEC_IN} ]] && GOT_VAL=true && APPEXEC=${APPEXEC_IN}; tput cup ${ROW} 9; tput el
 	done
 	eclr
 	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Exec:${GREEN_FG}${APPEXEC}${RESET}"
@@ -236,11 +242,14 @@ while true;do
 	tput cup ${ROW} 9 && read APPICON_IN
 	APPICON=${APPICON_IN:=${APPICON:=''}}
 
+	GOT_VAL=false
 	while ! is_file ${APPICON} ]];do
 		tput cup ${ROW} 0; echo -n "${WHITE_FG}App Icon:${RED_FG}${APPICON}${RESET}"
-		[[ -z ${APPICON} ]] && emsg "Icon" pop || emsg "Icon" nof ${APPICON}
+		if [[ ${GOT_VAL} == 'true' ]];then
+			[[ -z ${APPICON_IN} ]] && emsg "Icon" pop || emsg "Icon" nof ${APPICON}
+		fi
 		tput cup ${ROW} 9 && read APPICON_IN
-		[[ -n ${APPICON_IN} ]] && APPICON=${APPICON_IN}; tput cup ${ROW} 9; tput el
+		[[ -n ${APPICON_IN} ]] && GOT_VAL=true && APPICON=${APPICON_IN}; tput cup ${ROW} 9; tput el
 	done
 	eclr
 	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Icon:${GREEN_FG}${APPICON}${RESET}"
@@ -249,11 +258,12 @@ while true;do
 	tput cup ${ROW} 9 && read APPCATS_IN;
 	APPCATS=${APPCATS_IN:=${APPCATS:=''}}
 
+	GOT_VAL=false
 	while [[ -z ${APPCATS} ]];do
 		tput cup ${ROW} 0; echo -n "${WHITE_FG}App Cats:${RED_FG}${APPCATS}${RESET}"
-		emsg "Cats" pop
+		[[ ${GOT_VAL} == 'true' && -z ${APPCATS_IN} ]] && emsg "Cats" pop
 		tput cup ${ROW} 9 && read APPCATS_IN
-		[[ -n ${APPCATS_IN} ]] && APPCATS=${APPCATS_IN}; tput cup ${ROW} 9; tput el
+		[[ -n ${APPCATS_IN} ]] && GOT_VAL=true && APPCATS=${APPCATS_IN}; tput cup ${ROW} 9; tput el
 	done
 	eclr
 	tput cup ${ROW} 0; echo -n "${WHITE_FG}App Cats:${GREEN_FG}${APPCATS}${RESET}"

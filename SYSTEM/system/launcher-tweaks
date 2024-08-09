@@ -21,7 +21,7 @@ WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
 typeset -A _LAUNCHER_DESKTOP=()
-typeset -a _DESKTOP_DIRS
+typeset -a _DESKTOP_DIRS=()
 
 # Constants
 _DESKTOP_DIRS+="/usr/share/applications"
@@ -38,20 +38,20 @@ source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
 
 # Functions
 get_file_state () {
-	local FN=${1}
+	local FN=${1} # Desktop file
 	local LAST_FILE_REFRESH=0
-	local CURR_FILE_TIME
-	local STAMP_FILE=${_LAUNCHER_DIR}/.${FN:t}
+	local CURR_FILE_TIME=0
+	local STATE_FILE=${_LAUNCHER_DIR}/.${FN:t}
 
-	[[ -e ${FN} ]] || return 1
-	[[ -e ${STAMP_FILE} ]] && LAST_FILE_REFRESH=$(<${STAMP_FILE}) # Get state
+	[[ -e ${FN} ]] || return 1 # Desktop file exists
+	[[ -e ${STATE_FILE} ]] && LAST_FILE_REFRESH=$(<${STATE_FILE}) # Get current stamp
 
-	CURR_FILE_TIME=$(stat -c %Z ${FN}(:A)) # File change time in seconds; the modifier `(:A)` resolves any symbolic links
+	CURR_FILE_TIME=$(stat -c %Z ${FN}(:A)) # File change time in seconds; modifier `(:A)` resolves any symbolic links
 
 	if [[ ${LAST_FILE_REFRESH} -lt ${CURR_FILE_TIME} ]]; then
-		sudo touch ${FN}
+		sudo touch ${FN} # Update desktop file time
 		CURR_FILE_TIME=$(stat -c %Z ${FN}) # File change time in seconds
-		echo "${CURR_FILE_TIME}" > ${STAMP_FILE} # Set state
+		echo "${CURR_FILE_TIME}" > ${STATE_FILE} # Save state
 		echo "stale"
 	else
 		echo "current"
