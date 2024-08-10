@@ -26,7 +26,7 @@ Name[sv]=Haruna mediaspelare
 Name[tr]=Haruna Ortam Oynatıcısı
 Name[uk]=Мультимедійний програвач Haruna
 Name[zh_CN]=Haruna 媒体播放器
-Exec=/usr/local/bin/system/launchers/run_haruna_haruna.desktop
+Exec=env BAMF_DESKTOP_FILE_HINT=/var/lib/snapd/desktop/applications/haruna_haruna.desktop /snap/bin/haruna %u
 Icon=/snap/haruna/35/meta/gui/icon.png
 Type=Application
 Categories=Qt;KDE;AudioVideo;Player;Video;TV;

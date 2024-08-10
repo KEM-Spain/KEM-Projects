@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Pyts
+Comment=Torrent Search
+TryExec=/usr/local/bin/system/launchers/run_pyts
+Exec=/usr/local/bin/system/launchers/run_pyts %U
+Icon=/usr/local/bin/__pyscripts__/pyts/pyts.svg
+Type=Application
+Categories=torrent
