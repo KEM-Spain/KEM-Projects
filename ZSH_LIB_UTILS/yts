@@ -51,6 +51,7 @@ _OBJECT=video
 _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/.yts_history
 _YTS_GIT=${_SRC_DIR}/yt-dlp
+_YTS_URL_LOG=/tmp/yts.url.log
 
 # Globals
 g_FAVORITE=''
@@ -108,6 +109,7 @@ action_do () {
 	local SCAN_LIMIT=0
 	local TITLE=''
 	local URL=''
+	local AUTHOR=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -118,7 +120,11 @@ action_do () {
 		_DOWNLOADS[${DL_CNT}]=false
 		_FAILED[${DL_CNT}]=false
 		_FUTURE[${DL_CNT}]=false
+
+		AUTHOR=$(get_field author ${M})
 		URL=$(get_field url ${M})
+		echo ${AUTHOR}:${URL} >> ${_YTS_URL_LOG} # Log the url
+
 		HDRS_OUT=false
 
 		unsetopt localtraps
@@ -136,10 +142,9 @@ action_do () {
 		while true;do
 			((NDX++))
 			
-			# Process job reset
 			KEY=''
 			read -s -t0.1 -k1 KEY
-			if [[ ${KEY} == 'r' ]];then
+			if [[ ${KEY} == 'r' ]];then # Process job reset
 				reset_job
 				start_job ${URL}
 				HAD_ERROR=false
@@ -928,6 +933,7 @@ usage () {
 	echo -e "${WHITE_FG}-l${RESET} search for livestreams (${MAGENTA_FG}Rumble only${RESET})"
 	echo -e "${WHITE_FG}-a${RESET} $(opt_type a) (${MAGENTA_FG}YouTube only${RESET})"
 	echo -e "${WHITE_FG}-s${RESET} disable strict filter [author must match query] (${MAGENTA_FG}YouTube only${RESET})"
+	echo -e "${WHITE_FG}-u${RESET} export the video URL"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 }
@@ -949,8 +955,8 @@ while getopts ${OPTSTR} OPTION;do
      V) VERSION_OPT=true;;
      R) g_QRY_ENGINE=rumble;;
      S) g_STRICT=false;;
-     l) g_LIVE=true;;
      a) AGE=${OPTARG};;
+     l) g_LIVE=true;;
      s) g_STRICT=true;;
     \?) exit_leave "${RED_FG}Error${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}";;
 	  :) exit_leave "${RED_FG}Error${RESET}: option -${OPTARG} requires an argument${RESET}";;

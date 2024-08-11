@@ -277,24 +277,25 @@ msg_box () {
 		fi
 	fi
 
-	[[ $(( BOX_X_COORD )) -lt 0 ]] && exit_leave $(msg_err "BOX_X_COORD is negative:${BOX_X_COORD}")
-	[[ $(( BOX_Y_COORD )) -lt 0 ]] && exit_leave $(msg_err "BOX_Y_COORD is negative:${BOX_Y_COORD}")
+	[[ $(( BOX_X_COORD )) -lt 0 ]] && BOX_X_COORD=1 # Could be mobile device - broken
+	[[ $(( BOX_Y_COORD )) -lt 0 ]] && BOX_Y_COORD=1 # Could be mobile device - broken
+	[[ $(( BOX_X_COORD )) -lt 0 || $(( BOX_Y_COORD )) -lt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X or Y BOX_COORD is negative: set to 1"
 
 	if [[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]];then
 		dbg "${functrace[1]} called ${0}:${LINENO}:  --- BOX COORDS ---"
-		dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_XY_COORD:${WHITE_FG}(${BOX_X_COORD},${BOX_Y_COORD})${RESET}"
+		dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_X,Y:${WHITE_FG}(${BOX_X_COORD},${BOX_Y_COORD})${RESET}"
 		dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_HEIGHT:${WHITE_FG}${BOX_HEIGHT}${RESET}"
 		dbg "${functrace[1]} called ${0}:${LINENO}:  BOX_WIDTH:${WHITE_FG}${BOX_WIDTH}${RESET}"
 	fi
 
-#echo  "BOX COORDS ---"
-#echo  "(final) PG_LINES:${WHITE_FG}${PG_LINES}${RESET}"
-#echo  "(final) MSG_HDRS:${WHITE_FG}${#MSG_HDRS}${RESET}"
-#echo  "(final) BOX_HEIGHT:${WHITE_FG}${BOX_HEIGHT}${RESET} PG_LINES + ${#MSG_HDRS} + 2"
-#echo  "(final) BOX_XY_COORD:${WHITE_FG}(${BOX_X_COORD},${BOX_Y_COORD})${RESET}"
-#echo  "(final) BOX_WIDTH:${WHITE_FG}${BOX_WIDTH}${RESET}"
-#echo  "(final) MSG_BODY:${WHITE_FG}${#MSG_BODY}${RESET}"
-#echo -n "Waiting...";read
+	#echo  "BOX COORDS ---"
+	#echo  "PG_LINES:${WHITE_FG}${PG_LINES}${RESET}"
+	#echo  "MSG_HDRS:${WHITE_FG}${#MSG_HDRS}${RESET}"
+	#echo  "BOX_HEIGHT:${WHITE_FG}${BOX_HEIGHT}${RESET} PG_LINES + ${#MSG_HDRS} + 2"
+	#echo  "BOX_XY_COORD:${WHITE_FG}(${BOX_X_COORD},${BOX_Y_COORD})${RESET}"
+	#echo  "BOX_WIDTH:${WHITE_FG}${BOX_WIDTH}${RESET}"
+	#echo  "MSG_BODY:${WHITE_FG}${#MSG_BODY}${RESET}"
+	#echo -n "Waiting...";read
 
 	# Save box coords
 	box_coords_set ${TAG} X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}

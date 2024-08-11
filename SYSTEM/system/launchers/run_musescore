@@ -1,4 +1,4 @@
 #!/usr/bin/zsh
-/opt/musescore/run_mscore_app_image ${@} &
+/opt/musescore/run_app_image ${@} &
 win_max musescore &
 

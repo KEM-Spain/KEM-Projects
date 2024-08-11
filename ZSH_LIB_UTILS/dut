@@ -704,6 +704,8 @@ ___EOF
 
 		echo "\nDirectory:${WHITE_FG}${PWD:t}${RESET} is ${CYAN_FG}${PCT}%${RESET} of total disk space ${RESET}(${WHITE_FG}${g_SYSTEM_TOTAL}${RESET})"
 	} | mypager wait
+
+	exit_leave
 }
 
 unplug () {

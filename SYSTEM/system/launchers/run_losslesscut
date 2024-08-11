@@ -1,4 +1,4 @@
 #!/usr/bin/zsh
-/opt/losslesscut/run_losslesscut_app_image ${@} &
+/opt/losslesscut/run_app_image ${@} &
 win_max LosslessCut &
 

@@ -3,7 +3,7 @@ Name=Tweaks
 Comment=Tweak advanced GNOME settings
 # Translators: Do NOT translate or transliterate this text (this is an icon file name)!
 Icon=org.gnome.tweaks
-Exec=/usr/local/bin/system/launchers/run_org.gnome.tweaks
+Exec=gnome-tweaks
 Terminal=false
 Type=Application
 StartupNotify=true

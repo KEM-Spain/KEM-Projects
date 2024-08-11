@@ -203,7 +203,7 @@ for L in ${(ok)_LAUNCHER_DESKTOP};do
 		if [[ ${SIMULATE} == 'true' ]];then
 			echo "${SIM_TAG} Modifying \"Exec\" line in desktop file with:${WHITE_FG}Exec=${L}${RESET}"
 		else
-			sudo sed -i "s#Exec=.*#Exec=${L}#g" ${DESKTOP_FILE}
+			[[ -e ${_ORIGINALS_DIR}/${DESKTOP_FILE} ]] && sudo sed -i "s#Exec=.*#Exec=${L}#g" ${DESKTOP_FILE} || echo "No backup found for:${DESKTOP_FILE} - skipping"
 			if [[ ${?} -eq 0 ]];then
 				MSG="desktop file was modified"
 				RESULT=SUCCESS

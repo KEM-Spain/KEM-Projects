@@ -1,3 +1,3 @@
 #!/usr/bin/zsh
-/opt/jubler/run_jubler_app_image ${@} &
+/opt/jubler/run_app_image ${@} &
 win_max jubler &

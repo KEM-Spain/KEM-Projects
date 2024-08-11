@@ -2,8 +2,8 @@
 Name=Terminal
 Comment=Use the command line
 Keywords=shell;prompt;command;commandline;cmd;
-TryExec=/usr/local/bin/system/launchers/run_org.gnome.Terminal
-Exec=/usr/local/bin/system/launchers/run_org.gnome.Terminal
+TryExec=gnome-terminal
+Exec=gnome-terminal
 Icon=org.gnome.Terminal
 Type=Application
 Categories=GNOME;GTK;System;TerminalEmulator;
@@ -17,8 +17,8 @@ X-Ubuntu-Gettext-Domain=gnome-terminal
 
 [Desktop Action new-window]
 Name=New Window
-Exec=/usr/local/bin/system/launchers/run_org.gnome.Terminal --window
+Exec=gnome-terminal --window
 
 [Desktop Action preferences]
 Name=Preferences
-Exec=/usr/local/bin/system/launchers/run_org.gnome.Terminal --preferences
+Exec=gnome-terminal --preferences

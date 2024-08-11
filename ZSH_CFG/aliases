@@ -31,7 +31,7 @@ alias n='/usr/local/bin/system/launchers/run_nemo 2>/dev/null'
 alias ns='netstat -avpunt'
 alias prt='libreoffice -p'
 alias rgxd="perl -MRegexp::Debugger -E 'Regexp::Debugger::rxrx(@ARGV)'"
-alias top='/usr/local/bin/system/launchers/run_top'
+alias top='/usr/local/bin/system/launchers/run_htop'
 alias vi='/usr/local/bin/system/launchers/run_vim'
 
 # conversion
