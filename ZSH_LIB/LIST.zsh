@@ -296,7 +296,7 @@ list_item_highlight () {
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LINE_ITEM:$(eval echo ${LINE_ITEM})"
 	
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} && -z ${_LIST[${_LIST_NDX}]} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _LIST item is empty - returning"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} && -z ${_LIST[${_LIST_NDX}]} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _LIST item is null - returning"
 	[[ -z ${_LIST[${_LIST_NDX}]} ]] && return
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${0}:${LINENO} LINE_ITEM:${LINE_ITEM} X_POS:${X_POS} Y_POS:${Y_POS} SHADE:${SHADE}"
@@ -437,7 +437,8 @@ list_repaint () {
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	[[ -z ${MSG_COORDS} ]] && exit_leave $(msg_exit E "${0}: MSG_COORDS is empty: unable to continue")
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${0}: MSG_COORDS is null: returning"
+	[[ -z ${MSG_COORDS} ]] && return
 
 	START_COL=${MSG_COORDS[Y]}
 	START_ROW=${MSG_COORDS[X]}

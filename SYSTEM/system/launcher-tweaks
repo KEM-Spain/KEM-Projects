@@ -171,7 +171,7 @@ for L in ${LAUNCHER_LIST};do
 		_LAUNCHER_DESKTOP[${L}]=${D}
 		HIT=true && ((HIT_COUNT++))
 	done
-	[[ ${HIT} == 'false' && ${VERBOSE} == 'true' ]] && echo "${RED_FG}No desktop file found${RESET} for:${CYAN_FG}${APP_NAME}${RESET}"
+	[[ ${HIT} == 'false' && ${VERBOSE} == 'true' ]] && echo "${RED_FG}Skipping file${RESET}:${WHITE_FG}${APP_NAME}${RESET} No desktop file found"
 	[[ ${HIT_COUNT} -gt 1 ]] && exit_leave $(msg_exit E "${APP_NAME}:matched more than 1 desktop file")
 done
 
@@ -191,7 +191,11 @@ for L in ${(ok)_LAUNCHER_DESKTOP};do
 			echo "${SIM_TAG} sudo cp ${DESKTOP_FILE} ${_ORIGINALS_DIR}" # Backup original system file
 		else
 			[[ ${FORCE} == 'true' ]] && echo "${BOLD}${RED_FG}FORCE REQUEST${RESET}:updating ${WHITE_FG}${L:r}${RESET} regardless of status"
-			sudo cp ${DESKTOP_FILE} ${_ORIGINALS_DIR} # Backup original system file
+			if [[ ! -e ${_ORIGINALS_DIR}/${DESKTOP_FILE} ]];then
+				sudo cp ${DESKTOP_FILE} ${_ORIGINALS_DIR} # Backup original system file
+			else
+				echo "File:${_ORIGINALS_DIR}/${DESKTOP_FILE} exists - ${RED_FG}not overwriting${RESET}"
+			fi
 		fi
 
 		EXEC=$(grep -m1 Exec= ${DESKTOP_FILE})
@@ -203,15 +207,19 @@ for L in ${(ok)_LAUNCHER_DESKTOP};do
 		if [[ ${SIMULATE} == 'true' ]];then
 			echo "${SIM_TAG} Modifying \"Exec\" line in desktop file with:${WHITE_FG}Exec=${L}${RESET}"
 		else
-			[[ -e ${_ORIGINALS_DIR}/${DESKTOP_FILE} ]] && sudo sed -i "s#Exec=.*#Exec=${L}#g" ${DESKTOP_FILE} || echo "No backup found for:${DESKTOP_FILE} - skipping"
-			if [[ ${?} -eq 0 ]];then
-				MSG="desktop file was modified"
-				RESULT=SUCCESS
+			if [[ -e ${_ORIGINALS_DIR}/${DESKTOP_FILE} ]];then
+				sudo sed -i "s#Exec=.*#Exec=${L}#g" ${DESKTOP_FILE}
+				if [[ ${?} -eq 0 ]];then
+					MSG="desktop file was modified"
+					RESULT=SUCCESS
+				else
+					MSG="desktop file was NOT modified"
+					RESULT=ERROR
+				fi
+				printf "${BOLD}Desktop file${RESET}:%s ${BOLD}%s${RESET}:%s to call:${BOLD}${ITALIC}%s${RESET}\n" ${DESKTOP_FILE} ${RESULT} ${MSG} ${L}
 			else
-				MSG="desktop file was NOT modified"
-				RESULT=ERROR
+				echo "${RED_FG}Skipping modification${RESET}:No backup found for:${DESKTOP_FILE}"
 			fi
-			printf "${BOLD}Desktop file${RESET}:%s ${BOLD}%s${RESET}:%s to call:${BOLD}${ITALIC}%s${RESET}\n" ${DESKTOP_FILE} ${RESULT} ${MSG} ${L}
 		fi
 	fi
 done

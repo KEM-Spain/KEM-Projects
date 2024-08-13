@@ -73,7 +73,7 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-I${RESET} case sensitive"
-	echo -e "${WHITE_FG}-c${RESET} no ansi color"
+	echo -e "${WHITE_FG}-a${RESET} no ansi color"
 	echo -e "${WHITE_FG}-e${RESET} exclude search"
 	echo -e "${WHITE_FG}-f${RESET} specify file to scan"
 	echo -e "${WHITE_FG}-l${RESET} list files"
@@ -89,7 +89,7 @@ usage () {
 	exit_leave $(msg_exit E ${PENDING_MSGS})
 }
 
-OPTSTR=":HDIcef:lLm:nop:rw"
+OPTSTR=":HDIaef:lLm:nop:rw"
 
 CASE_OPT='-i'
 CASE_SENSE=false
@@ -113,7 +113,7 @@ while getopts ${OPTSTR} OPTION;do
      H) usage;;
 	  D) dbg_set_level;;
      I) CASE_OPT='';CASE_SENSE=true;;
-     c) COLORS=never;;
+     a) COLORS=never;;
      e) EXCLUDE_OPT=-v;;
      f) MY_FILE=${OPTARG};;
      l) LISTFILES_OPT=-l;FILELIST=true;;

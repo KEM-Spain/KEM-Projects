@@ -27,7 +27,7 @@ msg_box () {
 	local USABLE_ROWS=$((MAX_X_COORD-MIN_X_COORD)) # Vertical space boundary
 	local MAX_LINE_WIDTH=$((USABLE_COLS-20))
 
-	local NAV_BAR="<c>Navigation keys<N>: (<w>t<N>,<w>h<N>=top <w>b<N>,<w>l<N>=bottom <w>p<N>,<w>k<N>=up <w>n<N>,<w>j<N>=down, <w>Esc<N>=close)<N> Pages:<w>_MSG_PG<N>"
+	local NAV_BAR="<c>Navigation keys<N>: <w>t<N>,<w>h<N>=top <w>b<N>,<w>l<N>=bottom <w>p<N>,<w>k<N>=up <w>n<N>,<w>j<N>=down, <w>Esc<N>=close<N> Pages:<w>_MSG_PG<N>"
 	local BOX_X_COORD=0
 	local BOX_Y_COORD=0
 	local DELIM='|'

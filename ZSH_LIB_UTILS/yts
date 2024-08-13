@@ -122,8 +122,9 @@ action_do () {
 		_FUTURE[${DL_CNT}]=false
 
 		AUTHOR=$(get_field author ${M})
+		TITLE=$(get_field title ${M})
 		URL=$(get_field url ${M})
-		echo ${AUTHOR}:${URL} >> ${_YTS_URL_LOG} # Log the url
+		echo ${AUTHOR}:${TITLE}:${URL} >> ${_YTS_URL_LOG} # Log the url
 
 		HDRS_OUT=false
 
