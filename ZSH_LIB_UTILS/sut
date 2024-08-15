@@ -17,6 +17,13 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
+# Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
+
 # Declarations
 typeset -A _UTILS
 typeset -A _UTILS_DESC
@@ -72,13 +79,6 @@ updates "PACKAGE:Show recent updates"
 mime_defaults "MIME:Display apps assoc with mime type"
 host_mac "SYSTEM:Get MAC address of host"
 )
-
-# Imports
-_LIB_DIR=/usr/local/lib
-source ${_LIB_DIR}/LIB_INIT.zsh
-source ${_LIB_DIR}/LIST.zsh
-source ${_LIB_DIR}/SEL_LIST.zsh
-source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
 autostart () {

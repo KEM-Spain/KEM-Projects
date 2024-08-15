@@ -161,7 +161,7 @@ if ! arr_is_populated "${LOCAL_LIST}";then
 fi
 
 for L in ${LOCAL_LIST};do
-	INODE=$(ls -i ${L} | cut -d' ' -f1)
+	INODE=$(stat -c'%i' ${L})
 	NAME_INODE[${L}]=${INODE}
 done
 

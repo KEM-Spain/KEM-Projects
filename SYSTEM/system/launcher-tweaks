@@ -39,23 +39,46 @@ source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
 # Functions
 get_file_state () {
 	local FN=${1} # Desktop file
-	local LAST_FILE_REFRESH=0
-	local CURR_FILE_TIME=0
-	local STATE_FILE=${_LAUNCHER_DIR}/.${FN:t}
+	local SYSTEM_FILE_TIME=0
+	local MARKER_TIME=0
+	local STATE_MARKER=${_LAUNCHER_DIR}/.${FN:t}
 
-	[[ -e ${FN} ]] || return 1 # Desktop file exists
-	[[ -e ${STATE_FILE} ]] && LAST_FILE_REFRESH=$(<${STATE_FILE}) # Get current stamp
+	[[ -e ${STATE_MARKER} ]] && MARKER_TIME=$(<${STATE_MARKER}) # Get marker time
 
-	CURR_FILE_TIME=$(stat -c %Z ${FN}(:A)) # File change time in seconds; modifier `(:A)` resolves any symbolic links
+	# Modifier `(:A)` resolves any symbolic links
+	SYSTEM_FILE_TIME=$(stat -c %Z ${FN}(:A)) # Get time of system file
 
-	if [[ ${LAST_FILE_REFRESH} -lt ${CURR_FILE_TIME} ]]; then
-		sudo touch ${FN} # Update desktop file time
-		CURR_FILE_TIME=$(stat -c %Z ${FN}) # File change time in seconds
-		echo "${CURR_FILE_TIME}" > ${STATE_FILE} # Save state
+	if [[ ${MARKER_TIME} -lt ${SYSTEM_FILE_TIME} ]]; then
+		sudo touch ${FN} # Update system file time
+		SYSTEM_FILE_TIME=$(stat -c %Z ${FN}) # File change time in seconds
+		echo "${SYSTEM_FILE_TIME}" > ${STATE_MARKER} # Update marker
 		echo "stale"
 	else
 		echo "current"
 	fi
+}
+
+save_original_desktop () {
+	local FN=${1} # Desktop file
+
+	diff ${FN} ${_ORIGINALS_DIR}/${FN:t} >/dev/null 2>&1
+	[[ ${?} -ne 0 ]] && sudo cp ${FN} ${_ORIGINALS_DIR} # Backup original system file if needed
+}
+
+update_exec_lines () {
+	local FN=${1} # Desktop file
+	local -a EXEC_LINES=("${(f)$(grep Exec= ${FN})}")
+	local ARGS=''
+	local APP_NAME=$(echo ${FN:t} | cut -d '_' -f2) 
+	local CALL_LINE="${_LAUNCHER_DIR}/run_${APP_NAME:r}"
+	local NEW_LINE=''
+	local E
+
+	for E in ${EXEC_LINES};do
+		ARGS=$(cut -s -d' ' -f2- <<<${E})
+		[[ -n ${ARGS} ]] && NEW_LINE="${CALL_LINE} ${ARGS}" || NEW_LINE=${CALL_LINE}
+		sudo sed -i "s#${E}#Exec=${NEW_LINE}#" ${FN}
+	done
 }
 
 #--Begin GetOpts--
@@ -146,7 +169,6 @@ typeset -a LAUNCHER_LIST=()
 
 LAUNCHERS=("${(f)$(find ${_LAUNCHER_DIR}/run_* -executable )}") # Launchers format: run_<APPNAME> (only executable)
 
-
 # Get launchers
 for L in ${LAUNCHERS};do
 	if [[ -n ${APP_ARG} ]];then # If an arg was passed isolate target
@@ -188,38 +210,22 @@ for L in ${(ok)_LAUNCHER_DESKTOP};do
 	if [[ ${STATUS} == "stale" || ${FORCE} == 'true' ]];then
 		if [[ ${SIMULATE} == 'true' ]];then
 			[[ ${FORCE} == 'true' ]] && echo "${SIM_TAG} ${BOLD}${RED_FG}FORCE REQUEST${RESET}: update ${WHITE_FG}${L:r}${RESET} regardless of status"
-			echo "${SIM_TAG} sudo cp ${DESKTOP_FILE} ${_ORIGINALS_DIR}" # Backup original system file
+			echo "${SIM_TAG} save_original_desktop ${DESKTOP_FILE}" # Backup original system file
 		else
 			[[ ${FORCE} == 'true' ]] && echo "${BOLD}${RED_FG}FORCE REQUEST${RESET}:updating ${WHITE_FG}${L:r}${RESET} regardless of status"
-			if [[ ! -e ${_ORIGINALS_DIR}/${DESKTOP_FILE} ]];then
-				sudo cp ${DESKTOP_FILE} ${_ORIGINALS_DIR} # Backup original system file
-			else
-				echo "File:${_ORIGINALS_DIR}/${DESKTOP_FILE} exists - ${RED_FG}not overwriting${RESET}"
-			fi
-		fi
-
-		EXEC=$(grep -m1 Exec= ${DESKTOP_FILE})
-
-		if [[ ${VERBOSE} == 'true' || ${SIMULATE} == 'true' ]];then
-			echo "${SIM_TAG} Current \"Exec\" line from desktop file:${WHITE_FG}${EXEC}${RESET}"
+			save_original_desktop ${DESKTOP_FILE}
 		fi
 
 		if [[ ${SIMULATE} == 'true' ]];then
-			echo "${SIM_TAG} Modifying \"Exec\" line in desktop file with:${WHITE_FG}Exec=${L}${RESET}"
+			echo "${SIM_TAG} Modifying \"Exec\" lines in desktop file${RESET}"
 		else
-			if [[ -e ${_ORIGINALS_DIR}/${DESKTOP_FILE} ]];then
-				sudo sed -i "s#Exec=.*#Exec=${L}#g" ${DESKTOP_FILE}
-				if [[ ${?} -eq 0 ]];then
-					MSG="desktop file was modified"
-					RESULT=SUCCESS
-				else
-					MSG="desktop file was NOT modified"
-					RESULT=ERROR
-				fi
-				printf "${BOLD}Desktop file${RESET}:%s ${BOLD}%s${RESET}:%s to call:${BOLD}${ITALIC}%s${RESET}\n" ${DESKTOP_FILE} ${RESULT} ${MSG} ${L}
+			update_exec_lines ${DESKTOP_FILE}
+			if [[ ${?} -eq 0 ]];then
+				MSG="desktop file was modified" && RESULT=SUCCESS
 			else
-				echo "${RED_FG}Skipping modification${RESET}:No backup found for:${DESKTOP_FILE}"
+				MSG="desktop file was NOT modified" && RESULT=ERROR
 			fi
+			printf "${BOLD}Desktop file${RESET}:%s ${BOLD}%s${RESET}:%s to call:${BOLD}${ITALIC}%s${RESET}\n" ${DESKTOP_FILE} ${RESULT} ${MSG} ${L}
 		fi
 	fi
 done

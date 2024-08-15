@@ -117,7 +117,6 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-# Echo "$0 is broken - Work In Progress"
 if ! validate_is_integer ${NUM_COLS};then
 	usage "Invalid $(opt_type i) Number of Columns:${NUM_COLS}"
 elif ! validate_is_integer ${COL_WIDTH};then
@@ -131,16 +130,17 @@ fi
 # Generate printf
 PF_FMT='printf "'
 for ((C=1; C<=NUM_COLS; C++ ));do
-	PF_FMT+=' %-'${COL_WIDTH}'s'
+	PF_FMT+=' %-'${COL_WIDTH}'.'${COL_WIDTH}'s'
 done
 PF_FMT+='\\n"'
 
 # Get lines
 LINES_IN=("${(f)$(
-	while read -r LINE;do
-		echo ${LINE} | tut strip_ansi | sed 's/[^[:print:]]//g'
+	while read -t -r LINE;do
+		ansi2txt <<<${LINE} | col -b
 	done 
 )}")
+[[ -z ${LINES_IN} ]] && exit_leave $(msg_exit E 'No input provided')
 
 # Header
 if [[ -n ${HEADER} ]];then
@@ -152,10 +152,9 @@ fi
 
 # Format into columns
 NDX=0
-# TODO splitting lines into words - each line needs to represent a single column i.e. Kurt Miller  NOT  Kurt        Miller
 for L in ${(o)LINES_IN};do
 	((NDX++))
-	PF_VALS+=${L}
+	PF_VALS+=${(qqq)L}
 	if [[ ${NDX} -eq ${NUM_COLS} ]];then
 		PF="${PF_FMT} ${PF_VALS}"
 		eval ${PF}

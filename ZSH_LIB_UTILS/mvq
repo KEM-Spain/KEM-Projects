@@ -130,22 +130,27 @@ set_cache () {
 	fi
 }
 
-show_cache () {
+cache_select () {
 	local LIST=("${(f)$(find ${_CACHE_DIR} -name '_*' -type f)}")
 	local L
 	local TXT
+	local -A CACHE_LIST=()
 
 	for L in ${(o)LIST};do
 		TXT=$(cut -d'_' -f3- <<<${L:t} | sed 's/_/ /g')
 		case ${L:t} in
-			_ACT*) echo "    Actor:${WHITE_FG}${TXT}${RESET}";;
-			_DEC*) echo "   Decade:${WHITE_FG}${TXT}${RESET}";;
-			_DIR*) echo " Director:${WHITE_FG}${TXT}${RESET}";;
-			_YR*)  echo "     Year:${WHITE_FG}${TXT}${RESET}";;
-			*)     echo "Undefined:${WHITE_FG}${L:t}${RESET}";;
+			_ACT*) CACHE_LIST[Actor:${TXT}]=${TXT};;
+			_DEC*) CACHE_LIST[Decade:${TXT}]=${TXT};;
+			_DIR*) CACHE_LIST[Director:${TXT}]=${TXT};;
+			_YR*)  CACHE_LIST[Year:${TXT}]=${TXT};;
 		esac
 	done
-	echo "${CYAN_FG}Press any key...${RESET}";read
+
+	list_set_type select
+
+	sel_list_set ${(k)CACHE_LIST}
+	sel_list -O ${GREEN_FG} -c -w10 "<w>Select from cache or <h>(q)uit<N>"
+
 }
 
 imdb () {
@@ -358,19 +363,20 @@ usage () {
 	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type y)]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
-	echo -e "${WHITE_FG}-C${RESET} show cached queries"
+	echo -e "${WHITE_FG}-C${RESET} select cached query"
 	echo -e "${WHITE_FG}-a${RESET} actor ('Jack Nicholson')"
 	echo -e "${WHITE_FG}-d${RESET} director ('François Truffaut')"
 	echo -e "${WHITE_FG}-e${RESET} decade (1990 2000 2010 etc.)"
 	echo -e "${WHITE_FG}-l${RESET} select all arguments from lists"
-	echo -e "${WHITE_FG}-y${RESET} year (4 digits - ${WHITE_ON_GREY}default${RESET})"
+	echo -e "${WHITE_FG}-i${RESET} ignore cache"
+	echo -e "${WHITE_FG}-y${RESET} year (4 digits) [${WHITE_ON_GREY}default${RESET}]"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 
 	echo "\n$(msg_warn ${PENDING_MSGS})"
 	exit_leave
 }
 
-OPTSTR=":HDCa:d:e:ly:"
+OPTSTR=":HDCa:d:e:liy:"
 OPTIND=0
 
 ACTOR_ARG=''
@@ -378,17 +384,19 @@ DIRECTOR_ARG=''
 DECADE_ARG=''
 YEAR_ARG=''
 DO_LIST=false
-SHOW_CACHE=false
+CACHE_SELECT=false
+IGNORE_CACHE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
      H) usage;;
      D) dbg_set_level;;
-     C) SHOW_CACHE=true;;
+     C) CACHE_SELECT=true;;
      a) ACTOR_ARG=${OPTARG};;
      d) DIRECTOR_ARG=${OPTARG};;
      e) DECADE_ARG=${OPTARG};;
      l) DO_LIST=true;;
+     i) IGNORE_CACHE=true;;
      y) YEAR_ARG=${OPTARG};;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
@@ -405,9 +413,21 @@ shift $((OPTIND -1))
 [[ ! -e ${_CACHE_DIR} ]] && mkdir ${_CACHE_DIR}
 
 # Process arguments
-[[ ${SHOW_CACHE} == 'true' ]] && show_cache && exit_leave
+if [[ ${CACHE_SELECT} == 'true' ]];then
+	cache_select
+	C_TYPE=$(cut -d: -f1 <<<${_SEL_VAL})
+	SEARCHTERM=$(cut -d: -f2 <<<${_SEL_VAL})
 
-SEARCHTERM=${@}
+	case ${C_TYPE:l} in
+		actor) ACTOR_ARG=${SEARCHTERM};;
+		decade) DECADE_ARG=${SEARCHTERM};;
+		director) DIRECTOR_ARG=${SEARCHTERM};;
+		year) YEAR_ARG=${SEARCHTERM};;
+	esac
+else
+	SEARCHTERM=${@}
+fi
+
 if [[ ${DO_LIST} == 'true' ]];then
 	do_list
 
@@ -448,7 +468,13 @@ fi
 
 HEADER="${HEADER}"
 
-if ! get_cache ${SEARCHTERM};then
+IS_CACHED=false
+if [[ ${IGNORE_CACHE} == 'false' ]];then
+	get_cache ${SEARCHTERM}
+	[[ ${?} -eq 0 ]] && IS_CACHED=true
+fi
+
+if [[ ${IS_CACHED} == 'false' ]];then
 	# Submit query
 	msg_box -c "Working...querying flickchart (a very slow site) for ${QRY}"
 

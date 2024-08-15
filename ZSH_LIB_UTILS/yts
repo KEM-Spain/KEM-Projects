@@ -49,7 +49,7 @@ _JS_SCRIPT=/usr/local/etc/yts.js
 _MARKER=${_YTS_DIR}/.yts-upd.lastrun
 _OBJECT=video
 _YTS_DBG=2
-_YTS_FAVORITES=${_YTS_DIR}/.yts_history
+_YTS_FAVORITES=${_YTS_DIR}/.yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
 _YTS_URL_LOG=/tmp/yts.url.log
 
@@ -978,11 +978,12 @@ PATHLBL=$(path_get_label 40)
 
 if [[ (! -f ${_MARKER}) || (-f ${_MARKER} && (! ${g_LAST_UPD:l} =~ 'today')) ]];then
 	clear
-	msg_box "Updating yts-dlp..."
-	pushd ${_YTS_GIT}
-	git pull
-	popd
-	touch ${_MARKER}
+	msg_box -t1 "git update disable until github fixes itself"
+	#msg_box "Updating yts-dlp..."
+	#pushd ${_YTS_GIT}
+	#git pull
+	#popd
+	#touch ${_MARKER}
 	msg_box_clear
 fi
 

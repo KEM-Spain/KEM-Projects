@@ -2235,6 +2235,7 @@ ${E_GREEN_FG}-----------------${E_RESET}
    A string with a minimum length printf("'%10s'", "Hello");  '     Hello'
    Minimum length, left-justified printf("'%-10s'", "Hello"); 'Hello     '
    Truncate: add a '.' after '%': %.25 will truncate past 25 chars...
+   ${E_WHITE_FG}NOTE${E_RESET}: You can use printf "%-4.4s" for getting both truncate and justified in output
 
 ${E_WHITE_FG}Special Characters${E_RESET}
 ${E_GREEN_FG}------------------${E_RESET}
