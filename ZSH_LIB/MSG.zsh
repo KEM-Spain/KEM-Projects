@@ -542,7 +542,7 @@ msg_box_clear () {
 		[[ ${W_COORD_ARG} == 'W' ]] && W_COORD_ARG=${MSG_COORDS[W]}
 	fi
 
-	#TODO: erasing too many chars
+	#TODO: fix damaged box border glitch
 	for ((X=X_COORD_ARG; X <= X_COORD_ARG + H_COORD_ARG - 1; X++));do
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Clearing messsage line: clearing ${W_COORD_ARG} cols"
 		tput cup ${X} ${Y_COORD_ARG}

@@ -174,8 +174,9 @@ action_do () {
 			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
+				DEST_1=$(cut -d']' -f2- <<<${DEST_1})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				HDR_TXT="<c>${DEST_1} <N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
+				HDR_TXT="<m>$(str_trim ${DEST_1})<N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
 				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR_TXT})} ))
 				HDR_LEN=$((HDR_LEN + FRAME_PAD))
 				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
@@ -978,12 +979,12 @@ PATHLBL=$(path_get_label 40)
 
 if [[ (! -f ${_MARKER}) || (-f ${_MARKER} && (! ${g_LAST_UPD:l} =~ 'today')) ]];then
 	clear
-	msg_box -t1 "git update disable until github fixes itself"
-	#msg_box "Updating yts-dlp..."
-	#pushd ${_YTS_GIT}
-	#git pull
-	#popd
-	#touch ${_MARKER}
+	#msg_box -t1 "git update disable until github fixes itself"
+	msg_box "Updating yts-dlp..."
+	pushd ${_YTS_GIT}
+	git pull
+	popd
+	touch ${_MARKER}
 	msg_box_clear
 fi
 

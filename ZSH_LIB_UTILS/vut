@@ -194,11 +194,15 @@ ___EOF
 }
 
 length () {
-	local DESC
-	local FN
+	local DESC=''
+	local -a FN_ARG=()
+	local DUR=''
+	local LONGEST=0
+	local LIST=()
+	local F=''
 
 	read -r -d '' DESC<<___EOF
-Display network connections
+Display video duration
 ___EOF
 
 	# Functions
@@ -208,7 +212,7 @@ ___EOF
 		tabs 5
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
-		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H]\n"
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] <VIDEO_FILES>\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 
 		echo "\n$(msg_exit W ${PENDING_MSGS})"
@@ -217,17 +221,24 @@ ___EOF
 
 	# Execution
 	[[ ${1} == '-H' ]] && usage
+	[[ ${#} -eq 0 ]] && usage "missing video filename" || FN_ARG=(${@})
+	
+	for F in ${FN_ARG};do
+		[[ ! -f ${F} ]] && continue
+		[[ ! -f ${F} ]] && exit_leave $(msg_exit E "file not found:${F}")
+		file ${F} | grep -qi 'media\|matroska\|video'
+		[[ ${?} -ne 0 ]] && echo "File:${WHITE_FG}${F}${RESET} not a video file - skipping" && continue
+		[[ ${#F} -gt ${LONGEST} ]] && LONGEST=${#F}
+		LIST+=${F}
+	done
 
-	[[ ${#} -eq 0 ]] && usage "missing video filename" || FN=${1}
-	[[ ! -f ${FN} ]] && exit_leave $(msg_exit E "file not found:${FN}")
-
-	file ${FN} | grep -qi 'media\|matroska\|video'
-	[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "not a video file:${FN}")
-
-	echo "The duration length of:${WHITE_FG}${FN}${RESET}"
-	ffmpeg -i "${FN}"  2>&1 | grep Duration 
+	[[ ${#LIST} -ne 0 ]] && echo "\n${CYAN_FG}Video duration info...${RESET}"
+	for F in ${LIST};do
+		DUR=$(ffmpeg -i "${F}"  2>&1 | grep Duration | cut -d':' -f2- | cut -d',' -f1)
+		printf "${WHITE_FG}%*s${RESET}:%10s\n" ${LONGEST} ${F} ${DUR}
+	done
+	echo
 }
-
 
 merge () {
 	# Declarations
