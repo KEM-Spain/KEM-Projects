@@ -225,7 +225,7 @@ function usage {
 	echo -e "\n${WHITE_FG}Desc${RESET}:Frontend to nordvpn\n\tValid $(opt_type c) shortcuts:${(kv)SHORTCUTS[@]}"
 	) >&2
 
-	exit_leave ${PENDING_MSGS}
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS

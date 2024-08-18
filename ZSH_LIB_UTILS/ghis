@@ -411,7 +411,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:Search command history\n\tDefault is to match either commands or args\n\tDefault is ${DEFAULT_LINES} lines of history"
 	) >&2
 
-	exit_leave ${PENDING_MSGS}
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 OPTSTR=":HDa:c:l:o:sxz"

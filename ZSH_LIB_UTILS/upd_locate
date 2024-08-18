@@ -116,7 +116,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:Backup selected directories"
 	) >&2
 
-	exit_leave ${PENDING_MSGS}
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 OPTSTR=":HDIfis"

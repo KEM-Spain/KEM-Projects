@@ -60,7 +60,7 @@ usage () {
 	echo "Usage: ${_SCRIPT}"
 	echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
 
-	exit_leave ${PENDING_MSGS}
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 # Execution
