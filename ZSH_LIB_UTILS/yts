@@ -176,7 +176,7 @@ action_do () {
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_1=$(cut -d']' -f2- <<<${DEST_1})
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				HDR_TXT="<m>$(str_trim ${DEST_1})<N>- <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
+				HDR_TXT="<m>$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
 				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR_TXT})} ))
 				HDR_LEN=$((HDR_LEN + FRAME_PAD))
 				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center

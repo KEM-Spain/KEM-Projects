@@ -101,8 +101,8 @@ done
 shift $((OPTIND -1))
 #--End GetOpts--
 # Execution
-[[ -z ${1} ]] && usage "missing $(opt_type f)" || FN=${1}
-[[ -z ${2} ]] && usage "missing $(opt_type e)" || EXT=${2}
+[[ -z ${1} ]] && usage "missing argument:$(opt_type f)" || FN=${1}
+[[ -z ${2} ]] && usage "missing argument:$(opt_type e)" || EXT=${2}
 
 [[ ! -e ${FN} ]] && exit_leave $(msg_exit E "file not found:${1}")
 

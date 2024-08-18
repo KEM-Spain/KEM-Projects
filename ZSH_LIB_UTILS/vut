@@ -221,7 +221,7 @@ ___EOF
 
 	# Execution
 	[[ ${1} == '-H' ]] && usage
-	[[ ${#} -eq 0 ]] && usage "missing video filename" || FN_ARG=(${@})
+	[[ ${#} -eq 0 ]] && usage "missing video filename(s)" || FN_ARG=(${@})
 	
 	for F in ${FN_ARG};do
 		[[ ! -f ${F} ]] && continue

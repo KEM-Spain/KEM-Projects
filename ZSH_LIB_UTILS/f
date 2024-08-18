@@ -144,7 +144,6 @@ esac
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LISTING:${LISTING}\nMAXDEPTH:${MAXDEPTH}\nREGEX:${REGEX}\nOBJ_TYPE:${OBJ_TYPE:-any}"
 
 CMD="sudo find ${FIND_PATH} -maxdepth ${MAXDEPTH} -iname ${INAME} -regex ${REGEX} ${TYPE}"
-echo "${WHITE_FG}Command${RESET}: sudo find ${WHITE_FG}${FIND_PATH}${RESET} -maxdepth ${WHITE_FG}${MAXDEPTH}${RESET} -iname ${WHITE_FG}${INAME}${RESET} -regex ${WHITE_FG}${REGEX}${RESET} ${WHITE_FG}Type Filter${RESET}:${CYAN_FG}${TDESC}${RESET}"
 
 LIST=("${(f)$(eval ${CMD})}")
 if ! arr_is_populated "${LIST}" ;then
@@ -154,6 +153,8 @@ fi
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} CMD:${CMD}"
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LIST COUNT:${#LIST}"
 
+{
+echo "${WHITE_FG}Find command${RESET}: sudo find ${WHITE_FG}${FIND_PATH}${RESET} -maxdepth ${WHITE_FG}${MAXDEPTH}${RESET} -iname ${WHITE_FG}${INAME}${RESET} -regex ${WHITE_FG}${REGEX}${RESET} ${WHITE_FG}Type Filter${RESET}:${CYAN_FG}${TDESC}${RESET}" | tr -s '[:space:]'
 if [[ ${LISTING} == 'true' ]];then
 	ls -lAdrt ${LIST}
 else
@@ -161,5 +162,6 @@ else
 		echo ${L}
 	done
 fi
+} | mypager
 
 exit_leave

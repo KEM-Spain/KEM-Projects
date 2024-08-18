@@ -188,7 +188,8 @@ done
 echo "\n" >&2
 
 if ! arr_is_populated "${LIST}";then
-	exit_leave $(msg_exit W "No file(s) found containing:${SEARCHTERM}\\\n${MAGENTA_FG}Grep command was${RESET}:${CMD}")
+	echo "${WHITE_FG}Grep command${RESET}:${CMD}" | tr -s '[:space:]'
+	exit_leave $(msg_exit W "No file(s) found containing:${SEARCHTERM}")
 fi
 
 if [[ ${FILELIST} == 'true' ]];then

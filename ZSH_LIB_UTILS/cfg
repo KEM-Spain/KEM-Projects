@@ -135,7 +135,7 @@ usage () {
 	echo -e "\n${WHITE_FG}DESC${RESET}:Search for system config files based on search phrase (case sensitive)\n"
 	) >&2
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 OPTSTR=":HDd"
@@ -154,10 +154,10 @@ shift $((${OPTIND} - 1))
 #--End GetOpts--
 
 #---Execution---
-#[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 SEARCHTERM=${@}
-[[ -z ${SEARCHTERM} ]] && usage "Missing arg ${WHITE_FG}<APP>${RESET}"
+[[ -z ${SEARCHTERM} ]] && usage "Missing argument:${WHITE_FG}<APP>${RESET}"
 
 DEPTH=2
 [[ ${DEEP} == "true" ]] && CFGDIRS+=(/usr/share /usr/lib) && ((DEPTH++))
