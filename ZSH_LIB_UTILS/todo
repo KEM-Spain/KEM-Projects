@@ -67,7 +67,6 @@ usage () {
 [[ ${1} == '-H' ]] && usage
 [[ ${1} == '-d' ]] && SHOW_DEV=true || SHOW_DEV=false
 
-#echo "${CYAN_FG}${BOLD}Cached edits${WHITE_FG}...${RESET}"
 while read F;do
 	[[ ${F} =~ ${_THIS} ]] && continue
 	FN=$(echo ${F} | cut -d \| -f2 2>/dev/null)
@@ -85,13 +84,11 @@ done < ${CACHED_TARGETS}
 
 GET_PWD=true
 for S in ${(k)_SOURCES};do
-	#echo "Scanning directory:${S}"
 	_TODO_LIST+=("${(f)$(find ${S} -maxdepth 2 -type f)}")
 	[[ ${S} == ${PWD} ]] && GET_PWD=false
 done
 [[ ${GET_PWD} == 'true' ]] && _TODO_LIST+=("${(f)$(find ${PWD} -maxdepth 2 -type f)}")
 
-#echo "${GREEN_FG}${BOLD}Local source and non cached${WHITE_FG}...${RESET}"
 HIT=false
 LAST_FN=?
 for F in ${_TODO_LIST};do
@@ -100,7 +97,6 @@ for F in ${_TODO_LIST};do
 	[[ ${F} =~ ${_THIS} ]] && continue
 	[[ ! $(file -b ${F}) =~ 'zsh' && ! ${F:e} == 'zsh' ]] && continue
 	[[ ! -r ${F} ]] && continue
-	#echo "Scanning file:${F}"
  	grep -q "#[ ]*TODO" ${F}
  	if [[ $? -eq 0 ]];then
 		for K in ${(k)_SOURCES};do
@@ -117,6 +113,6 @@ for F in ${_TODO_LIST};do
  	fi
 done
 
-[[ ${HIT} == 'false' ]] && echo "No todo tags found"
+[[ ${HIT} == 'false' ]] && echo "No TODO tags found"
 
 exit_leave

@@ -21,6 +21,7 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
+typeset -A _RUMBLE_DECODE=()
 typeset -A _COORDS=(X 10 Y 38 H 10 W 86)
 typeset -A _PARTIALS
 typeset -A _DOWNLOADS
@@ -52,6 +53,7 @@ _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/.yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
 _YTS_URL_LOG=/tmp/yts.url.log
+_RUMBLE_DECODE[neil_oliver]="c-6293844"
 
 # Globals
 g_FAVORITE=''
@@ -124,6 +126,8 @@ action_do () {
 		AUTHOR=$(get_field author ${M})
 		TITLE=$(get_field title ${M})
 		URL=$(get_field url ${M})
+
+
 		echo ${AUTHOR}:${TITLE}:${URL} >> ${_YTS_URL_LOG} # Log the url
 
 		HDRS_OUT=false
@@ -174,15 +178,15 @@ action_do () {
 			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
-				DEST_1=$(cut -d']' -f2- <<<${DEST_1})
+				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<w>/" -e "s/:/<N>:<m>/")
 				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				HDR_TXT="<m>$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
+				HDR_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
 				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR_TXT})} ))
 				HDR_LEN=$((HDR_LEN + FRAME_PAD))
 				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
 				[[ ${HDR_LEN} -gt ${_COORDS[W]} ]] && _COORDS[W]=${HDR_LEN} && _COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
 				msg_box -c -C -I -H3 -jl -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} ${HDR_TXT}
-				msg_box -C -jl "<m>Downloading: <c>${DEST_2[1,60]}<N>"
+				msg_box -C -jl "<w>Downloading<N>:<m> <c>${DEST_2[1,60]}<N>"
 				msg_box -C -jl "<m>$(str_unicode_line $((_COORDS[W]-4)))<N>"
 				HDRS_OUT=true
 			fi
@@ -421,7 +425,8 @@ get_favorite () {
 get_field () {
 	local FIELD=${1}
 	local NDX=${2}
-	local STR
+	local STR=''
+	local DECODE=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} ARGS:FIELD:${FIELD}, NDX:${NDX}"
@@ -436,7 +441,14 @@ get_field () {
 			time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
 			agetime) STR=$(cut -d'|' -f4,6 <<<${_LIST[${NDX}]});STR="(${STR:s/|/ /})";;
 		esac
+
+		if [[ ${FIELD} == 'author' ]];then
+			DECODE=${(k)_RUMBLE_DECODE[(r)${STR}]}
+			[[ -n ${DECODE} ]] && STR=${(C)DECODE:s/_/ /}
+		fi
+		
 		[[ -z ${STR} ]] && STR="Unknown"
+
 	else
 		case ${FIELD} in
 			age) STR=$(cut -d'|' -f1 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
@@ -590,16 +602,20 @@ rumble () {
 	local -a LINKS
 	local -a TITLES
 	local -aU VID_LIST=()
-	local AGE
-	local CHANNEL
-	local GEN_SEARCH
-	local LIVE
-	local PG
-	local MSG
-	local X
-	local NDX
+	local AGE=''
+	local CHANNEL=''
+	local GEN_SEARCH=''
+	local LIVE=''
+	local PG=''
+	local MSG=''
+	local X=''
+	local NDX=''
+	local KEY=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	KEY=${SEARCHTERM:l:s/ /_/}
+	[[ -n ${_RUMBLE_DECODE[${KEY}]} ]] && SEARCHTERM=${_RUMBLE_DECODE[${KEY}]} # Convert to unfriendly Rumble id
 
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
 
