@@ -77,10 +77,10 @@ RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 
 read -r -d '' DESC<<EOF
-Find recorded, printed, or notation music files.
-\t<SEARCHTERM> is either a full or partial search parameter.
-\tThe default search is for music of any type. Any search 
-\tresult selected will be opened by the appropriate 
+Find music files in recorded, printed, or notation format.
+\t<SEARCHTERM> parameter is a fuzzy match by default.
+\tSearch is for music of any type by default. Any selected
+\tsearch result will be opened by the appropriate 
 \tapplication.
 EOF
 

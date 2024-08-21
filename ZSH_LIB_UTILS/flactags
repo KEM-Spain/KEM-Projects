@@ -1,0 +1,80 @@
+#!/usr/bin/zsh
+# Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+# Declarations
+typeset -A _TAG_INFO
+typeset -A _FILE_INFO
+
+read -r -d '' DESC<<EOF
+Show tag info for flac files in the current directory
+EOF
+
+# Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/STR.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
+
+# Functions
+usage () {
+	local PENDING_MSGS=${@}
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+	tabs 5
+
+	echo "${WHITE_FG}\nUsage${RESET}:${_SCRIPT} [-H]"
+	echo "${WHITE_FG} Desc${RESET}:${DESC}"
+
+	exit_leave $(msg_exit W ${PENDING_MSGS})
+}
+
+# Execution
+[[ ${1} == '-H' ]] && usage
+
+set -G # Supress error for no match
+[[ -z $(echo *.flac) ]] && usage "No flac files found"
+
+LONGEST=0
+NDX=0
+
+for T in *flac;do
+	((NDX++))
+	_FILE_INFO[${NDX}]=${T}
+	_TAG_INFO[ARTIST:${NDX}]=$(metaflac --show-tag=ARTIST ${T} 2>/dev/null)
+	[[ ${#_TAG_INFO[ARTIST:${NDX}]} -gt ${LONGEST} ]] && LONGEST=${#_TAG_INFO[ARTIST:${NDX}]}
+	_TAG_INFO[TITLE:${NDX}]=$(metaflac --show-tag=TITLE ${T} 2>/dev/null)
+	[[ ${#_TAG_INFO[TITLE:${NDX}]} -gt ${LONGEST} ]] && LONGEST=${#_TAG_INFO[TITLE:${NDX}]}
+	_TAG_INFO[ALBUM:${NDX}]=$(metaflac --show-tag=ALBUM ${T} 2>/dev/null)
+	[[ ${#_TAG_INFO[ALBUM:${NDX}]} -gt ${LONGEST} ]] && LONGEST=${#_TAG_INFO[ALBUM:${NDX}]}
+done
+
+TRACKS=${NDX}
+
+for ((TRACK=1; TRACK <= ${TRACKS}; TRACK++));do
+	echo "FILE:${WHITE_FG}${_FILE_INFO[${TRACK}]}${RESET}"
+	[[ -z ${_TAG_INFO[ARTIST:${TRACK}]} ]] && echo "No ARTIST tag found" || echo ${_TAG_INFO[ARTIST:${TRACK}]}
+	[[ -z ${_TAG_INFO[TITLE:${TRACK}]} ]] && echo "No TITLE tag found" || echo ${_TAG_INFO[TITLE:${TRACK}]}
+	[[ -z ${_TAG_INFO[ALBUM:${TRACK}]} ]] && echo "No ALBUM tag found" || echo ${_TAG_INFO[ALBUM:${TRACK}]}
+	echo ${MAGENTA_FG}$(str_unicode_line ${LONGEST})${RESET}
+done
+
+exit_leave

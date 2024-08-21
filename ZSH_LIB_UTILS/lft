@@ -34,7 +34,7 @@ typeset -a _SORT_LIST
 typeset -a _STATS
 
 # Constants
-_TYPE_LABELS=(a "Last Access" m "Last Modification" c "Last Change")
+_TYPE_LABELS=(b "Birth Date" a "Last Access" m "Last Modification")
 
 # Globals
 g_FN_TAG=''
@@ -54,7 +54,7 @@ get_stat () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} NDX:${NDX} TYPE:${TYPE}"
 
 	case ${TYPE} in
-		c) STAT=$(echo "${_LIST[${NDX}]}" | cut -d'|' -f2);;
+		b) STAT=$(echo "${_LIST[${NDX}]}" | cut -d'|' -f2);;
 		a) STAT=$(echo "${_LIST[${NDX}]}" | cut -d'|' -f3);;
 		m) STAT=$(echo "${_LIST[${NDX}]}" | cut -d'|' -f4);;
 	esac
@@ -196,13 +196,13 @@ fi
 LBL_WIDTH=17
 list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file)  Path:${WHITE_FG}%-40s${RESET} ${_PG}" ${#_LIST} "${PATHLBL}"'
 list_set_header 'printf " "'
-list_set_header 'printf "%-*s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s" $((LONGEST+5)) "" ${_TYPE_LABELS[c]} ${_TYPE_LABELS[a]} ${_TYPE_LABELS[m]}'
+list_set_header 'printf "%-*s %${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s" $((LONGEST+5)) "" ${_TYPE_LABELS[b]} ${_TYPE_LABELS[a]} ${_TYPE_LABELS[m]}'
 list_set_header 'printf "%-*s ${MAGENTA_FG}%${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s${RESET}" $((LONGEST+5)) "" "$(str_unicode_line ${LBL_WIDTH})" "$(str_unicode_line ${LBL_WIDTH})" "$(str_unicode_line ${LBL_WIDTH})"'
 
 # Set line item
 list_set_line_item ' 
 [[ -d $(cut -d"|" -f1 <<<${_LIST[${_LIST_NDX}]}) ]] && local LC=${ITALIC}${CYAN_FG} || local LC=${RESET}
-printf "${BOLD}${WHITE_FG}%4s${RESET}) ${BAR}${LC}%-*s${RESET}%${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s\n" ${_LIST_NDX} ${LONGEST} "$(item_decorate ${_LIST_NDX})" "$(get_stat ${_LIST_NDX} c)" "$(get_stat ${_LIST_NDX} a)" "$(get_stat ${_LIST_NDX} m)"
+printf "${BOLD}${WHITE_FG}%4s${RESET}) ${BAR}${LC}%-*s${RESET}%${LBL_WIDTH}s %${LBL_WIDTH}s %${LBL_WIDTH}s\n" ${_LIST_NDX} ${LONGEST} "$(item_decorate ${_LIST_NDX})" "$(get_stat ${_LIST_NDX} b)" "$(get_stat ${_LIST_NDX} a)" "$(get_stat ${_LIST_NDX} m)"
 '
 list_set_key_msg '
 printf "Press ${WHITE_FG}Home End PgUp PgDn, ${RESET}<${WHITE_FG}n${RESET}>ext, <${WHITE_FG}p${RESET}>rev, <${WHITE_FG}b${RESET}>ottom, <${WHITE_FG}t${RESET}>op, <${WHITE_FG}s${RESET}>ort columns, <${GREEN_FG}Enter${RESET}>${RESET} or <${WHITE_FG}q${RESET}>uit${RESET}"

@@ -32,6 +32,7 @@ typeset _LS_ARGS=''
 
 # Constants
 _CALLER=${0:t}
+_LS_FORMAT+='--time=birth'
 _LS_FORMAT+='--color=always'
 _LS_FORMAT+='--group-directories-first'
 _LS_FORMAT+='-h'

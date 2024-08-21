@@ -191,13 +191,13 @@ for I in ${_INSTALLED};do
 done
 
 if [[ ${NDX} -eq 0 ]];then
-	exit_leave "No package matching:${WHITE_FG}${SEARCHTERM}${RESET} (excluding snap and flatpak) was found"
+	exit_leave $(msg_exit W "No package matching:${SEARCHTERM} (excluding snap and flatpak) was found")
 else
 	msg_box -t 1.5 "Found ${#_PKG_KEYS} packages. Gathering data. Please wait..."
 	msg_box_clear
 fi
 
-[[ -z ${_PKG_KEYS} ]] && exit_leave "\nNo package matching \"${SEARCHTERM}\" was found"
+[[ -z ${_PKG_KEYS} ]] && exit_leave $(msg_exit W "No package matching:${SEARCHTERM} was found")
 
 [[ -n ${SEARCHTERM} ]] && _INFO_MSG+="Searching for:<B><I>${SEARCHTERM}<N>" || _INFO_MSG+="Showing <B><I>ALL<N> installed packages..."
 

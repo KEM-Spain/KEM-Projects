@@ -902,6 +902,8 @@ msg_exit () {
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
+	[[ ${#} -ne 2 ]] && echo "${0}: missing argument - need:LEVEL, MSG" >&2
+
 	case ${LEVEL} in 
 		W) LABEL="Warning";LCOLOR=${ITALIC}${BOLD}${MAGENTA_FG};;
 		E) LABEL="Error";LCOLOR=${ITALIC}${BOLD}${RED_FG};;

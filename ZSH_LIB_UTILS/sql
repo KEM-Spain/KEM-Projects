@@ -59,7 +59,7 @@ set_db_list () {
 	local -a LIST
 	local L
 
-	msg_box -x12 "Searching ${g_DEPTH} levels deep for databases..."
+	msg_box -x12 "Searching ${g_DEPTH} $(str_pluralize level ${g_DEPTH}) deep for databases..."
 
 	_DB_LIST=()
 	LIST=("${(f)$(find $(realpath .) -maxdepth ${g_DEPTH} -type f 2>/dev/null)}")
@@ -127,10 +127,9 @@ opt_exists () {
 opt_type () {
 	local OPT=${1}
 	case ${OPT} in
-		d) echo "<DIR>";;
+		d) echo "<DELIM>";;
 		b) echo "<DATABASE>";;
 		f) echo "<FILE>";;
-		s) echo "<SEPARATOR>";;
 		t) echo "<FILE_TYPE>";;
 		q) echo "<SQL_QUERY>";;
 	esac
@@ -145,15 +144,15 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type b) $(opt_type q)]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-d $(opt_type s)${RESET} separator"
+	echo -e "${WHITE_FG}-d $(opt_type d)${RESET} table data delimiter"
 	echo -e "${WHITE_FG}-l${RESET} list DB's in current directory"
 	echo -e "${WHITE_FG}-p${RESET} print table contents"
 	echo -e "${WHITE_FG}-s${RESET} show table schema"
 	echo -e "${WHITE_FG}-t${RESET} show tables in DB"
+	echo -e "${WHITE_FG}-z${RESET} increase search depth"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 
-	echo "\n$(msg_exit W ${PENDING_MSGS})"
-	exit_leave
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -189,6 +188,8 @@ shift $((OPTIND -1))
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 _SESSION_DATA[DELIM]='|' # set default delim
 
+[[ ${SHOW_SCHEMA} == 'true' && ${#} -ne 0 ]] && usage "Option -s requires no arguments"
+[[ ${SHOW_TABS} == 'true' && ${#} -ne 0 ]] && usage "Option -t requires no arguments"
 [[ ${#} -eq 0 && ${#OPTIONS} -eq 0 ]] && usage "No operation specified" || QUERY_STR=${@}
 [[ ${#} -ne 0 && ${#} -ne 2 ]] && usage "Query requires 2 arguments:$(opt_type b) $(opt_type q)"
 [[ ${#} -eq 2 ]] && QUERY_DB=${1} && QUERY_STR=${2}

@@ -25,7 +25,7 @@ typeset -a _BLACKLIST=(-v "\.so\|\.pcm")
 CUR_USER=$(whoami)
 
 # Globals
-_DEPTH=4
+_DEPTH=1
 
 # Imports
 zmodload -F zsh/stat b:zstat
@@ -79,7 +79,6 @@ IS_OWNER=false
 HIDDEN=false
 EXACT_MATCH=false
 FUZZY=false
-MAX_DEPTH=${_DEPTH}
 TOP_LEVEL=/
 
 read -r -d '' DESC<<EOF
@@ -131,7 +130,7 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} Help"
 	echo -e "${WHITE_FG}-D${RESET} Debug"
 	echo -e "-h Show hidden files"
-	echo -e "-d ${WHITE_FG}$(opt_type d)${RESET} depth level of search (default is ${_DEPTH})"
+	echo -e "-d ${WHITE_FG}$(opt_type d)${RESET} depth of search (repeats increase level)"
 	echo -e "-f Fuzzy search"
 	echo -e "-o Owned by user"
 	echo -e "-t ${WHITE_FG}$(opt_type t)${RESET} top level of search"
@@ -144,7 +143,7 @@ usage () {
 
 typeset -a OPTIONS
 OPTIND=0
-OPTSTR=":HDhfd:ot:x"
+OPTSTR=":HDhfdot:x"
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
@@ -176,11 +175,10 @@ if [[ -z ${SEARCHTERM} ]];then
 	[[ ${EXACT_MATCH} == 'true' ]] && usage "EXACT_MATCH requires:<SEARCHTERM>"
 	START_DIR=.
 else
-	MAX_DEPTH=${_DEPTH}
 	START_DIR=${TOP_LEVEL}
 fi
 
-_RAWLIST=("${(@f)$(find ${START_DIR} -maxdepth ${MAX_DEPTH} -executable -type f -iregex ".*${SEARCHTERM}.*" 2>/dev/null | grep ${_BLACKLIST})}")
+_RAWLIST=("${(@f)$(find ${START_DIR} -maxdepth ${_DEPTH} -executable -type f -iregex ".*${SEARCHTERM}.*" 2>/dev/null | grep ${_BLACKLIST})}")
 
 if ! arr_is_populated "${_RAWLIST}";then
 	[[ -n ${SEARCHTERM} ]] && MSG="${RED_FG}No${RESET} matches for: ${WHITE_FG}${SEARCHTERM}${RESET}" || MSG="${RED_FG}No${RESET} executables found"
@@ -235,7 +233,7 @@ if [[ ${HIT} == 'false' ]];then
 fi
 
 # Set headings
-list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST}) Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${SELECTED_COUNT}'
+list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize file ${#_LIST}) Search depth:${WHITE_FG}%d${RESET} Selected:${WHITE_FG}%-d${RESET}  ${_PG}" ${#_LIST} ${_DEPTH} ${SELECTED_COUNT}'
 list_add_header_break
 
 # Set line item

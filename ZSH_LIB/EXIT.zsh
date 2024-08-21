@@ -66,7 +66,7 @@ exit_pre_exit () {
 
 	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
 
-	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}"
+	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}\n"
 
 	[[ -n ${_EXIT_CALLBACK} ]] && ${_EXIT_CALLBACK}
 

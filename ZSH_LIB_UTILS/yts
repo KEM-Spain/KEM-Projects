@@ -53,7 +53,8 @@ _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/.yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
 _YTS_URL_LOG=/tmp/yts.url.log
-_RUMBLE_DECODE[neil_oliver]="c-6293844"
+_RUMBLE_DECODE[Neil_Oliver]="c-6293844"
+_RUMBLE_DECODE[Judging_Freedom]="judgingfreedom"
 
 # Globals
 g_FAVORITE=''
@@ -92,7 +93,8 @@ action_do () {
 	local HAD_ERROR=false
 	local H_CTR=0
 	local HDRS_OUT=false
-	local HDR_TXT=0
+	local HDR1_TXT=0
+	local HDR2_TXT=0
 	local HDR_LEN=0
 	local HRZ_CTR=0
 	local JOB_STALL=10
@@ -179,15 +181,16 @@ action_do () {
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<w>/" -e "s/:/<N>:<m>/")
-				DEST_2=$(cut -d'|' -f2 <<<${DEST})
-				HDR_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
-				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR_TXT})} ))
+				HDR1_TXT=$(cut -d'|' -f2 <<<${DEST})
+				HDR1_TXT="<w>Downloading<N>:<m> <c>${HDR1_TXT[1,60]}<N>"
+				HDR2_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
+				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR2_TXT})} ))
 				HDR_LEN=$((HDR_LEN + FRAME_PAD))
 				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
 				[[ ${HDR_LEN} -gt ${_COORDS[W]} ]] && _COORDS[W]=${HDR_LEN} && _COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
-				msg_box -c -C -I -H3 -jl -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} ${HDR_TXT}
-				msg_box -C -jl "<w>Downloading<N>:<m> <c>${DEST_2[1,60]}<N>"
-				msg_box -C -jl "<m>$(str_unicode_line $((_COORDS[W]-4)))<N>"
+				msg_box -c -C -I -H3 -jl -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} ${HDR1_TXT}
+				msg_box -C -jl ${HDR2_TXT}
+				msg_box -C -jl "<c>$(str_unicode_line $((_COORDS[W]-4)))<N>" # Divider line
 				HDRS_OUT=true
 			fi
 
@@ -215,6 +218,39 @@ action_do () {
 			if [[ ${_DOWNLOADS[${M}]} != 'true' ]];then
 				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_LOG} | tail -1) 
 				
+				# Scan for progress
+				if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
+					grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE}
+					if [[ ${?} -eq 0 ]];then
+						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
+						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
+							case ${ETA:l} in
+								*rumbleembed*) continue;;
+								*mib/s*) LINE_COLOR='<w>';;
+								*kib/s*) LINE_COLOR='<B><y>';;
+								*100%*) LINE_COLOR='<B><g>';;
+								*) LINE_COLOR='';;
+							esac
+							[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
+
+							msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
+
+							if [[ ${ETA} =~ '100%' ]];then
+								if [[ ${#_MARKED} -gt 1 ]];then
+									msg_box -C -jc "<w>$(str_unicode_line 10)<N>"
+									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+										msg_box -t${PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+									fi
+								fi
+								_DOWNLOADS[${M}]=true
+								post_process
+								log_download ${M}
+								break # Exit log scan
+							fi
+						fi
+					fi
+				fi
+
 				# Scan for errors
 				grep -q -i 'error' <<<${LOG_LINE}
 				if [[ ${?} -eq 0 ]];then
@@ -247,39 +283,6 @@ action_do () {
 				else
 					HAD_ERROR=false
 					ERROR_CNT=0
-				fi
-
-				# Scan for progress
-				if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
-					grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE}
-					if [[ ${?} -eq 0 ]];then
-						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
-						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
-							case ${ETA:l} in
-								*rumbleembed*) continue;;
-								*mib/s*) LINE_COLOR='<w>';;
-								*kib/s*) LINE_COLOR='<B><y>';;
-								*100%*) LINE_COLOR='<B><g>';;
-								*) LINE_COLOR='';;
-							esac
-							[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
-
-							msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
-
-							if [[ ${ETA} =~ '100%' ]];then
-								if [[ ${#_MARKED} -gt 1 ]];then
-									msg_box -C -jc "<w>$(str_unicode_line 10)<N>"
-									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-										msg_box -t${PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
-									fi
-								fi
-								_DOWNLOADS[${M}]=true
-								post_process
-								log_download ${M}
-								break # Exit log scan
-							fi
-						fi
-					fi
 				fi
 			fi
 			sleep 2 # Log fetch

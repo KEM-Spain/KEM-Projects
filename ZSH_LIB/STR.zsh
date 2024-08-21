@@ -175,6 +175,7 @@ str_pluralize () {
 		library) RETURN_WORD="libraries";;
 		link) RETURN_WORD="links";;
 		line) RETURN_WORD="lines";;
+		level) RETURN_WORD="levels";;
 		log) RETURN_WORD="logs";;
 		match) RETURN_WORD="matches";;
 		object) RETURN_WORD="objects";;
