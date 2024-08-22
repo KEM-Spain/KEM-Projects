@@ -227,6 +227,9 @@ WHITE_FG="\033[37m"
 
 read -r -d '' DESC<<EOF
 List files
+\tl - simple listing
+\tll - long listing
+\tllr - recursive listing
 \t<FILTER> matches the leading portion
 EOF
 
@@ -277,11 +280,11 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
-OPTSTR=":HDadelt"
+OPTSTR=":HDadelrt"
 OPTIND=0
 
 [[ ${_CALLER} == 'llr' ]] && RECURSE=true || RECURSE=false
@@ -299,6 +302,7 @@ while getopts ${OPTSTR} OPTION;do
 		e) _LS_FORMAT+='-X';;
 		l) _LINKS_ONLY=true;_F_TYPE='l';;
 		t) _TIME_SORT=true;_LS_OPTS+='-t';;
+		r) _REVERSE=true;_LS_OPTS+='-r';;
 		:) [[ ${RECURSE} == 'false' ]] && print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument" && usage;;
 		\?) [[ ${RECURSE} == 'false' ]] && print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}" && usage;;
 	esac

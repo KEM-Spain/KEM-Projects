@@ -895,20 +895,17 @@ msg_unicode_box () {
 }
 
 msg_exit () {
-	local LEVEL=${1}
+	local LEVEL=${1:=W}
 	local MSG=${2}
 	local LABEL=''
 	local LCOLOR=''
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	[[ ${#} -ne 2 ]] && echo "${0}: missing argument - need:LEVEL, MSG" >&2
-
 	case ${LEVEL} in 
 		W) LABEL="Warning";LCOLOR=${ITALIC}${BOLD}${MAGENTA_FG};;
 		E) LABEL="Error";LCOLOR=${ITALIC}${BOLD}${RED_FG};;
 		I) LABEL="Info";LCOLOR=${ITALIC}${CYAN_FG};;
-		*) LABEL=${LEVEL};LCOLOR=${WHITE_FG};;
 	esac
 
 	if [[ -n ${MSG} ]];then

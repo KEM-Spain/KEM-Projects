@@ -24,6 +24,7 @@ _BAK_DIR=./.gsub_bak_$(date +%s)
 # Globals
 g_FROM_TEXT=?
 g_TO_TEXT=?
+g_SIMULATE=false
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -41,11 +42,27 @@ action_do () {
 	local MBOX_OPTS
 	local PROMPT
 
+	if [[ ${g_SIMULATE} == 'true' ]];then
+		do_rmcup
+		echo "${WHITE_FG}SUBSTITUTION${RESET}: s/${g_FROM_TEXT}/${g_TO_TEXT}/g"
+		for M in ${(on)_MARKED};do
+			echo "\n${WHITE_FG}${_LOCAL_LIST[${M}]}${RESET}"
+			echo "${CYAN_FG}$(str_unicode_line ${#_LOCAL_LIST[${M}]})${RESET}"
+			local BEFORE=$(grep ${g_FROM_TEXT} ${_LOCAL_LIST[${M}]})
+			local AFTER=$(echo "${g_FROM_TEXT}" | perl -pe "s/${g_FROM_TEXT:q}/${g_TO_TEXT:q}/g" )
+			echo "${GREEN_FG}BEFORE${RESET}:$(str_trim ${BEFORE})"
+			echo "${RED_FG} AFTER${RESET}:${AFTER}"
+			list_clear_selected ${M}
+		done | mypager
+		key_wait
+		return
+	fi
+
 	[[ ! -e ${_BAK_DIR} ]] && mkdir ${_BAK_DIR} && RC=${?}
 	[[ ${RC} -ne 0 ]] && exit_leave $(msg_exit W "Unable to create backup directory: ${_BAK_DIR} (RC=${RC})")
 
 	for M in ${(on)_MARKED};do
-		MATCHES=("${(f)$(perl -ne "if (/${g_FROM_TEXT}/) { print }" ${_LOCAL_LIST[${M}]})}")
+		MATCHES=("${(f)$(perl -ne "if (/${g_FROM_TEXT:q}/) { print }" ${_LOCAL_LIST[${M}]})}")
 		if ! arr_is_populated "${MATCHES}";then
 			msg_box -p -PK "Nothing matches <w>${(qq)g_FROM_TEXT}<N>|in File:<w>${_LOCAL_LIST[${M}]}<N>"
 			list_set_selected ${M} 3 # Mark as missing match
@@ -61,9 +78,9 @@ action_do () {
 			fi
 		fi
 
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} perl command: sudo perl -i.bak -pe "s/${g_FROM_TEXT}/${g_TO_TEXT}/g" ${_LOCAL_LIST[${M}]}"
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} perl command: sudo perl -i.bak -pe "s/${g_FROM_TEXT:q}/${g_TO_TEXT:q}/g" ${_LOCAL_LIST[${M}]}"
 
-		sudo perl -i.bak -pe "s/${g_FROM_TEXT}/${g_TO_TEXT}/g" ${_LOCAL_LIST[${M}]}
+		sudo perl -i.bak -pe "s/${g_FROM_TEXT:q}/${g_TO_TEXT:q}/g" ${_LOCAL_LIST[${M}]}
 		if [[ ${?} -ne 0 ]];then
 			msg_box -p -PK "Substitution <r>failed<N> for <w>${(qq)g_FROM_TEXT}<N>|in file:<w>${_LOCAL_LIST[${M}]}<N>"
 			list_set_selected ${M} 4 # Mark as failed
@@ -82,6 +99,8 @@ action_warn () {
 	local M
 
 	msg_box -p -PP "Substituting <w>${(qq)g_FROM_TEXT}<N> with <w>${(qq)g_TO_TEXT}<N>|in <w>${#_MARKED}<N> $(str_pluralize file ${#_MARKED})"
+
+	[[ ${g_SIMULATE} == 'true' ]] && msg_box -t2 'SIMULATING'
 
 	if [[ ${_MSG_KEY} != "y" ]];then
 		for M in ${_MARKED};do
@@ -151,10 +170,10 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
-OPTSTR=":HDi"
+OPTSTR=":HDis"
 
 CASE=''
 
@@ -164,6 +183,7 @@ while getopts ${OPTSTR} OPTION;do
      H) usage;;
      D) dbg_set_level;;
      i) CASE=i;;
+     s) g_SIMULATE=true;;
      :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
 	esac

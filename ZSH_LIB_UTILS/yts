@@ -47,10 +47,10 @@ _FIELD_LEN[agetime]=40
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
-_MARKER=${_YTS_DIR}/.yts-upd.lastrun
+_MARKER=${_YTS_DIR}/yts-upd.lastrun
 _OBJECT=video
 _YTS_DBG=2
-_YTS_FAVORITES=${_YTS_DIR}/.yts_favorites
+_YTS_FAVORITES=${_YTS_DIR}/yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
 _YTS_URL_LOG=/tmp/yts.url.log
 _RUMBLE_DECODE[Neil_Oliver]="c-6293844"
@@ -82,6 +82,7 @@ source ${_LIB_DIR}/LIB_DEPS.zsh
 # Functions
 action_do () {
 	local -a MSGS
+	local AUTHOR=''
 	local DEST=''
 	local DEST_1=''
 	local DEST_2=''
@@ -91,12 +92,12 @@ action_do () {
 	local ETA=''
 	local FRAME_PAD=4
 	local HAD_ERROR=false
-	local H_CTR=0
-	local HDRS_OUT=false
 	local HDR1_TXT=0
 	local HDR2_TXT=0
+	local HDRS_OUT=false
 	local HDR_LEN=0
 	local HRZ_CTR=0
+	local H_CTR=0
 	local JOB_STALL=10
 	local KEY=''
 	local L M S 
@@ -110,10 +111,11 @@ action_do () {
 	local PAUSE=2
 	local PID=0
 	local RESUMED_TAG=''
+	local RC1=0
+	local RC2=0
 	local SCAN_LIMIT=0
 	local TITLE=''
 	local URL=''
-	local AUTHOR=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -221,7 +223,9 @@ action_do () {
 				# Scan for progress
 				if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
 					grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE}
-					if [[ ${?} -eq 0 ]];then
+					RC1=${?}
+					[[ ${RC1} -ne 0 ]] && grep -q -m1 "100%" ${g_LOG} && RC2=${?}
+					if [[ ${RC1} -eq 0 || ${RC2} -eq 0 ]];then
 						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
 						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
 							case ${ETA:l} in

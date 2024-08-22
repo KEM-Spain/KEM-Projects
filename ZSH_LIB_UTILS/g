@@ -86,7 +86,7 @@ usage () {
 	echo -e "${WHITE_FG}-w${RESET} whole word match"
 	echo -e "\n${WHITE_FG}Desc${RESET}:find files containing <SEARCHTERM> in or below the current directory\n"
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 OPTSTR=":HDIaef:lLm:nop:rw"

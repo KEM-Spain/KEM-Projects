@@ -662,7 +662,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS

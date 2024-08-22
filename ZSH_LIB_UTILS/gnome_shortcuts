@@ -181,7 +181,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -216,7 +216,7 @@ else
 fi
 
 if ! arr_is_populated "${_SHORTCUTS}";then
-	exit_leave "${RED_FG}No shortcuts found matching: ${WHITE_FG}${SEARCHTERM}${RESET}"
+	exit_leave $(msg_exit W "No shortcuts found matching:${SEARCHTERM}")
 fi
 
 # Set headings

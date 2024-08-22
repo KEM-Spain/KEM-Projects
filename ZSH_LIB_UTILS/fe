@@ -138,7 +138,7 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS
@@ -181,8 +181,7 @@ fi
 _RAWLIST=("${(@f)$(find ${START_DIR} -maxdepth ${_DEPTH} -executable -type f -iregex ".*${SEARCHTERM}.*" 2>/dev/null | grep ${_BLACKLIST})}")
 
 if ! arr_is_populated "${_RAWLIST}";then
-	[[ -n ${SEARCHTERM} ]] && MSG="${RED_FG}No${RESET} matches for: ${WHITE_FG}${SEARCHTERM}${RESET}" || MSG="${RED_FG}No${RESET} executables found"
-	exit_leave ${MSG}
+	[[ -n ${SEARCHTERM} ]] && exit_leave $(msg_exit W "No matches for:${SEARCHTERM}")
 fi
 
 HIT=false

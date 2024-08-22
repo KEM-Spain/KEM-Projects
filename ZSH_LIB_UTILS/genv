@@ -74,7 +74,7 @@ usage () {
 	echo -e "${WHITE_FG}\nDesc${RESET}:${DESC}"
 	) >&2
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 typeset -a OPTIONS

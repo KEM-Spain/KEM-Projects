@@ -378,7 +378,7 @@ usage () {
 OPTSTR=":HDiu"
 
 IGNORE_CACHE=false
-UPDATE_LOCATE_DB=false
+UPDATE_LOCATE_DB=true
 
 OPTIND=0
 while getopts ${OPTSTR} OPTION;do
@@ -386,7 +386,7 @@ while getopts ${OPTSTR} OPTION;do
      H) usage;;
      D) dbg_set_level;;
      i) IGNORE_CACHE=true;;
-     u) UPDATE_LOCATE_DB=true;;
+     u) UPDATE_LOCATE_DB=false;;
      :) print -u2 "${_SCRIPT}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
 	esac

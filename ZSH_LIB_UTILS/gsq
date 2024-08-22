@@ -200,7 +200,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Desc${RESET}:Lookup/Set values in the gsettings database"
 	) >&2
 
-	exit_leave $(msg_exit E ${PENDING_MSGS})
+	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
 OPTSTR=":HDl"
@@ -228,7 +228,7 @@ SEARCHTERM=${@}
 _LOCAL_LIST=("${(@f)$(gsettings list-recursively | sort -u | egrep "${SEARCHTERM}" | sed -e 's/: /:/g')}")
 
 if ! arr_is_populated "${_LOCAL_LIST}";then
-	exit_leave "No matching entries for:${WHITE_FG}${SEARCHTERM}${RESET}"
+	exit_leave $(msg_exit W "No matching entries for:${SEARCHTERM}")
 fi
 
 if [[ ${DUMPLIST} == 'true' ]];then
