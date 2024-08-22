@@ -16,6 +16,7 @@ _vut() {
 				"merge[Merge videos]" \
 				"rescale[Rescale videos]" \
 				"dts2ac3[Convert DTS audio to AC3]" \
+				"volume[Increase volume by 3db]" \
 				;;
         args)
             case $line[1] in
@@ -24,6 +25,7 @@ _vut() {
                 merge) _do_merge ;;
                 rescale) _do_rescale ;;
                 dts2ac3) _do_dts2ac3 ;;
+                volume) _do_volume ;;
             esac
             ;;
     esac
@@ -58,6 +60,13 @@ _do_rescale() {
 }
 
 _do_dts2ac3() {
+    _arguments -s \
+			'-H[help]' 
+
+	_files -W ${PWD} ${0}
+}
+
+_do_volume() {
     _arguments -s \
 			'-H[help]' 
 

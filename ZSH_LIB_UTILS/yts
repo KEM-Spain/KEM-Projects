@@ -62,7 +62,7 @@ g_LAST_UPD=?
 g_LIST_SUBSET=false
 g_LIVE=''
 g_LIVE_OPT=''
-g_LOG=''
+g_YTS_LOG=''
 g_PID=?
 g_PROXY_CMD=''
 g_QRY_ENGINE=''
@@ -144,8 +144,8 @@ action_do () {
 		msg_box -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} "Download requested..."
 
 		# Detect missing log
-		if [[ ! -e ${g_LOG} ]];then
-			[[ ${NDX} -gt 10 ]] && exit_leave "${g_LOG} not detected" # No activity
+		if [[ ! -e ${g_YTS_LOG} ]];then
+			[[ ${NDX} -gt 10 ]] && exit_leave "${g_YTS_LOG} not detected" # No activity
 		fi
 
 		while true;do
@@ -159,7 +159,7 @@ action_do () {
 				HAD_ERROR=false
 			fi
 
-			LOG_SIZE=$(wc -c < ${g_LOG})
+			LOG_SIZE=$(wc -c < ${g_YTS_LOG})
 			if [[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]];then
 				LOG_STALLS=0 # Log is growing
 			else
@@ -172,13 +172,13 @@ action_do () {
 
 			# Scan for resume
 			RESUMED_TAG=''
-			LOG_LINE=$(grep -m1 -i "resuming download" ${g_LOG})
+			LOG_LINE=$(grep -m1 -i "resuming download" ${g_YTS_LOG})
 			if [[ ${?} -eq 0 ]];then
 				RESUMED_TAG=' (<w>resumed<N>)'
 			fi
 
 			# Get headers
-			LOG_LINE=$(grep -m1 -i "destination" ${g_LOG})
+			LOG_LINE=$(grep -m1 -i "destination" ${g_YTS_LOG})
 			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
@@ -197,7 +197,7 @@ action_do () {
 			fi
 
 			# Scan for already downloaded
-			LOG_LINE=$(grep -m1 -i "already been" ${g_LOG})
+			LOG_LINE=$(grep -m1 -i "already been" ${g_YTS_LOG})
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
@@ -207,7 +207,7 @@ action_do () {
 			fi
 
 			# Scan for not yet available
-			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${g_LOG})
+			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${g_YTS_LOG})
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
@@ -218,13 +218,12 @@ action_do () {
 			fi
 
 			if [[ ${_DOWNLOADS[${M}]} != 'true' ]];then
-				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_LOG} | tail -1) 
+				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1) 
 				
 				# Scan for progress
 				if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
-					grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE}
-					RC1=${?}
-					[[ ${RC1} -ne 0 ]] && grep -q -m1 "100%" ${g_LOG} && RC2=${?}
+					grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE} && RC1=${?}
+					[[ ${RC1} -ne 0 ]] && grep -q -m1 "100%" <<<${g_YTS_LOG} && RC2=${?}
 					if [[ ${RC1} -eq 0 || ${RC2} -eq 0 ]];then
 						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
 						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
@@ -332,11 +331,11 @@ clear_log () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	if [[ ${_DEBUG} -eq 0 && -e ${g_LOG} ]];then
-		rm -f ${g_LOG}
-		echo "log ${g_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg # Debug is NOT active - clear the log
+	if [[ ${_DEBUG} -eq 0 && -e ${g_YTS_LOG} ]];then
+		rm -f ${g_YTS_LOG}
+		echo "log ${g_YTS_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg # Debug is NOT active - clear the log
 	else
-		echo "DEBUG active - log ${g_LOG} was retained for:${g_FAVORITE}" >> /tmp/yt.log.dbg # Debug is active - retain the log
+		echo "DEBUG active - log ${g_YTS_LOG} was retained for:${g_FAVORITE}" >> /tmp/yt.log.dbg # Debug is active - retain the log
 	fi
 }
 
@@ -507,7 +506,7 @@ kill_job () {
 	if [[ ${RC} -eq 0 ]];then
 		kill -9 ${g_PID} >/dev/null 2>&1
 	else
-		echo "No process found for PID:${g_PID}" >> ${g_LOG}
+		echo "No process found for PID:${g_PID}" >> ${g_YTS_LOG}
 	fi
 
 	if [[ ! ${functrace[1]} =~ "reset_job" ]];then
@@ -826,12 +825,12 @@ start_job () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	g_LOG=$(mktemp /tmp/yt.log.XXXXXX)
+	g_YTS_LOG=$(mktemp /tmp/yt.log.XXXXXX)
 
-	nohup yt -i -o "%(channel)s - %(title)s.%(ext)s" ${URL} >>${g_LOG} 2>&1 &
+	nohup yt -i -o "%(channel)s - %(title)s.%(ext)s" ${URL} >>${g_YTS_LOG} 2>&1 &
 	g_PID=$!
 
-	echo "g_LOG:${g_LOG} g_PID:${g_PID}" >> ${g_LOG}
+	echo "g_YTS_LOG:${g_YTS_LOG} g_PID:${g_PID}" >> ${g_YTS_LOG}
 }
 
 total_rejects () {

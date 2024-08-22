@@ -28,6 +28,7 @@ length 1
 merge 1
 rescale 1
 dts2ac3 1
+volume 1
 )
 
 _UTILS_DESC=(
@@ -36,6 +37,7 @@ length "LENGTH:Display video length"
 merge "MERGE:Merge videos"
 rescale "SCALE:Rescale videos"
 dts2ac3 "AUDIO:Convert DTS audio to AC3"
+volume "AUDIO:Increase volume by 3db"
 )
 
 _WRAPPER=${0:t}
@@ -238,6 +240,44 @@ ___EOF
 		printf "${WHITE_FG}%*s${RESET}:%10s\n" ${LONGEST} ${F} ${DUR}
 	done
 	echo
+}
+
+volume () {
+	local DESC=''
+	local -a FN_ARG=()
+	local DB=''
+	local LONGEST=0
+	local LIST=()
+	local F=''
+
+	read -r -d '' DESC<<___EOF
+Increase video volume by 3db
+___EOF
+
+	# Functions
+	usage () {
+		local -a PENDING_MSGS=(${@})
+
+		tabs 5
+		[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] <VIDEO_FILES>\n"
+		echo "${WHITE_FG}Desc${RESET}:${DESC}"
+
+		echo "\n$(msg_exit W ${PENDING_MSGS})"
+		exit_leave
+	}
+
+	# Execution
+	[[ ${1} == '-H' ]] && usage
+	[[ ${#} -eq 0 ]] && usage "missing video filename(s)" || FN_ARG=(${@})
+	[[ ! -f ${FN_ARG} ]] && exit_leave $(msg_exit E "File not found:${FN_ARG}")
+	
+	file ${FN_ARG} | grep -qi 'media\|matroska\|video'
+	[[ ${?} -ne 0 ]] && exit_leave $(msg_exit E "File not a video:${FN_ARG}")
+
+	echo "\n${CYAN_FG}Increasing volume by 3dB...${RESET}"
+	ffmpeg -i "${FN_ARG}" -af "volume=3dB" ${FN_ARG:r}_v+3d.${FN_ARG:e}
 }
 
 merge () {
