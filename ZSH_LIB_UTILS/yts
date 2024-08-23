@@ -55,6 +55,8 @@ _YTS_GIT=${_SRC_DIR}/yt-dlp
 _YTS_URL_LOG=/tmp/yts.url.log
 _RUMBLE_DECODE[Neil_Oliver]="c-6293844"
 _RUMBLE_DECODE[Judging_Freedom]="judgingfreedom"
+_PAUSE=2
+_ALERT=.2
 
 # Globals
 g_FAVORITE=''
@@ -108,7 +110,6 @@ action_do () {
 	local LOG_SIZE=0
 	local LOG_STALLS=0
 	local NDX=0
-	local PAUSE=2
 	local PID=0
 	local RESUMED_TAG=''
 	local RC1=0
@@ -131,12 +132,11 @@ action_do () {
 		TITLE=$(get_field title ${M})
 		URL=$(get_field url ${M})
 
-
 		echo ${AUTHOR}:${TITLE}:${URL} >> ${_YTS_URL_LOG} # Log the url
 
 		HDRS_OUT=false
 
-		unsetopt localtraps
+		unsetopt localtraps # Initialize CTRL-c trap
 		trap kill_job INT
 		stty -echo
 
@@ -164,7 +164,7 @@ action_do () {
 				LOG_STALLS=0 # Log is growing
 			else
 				((LOG_STALLS++))
-				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t.2 -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Job Stalled<N>"
+				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Job Stalled<N>"
 				LAST_LOG_SIZE=${LOG_SIZE}
 				sleep 1 # Extra sleep 
 				continue
@@ -172,13 +172,14 @@ action_do () {
 
 			# Scan for resume
 			RESUMED_TAG=''
-			LOG_LINE=$(grep -m1 -i "resuming download" ${g_YTS_LOG})
+			LOG_LINE=$(grep -m1 -i "resuming download" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
 				RESUMED_TAG=' (<w>resumed<N>)'
 			fi
 
 			# Get headers
-			LOG_LINE=$(grep -m1 -i "destination" ${g_YTS_LOG})
+			LOG_LINE=$(grep -m1 -i "destination" ${g_YTS_LOG} 2>/dev/null)
+
 			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
@@ -197,21 +198,23 @@ action_do () {
 			fi
 
 			# Scan for already downloaded
-			LOG_LINE=$(grep -m1 -i "already been" ${g_YTS_LOG})
+			LOG_LINE=$(grep -m1 -i "already been" ${g_YTS_LOG} 2>/dev/null)
+
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
-				msg_box -t3 "${EMSG}"
+				msg_box -t${_PAUSE} "${EMSG}"
 				_DOWNLOADS[${M}]=true
 				break # While loop
 			fi
 
 			# Scan for not yet available
-			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${g_YTS_LOG})
+			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${g_YTS_LOG} 2>/dev/null)
+
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
-				msg_box -t3 "${EMSG}"
+				msg_box -t${_PAUSE} "${EMSG}"
 				_FUTURE[${M}]=true
 				_DOWNLOADS[${M}]=false
 				break # While loop
@@ -222,8 +225,9 @@ action_do () {
 				
 				# Scan for progress
 				if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
-					grep -qi 'eta\|100%\|100\.0' <<<${LOG_LINE} && RC1=${?}
-					[[ ${RC1} -ne 0 ]] && grep -q -m1 "100%" <<<${g_YTS_LOG} && RC2=${?}
+					grep -q -i 'eta\|100%\|100\.0' <<<${LOG_LINE} 2>/dev/null && RC1=${?}
+
+					[[ ${RC1} -ne 0 ]] && grep -q -m1 "100%" <<<${g_YTS_LOG} 2>/dev/null && RC2=${?}
 					if [[ ${RC1} -eq 0 || ${RC2} -eq 0 ]];then
 						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
 						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
@@ -240,9 +244,9 @@ action_do () {
 
 							if [[ ${ETA} =~ '100%' ]];then
 								if [[ ${#_MARKED} -gt 1 ]];then
-									msg_box -C -jc "<w>$(str_unicode_line 10)<N>"
+									msg_box -C -jc "<g>$(str_unicode_line 10)<N>"
 									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-										msg_box -t${PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+										msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
 									fi
 								fi
 								_DOWNLOADS[${M}]=true
@@ -255,7 +259,8 @@ action_do () {
 				fi
 
 				# Scan for errors
-				grep -q -i 'error' <<<${LOG_LINE}
+				grep -q -i 'error' <<<${LOG_LINE} 2>/dev/null
+
 				if [[ ${?} -eq 0 ]];then
 					((ERROR_CNT++))
 					HAD_ERROR=true
@@ -275,10 +280,10 @@ action_do () {
 						break 2 # Exit scan
 						;;
 						*unreachable*|*retrying*|*timed\ out*)	
-							msg_box -t.2 -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+							msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 							echo "$(get_field author ${M}) - Caught:"${LOG_LINE} >> ${_ERROR_LOG}
 						;;
-						*) msg_box -t.2 -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+						*) msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 							echo "$(get_field author ${M}) - Uncaught:"${LOG_LINE} >> ${_ERROR_LOG}
 							_DEBUG=${_YTS_DBG}
 						;;
@@ -452,9 +457,6 @@ get_field () {
 			DECODE=${(k)_RUMBLE_DECODE[(r)${STR}]}
 			[[ -n ${DECODE} ]] && STR=${(C)DECODE:s/_/ /}
 		fi
-		
-		[[ -z ${STR} ]] && STR="Unknown"
-
 	else
 		case ${FIELD} in
 			age) STR=$(cut -d'|' -f1 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
@@ -518,15 +520,15 @@ kill_job () {
 
 last_update () {
 	local MARKER_ARG=${1}
-	local LAST_UPD
-	local LAST_TIME
+	local LAST_UPD=0
+	local LAST_TIME=0
 
 	[[ -z ${MARKER_ARG} ]] && exit_leave "${0:t} Missing argument: MARKER"
 
 	if [[ -e ${MARKER_ARG} ]];then
 		LAST_UPD=$(stat -c "%y" ${MARKER_ARG} | cut -d' ' -f1)
 	else
-		touch ${_MARKER}
+		touch ${MARKER_ARG}
 		exit_leave $(msg_exit W "${_SCRIPT}: Last update date is unknown")
 	fi
 
@@ -551,7 +553,7 @@ log_find () {
 	local FN=''
 
 	if [[ -n ${TITLE} ]];then
-		LINE=$(grep -m1 ${TITLE} ${_DOWNLOAD_LOG})
+		LINE=$(grep -m1 ${TITLE} ${_DOWNLOAD_LOG} 2>/dev/null)
 		if [[ -n ${LINE} ]];then
 			FN=$(cut -d '|' -f3 <<<${FN})
 			[[ ${FN:e} == 'part' ]] && _PARTIALS[${NDX}]=true || _DOWNLOADS[${NDX}]=true
@@ -572,7 +574,7 @@ log_update () {
 		while read LINE;do
 			IN=$(cut -d'|' -f1 <<<${LINE})
 			FN_HIT=$(find ${_DOWNLOAD_DIR} -maxdepth 1 -inum ${IN})
-			[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} >> ${NEW_LOG}
+			[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} 2>/dev/null >> ${NEW_LOG}
 		done < ${_DOWNLOAD_LOG}
 
 		[[ -e ${NEW_LOG} ]] && sort -u -o ${NEW_LOG} ${NEW_LOG} && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
@@ -597,7 +599,7 @@ reset_job () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	kill_job
-	msg_box -t.2 -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -25)) "<m>Job Restarted<N>"
+	msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -25)) "<m>Job Restarted<N>"
 }
 
 rumble () {
@@ -617,6 +619,8 @@ rumble () {
 	local X=''
 	local NDX=''
 	local KEY=''
+	local STR=''
+	local DECODE=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -631,7 +635,7 @@ rumble () {
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
 		[[ ${g_LIVE} == 'true' ]] && MSG="Searching for livestreams..." || MSG="Searching for videos..."
 		msg_box -R INNER -c ${MSG}
-		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams")
+		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams" 2>/dev/null)
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 		[[ ${PG:l} =~ "no videos found" ]] && msg_box -c "<r>No livestreams<N> for ${SEARCHTERM}|Falling back to defaults..." && PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
 
@@ -644,6 +648,7 @@ rumble () {
 		for ((X=1; X<=${#TITLES}; X++));do
 			AGE=$(sed 's/ago .*/ago/' <<<${AGES[${X}]})
 			[[ -z ${AGE} ]] && continue
+			[[ ${SEARCHTERM:l} == ${TITLES[${X}]:l} ]] && continue # Experimental to avoid garbage
 			VID_LIST+="${SEARCHTERM}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	else # General search
@@ -658,7 +663,7 @@ rumble () {
 		CHANNELS=("${(f)$(pup --charset utf8 '.video-item--by-a attr{href}' <<<${PG})}")
 
 		for ((X=1; X<=${#TITLES}; X++));do
-			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # Experimental to avoid dups by users
+			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # Experimental to avoid duplicates
 			AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
 			CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
 			CHANNEL="${(C)SEARCHTERM} (${CHANNEL})"
@@ -690,7 +695,7 @@ rumble () {
 }
 
 select_download () {
-	local SEARCHTERM=${1:=Unknown}
+	local SEARCHTERM=${1}
 	local SEARCHTYPE=''
 	local L F
 	local TITLE

@@ -453,7 +453,7 @@ FILE_ARG=${1}
 [[ -z ${FILE_ARG} ]] && usage "Missing argument:${WHITE_FG}$(opt_type f)${RESET}"
 
 # If any options are present they will require a local copy of the file arg
-[[ ! -e ./${FILE_ARG} && ${#OPTIONS} -ne 0 ]] && exit_leave $(msg_exit W "No such file:${FILE_ARG} exists in the current directory")
+[[ ! -e ./${FILE_ARG} && ${#OPTIONS} -ne 0 ]] && exit_leave $(msg_exit W "File not found:${FILE_ARG}")
 
 if [[ ${BACKUP_LOCAL} == 'true' ]];then
 	g_LOCAL_ONLY=true # No production dir necessary
