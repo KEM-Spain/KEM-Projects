@@ -157,6 +157,7 @@ do_finalize () {
 
 	LONGEST=0
 	NDX=0
+
 	for W in ${_FILE_OUT_LIST};do
 		((NDX++))
 
@@ -170,7 +171,8 @@ do_finalize () {
 		[[ ${W:t} == '.' || -z ${W} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
 
 		# Final array for output
-		if [[ ${_FILE_IN_LIST[${NDX}]} =~ ${DELIM} ]];then
+		grep -q "${DELIM}" <<<${_FILE_IN_LIST[${NDX}]}
+		if [[ ${?} -eq 0 ]];then
 			_FILE_IN_LIST[${NDX}]=$(sed "s/${DELIM}/<MASK>/g" <<<${_FILE_IN_LIST[${NDX}]})
 			W=$(sed "s/${DELIM}/<MASK>/g" <<<${W})
 			MASKED=true
@@ -220,12 +222,12 @@ do_finalize () {
 	else
 		printf "\nThe following ${RED_FG}${BOLD}${ITALIC}changes are pending${RESET}...\n\n"
 
-		(
+		{
 		for K in ${(onk)FINAL};do
 			printf "${CYAN_FG}%*s${RESET} -> ${WHITE_FG}%-*s${RESET}\n" ${LONGEST} "${K}" ${LONGEST} "${FINAL[${K}]}"
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} K:${K}, FINAL[K]:${FINAL[${K}]}"
 		done
-		) | sort -t'>' -k2
+		} | sort -t'>' -k2
 
 		[[ ${INTERACTIVE} == 'true' ]] && I_TAG=" [${WHITE_FG}INTERACTIVE${RESET}]"
 		echo -n "\nSave Changes${I_TAG}:(y/n)?" >&2
@@ -588,8 +590,7 @@ do_trunc_fn () {
 			[[ ${#CANDIDATE} -le ${TRUNC_FN_LEN} ]] && _FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) && continue # Remove non matches from original
 			HIT=true
 			CPATH=${C:h}
-			CEXT=${C:e} # Extension
-			[[ -n ${CEXT} ]] && CEXT=".${CEXT}"
+			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
 			TRUNCATED=${CANDIDATE[1,${TRUNC_FN_LEN}]} # Implement fn length limit
 			TRUNCATED=$(str_trim <<<${TRUNCATED})
 			_FILE_OUT_LIST[${NDX}]=${CPATH}/${TRUNCATED}${CEXT}
@@ -622,8 +623,7 @@ do_trim () {
 		else
 			HIT=true
 			CPATH=${C:h}
-			CEXT=${C:e} # Extension
-			[[ -n ${CEXT} ]] && CEXT=".${CEXT}"
+			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
 			_FILE_OUT_LIST[${NDX}]=${CPATH}/${TRIMMED}${CEXT}
 		fi
 	done
@@ -632,8 +632,27 @@ do_trim () {
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
-do_prepend () {
-	local TAG=${1}
+	do_prepend () {
+		local TAG=${1}
+		local NDX=0
+		local CANDIDATE
+		local CPATH
+		local CEXT
+		local C
+
+		[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+
+		for C in ${_INTERMEDIATE_LIST};do
+			((NDX++))
+			CANDIDATE=${C:t:r} # Exclude the extension
+			CPATH=${C:h}
+			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
+			_FILE_OUT_LIST[${NDX}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
+		done
+	}
+
+do_yt_tag () {
 	local NDX=0
 	local CANDIDATE
 	local CPATH
@@ -648,9 +667,14 @@ do_prepend () {
 		((NDX++))
 		CANDIDATE=${C:t:r} # Exclude the extension
 		CPATH=${C:h}
-		CEXT=${C:e} # Extension
-		[[ -n ${CEXT} ]] && CEXT=".${CEXT}"
-		_FILE_OUT_LIST[${NDX}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
+		[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
+
+		grep -q '\-\[.*\]' <<<${CANDIDATE}
+		[[ ${?} -ne 0 ]] && _FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) && continue # Remove non candidates from original
+
+		CFN=$(perl -p -e 's/[ -]?\[.*\] ?//g' <<<${CANDIDATE} | perl -p -e 's/_/ /g' | perl -p -e 's/\.//g')
+
+		_FILE_OUT_LIST[${NDX}]="${CPATH}/${CFN}${CEXT}"
 	done
 }
 
@@ -743,6 +767,7 @@ usage () {
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-I${RESET} interactive changes"
 	echo -e "${WHITE_FG}-S${RESET} if not running in a terminal (background job)"
+	echo -e "${WHITE_FG}-Y${RESET} eliminate YouTube tags"
 	echo -e "${WHITE_FG}-a${RESET} automatically apply changes (no prompting)"
 	echo -e "${WHITE_FG}-b${RESET} eliminate extended/non-ascii (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-e $(opt_type e)${RESET} limit operations to files having $(opt_type e)"
@@ -761,6 +786,7 @@ usage () {
 	echo -e "${WHITE_FG}-u${RESET} unCamelCase (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-x${RESET} strip leading numbers (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-y${RESET} no prompting"
+	echo -e "${WHITE_FG}-Y${RESET} eliminate YouTube tags"
 	echo -e "${WHITE_FG}Note${RESET}:(${CYAN_FG}M${RESET}) - Macro option - additional args ignored"
 	echo -e "${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
@@ -768,7 +794,7 @@ usage () {
 	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
-OPTSTR=":HDISabe:irscCdm:p:nNTt:uxy"
+OPTSTR=":HCDINSTYabe:irscdm:p:nt:uxy"
 
 ADD_LEADING_DIGITS=false
 ALLOW_DIRS=false
@@ -790,6 +816,7 @@ SERVICE_MODE=false
 TRUNCATE=false
 TRIM=false
 UNCAMEL=false
+YT_TAGS=false
 g_NO_PROMPTING=false
 g_FROM_TEXT=''
 g_TO_TEXT=''
@@ -819,6 +846,7 @@ while getopts ${OPTSTR} OPT;do
      T) TRIM=true;;
      u) UNCAMEL=true;;
      x) STRIP_LEADING_DIGITS=true;;
+     Y) YT_TAGS=true;;
      y) g_NO_PROMPTING=true;;
      :) print -u2 "${0}: option: ${WHITE_FG}-${OPTARG} ${BOLD}${RED_FG}requires an argument${RESET}"; usage;;
     \?) print -u2 "${0}: hit ${BOLD}${RED_FG}Unknown option${RESET} ${OPTARG}"; usage;;
@@ -962,11 +990,13 @@ if [[ ${_DEBUG} -gt 0 ]];then
 	echo GREP_OPTS=${GREP_OPTS}
 	echo CLEAN_LEADING_DIGITS=${CLEAN_LEADING_DIGITS}
 	echo MEDIA_FILE=${MEDIA_FILE}
+	echo PREPEND_TAG=${PREPEND_TAG}
 	echo RESOLUTION=${RES}
 	echo SPACES=${SPACES}
 	echo EXTENDED=${EXTENDED}
 	echo TRIM=${TRIM}
 	echo TRUNCATE=${TRUNCATE}
+	echo YT_TAGS=${YT_TAGS}
 	echo UNCAMEL=${UNCAMEL}
 	echo RECURSE=${RECURSE}
 	echo "---------"
@@ -981,9 +1011,9 @@ fi
 # Substitutions
 if [[ ${SEARCH_REPLACE} == 'true' ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Calling do_subs${RESET}..."
-	echo "${CYAN_FG}Substituting \"${g_FROM_TEXT}\" with \"${g_TO_TEXT}\"${RESET}" >&2 | tee -a ${_LOG}
+	{ echo "${CYAN_FG}Substituting \"${g_FROM_TEXT}\" with \"${g_TO_TEXT}\"${RESET}" | tee -a ${_LOG} } >&2
 	do_subs
-	[[ ${?} -ne 0 ]] && echo "No matches for substitution" >&2 | tee -a ${_LOG}
+	[[ ${?} -ne 0 ]] && { echo "No matches for substitution" | tee -a ${_LOG} } >&2
 fi
 
 # Space_Dot_Camel
@@ -1016,51 +1046,58 @@ fi
 
 # Clean leading digits (usually for audio files)
 if [[ ${CLEAN_LEADING_DIGITS} == "true" ]];then
-	echo "${CYAN_FG}Cleaning leading digits with hyphen${RESET}" >&2 | tee -a ${_LOG}
+	{ echo "${CYAN_FG}Cleaning leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
 	do_clean_leading_digits
-	[[ ${?} -ne 0 ]] && echo "No matches for clean leading digits" >&2 | tee -a ${_LOG}
+	[[ ${?} -ne 0 ]] && { echo "No matches for clean leading digits" | tee -a ${_LOG} } >&2
 fi
 
 # Add leading digits (usually for audio files)
 if [[ ${ADD_LEADING_DIGITS} == "true" ]];then
-	echo "${CYAN_FG}Adding leading digits with hyphen${RESET}" >&2 | tee -a ${_LOG}
+	{ echo "${CYAN_FG}Adding leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
 	do_add_leading_digits
-	[[ ${?} -ne 0 ]] && echo "No matches for add leading digits" >&2 | tee -a ${_LOG}
+	[[ ${?} -ne 0 ]] && { echo "No matches for add leading digits" | tee -a ${_LOG} } >&2
 fi
 
 # Strip leading digits (usually for audio files)
 if [[ ${STRIP_LEADING_DIGITS} == "true" ]];then
-	echo "${CYAN_FG}Stripping leading digits with hyphen${RESET}" >&2 | tee -a ${_LOG}
+	{ echo "${CYAN_FG}Stripping leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
 	do_strip_leading_digits
-	[[ ${?} -ne 0 ]] && echo "No matches for strip leading digits" >&2 | tee -a ${_LOG}
+	[[ ${?} -ne 0 ]] && { echo "No matches for strip leading digits" | tee -a ${_LOG} } >&2
 fi
 
 # Truncations
 if [[ ${TRUNC_FN_LEN} -gt 0 ]];then
-	echo "${CYAN_FG}Limiting file names to:${WHITE_FG}${TRUNC_FN_LEN}${CYAN_FG} characters${RESET}" >&2 | tee -a ${_LOG}
+	{ echo "${CYAN_FG}Limiting file names to:${WHITE_FG}${TRUNC_FN_LEN}${CYAN_FG} characters${RESET}" | tee -a ${_LOG} } >&2
 	do_trunc_fn
-	[[ ${?} -ne 0 ]] && echo "No matches for truncation" >&2 | tee -a ${_LOG}
+	[[ ${?} -ne 0 ]] && { echo "No matches for truncation" | tee -a ${_LOG} } >&2
 fi
 
 # Trimming
 if [[ ${TRIM} == "true" ]];then
-	echo "${CYAN_FG}Trimming file names" >&2 | tee -a ${_LOG}
+	{ echo "${CYAN_FG}Trimming file names" | tee -a ${_LOG} } >&2
 	do_trim
-	[[ ${?} -ne 0 ]] && echo "No matches for trim" >&2 | tee -a ${_LOG}
+	[[ ${?} -ne 0 ]] && { echo "No matches for trim" | tee -a ${_LOG} } >&2
 fi
 
 # Prepend
 if [[ ${PREPEND} == "true" ]];then
-	echo "${CYAN_FG}Prepending file names" >&2 | tee -a ${_LOG}
+	{ echo "${CYAN_FG}Prepending file names" | tee -a ${_LOG} } >&2
 	do_prepend ${PREPEND_TAG}
-	[[ ${?} -ne 0 ]] && echo "No matches for prepend" >&2 | tee -a ${_LOG}
+	[[ ${?} -ne 0 ]] && { echo "No matches for prepend" | tee -a ${_LOG} } >&2
+fi
+
+# YouTube tags
+if [[ ${YT_TAGS} == "true" ]];then
+	{ echo "${CYAN_FG}Eliminating YouTube tags" | tee -a ${_LOG} } >&2
+	do_yt_tag
+	[[ ${?} -ne 0 ]] && echo "No matches for YouTube tags" >&2 | tee -a ${_LOG}
 fi
 
 # Media
 if [[ ${MEDIA_FILE} == "true" ]];then
-	echo "${CYAN_FG}Cleaning media file names matching${RESET}:[${WHITE_FG}${MEDIA_FILE_TITLE}${RESET}]" >&2 | tee -a ${_LOG}
+	{ echo "${CYAN_FG}Cleaning media file names matching${RESET}:[${WHITE_FG}${MEDIA_FILE_TITLE}${RESET}]" | tee -a ${_LOG} } >&2
 	do_media ${RES} "${MEDIA_FILE_TITLE}" # Creates it's own list
-	[[ ${?} -ne 0 ]] && echo "No media files were processed " >&2 | tee -a ${_LOG}
+	[[ ${?} -ne 0 ]] && { echo "No media files were processed " | tee -a ${_LOG} } >&2
 fi
 
 # Finalize

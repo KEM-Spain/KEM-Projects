@@ -243,7 +243,7 @@ action_do () {
 
 							if [[ ${ETA} =~ '100%' ]];then
 								if [[ ${#_MARKED} -gt 1 ]];then
-									msg_box -C -jc "<g>$(str_unicode_line 10)<N>"
+									msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
 									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
 										msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
 									fi
