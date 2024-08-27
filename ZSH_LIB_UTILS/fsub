@@ -151,6 +151,7 @@ do_finalize () {
 	local MSG
 	local DELIM="|"
 	local MASKED=false
+	local I_TAG=''
 
 	[[ ${_PIPED} == "true" ]] && echo ${_FILE_OUT_LIST} && exit_leave
 
@@ -226,7 +227,8 @@ do_finalize () {
 		done
 		) | sort -t'>' -k2
 
-		echo -n "\nSave Changes:(y/n)?" >&2
+		[[ ${INTERACTIVE} == 'true' ]] && I_TAG=" [${WHITE_FG}INTERACTIVE${RESET}]"
+		echo -n "\nSave Changes${I_TAG}:(y/n)?" >&2
 		read -sq RESPONSE
 		[[ ${RESPONSE} == "y" ]] && echo && save_changes || echo "\n${RED_FG}Operation cancelled${RESET}"
 	fi
@@ -598,7 +600,6 @@ do_trunc_fn () {
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
-
 do_trim () {
 	local NDX=0
 	local CANDIDATE
@@ -631,13 +632,36 @@ do_trim () {
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
+do_prepend () {
+	local TAG=${1}
+	local NDX=0
+	local CANDIDATE
+	local CPATH
+	local CFN
+	local CEXT
+	local C
+
+	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+
+	for C in ${_INTERMEDIATE_LIST};do
+		((NDX++))
+		CANDIDATE=${C:t:r} # Exclude the extension
+		CPATH=${C:h}
+		CEXT=${C:e} # Extension
+		[[ -n ${CEXT} ]] && CEXT=".${CEXT}"
+		_FILE_OUT_LIST[${NDX}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
+	done
+}
+
 save_changes () {
 	local NDX=0
 	local HIT=false
+	local KEY
 	local C
 
 	echo
-	for C in ${_FILE_OUT_LIST};do # Modified filenames
+	for C in ${(o)_FILE_OUT_LIST};do # Modified filenames
 		((NDX++))
 		[[ ${_DEBUG} -gt 0 && ${_FILE_IN_LIST[${NDX}]} == ${C} ]] && dbg "${0}:${LINENO} Identical filename ${_FILE_IN_LIST[${NDX}]} -> ${C} - skipping"
 		if [[ ${_FILE_IN_LIST[${NDX}]} == ${C} ]];then
@@ -645,7 +669,13 @@ save_changes () {
 			continue # No collisions
 		fi
 		if [[ ! -e ${C} ]];then
-			echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_FILE_IN_LIST[${NDX}]:t} \n  To: ${C:t}" >&2
+			[[ ${TRUNCATE} == 'true' ]] && echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_FILE_IN_LIST[${NDX}]:t} \n  To: ${C:t}" >&2
+			if [[ ${INTERACTIVE} == 'true' ]];then
+				echo "${RED_FG}Overwrite${RESET}: ${CYAN_FG}${_FILE_IN_LIST[${NDX}]}${RESET}"
+				echo -n "       to: ${CYAN_FG}${C}${RESET} (${WHITE_FG}y/n${RESET})?"
+				read -q KEY	
+				[[ ! ${KEY} == 'y' ]] && echo && continue
+			fi
 			/bin/mv "${_FILE_IN_LIST[${NDX}]}" "${C}"
 		fi
 	done
@@ -678,6 +708,7 @@ opt_type () {
 		f) echo "<FILE>";;
 		e) echo "<EXTENSION>";;
 		m) echo "<MEDIA_TITLE>";;
+		p) echo "<TEXT>";;
 		t) echo "<INT>";;
 	esac
 }
@@ -710,6 +741,7 @@ usage () {
 	echo -e "${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [FromText] [ToText] [FileList]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-I${RESET} interactive changes"
 	echo -e "${WHITE_FG}-S${RESET} if not running in a terminal (background job)"
 	echo -e "${WHITE_FG}-a${RESET} automatically apply changes (no prompting)"
 	echo -e "${WHITE_FG}-b${RESET} eliminate extended/non-ascii (${CYAN_FG}M${RESET})"
@@ -721,6 +753,7 @@ usage () {
 	echo -e "${WHITE_FG}-m $(opt_type m)${RESET} operate on matching media title ('enclose multiword args in quotes')"
 	echo -e "${WHITE_FG}-N${RESET} add leading numbers (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-n${RESET} clean leading numbers (remove dots between numbers and text) (${CYAN_FG}M${RESET})"
+	echo -e "${WHITE_FG}-p $(opt_type p)${RESET} prepend text to filenames"
 	echo -e "${WHITE_FG}-r${RESET} preserve resolution (720p/1080p) in media titles (only valid with -m)"
 	echo -e "${WHITE_FG}-s${RESET} eliminate spaces (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-T${RESET} trim leading/trailing whitespace from files or dirs (${CYAN_FG}M${RESET})"
@@ -735,7 +768,7 @@ usage () {
 	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
-OPTSTR=":HDSabe:irscCdm:pnNTt:uxy"
+OPTSTR=":HDISabe:irscCdm:p:nNTt:uxy"
 
 ADD_LEADING_DIGITS=false
 ALLOW_DIRS=false
@@ -746,8 +779,10 @@ DOTS=false
 EXTENDED=false
 TRUNC_FN_LEN=0
 GREP_OPTS='-Eq'
+INTERACTIVE=false
 LIMIT_EXT=false
 MEDIA_FILE=false
+PREPEND_TAG=''
 RES=false
 SPACES=false
 STRIP_LEADING_DIGITS=false
@@ -766,6 +801,7 @@ while getopts ${OPTSTR} OPT;do
 	case ${OPT} in
      H) usage;;
      D) dbg_set_level;;
+     I) INTERACTIVE=true;;
      S) SERVICE_MODE=true;;
      b) EXTENDED=true;;
      e) LIMIT_EXT=true;LIMIT_EXT_TEXT=${OPTARG};;
@@ -777,6 +813,7 @@ while getopts ${OPTSTR} OPT;do
      m) MEDIA_FILE=true;MEDIA_FILE_TITLE=${OPTARG};;
      n) CLEAN_LEADING_DIGITS=true;;
      N) ADD_LEADING_DIGITS=true;;
+     p) PREPEND=true;PREPEND_TAG=${OPTARG};;
      r) RES=true;;
      t) TRUNC_FN_LEN=${OPTARG};TRUNCATE=true;;
      T) TRIM=true;;
@@ -1010,6 +1047,13 @@ if [[ ${TRIM} == "true" ]];then
 	echo "${CYAN_FG}Trimming file names" >&2 | tee -a ${_LOG}
 	do_trim
 	[[ ${?} -ne 0 ]] && echo "No matches for trim" >&2 | tee -a ${_LOG}
+fi
+
+# Prepend
+if [[ ${PREPEND} == "true" ]];then
+	echo "${CYAN_FG}Prepending file names" >&2 | tee -a ${_LOG}
+	do_prepend ${PREPEND_TAG}
+	[[ ${?} -ne 0 ]] && echo "No matches for prepend" >&2 | tee -a ${_LOG}
 fi
 
 # Media

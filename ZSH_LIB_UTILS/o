@@ -39,35 +39,25 @@ typeset -A _APP_EXE
 typeset -A _APP_TYPE
 
 # Constants
-_APP_EXE["EBOOK"]="/usr/bin/python2.7 /usr/bin/ebook-viewer"
-_APP_EXE["OKULAR"]=/usr/bin/okular
-_APP_EXE["MDLESS"]=/usr/local/bin/mdless
-_APP_EXE["MUSE"]="/usr/local/bin/system/launchers/run_musescore"
-_APP_EXE["OFFICE"]=/usr/bin/libreoffice
-_APP_EXE["IMAGE"]=/usr/local/bin/viewnior
-_APP_EXE["VLC"]="/usr/bin/vlc --no-qt-error-dialogs --verbose 0"
-_APP_EXE["HARUNA"]=/usr/bin/haruna
-_APP_EXE["VIM"]=/usr/bin/vim
+_APP_EXE[EBOOK]="/usr/bin/python2.7 /usr/bin/ebook-viewer"
+_APP_EXE[OKULAR]=/usr/bin/okular
+_APP_EXE[MDLESS]=/usr/local/bin/mdless
+_APP_EXE[MUSE]="/usr/local/bin/system/launchers/run_musescore"
+_APP_EXE[OFFICE]=/usr/bin/libreoffice
+_APP_EXE[IMAGE]=/usr/local/bin/viewnior
+_APP_EXE[VLC]="/usr/bin/vlc --no-qt-error-dialogs --verbose 0"
+_APP_EXE[HARUNA]=/snap/bin/haruna
+_APP_EXE[VIM]=/usr/bin/vim
 
-_APP_TYPE["EBOOK"]="GUI"
-_APP_TYPE["OKULAR"]="GUI"
-_APP_TYPE["MDLESS"]="TERM"
-_APP_TYPE["MUSE"]="GUI"
-_APP_TYPE["OFFICE"]="GUI"
-_APP_TYPE["IMAGE"]="GUI"
-_APP_TYPE["VLC"]="GUI"
-_APP_TYPE["HARUNA"]="GUI"
-_APP_TYPE["VIM"]="TERM"
-
-EBOOK="/usr/bin/python2.7 /usr/bin/ebook-viewer"
-OKULAR="/usr/bin/okular --presentation"
-MDLESS=/usr/local/bin/mdless
-MUSE="/usr/local/bin/system/launchers/run_musescore"
-OFFICE=/usr/bin/libreoffice
-IMAGE=eog
-VLC="/usr/bin/vlc --no-qt-error-dialogs --verbose 0"
-HARUNA=/usr/bin/haruna
-VIM=/usr/bin/vim
+_APP_TYPE[EBOOK]=GUI
+_APP_TYPE[OKULAR]=GUI
+_APP_TYPE[MDLESS]=TERM
+_APP_TYPE[MUSE]=GUI
+_APP_TYPE[OFFICE]=GUI
+_APP_TYPE[IMAGE]=GUI
+_APP_TYPE[VLC]=GUI
+_APP_TYPE[HARUNA]=GUI
+_APP_TYPE[VIM]=TERM
 
 _MD_EXTERNAL="/media/kmiller/KEM_Misc/Music/KEM-B9"
 _MD_LOCAL="/home/kmiller/Documents/Music"
@@ -91,14 +81,26 @@ action_do () {
 	local CMD
 	local ERRFILE=/tmp/${_SCRIPT}_app_errors
 
-	[[ -e ${ERRFILE} ]] && rm -f ${ERRFILE}
 
 	for M in ${_MARKED};do
 		FN=${(k)_FILE_NDX[(r)${M}]}
 		APP_EXE_PATH=${_FILE_APP[${FN}]}
 		CMD="${APP_EXE_PATH} ${FN:q}"
-		eval "${CMD} 2>${ERRFILE}"
-		#[[ -s ${ERRFILE} ]] && msg_box -p "<B><I>${0}: ${APP} returned an error<N>| |$(<${ERRFILE})| |Press any key..."
+
+		if [[ ${_DEBUG} -gt 0 ]];then
+			dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+			dbg "FN:${FN}"
+			dbg "APP_EXE_PATH:${APP_EXE_PATH}"
+			dbg "CMD:${CMD}"
+		fi
+
+		msg_box -t3 "Starting ${CMD}..."
+		[[ -e ${ERRFILE} ]] && rm -f ${ERRFILE}
+		eval "${CMD} 2>${ERRFILE}" &
+
+		if [[ ${_DEBUG} -gt 0 ]];then
+			[[ -s ${ERRFILE} ]] && msg_box -p "<B><I>${0}: ${APP} returned an error<N>| |$(<${ERRFILE})| |Press any key..."
+		fi
 	done
 
 	for M in ${_MARKED};do
@@ -134,33 +136,33 @@ get_app () {
 	local APP
 
 	case ${EXT} in
-		avi) APP=${HARUNA};;
-		doc) APP=${OFFICE};;
-		odg) APP=${OFFICE};;
-		epub) APP=${EBOOK};;
-		gif) APP=${IMAGE};;
-		html) APP=${VIM};;
-		jpeg) APP=${IMAGE};;
-		jpg) APP=${IMAGE};;
-		log) APP=${VIM};;
-		markdown) APP=${MDLESS};;
-		md) APP=${MDLESS};;
-		mkv) APP=${HARUNA};;
-		mp3) APP=${HARUNA};;
-		m4a) APP=${HARUNA};;
-		mp4) APP=${HARUNA};;
-		webm) APP=${HARUNA};;
-		mscz) APP=${MUSE};;
-		ods) APP=${OFFICE};;
-		odt) APP=${OFFICE};;
-		pdf) APP=${OKULAR};;
-		png) APP=${IMAGE};;
-		rtf) APP=${OFFICE};;
-		svg) APP=${IMAGE};;
-		xls) APP=${OFFICE};;
-		txt) APP=${VIM};;
-		wav) APP=${HARUNA};;
-		flac) APP=${HARUNA};;
+		avi) APP=${_APP_EXE[HARUNA]};;
+		doc) APP=${_APP_EXE[OFFICE]};;
+		odg) APP=${_APP_EXE[OFFICE]};;
+		epub) APP=${_APP_EXE[EBOOK]};;
+		gif) APP=${_APP_EXE[IMAGE]};;
+		html) APP=${_APP_EXE[VIM]};;
+		jpeg) APP=${_APP_EXE[IMAGE]};;
+		jpg) APP=${_APP_EXE[IMAGE]};;
+		log) APP=${_APP_EXE[VIM]};;
+		markdown) APP=${_APP_EXE[MDLESS]};;
+		md) APP=${_APP_EXE[MDLESS]};;
+		mkv) APP=${_APP_EXE[HARUNA]};;
+		mp3) APP=${_APP_EXE[HARUNA]};;
+		m4a) APP=${_APP_EXE[HARUNA]};;
+		mp4) APP=${_APP_EXE[HARUNA]};;
+		webm) APP=${_APP_EXE[HARUNA]};;
+		mscz) APP=${_APP_EXE[MUSE]};;
+		ods) APP=${_APP_EXE[OFFICE]};;
+		odt) APP=${_APP_EXE[OFFICE]};;
+		pdf) APP=${_APP_EXE[OKULAR]};;
+		png) APP=${_APP_EXE[IMAGE]};;
+		rtf) APP=${_APP_EXE[OFFICE]};;
+		svg) APP=${_APP_EXE[IMAGE]};;
+		xls) APP=${_APP_EXE[OFFICE]};;
+		txt) APP=${_APP_EXE[VIM]};;
+		wav) APP=${_APP_EXE[HARUNA]};;
+		flac) APP=${_APP_EXE[HARUNA]};;
 		*) APP=?;;
 	esac
 	

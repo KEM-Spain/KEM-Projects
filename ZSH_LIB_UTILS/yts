@@ -21,7 +21,7 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -A _RUMBLE_DECODE=()
+typeset -A _FAV_DECODE=()
 typeset -A _COORDS=(X 10 Y 38 H 10 W 86)
 typeset -A _PARTIALS
 typeset -A _DOWNLOADS
@@ -35,10 +35,12 @@ typeset -A _STATUS_MSGS
 typeset -a _LOCAL_LIST
 
 # Constants
-_ACTION=download
-_DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
-_SRC_DIR=/usr/local/src
 _YTS_DIR=~/.yts
+_SRC_DIR=/usr/local/src
+
+_ACTION=download
+_ALERT=.2
+_DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
 _DOWNLOAD_LOG=${_YTS_DIR}/yts.downloads
 _ERROR_LIMIT=5
 _ERROR_LOG=/tmp/yts.err
@@ -49,14 +51,11 @@ _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
 _MARKER=${_YTS_DIR}/yts-upd.lastrun
 _OBJECT=video
+_PAUSE=2
 _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
 _YTS_URL_LOG=/tmp/yts.url.log
-_RUMBLE_DECODE[Neil_Oliver]="c-6293844"
-_RUMBLE_DECODE[Judging_Freedom]="judgingfreedom"
-_PAUSE=2
-_ALERT=.2
 
 # Globals
 g_FAVORITE=''
@@ -373,6 +372,53 @@ delete_favorite () {
 	fi
 }
 
+fav_decode () {
+	local FAV_ARG=${1}
+	local DIR=${2:=R}
+	local REV_LOOKUP=''
+	local FWD_LOOKUP=''
+
+	if [[ ${#_FAV_DECODE} -eq 0 ]];then
+		_FAV_DECODE[Alex_Christoforou]="AlexChristoforou"
+		_FAV_DECODE[Bad_Faith]="badfaith"
+		_FAV_DECODE[Blan_Colirio]="blancolirio"
+		_FAV_DECODE[Breakthrough_News]="breakthroughnews"
+		_FAV_DECODE[Danny_Haiphong]="geopoliticshaiphong"
+		_FAV_DECODE[Dialogue_Works]="dialogueworks"
+		_FAV_DECODE[Due_Dissidence]="duedissidence"
+		_FAV_DECODE[George_Galloway]="GeorgeGallowayOfficial"
+		_FAV_DECODE[Glen_Greenwald]="GGreenwald"
+		_FAV_DECODE[Glenn_Diesen]="glenndiesen"
+		_FAV_DECODE[Going_UnderGround]="goingunderground"
+		_FAV_DECODE[Jimmy_Dore]="TheJimmyDoreShow"
+		_FAV_DECODE[Joe_Rogan]="Powerfuljre"
+		_FAV_DECODE[Judging_Freedom]="judgingfreedom"
+		_FAV_DECODE[Katie_Halper]="katiehalper"
+		_FAV_DECODE[Kim_Iversen]="KimIversen"
+		_FAV_DECODE[Mentour_Now]="mentournow!"
+		_FAV_DECODE[Mentour_Pilot]="mentourpilot"
+		_FAV_DECODE[Neil_Oliver]="c-6293844"
+		_FAV_DECODE[Piano_Groove]="pianogroove"
+		_FAV_DECODE[Richard_Medhurst]="richardmedhurst"
+		_FAV_DECODE[Rick_Beato]="rickbeato"
+		_FAV_DECODE[Ron_Paul]="RonPaulLibertyReport"
+		_FAV_DECODE[Russell_Brand]="russellbrand"
+		_FAV_DECODE[The_Duran]="theduran"
+		_FAV_DECODE[The_Grayzone]="thegrayzone"
+		_FAV_DECODE[The_New_Atlas]="thenewatlas"
+		_FAV_DECODE[Tim_Dillon]="timmdillon"
+		_FAV_DECODE[Tucker_Carlson]="tuckercarlson"
+	fi
+
+	if [[ ${DIR} == 'R' ]];then
+		REV_LOOKUP=${(k)_FAV_DECODE[(r)${FAV_ARG}]}
+		[[ -n ${REV_LOOKUP} ]] && echo ${REV_LOOKUP:s/_/ /} || echo ${FAV_ARG}
+	else
+		FWD_LOOKUP=${_FAV_DECODE[${FAV_ARG:s/ /_/}]}
+		[[ -n ${FWD_LOOKUP} ]] && echo ${FWD_LOOKUP:s/_/ /} || echo ${FAV_ARG}
+	fi
+}
+
 get_favorite () {
 	local -a _DISPLAY_LIST=()
 	local LINE
@@ -391,10 +437,10 @@ get_favorite () {
 				FAV=$(cut -d'|' -f1 <<<${LINE})
 				FAV_TYPE=$(cut -d'|' -f2 <<<${LINE})
 				if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
-					[[ ${FAV_TYPE:l} =~ 'r' ]] && _DISPLAY_LIST+=${FAV} # Rumble
+					[[ ${FAV_TYPE:l} =~ 'r' ]] && _DISPLAY_LIST+=$(fav_decode ${FAV}) # Rumble
 				else
-					[[ ${g_LIST_SUBSET} == 'true' && ${FAV_TYPE:l} =~ 'p' ]] && _DISPLAY_LIST+=${FAV} # YouTube custom
-					[[ ${g_LIST_SUBSET} == 'false' && ${FAV_TYPE:l} =~ 'y' && (! ${FAV_TYPE:l} =~ 'p') ]] && _DISPLAY_LIST+=${FAV} # YouTube
+					[[ ${g_LIST_SUBSET} == 'true' && ${FAV_TYPE:l} =~ 'p' ]] && _DISPLAY_LIST+=$(fav_decode ${FAV}) # YouTube custom
+					[[ ${g_LIST_SUBSET} == 'false' && ${FAV_TYPE:l} =~ 'y' && (! ${FAV_TYPE:l} =~ 'p') ]] && _DISPLAY_LIST+=$(fav_decode ${FAV}) # YouTube
 				fi
 				_FAVORITE_ENGINE[${FAV}]=${FAV_TYPE:s/P//} # Strip custom marker
 			done < ${_YTS_FAVORITES}
@@ -410,15 +456,14 @@ get_favorite () {
 		[[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && MSG=' (<c>livestreams toggled<w>)' || MSG=''
 
 		_SEL_VAL=?
-		sel_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>"
+		sel_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>" ${_SEL_X} ${_SEL_Y} ${_SEL_NDX}
 
 		case ${_SEL_KEY} in
 			d) delete_favorite ${_SEL_VAL} && _DISPLAY_LIST=() && continue;;
 			l) if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
 					[[ ${g_LIVE_OPT} == 'true' ]] && g_LIVE_OPT=false || g_LIVE_OPT=true
 				else
-					msg_box -p -PK "Livestream toggle only applies to Rumble"
-					g_LIVE_OPT=true
+					g_LIVE_OPT=true  # Livestream toggle only applies to Rumble
 				fi
 				continue
 				;;
@@ -430,7 +475,7 @@ get_favorite () {
 		break
 	done
 
-	g_FAVORITE=${_SEL_VAL}
+	g_FAVORITE=$(fav_decode ${_SEL_VAL} F)
 }
 
 get_field () {
@@ -453,10 +498,7 @@ get_field () {
 			agetime) STR=$(cut -d'|' -f4,6 <<<${_LIST[${NDX}]});STR="(${STR:s/|/ /})";;
 		esac
 
-		if [[ ${FIELD} == 'author' ]];then
-			DECODE=${(k)_RUMBLE_DECODE[(r)${STR}]}
-			[[ -n ${DECODE} ]] && STR=${(C)DECODE:s/_/ /}
-		fi
+		[[ ${FIELD} == 'author' ]] && STR=$(fav_decode ${STR})
 	else
 		case ${FIELD} in
 			age) STR=$(cut -d'|' -f1 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
@@ -625,7 +667,7 @@ rumble () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	KEY=${SEARCHTERM:l:s/ /_/}
-	[[ -n ${_RUMBLE_DECODE[${KEY}]} ]] && SEARCHTERM=${_RUMBLE_DECODE[${KEY}]} # Convert to unfriendly Rumble id
+	[[ -n ${_FAV_DECODE[${KEY}]} ]] && SEARCHTERM=${_FAV_DECODE[${KEY}]} # Convert friendly favorite
 
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
 

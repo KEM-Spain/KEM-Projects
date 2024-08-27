@@ -7,19 +7,25 @@ typeset -a _SEL_LIST_TEXT
 typeset -A _PAGE_TOPS
 typeset -a _CENTER_COORDS
 typeset -A _COL_WIDTHS
+typeset -a _ACTION_KEYS
 
 # LIB Vars
+_ACTION_KEYS=(d l r y c)
 _CUR_PAGE=1
-_HILITE=${_TITLE_HL}
+_TITLE_HL=${WHITE_ON_GREY}
+_HILITE=${WHITE_ON_GREY}
 _HILITE_X=0
 _MAX_PAGE=0
 _PAGE_OPTION_KEY_HELP=''
 _SEL_KEY=?
 _SEL_LIST_LIB_DBG=3
 _SEL_VAL=?
+_SEL_X=0
+_SEL_Y=0
+_SEL_NDX=0
 _SL_CATEGORY=false
 _SL_MAX_ITEM_LEN=0
-_TITLE_HL=${WHITE_ON_GREY}
+_RESTORE_POS=true
 
 # LIB Functions
 sel_list () {
@@ -75,6 +81,10 @@ sel_list () {
 	local TITLE=''
 	local TOP_SET=false
 	local _SORT_KEY=false
+	local INIT_X=0
+	local INIT_Y=0
+	local INIT_CSR=0
+	local CLIENT_POS_REQUEST=false
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -111,6 +121,13 @@ sel_list () {
 
 	# Args
 	TITLE=${1}
+	INIT_X=${2}
+	INIT_Y=${3}
+	INIT_CSR=${4}
+
+	if [[ ${_RESTORE_POS} == 'true' && ${INIT_X} -gt 0 && ${INIT_Y} -gt 0 && ${INIT_CSR} -gt 0 ]];then
+		CLIENT_POS_REQUEST=true # Client passed position info
+	fi
 
 	# Hide cursor
 	if [[ ${_CURSOR_STATE} == 'on' ]];then
@@ -262,7 +279,7 @@ sel_list () {
 			[[ $(( BOX_NDX++ )) -gt ${MAX_BOX} ]] && break # Increments BOX_NDX, break when page is full
 
 			tput cup ${BOX_ROW} ${BOX_Y}
-			[[ ${EXIT_REQ} == 'false' && ${BOX_ROW} -eq ${BOX_X} ]] && { tput smso && _HILITE_X=${BOX_X} } || tput rmso # Highlight first item
+			[[ ${CLIENT_POS_REQUEST} == 'false' && ${EXIT_REQ} == 'false' && ${BOX_ROW} -eq ${BOX_X} ]] && { tput smso && _HILITE_X=${BOX_X} } || tput rmso # Highlight first item
 
 			if [[ ${_SL_CATEGORY} == 'true' ]];then
 				F1=$(sel_list_get_cat ${LIST_NDX})
@@ -288,11 +305,18 @@ sel_list () {
 			EXIT_REQ=false
 			CURSOR_NDX=${EXIT_NDX}
 			CURSOR_ROW=${EXIT_ROW}
-			#sel_list_norm ${BOX_TOP} ${BOX_Y} ${_SEL_LIST[${LIST_TOP}]}
 			sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
 		else
 			CURSOR_NDX=${LIST_TOP}
 			CURSOR_ROW=${BOX_TOP}
+		fi
+
+		# Restore previous cursor position if requested
+		if [[ ${CLIENT_POS_REQUEST} == 'true' && ${_RESTORE_POS} == 'true' ]];then # Restore position if allowed
+			#sel_list_norm ${BOX_X} ${BOX_Y} ${_SEL_LIST[1]} # First item reset
+			sel_list_hilite ${INIT_X} ${INIT_Y} ${_SEL_LIST[${INIT_CSR}]} # Hilite client position
+			CURSOR_NDX=${INIT_CSR}
+			CURSOR_ROW=${INIT_X}
 		fi
 
 		# Get keypress and navigate
@@ -300,13 +324,17 @@ sel_list () {
 			KEY=$(get_keys)
 			_SEL_VAL='?'
 			_SEL_KEY='?'
+
+			if [[ ${_ACTION_KEYS[(i)${KEY}]} -le ${#_ACTION_KEYS} ]];then
+				_SEL_KEY=${KEY} 
+				_RESTORE_POS=false # Possible list change - restore disallowed
+				break 2 # Pre-defined action key was pressed
+			fi
+
+			_RESTORE_POS=true # Restore allowed
+
 			case ${KEY} in
 				0) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && break 2;;
-				d) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && _SEL_KEY='d' && break 2;;
-				l) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && _SEL_KEY='l' && break 2;;
-				r) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && _SEL_KEY='r' && break 2;;
-				y) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && _SEL_KEY='y' && break 2;;
-				c) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && _SEL_KEY='c' && break 2;;
 				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
 				q) exit_request $(sel_list_pos_exitbox);EXIT_REQ=true;EXIT_NDX=${CURSOR_NDX};EXIT_ROW=${CURSOR_ROW};break;; # Save state
@@ -347,6 +375,8 @@ sel_list () {
 					fi
 					;;
 			esac
+
+			_SEL_NDX=${CURSOR_NDX} # Value saved for client
 
 			# Row and Page changes
 			case ${DIR} in
@@ -454,6 +484,7 @@ sel_list_hilite () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: X:${X} Y:${Y} TEXT:${TEXT}"
 
 	tput cup ${X} ${Y}
+
 	tput smso
 	if [[ ${_SL_CATEGORY} == 'true' ]];then
 		F1=$(cut -d: -f1 <<<${TEXT})
@@ -463,7 +494,10 @@ sel_list_hilite () {
 		echo ${TEXT}
 	fi
 	tput rmso
+
 	_HILITE_X=${X}
+	_SEL_Y=${Y} # Value saved for client
+	_SEL_X=${X} # Value saved for client
 }
 
 sel_list_norm () {

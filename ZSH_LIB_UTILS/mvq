@@ -43,6 +43,7 @@ _HEADERS=(A "Movies starring:" D "Movies directed by:" E "Movies for the decade:
 # Globals
 g_LIST_VALUE=''
 g_LIST_TYPE=''
+g_UPDATE=false
 
 
 # Imports
@@ -120,7 +121,7 @@ set_cache () {
 	[[ ${DECADE_ARG} == 'true' ]] && CACHE_FN+="_DEC_${1}"
 	[[ ${YEAR_ARG} == 'true' ]] && CACHE_FN+="_YR_${1}"
 
-	if [[ ! -e "${_CACHE_DIR}/${CACHE_FN}" ]];then
+	if [[ ! -e "${_CACHE_DIR}/${CACHE_FN}" || ${g_UPDATE} == 'true' ]];then
 		for S in ${_SLIST};do
 			echo ${S} >> ${_CACHE_DIR}/${CACHE_FN}
 		done
@@ -376,7 +377,7 @@ usage () {
 	exit_leave
 }
 
-OPTSTR=":HDCa:d:e:liy:"
+OPTSTR=":HDCa:d:e:liuy:"
 OPTIND=0
 
 ACTOR_ARG=''
@@ -397,6 +398,7 @@ while getopts ${OPTSTR} OPTION;do
      e) DECADE_ARG=${OPTARG};;
      l) DO_LIST=true;;
      i) IGNORE_CACHE=true;;
+     u) g_UPDATE=true;;
      y) YEAR_ARG=${OPTARG};;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
@@ -407,6 +409,7 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
+# TODO: enable updating of cache with fresh query
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ ${#OPTIONS} -eq 0 && ${#} -eq 0 ]] && usage
 
@@ -486,6 +489,7 @@ if [[ ${IS_CACHED} == 'false' ]];then
 		exit_leave "${RED_FG}No matches for:${WHITE_FG}${QRY}"
 	fi
 
+	#TODO: if g_UPDATE write result to cache
 	msg_box -c "Working...formatting data"
 	NDX=0
 	LN=0

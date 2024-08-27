@@ -406,8 +406,8 @@ if [[ ${_DIRS_ONLY} == 'true' || ${_LINKS_ONLY} == 'true' ]];then
 		_LS_LIST+=${(qqq)F} # Enclose file names w/spaces
 	done
 
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}eval ls ${_LS_FORMAT} ${_LS_OPTS} -d ${_LS_LIST} || echo No$(not_found)found${RESET}"
-	[[ -n ${_LS_LIST} ]] && eval "ls ${_LS_FORMAT} ${_LS_OPTS} -d ${_LS_LIST}" || echo "No$(not_found)found"
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}eval ls ${_LS_FORMAT} ${_LS_OPTS} -d ${_LS_LIST} || echo No matching$(not_found)found${RESET}"
+	[[ -n ${_LS_LIST} ]] && eval "ls ${_LS_FORMAT} ${_LS_OPTS} -d ${_LS_LIST}" || echo "No matching$(not_found)found"
 
 	exit_leave
 fi
@@ -416,7 +416,7 @@ fi
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}eval ls ${_LS_FORMAT} ${_LS_OPTS} ${_LS_ARGS} 2>/dev/null${RESET}"
 eval "ls ${_LS_FORMAT} ${_LS_OPTS} ${_LS_ARGS}" 2>/dev/null
-[[ ${?} -ne 0 ]] && echo "No$(not_found)found"
+[[ ${?} -ne 0 ]] && echo "No matching$(not_found)found"
 [[ -n ${H_MARK} ]] && echo ${H_MARK}
 
 exit_leave

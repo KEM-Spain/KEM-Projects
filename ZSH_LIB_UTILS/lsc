@@ -226,9 +226,10 @@ shift $((OPTIND -1))
 [[ -n ${1} ]] && SEARCHTERM=${1} || SEARCHTERM=''
 
 if [[ ${RUNNING} == 'true' ]];then
+	msg_box -t2 "<w>Gathering systemd information for running units<N>..."
 	_RAWLIST=("${(f)$(sudo systemctl list-units --all --type=service --state=active | tail -n +2 | head -n -6 | sed 's/^ *//g' | tr -s '[:space:]')}")
 
-	if [[ ${_DEBUG} -gt 2 ]];then
+	if [[ ${_DEBUG} -ge 2 ]];then
 		dbg "${0}:${LINENO} Running _RAWLIST"
 		(
 		echo "${GREEN_FG}DEBUG${RESET}:${WHITE_FG}Running list_units...${RESET}"
@@ -251,9 +252,9 @@ if [[ ${RUNNING} == 'true' ]];then
 		DESC=$(cut -d' ' -f5- <<<$(echo ${L}))
 
 		((NDX++))
-		echo "UNIT:${UNIT}"
-		echo "_MAX_ITEM_LEN:${_MAX_ITEM_LEN}"
-		echo "UNIT-LEN:${UNIT[1,${_MAX_ITEM_LEN}]}"
+#		echo "UNIT:${UNIT}"
+#		echo "_MAX_ITEM_LEN:${_MAX_ITEM_LEN}"
+#		echo "UNIT-LEN:${UNIT[1,${_MAX_ITEM_LEN}]}"
 		_UNIT_FILES[${NDX}]=${UNIT[1,${_MAX_ITEM_LEN}]}
 		_STATES[${NDX}]=${STATE}
 		_DESCRIPTIONS[${NDX}]=${DESC[1,${_MAX_ITEM_LEN}]}
@@ -264,6 +265,7 @@ if [[ ${RUNNING} == 'true' ]];then
 		[[ ${#_DESCRIPTIONS[${NDX}]} -gt ${_COL_WIDTHS[DESC]} ]] && _COL_WIDTHS[DESC]=${#_DESCRIPTIONS[${NDX}]}
 	done
 else
+	msg_box -t2 "<w>Gathering systemd unit information<N>..."
 	_RAWLIST=("${(f)$(sudo systemctl list-unit-files | tr -s '[:space:]' | tail -n +2 | head -n -2)}")
 	_RAW_STATES=("${(f)$(sudo systemctl list-units -all | tr -s '[:space:]' | tail -n +2 | head -n -2)}")
 

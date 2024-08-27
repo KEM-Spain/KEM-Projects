@@ -221,11 +221,11 @@ for L in ${(ok)_LAUNCHER_DESKTOP};do
 		else
 			update_exec_lines ${DESKTOP_FILE}
 			if [[ ${?} -eq 0 ]];then
-				MSG="desktop file was modified" && RESULT=SUCCESS
+				MSG=" was modified" && STATUS=SUCCESS
 			else
-				MSG="desktop file was NOT modified" && RESULT=ERROR
+				MSG=" was NOT modified" && STATUS=ERROR
 			fi
-			printf "${BOLD}Desktop file${RESET}:%s ${BOLD}%s${RESET}:%s to call:${BOLD}${ITALIC}%s${RESET}\n" ${DESKTOP_FILE} ${RESULT} ${MSG} ${L}
+			printf "${BOLD}%s${RESET} Desktop file:%s%s to call:${ITALIC}%s${RESET}\n" ${STATUS} ${DESKTOP_FILE} ${MSG} ${L}
 		fi
 	fi
 done

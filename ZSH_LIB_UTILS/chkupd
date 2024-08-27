@@ -197,3 +197,4 @@ if need_boot;then
 	msg_box -p -PB "<r>Reboot required<N>"
 	[[ ${_MSG_KEY} == 'y' ]] && rb -r
 fi
+exit_leave

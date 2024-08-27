@@ -170,6 +170,7 @@ shift $((OPTIND -1))
 #--End GetOpts--
  
 #--Execution
+#TODO: multipage lsd not working after approval
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ ${#} -ne 0 ]] && SEARCHTERM=(${@}) || SEARCHTERM=''
 
