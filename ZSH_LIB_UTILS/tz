@@ -160,7 +160,7 @@ if [[ ${_DEBUG} -gt 0 ]];then
 fi
 
 echo "   LOCAL:${WHITE_FG}${LOCAL_TIME} ${CYAN_FG}${LOCAL_ZONE}${RESET} ${LOCAL_DATE}"
-echo "UTC(GMT):${WHITE_FG}${UTC_TIME}${RESET} ${UTC_DATE} (${UTC_DIFF_VAL} hour${HP} ${UTC_LBL})\n"
+echo "UTC(GMT):${WHITE_FG}${UTC_TIME}${RESET} ${UTC_DATE} (you are ${UTC_DIFF_VAL} hour${HP} ${UTC_LBL})\n"
 
 # Typeset -i TZ_DIFF
 

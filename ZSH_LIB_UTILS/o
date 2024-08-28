@@ -148,7 +148,7 @@ get_app () {
 		markdown) APP=${_APP_EXE[MDLESS]};;
 		md) APP=${_APP_EXE[MDLESS]};;
 		mkv) APP=${_APP_EXE[HARUNA]};;
-		mp3) APP=${_APP_EXE[HARUNA]};;
+		mp3) APP=${_APP_EXE[VLC]};;
 		m4a) APP=${_APP_EXE[HARUNA]};;
 		mp4) APP=${_APP_EXE[HARUNA]};;
 		webm) APP=${_APP_EXE[HARUNA]};;
@@ -161,8 +161,8 @@ get_app () {
 		svg) APP=${_APP_EXE[IMAGE]};;
 		xls) APP=${_APP_EXE[OFFICE]};;
 		txt) APP=${_APP_EXE[VIM]};;
-		wav) APP=${_APP_EXE[HARUNA]};;
-		flac) APP=${_APP_EXE[HARUNA]};;
+		wav) APP=${_APP_EXE[VLC]};;
+		flac) APP=${_APP_EXE[VLC]};;
 		*) APP=?;;
 	esac
 	

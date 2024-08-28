@@ -70,14 +70,14 @@ update_exec_lines () {
 	local -a EXEC_LINES=("${(f)$(grep Exec= ${FN})}")
 	local ARGS=''
 	local APP_NAME=$(echo ${FN:t} | cut -d '_' -f2) 
-	local CALL_LINE="${_LAUNCHER_DIR}/run_${APP_NAME:r}"
+	local CALL_LINE="${_LAUNCHER_DIR}/run_${FN:t:r}" # Tail minus file extension
 	local NEW_LINE=''
 	local E
 
 	for E in ${EXEC_LINES};do
 		ARGS=$(cut -s -d' ' -f2- <<<${E})
 		[[ -n ${ARGS} ]] && NEW_LINE="${CALL_LINE} ${ARGS}" || NEW_LINE=${CALL_LINE}
-		sudo sed -i "s#${E}#Exec=${NEW_LINE}#" ${FN}
+		sudo sed -i "s#${E}.*#Exec=${NEW_LINE}#" ${FN}
 	done
 }
 

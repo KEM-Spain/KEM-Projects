@@ -122,6 +122,7 @@ set_cache () {
 	[[ ${YEAR_ARG} == 'true' ]] && CACHE_FN+="_YR_${1}"
 
 	if [[ ! -e "${_CACHE_DIR}/${CACHE_FN}" || ${g_UPDATE} == 'true' ]];then
+		[[ ${g_UPDATE} == 'true' ]] && /bin/rm -f ${_CACHE_DIR}/${CACHE_FN}
 		for S in ${_SLIST};do
 			echo ${S} >> ${_CACHE_DIR}/${CACHE_FN}
 		done
@@ -398,7 +399,7 @@ while getopts ${OPTSTR} OPTION;do
      e) DECADE_ARG=${OPTARG};;
      l) DO_LIST=true;;
      i) IGNORE_CACHE=true;;
-     u) g_UPDATE=true;;
+     u) g_UPDATE=true;IGNORE_CACHE=true;;
      y) YEAR_ARG=${OPTARG};;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
@@ -409,7 +410,6 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-# TODO: enable updating of cache with fresh query
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ ${#OPTIONS} -eq 0 && ${#} -eq 0 ]] && usage
 
@@ -479,7 +479,11 @@ fi
 
 if [[ ${IS_CACHED} == 'false' ]];then
 	# Submit query
-	msg_box -c "Working...querying flickchart (a very slow site) for ${QRY}"
+	if [[ ${CACHE_SELECT} == 'true' && ${g_UPDATE} == 'true' ]];then	
+		msg_box -c "Updating cached query...${QRY}"
+	else
+		msg_box -c "Working...querying flickchart (a very slow site) for ${QRY}"
+	fi
 
 	LIST=("${(f)$(do_query ${QRY})}")
 
@@ -489,7 +493,6 @@ if [[ ${IS_CACHED} == 'false' ]];then
 		exit_leave "${RED_FG}No matches for:${WHITE_FG}${QRY}"
 	fi
 
-	#TODO: if g_UPDATE write result to cache
 	msg_box -c "Working...formatting data"
 	NDX=0
 	LN=0

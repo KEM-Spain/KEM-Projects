@@ -1,0 +1,10 @@
+#!/usr/bin/zsh
+/snap/bin/haruna ${@} &
+NDX=0
+while true;do
+	((NDX++))
+	[[ ${NDX} -ge 20 ]] && break
+	PID=$(pgrep haruna)
+	[[ -n ${PID} ]] && win_max haruna && break
+	sleep 1
+done

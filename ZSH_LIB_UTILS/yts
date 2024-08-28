@@ -40,6 +40,7 @@ _SRC_DIR=/usr/local/src
 
 _ACTION=download
 _ALERT=.2
+_CMD_LINE_ARGS=false
 _DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
 _DOWNLOAD_LOG=${_YTS_DIR}/yts.downloads
 _ERROR_LIMIT=5
@@ -49,7 +50,7 @@ _FIELD_LEN[agetime]=40
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
-_MARKER=${_YTS_DIR}/yts-upd.lastrun
+_CODE_MARKER=${_YTS_DIR}/yts-upd.lastrun
 _OBJECT=video
 _PAUSE=2
 _YTS_DBG=2
@@ -59,7 +60,7 @@ _YTS_URL_LOG=/tmp/yts.url.log
 
 # Globals
 g_FAVORITE=''
-g_LAST_UPD=?
+g_LAST_CODE_UPD=?
 g_LIST_SUBSET=false
 g_LIVE=''
 g_LIVE_OPT=''
@@ -150,6 +151,7 @@ action_do () {
 		while true;do
 			((NDX++))
 			
+			# Handle job reset
 			KEY=''
 			read -s -t0.1 -k1 KEY
 			if [[ ${KEY} == 'r' ]];then # Process job reset
@@ -158,6 +160,7 @@ action_do () {
 				HAD_ERROR=false
 			fi
 
+			# Ensure log activity
 			LOG_SIZE=$(wc -c < ${g_YTS_LOG})
 			if [[ ${LOG_SIZE} -ne ${LAST_LOG_SIZE} ]];then
 				LOG_STALLS=0 # Log is growing
@@ -167,33 +170,6 @@ action_do () {
 				LAST_LOG_SIZE=${LOG_SIZE}
 				sleep 1 # Extra sleep 
 				continue
-			fi
-
-			# Scan for resume
-			RESUMED_TAG=''
-			LOG_LINE=$(grep -m1 -i "resuming download" ${g_YTS_LOG} 2>/dev/null)
-			if [[ ${?} -eq 0 ]];then
-				RESUMED_TAG=' (<w>resumed<N>)'
-			fi
-
-			# Get headers
-			LOG_LINE=$(grep -m1 -i "destination" ${g_YTS_LOG} 2>/dev/null)
-
-			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
-				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
-				DEST_1=$(cut -d'|' -f1 <<<${DEST})
-				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<w>/" -e "s/:/<N>:<m>/")
-				HDR1_TXT=$(cut -d'|' -f2 <<<${DEST})
-				HDR1_TXT="<w>Downloading<N>:<m> <c>${HDR1_TXT[1,60]}<N>"
-				HDR2_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
-				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR2_TXT})} ))
-				HDR_LEN=$((HDR_LEN + FRAME_PAD))
-				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
-				[[ ${HDR_LEN} -gt ${_COORDS[W]} ]] && _COORDS[W]=${HDR_LEN} && _COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
-				msg_box -c -C -I -H3 -jl -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} ${HDR1_TXT}
-				msg_box -C -jl ${HDR2_TXT}
-				msg_box -C -jl "<c>$(str_unicode_line $((_COORDS[W]-4)))<N>" # Divider line
-				HDRS_OUT=true
 			fi
 
 			# Scan for already downloaded
@@ -219,14 +195,40 @@ action_do () {
 				break # While loop
 			fi
 
+			# Scan for resume
+			RESUMED_TAG=''
+			LOG_LINE=$(grep -m1 -i "resuming download" ${g_YTS_LOG} 2>/dev/null)
+			if [[ ${?} -eq 0 ]];then
+				RESUMED_TAG=' (<w>resumed<N>)'
+			fi
+
+			# Process headers
+			LOG_LINE=$(grep -m1 -i "destination" ${g_YTS_LOG} 2>/dev/null)
+			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
+				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
+				DEST_1=$(cut -d'|' -f1 <<<${DEST})
+				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<w>/" -e "s/:/<N>:<m>/")
+				HDR1_TXT=$(cut -d'|' -f2 <<<${DEST})
+				HDR1_TXT="<w>Downloading<N>:<m> <c>${HDR1_TXT[1,60]}<N>"
+				HDR2_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
+				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR2_TXT})} ))
+				HDR_LEN=$((HDR_LEN + FRAME_PAD))
+				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
+				[[ ${HDR_LEN} -gt ${_COORDS[W]} ]] && _COORDS[W]=${HDR_LEN} && _COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
+				msg_box -c -C -I -H3 -jl -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} ${HDR1_TXT}
+				msg_box -C -jl ${HDR2_TXT}
+				msg_box -C -jl "<c>$(str_unicode_line $((_COORDS[W]-4)))<N>" # Divider line
+				HDRS_OUT=true
+			fi
+
 			if [[ ${_DOWNLOADS[${M}]} != 'true' ]];then
 				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1) 
 				
 				# Scan for progress
-				if [[ ${HDRS_OUT} == 'true' && ${_DOWNLOADS[${M}]} != 'true' ]];then
-					grep -q -i 'eta\|100%\|100\.0' <<<${LOG_LINE} 2>/dev/null && RC1=${?}
+				if [[ ${HDRS_OUT} == 'true' ]];then
+					grep -q -i 'eta\|100%\|100\.0' <<<${LOG_LINE} 2>/dev/null && RC1=${?} # Scan line
+					[[ ${RC1} -ne 0 ]] && grep -q -m1 "100%" <<<${g_YTS_LOG} 2>/dev/null && RC2=${?} # Scan log
 
-					[[ ${RC1} -ne 0 ]] && grep -q -m1 "100%" <<<${g_YTS_LOG} 2>/dev/null && RC2=${?}
 					if [[ ${RC1} -eq 0 || ${RC2} -eq 0 ]];then
 						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
 						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
@@ -253,51 +255,48 @@ action_do () {
 								log_download ${M}
 								break # Exit log scan
 							fi
+						fi # Not blank
+					fi # 100% seen
+
+					# Scan for errors
+					grep -q -i 'error' <<<${LOG_LINE} 2>/dev/null
+					if [[ ${?} -eq 0 ]];then
+						((ERROR_CNT++))
+						HAD_ERROR=true
+
+						if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
+							TITLE=$(get_field title ${M})	
+							EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Errors:${ERROR_CNT} Network failure<N>|${LOG_LINE}" 
+							msg_box -f80 -p -PK "${EMSG}"
+							_FAILED[${M}]=true
+							_DOWNLOADS[${M}]=false
+							break 2 # Exit log scan
 						fi
-					fi
-				fi
 
-				# Scan for errors
-				grep -q -i 'error' <<<${LOG_LINE} 2>/dev/null
-
-				if [[ ${?} -eq 0 ]];then
-					((ERROR_CNT++))
-					HAD_ERROR=true
-					if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
-						TITLE=$(get_field title ${M})	
-						EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Errors:${ERROR_CNT} Network failure<N>|${LOG_LINE}" 
-						msg_box -f80 -p -PK "${EMSG}"
-						_FAILED[${M}]=true
-						_DOWNLOADS[${M}]=false
-						break 2 # Exit log scan
-					fi
-					case ${LOG_LINE:l} in
-						*"giving up"*)	
-						ERROR_CNT=${_ERROR_LIMIT}	
-						_FAILED[${M}]=true
-						_DOWNLOADS[${M}]=false
-						break 2 # Exit scan
-						;;
-						*unreachable*|*retrying*|*timed\ out*)	
-							msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
-							echo "$(get_field author ${M}) - Caught:"${LOG_LINE} >> ${_ERROR_LOG}
-						;;
-						*) msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
-							echo "$(get_field author ${M}) - Uncaught:"${LOG_LINE} >> ${_ERROR_LOG}
-							_DEBUG=${_YTS_DBG}
-						;;
-					esac
-				else
-					HAD_ERROR=false
-					ERROR_CNT=0
-				fi
-			fi
-			sleep 2 # Log fetch
-		done
+						case ${LOG_LINE:l} in
+							*"giving up"*)	
+							ERROR_CNT=${_ERROR_LIMIT}	
+							_FAILED[${M}]=true
+							_DOWNLOADS[${M}]=false
+							break 2 # Exit scan
+							;;
+							*) msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+								echo "$(get_field author ${M}) - Error:"${LOG_LINE} >> ${_ERROR_LOG}
+								_DEBUG=${_YTS_DBG}
+							;;
+						esac
+					else
+						HAD_ERROR=false
+						ERROR_CNT=0
+					fi # Error seen
+				fi # Log scan
+			fi # Monitor download
+			sleep 2 # Log fetch delay
+		done # Log scan complete
 		NDX=0
 		clear_log "action_do"
-		sleep 2 # Next download
-	done
+		sleep 2 # Job request delay
+	done # List complete
 	stty echo
 
 	for M in ${_MARKED};do
@@ -335,7 +334,7 @@ clear_log () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	if [[ ${_DEBUG} -eq 0 && -e ${g_YTS_LOG} ]];then
+	if [[ ${_DEBUG} -ge ${_YTS_DBG} && -e ${g_YTS_LOG} ]];then
 		rm -f ${g_YTS_LOG}
 		echo "log ${g_YTS_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg # Debug is NOT active - clear the log
 	else
@@ -378,11 +377,14 @@ fav_decode () {
 	local REV_LOOKUP=''
 	local FWD_LOOKUP=''
 
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} FAV_ARG:${FAV_ARG} DIR:${DIR}"
+
 	if [[ ${#_FAV_DECODE} -eq 0 ]];then
 		_FAV_DECODE[Alex_Christoforou]="AlexChristoforou"
 		_FAV_DECODE[Bad_Faith]="badfaith"
 		_FAV_DECODE[Blan_Colirio]="blancolirio"
 		_FAV_DECODE[Breakthrough_News]="breakthroughnews"
+		_FAV_DECODE[Chris_Hedges_Report]="thechrishedgesyoutubechannel"
 		_FAV_DECODE[Danny_Haiphong]="geopoliticshaiphong"
 		_FAV_DECODE[Dialogue_Works]="dialogueworks"
 		_FAV_DECODE[Due_Dissidence]="duedissidence"
@@ -412,9 +414,11 @@ fav_decode () {
 
 	if [[ ${DIR} == 'R' ]];then
 		REV_LOOKUP=${(k)_FAV_DECODE[(r)${FAV_ARG}]}
+		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} REV_LOOKUP:${REV_LOOKUP}"
 		[[ -n ${REV_LOOKUP} ]] && echo ${REV_LOOKUP:s/_/ /} || echo ${FAV_ARG}
 	else
 		FWD_LOOKUP=${_FAV_DECODE[${FAV_ARG:s/ /_/}]}
+		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} FWD_LOOKUP:${FWD_LOOKUP}"
 		[[ -n ${FWD_LOOKUP} ]] && echo ${FWD_LOOKUP:s/_/ /} || echo ${FAV_ARG}
 	fi
 }
@@ -434,6 +438,7 @@ get_favorite () {
 		if [[ -s ${_YTS_FAVORITES} ]];then
 			_DISPLAY_LIST=()
 			while read LINE;do
+				[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _YTS_FAVORITES:${LINE}"
 				FAV=$(cut -d'|' -f1 <<<${LINE})
 				FAV_TYPE=$(cut -d'|' -f2 <<<${LINE})
 				if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
@@ -490,7 +495,7 @@ get_field () {
 
 	if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
 		case ${FIELD} in
-			author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";;
+			author) STR=$(cut -d'|' -f2 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[author]}]}";STR="$(cut -d'(' -f1 <<<${STR})";;
 			title) STR=$(cut -d'|' -f3 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[title]}]}";;
 			age) STR=$(cut -d'|' -f4 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
 			url) STR=$(cut -d'|' -f5 <<<${_LIST[${NDX}]});STR="http://rumble.com${STR}";;
@@ -498,7 +503,7 @@ get_field () {
 			agetime) STR=$(cut -d'|' -f4,6 <<<${_LIST[${NDX}]});STR="(${STR:s/|/ /})";;
 		esac
 
-		[[ ${FIELD} == 'author' ]] && STR=$(fav_decode ${STR})
+		[[ ${_CMD_LINE_ARGS} == 'false' && ${FIELD} == 'author' ]] && STR=$(fav_decode ${STR})
 	else
 		case ${FIELD} in
 			age) STR=$(cut -d'|' -f1 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
@@ -560,7 +565,7 @@ kill_job () {
 	fi
 }
 
-last_update () {
+last_code_update () {
 	local MARKER_ARG=${1}
 	local LAST_UPD=0
 	local LAST_TIME=0
@@ -603,7 +608,7 @@ log_find () {
 	fi
 }
 
-log_update () {
+download_log_update () {
 	local FN_HIT=''
 	local LINE=''
 	local IN=''
@@ -675,11 +680,15 @@ rumble () {
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'r' ]] && g_LIVE=false
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
-		[[ ${g_LIVE} == 'true' ]] && MSG="Searching for livestreams..." || MSG="Searching for videos..."
+		[[ ${g_LIVE} == 'true' ]] && MSG="Searching livestreams..." || MSG="Searching videos..."
 		msg_box -R INNER -c ${MSG}
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams" 2>/dev/null)
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
-		[[ ${PG:l} =~ "no videos found" ]] && msg_box -c "<r>No livestreams<N> for ${SEARCHTERM}|Falling back to defaults..." && PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
+
+		if [[ ${PG:l} =~ "no videos found" ]];then
+			msg_box -c "<r>Livestream search failed<N> for ${SEARCHTERM}|Falling back to defaults..." 
+			PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
+		fi
 
 		g_SEARCH_TYPE=channel
 		TITLES=("${(f)$(pup --charset utf8 '.title__link text{}' <<<${PG} | tut blank_lines | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
@@ -694,10 +703,11 @@ rumble () {
 			VID_LIST+="${SEARCHTERM}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	else # General search
-		msg_box "Channel name: \"${SEARCHTERM}\" not found.  Performing general search..."
+		msg_box "Channel search failed.  Performing general search..."
 		g_SEARCH_TYPE=general
 		GEN_SEARCH=$(sed 's/ /%20/g' <<<${SEARCHTERM})
 		PG=$(wget -q -O - "https://rumble.com/search/all?q=${GEN_SEARCH}")
+
 		TITLES=("${(f)$(pup --charset utf8 '.video-item--title text{}' <<<${PG} | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
 		AGES=("${(f)$(pup --charset utf8 '.video-item--meta attr{datetime}' <<<${PG})}")
 		DURATIONS=("${(f)$(pup --charset utf8 '.video-item--duration attr{data-value}' <<<${PG})}")
@@ -713,6 +723,8 @@ rumble () {
 		done
 	fi
 
+	#TODO: any strict filtering should focus on CHANNEL
+	 
 	NDX=0
 	for X in ${VID_LIST};do
 		((NDX++))
@@ -727,6 +739,7 @@ rumble () {
 
 	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}, TITLES: ${#TITLES}"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${TITLES};do printf "TITLE:%s\n" ${L};done )"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${CHANNELS};do printf "CHANNEL:%s\n" ${L};done )"
 
 	# Return search status
 	if ! arr_is_populated "${_LOCAL_LIST}";then
@@ -1038,23 +1051,22 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
-g_LAST_UPD=$(last_update ${_MARKER})
-log_update
+g_LAST_CODE_UPD=$(last_code_update ${_CODE_MARKER})
+
+download_log_update
 
 RAWPATH=$(path_get_raw)
 FPATH=$(cut -d'|' -f1 <<<${RAWPATH})
 FGLOB=$(cut -d'|' -f2 <<<${RAWPATH})
 PATHLBL=$(path_get_label 40)
 
-if [[ (! -f ${_MARKER}) || (-f ${_MARKER} && (! ${g_LAST_UPD:l} =~ 'today')) ]];then
+if [[ (! -f ${_CODE_MARKER}) || (-f ${_CODE_MARKER} && (! ${g_LAST_CODE_UPD:l} =~ 'today')) ]];then
 	clear
-	#msg_box -t1 "git update disable until github fixes itself"
-	msg_box "Updating yts-dlp..."
+	msg_box -t1 "Updating yts-dlp..."
 	pushd ${_YTS_GIT}
 	git pull
 	popd
-	touch ${_MARKER}
-	msg_box_clear
+	touch ${_CODE_MARKER}
 fi
 
 clear
@@ -1113,6 +1125,7 @@ if [[ ${#} -eq 0 ]];then # NO args passed
 		fi
 	done
 else # Args passed
+	_CMD_LINE_ARGS=true
 	ARG="${@}"
 	${g_QRY_ENGINE} ${ARG}
 	if [[ ${?} -eq 0 ]];then

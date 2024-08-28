@@ -229,8 +229,7 @@ do_finalize () {
 		done
 		} | sort -t'>' -k2
 
-		[[ ${INTERACTIVE} == 'true' ]] && I_TAG=" [${WHITE_FG}INTERACTIVE${RESET}]"
-		echo -n "\nSave Changes${I_TAG}:(y/n)?" >&2
+		echo -n "\nSave Changes:(y/n)?" >&2
 		read -sq RESPONSE
 		[[ ${RESPONSE} == "y" ]] && echo && save_changes || echo "\n${RED_FG}Operation cancelled${RESET}"
 	fi
@@ -632,25 +631,44 @@ do_trim () {
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
-	do_prepend () {
-		local TAG=${1}
-		local NDX=0
-		local CANDIDATE
-		local CPATH
-		local CEXT
-		local C
+do_prepend () {
+	local TAG=${1}
+	local NDX=0
+	local CANDIDATE
+	local CPATH
+	local CEXT
+	local C
 
-		[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
 
+	if [[ ${INTERACTIVE} == 'true' ]];then
+		do_smcup
 		for C in ${_INTERMEDIATE_LIST};do
 			((NDX++))
-			CANDIDATE=${C:t:r} # Exclude the extension
+
+			CANDIDATE=${C:t:r} # Tail/no extension
+			msg_box -p -P"Prepend ${TAG}?" ${CANDIDATE}
+			if [[ ${_MSG_KEY} == 'n' ]];then
+				[[ ${?} -ne 0 ]] && _FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) && continue # Remove non candidates from original
+			else
+				CPATH=${C:h}
+				[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
+				_FILE_OUT_LIST[${NDX}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
+			fi
+			msg_box_clear
+		done
+		do_rmcup
+	else
+		for C in ${_INTERMEDIATE_LIST};do
+			((NDX++))
+			CANDIDATE=${C:t:r} # Tail/no extension
 			CPATH=${C:h}
 			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
 			_FILE_OUT_LIST[${NDX}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
 		done
-	}
+	fi
+}
 
 do_yt_tag () {
 	local NDX=0
@@ -685,21 +703,16 @@ save_changes () {
 	local C
 
 	echo
-	for C in ${(o)_FILE_OUT_LIST};do # Modified filenames
+	for C in ${_FILE_OUT_LIST};do # Modified filenames
 		((NDX++))
 		[[ ${_DEBUG} -gt 0 && ${_FILE_IN_LIST[${NDX}]} == ${C} ]] && dbg "${0}:${LINENO} Identical filename ${_FILE_IN_LIST[${NDX}]} -> ${C} - skipping"
 		if [[ ${_FILE_IN_LIST[${NDX}]} == ${C} ]];then
 			echo "${WHITE_FG}${_SCRIPT}${RESET}:${BOLD}${RED_FG}Skipping file${RESET}:${WHITE_FG}${C}${RESET} (would overwrite an existing file)"
+			echo "Not overwriting existing file:${C}" >> ${_LOG}
 			continue # No collisions
 		fi
 		if [[ ! -e ${C} ]];then
 			[[ ${TRUNCATE} == 'true' ]] && echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_FILE_IN_LIST[${NDX}]:t} \n  To: ${C:t}" >&2
-			if [[ ${INTERACTIVE} == 'true' ]];then
-				echo "${RED_FG}Overwrite${RESET}: ${CYAN_FG}${_FILE_IN_LIST[${NDX}]}${RESET}"
-				echo -n "       to: ${CYAN_FG}${C}${RESET} (${WHITE_FG}y/n${RESET})?"
-				read -q KEY	
-				[[ ! ${KEY} == 'y' ]] && echo && continue
-			fi
 			/bin/mv "${_FILE_IN_LIST[${NDX}]}" "${C}"
 		fi
 	done
