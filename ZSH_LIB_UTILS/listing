@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-# Inline ansi
+#Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -16,6 +16,8 @@ MAGENTA_FG="\033[35m"
 RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
 typeset -a _LS_FORMAT
@@ -314,6 +316,9 @@ shift $((OPTIND -1))
 #--End GetOpts--
 
 # Execution
+clear
+echo "${WHITE_ON_GREY}${PWD}${RESET}\n"
+
 RECURSE=false
 case ${0:t} in
 	l) _HIDDEN_ONLY=false;;

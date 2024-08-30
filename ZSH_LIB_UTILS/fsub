@@ -17,10 +17,10 @@ YELLOW_FG="\033[33m"
 # Declarations
 typeset -A _ARG_LIST
 typeset -a _SPACE_DOT
-typeset -a _FILE_IN_LIST
+typeset -A _IN_LIST
+typeset -A _OUT_LIST
+typeset -A _CHAIN_LIST
 typeset -a _PIPELINE
-typeset -a _FILE_OUT_LIST
-typeset -a _INTERMEDIATE_LIST
 typeset -a _KEYWORDS
 
 # Constants
@@ -33,6 +33,9 @@ g_FROM_TEXT=?
 g_TO_TEXT=?
 g_LIST_METHOD=?
 g_NO_PROMPTING=?
+g_ALLOW_DIRS=false
+g_LIMIT_TO_EXT=false
+g_EXT_TEXT=''
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -42,6 +45,34 @@ source ${_LIB_DIR}/VALIDATE.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
+inode_ndx () {
+	local NDX_FN=${1}
+	local FILE_OR_PATH=${2}
+	local DEPTH=${3:=1}
+	local HEAD
+	local LIST=()
+	local L
+	local INODE
+	local P
+	local FN
+	local TYPE=f
+
+	[[ -f ${FILE_OR_PATH} ]] && HEAD=${FILE_OR_PATH:h} || HEAD="."
+	[[ ${g_ALLOW_DIRS} == 'true' ]] && TYPE=d
+	[[ ${g_LIMIT_TO_EXT} == 'true' ]] && g_EXT_TEXT="*${g_EXT_TEXT}" || g_EXT_TEXT='*'
+
+	LIST=("${(f)$(find ${FILE_OR_PATH} -maxdepth ${DEPTH} -type ${TYPE} -name ${g_EXT_TEXT} ! -path ${HEAD} -printf "%i|%p\n")}")
+
+	for L in ${LIST};do
+		INODE=$(cut -d '|' -f1 <<<${L})
+		P=$(cut -d '|' -f2 <<<${L:h})
+		P=$(realpath ${P})
+		FN=$(cut -d '|' -f2 <<<${L:t})
+		FN="${P}/${FN}"
+		eval "${NDX_FN}[${INODE}]=${(qqq)FN}"
+	done
+}
+
 clean_show_fn () {
 	local -a TITLE=(${1})
 	local RES=${2}
@@ -54,30 +85,30 @@ clean_show_fn () {
 	GREP_REGEX=$(csf_set_search ${TITLE})
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} GREP_REGEX:${GREP_REGEX}"
 
-	for L in ${_FILE_IN_LIST};do
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} L:${L:t}"
+	for L in ${(k)_IN_LIST};do
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} L:${_IN_LIST[${L}]:t}"
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} grep -io ${GREP_REGEX} | sed 's/\./ /g'"
 
-		N=$(echo "${L:t}" | grep -io "${GREP_REGEX}" | sed 's/[\._]/ /g') # Get name, strip dots and underscores
+		N=$(echo "${_IN_LIST[${L}]:t}" | grep -io "${GREP_REGEX}" | sed 's/[\._]/ /g') # Get name, strip dots and underscores
 		[[ -z ${N} ]] && continue
 
 		for K in ${_KEYWORDS};do
 			N=$(sed "s/${K}//gi" <<<${N})
 		done
 
-		S=$(csf_get_series ${L}) # Get series
-		D=$(csf_get_date ${L}) # Get date
+		S=$(csf_get_series ${_IN_LIST[${L}]}) # Get series
+		D=$(csf_get_date ${_IN_LIST[${L}]}) # Get date
 
-		[[ ${RES} == 'true' ]] && R=$(csf_get_res ${L}) # Get res
-		[[ (-z ${S} && -z ${D}) ]] && Y=$(csf_get_year ${L}) # Get year
+		[[ ${RES} == 'true' ]] && R=$(csf_get_res ${_IN_LIST[${L}]}) # Get res
+		[[ (-z ${S} && -z ${D}) ]] && Y=$(csf_get_year ${_IN_LIST[${L}]}) # Get year
 
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} NAME:${N} SERIES:${S} DATE:${D} YEAR:${Y} RES:${R}"
 
 		FN=$(echo "${(C)N} ${S:u} ${D} ${Y} ${R:l}" | tr -s '[:space:]' | str_trim)
 
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} RETURN_VAL: ${L:t}|${FN}.${L:e}"
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} RETURN_VAL: ${_IN_LIST[${L}]:t}|${FN}.${_IN_LIST[${L}]:e}"
 
-		echo "${L:t}|${FN}.${L:e}"
+		echo "${_IN_LIST[${L}]:t}|${FN}.${_IN_LIST[${L}]:e}"
 	done
 	return 0
 }
@@ -140,7 +171,6 @@ csf_get_year () {
 
 do_finalize () {
 	local RESPONSE
-	local NDX
 	local HIT
 	local W K
 	local LONGEST
@@ -153,38 +183,35 @@ do_finalize () {
 	local MASKED=false
 	local I_TAG=''
 
-	[[ ${_PIPED} == "true" ]] && echo ${_FILE_OUT_LIST} && exit_leave
+	[[ ${_PIPED} == "true" ]] && echo ${_OUT_LIST} && exit_leave
 
 	LONGEST=0
-	NDX=0
 
-	for W in ${_FILE_OUT_LIST};do
-		((NDX++))
-
+	for W in ${(k)_OUT_LIST};do
 		# Avoid any downstream file errors
-		if [[ ${_FILE_IN_LIST[${NDX}]} == ${W} ]];then
+		if [[ ${_IN_LIST[${W}]} == ${_OUT_LIST[${W}]} ]];then
 			MSG="${RED_FG}Warning${RESET}:candidate filename:[${WHITE_FG}${W}${RESET}] would be ${ITALIC}${BOLD}identical${RESET} to original - ${RED_FG}skipped${RESET}"
 			echo ${MSG} >&2
 			[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} ${MSG}"
 			continue
 		fi
-		[[ ${W:t} == '.' || -z ${W} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
+		[[ ${_OUT_LIST[${W}]:t} == '.' || -z ${_OUT_LIST[${W}]} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
 
 		# Final array for output
-		grep -q "${DELIM}" <<<${_FILE_IN_LIST[${NDX}]}
+		grep -q "${DELIM}" <<<${_IN_LIST[${W}]}
 		if [[ ${?} -eq 0 ]];then
-			_FILE_IN_LIST[${NDX}]=$(sed "s/${DELIM}/<MASK>/g" <<<${_FILE_IN_LIST[${NDX}]})
+			_IN_LIST[${W}]=$(sed "s/${DELIM}/<MASK>/g" <<<${_IN_LIST[${W}]})
 			W=$(sed "s/${DELIM}/<MASK>/g" <<<${W})
 			MASKED=true
 		fi
 
-		RESULT=$(str_diff.pl "${_FILE_IN_LIST[${NDX}]:t}" "${W:t}")
+		RESULT=$(str_diff.pl "${_IN_LIST[${W}]:t}" "${_OUT_LIST[${W}]:t}")
 		BEFORE=$(cut -f1 -d'|' <<<${RESULT})
 		AFTER=$(cut -f2 -d'|' <<<${RESULT} | sed -e 's/[{]//g' -e 's/[}]//g')
 		FINAL[${BEFORE}]=${AFTER}
 
 		if [[ ${MASKED} == 'true' ]];then
-			_FILE_IN_LIST[${NDX}]=$(sed "s/<MASK>/${DELIM}/g" <<<${_FILE_IN_LIST[${NDX}]})
+			_IN_LIST[${W}]=$(sed "s/<MASK>/${DELIM}/g" <<<${_IN_LIST[${W}]})
 		fi
 
 		[[ ${#BEFORE} -gt ${LONGEST} ]] && LONGEST=${#BEFORE}
@@ -195,21 +222,21 @@ do_finalize () {
 	fi
 
 	if [[ ${_DEBUG} -ne 0 ]];then
-		(
-		echo "_FILE_IN_LIST"
-		for K in ${_FILE_IN_LIST};do
-			echo ${0}:${K}
+		{
+		echo "_IN_LIST"
+		for K in ${(k)_IN_LIST};do
+			printf "KEY:%s VAL:%s\n" ${K} ${_IN_LIST[${K}]}
 		done
-		echo "_FILE_OUT_LIST"
-		for K in ${_FILE_OUT_LIST};do
-			echo ${0}:${K}
+		echo "_OUT_LIST"
+		for K in ${(k)_OUT_LIST};do
+			printf "KEY:%s VAL:%s\n" ${K} ${_OUT_LIST[${K}]}
 		done
 		echo "FINAL"
 		for K in ${(k)FINAL};do
-			echo "${0}:${K} -> ${FINAL[${K}]}"
+			printf "KEY:%s VAL:%s\n" ${K} ${FINAL[${K}]}
 		done
 		echo "LONGEST:${LONGEST}"
-		) | dbg
+		} | dbg
 	fi
 
 	echo "${WHITE_FG}Found $(str_pluralize match ${#FINAL})${RESET}" >&2
@@ -236,30 +263,28 @@ do_finalize () {
 }
 
 do_clean_leading_digits () {
-	local NDX=0
 	local RESULT
 	local HEAD TAIL
 	local HIT=false
 	local C
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=((kv)${_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
-	if ! arr_is_populated "${_INTERMEDIATE_LIST}";then
-		logit "${0}: Error: _INTERMEDIATE_LIST not populated, _FILE_OUT_LIST:${#_FILE_OUT_LIST}, _FILE_IN_LIST:${#_FILE_IN_LIST}"
+	if ! arr_is_populated "${_CHAIN_LIST}";then
+		logit "${0}: Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
 		return 1
 	fi
 
-	for C in ${_INTERMEDIATE_LIST};do
-		HEAD=${C:h}
-		TAIL=${C:t}
+	for C in ${(k)_CHAIN_LIST};do
+		HEAD=${_CHAIN_LIST[${C}]:h}
+		TAIL=${_CHAIN_LIST[${C}]:t}
 		if [[ ${TAIL} =~ '^\d+[\. ]?\S+' ]];then
 			HIT=true
-			((NDX++))
 			RESULT=$(echo ${TAIL} | perl -pe 's/^(\d+)([.-]+)?(.*)/$1-$3/g')
-			_FILE_OUT_LIST[${NDX}]=${HEAD}/${RESULT}
+			_OUT_LIST[${C}]=${HEAD}/${RESULT}
 		else
-			_FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) # Remove non matches from original
+			unset "_IN_LIST[${C}]" # Remove non matches from original
 		fi
 	done
 
@@ -268,34 +293,32 @@ do_clean_leading_digits () {
 }
 
 do_add_leading_digits () {
-	local NDX=0
 	local -Z2 INDEX=0
 	local RESULT
 	local HEAD TAIL
 	local HIT=false
 	local C
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=(${(kv)_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
-	if ! arr_is_populated "${_INTERMEDIATE_LIST}";then
-		logit "${0}: Error: _INTERMEDIATE_LIST not populated, _FILE_OUT_LIST:${#_FILE_OUT_LIST}, _FILE_IN_LIST:${#_FILE_IN_LIST}"
+	if ! arr_is_populated "${_CHAIN_LIST}";then
+		logit "${0}: Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
 		return 1
 	fi
 
-	for C in ${_INTERMEDIATE_LIST};do
-		HEAD=${C:h}
-		TAIL=${C:t}
+	for C in ${(k)_CHAIN_LIST};do
+		HEAD=${_CHAIN_LIST[${C}]:h}
+		TAIL=${_CHAIN_LIST[${C}]:t}
 		if [[ ${TAIL} =~ '^[A-Za-z]' ]];then
 			HIT=true
-			((NDX++))
 			((INDEX++))
 			RESULT=$(echo ${TAIL} | perl -pe "s/^/${INDEX}-/g")
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} TAIL:${WHITE_FG}${TAIL}${RESET}]"
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} RESULT:${WHITE_FG}${RESULT}${RESET}]"
-			_FILE_OUT_LIST[${NDX}]=${HEAD}/${RESULT}
+			_OUT_LIST[${C}]=${HEAD}/${RESULT}
 		else
-			_FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) # Remove non matches from original
+			unset "_IN_LIST[${C}]"
 		fi
 	done
 
@@ -304,29 +327,27 @@ do_add_leading_digits () {
 }
 
 do_strip_leading_digits () {
-	local NDX=0
 	local RESULT local HEAD TAIL
 	local HIT=false
 	local C
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=(${(kv)_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
-	if ! arr_is_populated "${_INTERMEDIATE_LIST}";then
-		logit "${0}: Error: _INTERMEDIATE_LIST not populated, _FILE_OUT_LIST:${#_FILE_OUT_LIST}, _FILE_IN_LIST:${#_FILE_IN_LIST}"
+	if ! arr_is_populated "${_CHAIN_LIST}";then
+		logit "${0}: Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
 		return 1
 	fi
 
-	for C in ${_INTERMEDIATE_LIST};do
-		HEAD=${C:h}
-		TAIL=${C:t}
+	for C in ${(k)_CHAIN_LIST};do
+		HEAD=${_CHAIN_LIST[${C}]:h}
+		TAIL=${_CHAIN_LIST[${C}]:t}
 		if [[ ${TAIL} =~ '^\d+([-.])?' ]];then
 			HIT=true
-			((NDX++))
 			RESULT=$(echo ${TAIL} | perl -pe 's/(^\d+)([.-]+)?(.*)/$3/g; s/^ *//')
-			_FILE_OUT_LIST[${NDX}]=${HEAD}/${RESULT}
+			_OUT_LIST[${C}]=${HEAD}/${RESULT}
 		else
-			_FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) # Remove non matches from original
+			unset "_IN_LIST[${C}]"
 		fi
 	done
 
@@ -346,6 +367,7 @@ do_media () {
 	local MAX_NEW=''
 	local MAX_SEQ=0
 	local TITLE_OUT
+	local NDX=0
 	
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} TITLE:${TITLE}"
 
@@ -354,7 +376,7 @@ do_media () {
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LIST:${#LIST} ${LIST}"
 
-	_FILE_IN_LIST=() # Replace _FILE_IN_LIST w/ values from clean_show_fn
+	_IN_LIST=() # Replace _IN_LIST w/ values from clean_show_fn
 
 	DUPS=("${(f)$(find . -type f -iregex ".*${TITLE}.*")}")
 	if [[ ${#DUPS} -ne 0 ]];then
@@ -384,6 +406,7 @@ do_media () {
 	fi
 
 	for L in ${LIST};do
+		((NDX++))
 		OLD=$(echo ${L} | cut -d'|' -f1)
 		NEW=$(echo ${L} | cut -d'|' -f2)
 
@@ -407,19 +430,18 @@ do_media () {
 		TITLE_OUT=$(sed -E 's/\s([Ii]+)\s/ \U\1 /g' <<<${TITLE_OUT}) # Uppercase any roman I's
 		TITLE_OUT=$(tr -s '[:space:]' <<<${TITLE_OUT}) # Excess spaces
 
-		[[ ${ALLOW_DIRS} == 'true' ]] && TITLE_OUT="${TITLE_OUT:r}" # Extension append for files only
+		[[ ${g_ALLOW_DIRS} == 'true' ]] && TITLE_OUT="${TITLE_OUT:r}" # Extension append for files only
 
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} h ${NEW:h} - TITLE_OUT:${TITLE_OUT} :e ${NEW:e}"
 
-		_FILE_IN_LIST+=${OLD}
-		_FILE_OUT_LIST+=${TITLE_OUT}
+		_IN_LIST[${NDX}]=${OLD}
+		_OUT_LIST[${NDX}]=${TITLE_OUT}
 	done
 
 	return 0
 }
 
 do_sdc () {
-	local NDX=0
 	local CPATH
 	local CANDIDATE
 	local CEXT
@@ -427,13 +449,12 @@ do_sdc () {
 	local C OP W
 	local TITLE
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=(${(kv)_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
 	HIT=false
-	for C in ${_INTERMEDIATE_LIST};do
-		((NDX++))
-		CANDIDATE=${C:t:r} # W/o path & extension
+	for C in ${(k)_CHAIN_LIST};do
+		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # W/o path & extension
 		for OP in ${_SPACE_DOT};do
 			case ${OP} in
 				B)	TITLE=$(echo ${CANDIDATE} | iconv -f utf-8 -t ascii//translit) # Scrub extended ascii/non ascii
@@ -502,9 +523,9 @@ do_sdc () {
 		if [[ ${HIT} == "true" ]];then
 			CPATH=${C:h} # Path
 			[[ -n ${C:e} ]] && CEXT=.${C:e} || CEXT='' # Set extension
-			_FILE_OUT_LIST[${NDX}]=${CPATH}/${CANDIDATE}${CEXT}
+			_OUT_LIST[${C}]=${CPATH}/${CANDIDATE}${CEXT}
 		else
-			_FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) # Remove non matches from original
+			unset "_IN_LIST[${C}]"
 		fi
 	done
 
@@ -518,30 +539,28 @@ do_subs () {
 	local CPATH
 	local OBJECT
 	local HIT=false
-	local NDX=0
 	local SED_CMD
 	local SED_OPT
 	local C
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=(${(kv)_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
-	for C in ${_INTERMEDIATE_LIST};do
-		((NDX++))
-		CANDIDATE=${C:t:r} # W/o path & extension
+	for C in ${(k)_CHAIN_LIST};do
+		CANDIDATE=${_CHAIN_LIST[${C}]:t} # W/o path
 		[[ -d ${C} ]] && OBJECT=Dir || OBJECT=File
 		[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} grep ${GREP_OPTS} ${g_FROM_TEXT} <<<${CANDIDATE}"
 		grep ${GREP_OPTS} "${g_FROM_TEXT}" <<<${CANDIDATE}
 		if [[ $? -eq 0 ]];then
 			HIT=true
-			_FILE_OUT_LIST+=${C}
+			_OUT_LIST[${C}]=${_CHAIN_LIST[${C}]}
 		else
-			_FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) # Remove non matches from original
+			unset "_IN_LIST[${C}]"
 		fi
 	done
 
 	# No match
-	if ! arr_is_populated "${_FILE_OUT_LIST}";then
+	if ! arr_is_populated "${_OUT_LIST}";then
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${RED_FG}NO file names matching g_FROM_TEXT: ${RESET}[${WHITE_FG}${g_FROM_TEXT}${RESET}]"
 		logit "${0}:${LINENO} ${RED_FG}NO file names matching g_FROM_TEXT: ${RESET}[${WHITE_FG}${g_FROM_TEXT}${RESET}]"
 		return 1
@@ -556,21 +575,18 @@ do_subs () {
 	
 	[[ ${_DEBUG} -gt 0 && ${HIT} == true ]] && dbg "${0}:${LINENO} ${GREEN_FG}SED COMMAND${RESET}:${SED_CMD}"
 
-	NDX=0
-	for C in ${_FILE_OUT_LIST};do
-		((NDX++))
-		CPATH=${C:h} # Path
-		CANDIDATE=${C:t:r} # W/o path & extension
+	for C in ${(k)_OUT_LIST};do
+		CPATH=${_OUT_LIST[${C}]:h} # Path
+		CANDIDATE=${_OUT_LIST[${C}]:t} # W/o path
 		[[ -n ${C:e} ]] && CEXT=.${C:e} || CEXT='' # Set extension
 		CANDIDATE=$(eval "echo \"${CANDIDATE}\" | ${SED_CMD}")
-		_FILE_OUT_LIST[${NDX}]="${CPATH}/${CANDIDATE}${CEXT}"
+		_OUT_LIST[${C}]="${CPATH}/${CANDIDATE}${CEXT}"
 	done
 
 	return 0
 }
 
 do_trunc_fn () {
-	local NDX=0
 	local CANDIDATE
 	local TRUNCATED
 	local CPATH
@@ -579,20 +595,19 @@ do_trunc_fn () {
 	local HIT=false
 	local C
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=(${(kv)_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
-	for C in ${_INTERMEDIATE_LIST};do
-		((NDX++))
-		CANDIDATE=${C:t:r} # Exclude the extension
+	for C in ${(k)_CHAIN_LIST};do
+		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # Exclude the extension
 		if [[ ${TRUNC_FN_LEN} -gt 0 ]];then
-			[[ ${#CANDIDATE} -le ${TRUNC_FN_LEN} ]] && _FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) && continue # Remove non matches from original
+			[[ ${#CANDIDATE} -le ${TRUNC_FN_LEN} ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 			HIT=true
 			CPATH=${C:h}
 			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
 			TRUNCATED=${CANDIDATE[1,${TRUNC_FN_LEN}]} # Implement fn length limit
 			TRUNCATED=$(str_trim <<<${TRUNCATED})
-			_FILE_OUT_LIST[${NDX}]=${CPATH}/${TRUNCATED}${CEXT}
+			_OUT_LIST[${C}]=${CPATH}/${TRUNCATED}${CEXT}
 		fi
 	done
 
@@ -601,7 +616,6 @@ do_trunc_fn () {
 }
 
 do_trim () {
-	local NDX=0
 	local CANDIDATE
 	local TRIMMED
 	local CPATH
@@ -610,20 +624,19 @@ do_trim () {
 	local HIT=false
 	local C
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=(${(kv)_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
-	for C in ${_INTERMEDIATE_LIST};do
-		((NDX++))
-		CANDIDATE=${C:t:r} # Exclude the extension
+	for C in ${(k)_CHAIN_LIST};do
+		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # Exclude the extension
 		TRIMMED=$(str_trim ${CANDIDATE})
 		if [[ ${#TRIMMED} -eq ${#CANDIDATE} ]];then
-			_FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) && continue # Remove non trimable from original
+			unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 		else
 			HIT=true
 			CPATH=${C:h}
 			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
-			_FILE_OUT_LIST[${NDX}]=${CPATH}/${TRIMMED}${CEXT}
+			_OUT_LIST[${C}]=${CPATH}/${TRIMMED}${CEXT}
 		fi
 	done
 
@@ -633,87 +646,62 @@ do_trim () {
 
 do_prepend () {
 	local TAG=${1}
-	local NDX=0
 	local CANDIDATE
 	local CPATH
 	local CEXT
 	local C
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=(${(kv)_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
-	if [[ ${INTERACTIVE} == 'true' ]];then
-		do_smcup
-		for C in ${_INTERMEDIATE_LIST};do
-			((NDX++))
-
-			CANDIDATE=${C:t:r} # Tail/no extension
-			msg_box -p -P"Prepend ${TAG}?" ${CANDIDATE}
-			if [[ ${_MSG_KEY} == 'n' ]];then
-				[[ ${?} -ne 0 ]] && _FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) && continue # Remove non candidates from original
-			else
-				CPATH=${C:h}
-				[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
-				_FILE_OUT_LIST[${NDX}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
-			fi
-			msg_box_clear
-		done
-		do_rmcup
-	else
-		for C in ${_INTERMEDIATE_LIST};do
-			((NDX++))
-			CANDIDATE=${C:t:r} # Tail/no extension
-			CPATH=${C:h}
-			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
-			_FILE_OUT_LIST[${NDX}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
-		done
-	fi
+	for C in ${(k)_CHAIN_LIST};do
+		CANDIDATE=${_CHAIN_LIST[${C}]:t} # Tail
+		CPATH=${C:h}
+		[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
+		_OUT_LIST[${C}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
+	done
 }
 
 do_yt_tag () {
-	local NDX=0
 	local CANDIDATE
 	local CPATH
 	local CFN
 	local CEXT
 	local C
 
-	[[ -z ${_FILE_OUT_LIST} ]] && _INTERMEDIATE_LIST=(${_FILE_IN_LIST}) || _INTERMEDIATE_LIST=(${_FILE_OUT_LIST})
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _INTERMEDIATE_LIST:${WHITE_FG}${_INTERMEDIATE_LIST}${RESET}]"
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=(${(kv)_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
-	for C in ${_INTERMEDIATE_LIST};do
-		((NDX++))
-		CANDIDATE=${C:t:r} # Exclude the extension
+	for C in ${(k)_CHAIN_LIST};do
+		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # Exclude the extension
 		CPATH=${C:h}
 		[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
 
 		grep -q '\-\[.*\]' <<<${CANDIDATE}
-		[[ ${?} -ne 0 ]] && _FILE_IN_LIST=(${_FILE_IN_LIST[@]/#%${C}}) && continue # Remove non candidates from original
+		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 
 		CFN=$(perl -p -e 's/[ -]?\[.*\] ?//g' <<<${CANDIDATE} | perl -p -e 's/_/ /g' | perl -p -e 's/\.//g')
 
-		_FILE_OUT_LIST[${NDX}]="${CPATH}/${CFN}${CEXT}"
+		_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
 	done
 }
 
 save_changes () {
-	local NDX=0
 	local HIT=false
 	local KEY
 	local C
 
 	echo
-	for C in ${_FILE_OUT_LIST};do # Modified filenames
-		((NDX++))
-		[[ ${_DEBUG} -gt 0 && ${_FILE_IN_LIST[${NDX}]} == ${C} ]] && dbg "${0}:${LINENO} Identical filename ${_FILE_IN_LIST[${NDX}]} -> ${C} - skipping"
-		if [[ ${_FILE_IN_LIST[${NDX}]} == ${C} ]];then
+	for C in ${(k)_OUT_LIST};do # Modified filenames
+		[[ ${_DEBUG} -gt 0 && ${_IN_LIST[${C}]} == ${C} ]] && dbg "${0}:${LINENO} Identical filename ${_IN_LIST[${C}]} -> ${C} - skipping"
+		if [[ ${_IN_LIST[${C}]} == ${C} ]];then
 			echo "${WHITE_FG}${_SCRIPT}${RESET}:${BOLD}${RED_FG}Skipping file${RESET}:${WHITE_FG}${C}${RESET} (would overwrite an existing file)"
 			echo "Not overwriting existing file:${C}" >> ${_LOG}
 			continue # No collisions
 		fi
 		if [[ ! -e ${C} ]];then
-			[[ ${TRUNCATE} == 'true' ]] && echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_FILE_IN_LIST[${NDX}]:t} \n  To: ${C:t}" >&2
-			/bin/mv "${_FILE_IN_LIST[${NDX}]}" "${C}"
+			[[ ${TRUNCATE} == 'true' ]] && echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_IN_LIST[${C}]:t} \n  To: ${C:t}" >&2
+			/bin/mv "${_IN_LIST[${C}]}" "${C}"
 		fi
 	done
 }
@@ -786,7 +774,7 @@ usage () {
 	echo -e "${WHITE_FG}-e $(opt_type e)${RESET} limit operations to files having $(opt_type e)"
 	echo -e "${WHITE_FG}-C${RESET} eliminate quotes, parens, dots, dashes, commas, and non-ascii (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-c${RESET} camelCase (${CYAN_FG}M${RESET})"
-	echo -e "${WHITE_FG}-d${RESET} allow directories as candidates"
+	echo -e "${WHITE_FG}-d${RESET} use directories as candidates"
 	echo -e "${WHITE_FG}-i${RESET} case insensitive"
 	echo -e "${WHITE_FG}-m $(opt_type m)${RESET} operate on matching media title ('enclose multiword args in quotes')"
 	echo -e "${WHITE_FG}-N${RESET} add leading numbers (${CYAN_FG}M${RESET})"
@@ -810,7 +798,6 @@ usage () {
 OPTSTR=":HCDINSTYabe:irscdm:p:nt:uxy"
 
 ADD_LEADING_DIGITS=false
-ALLOW_DIRS=false
 CAMEL=false
 CASE=S
 CLEAN_LEADING_DIGITS=false
@@ -819,7 +806,6 @@ EXTENDED=false
 TRUNC_FN_LEN=0
 GREP_OPTS='-Eq'
 INTERACTIVE=false
-LIMIT_EXT=false
 MEDIA_FILE=false
 PREPEND_TAG=''
 RES=false
@@ -844,12 +830,12 @@ while getopts ${OPTSTR} OPT;do
      I) INTERACTIVE=true;;
      S) SERVICE_MODE=true;;
      b) EXTENDED=true;;
-     e) LIMIT_EXT=true;LIMIT_EXT_TEXT=${OPTARG};;
+     e) g_LIMIT_TO_EXT=true;g_EXT_TEXT=${OPTARG};;
      i) CASE=I; GREP_OPTS='-Eiq';;
      s) SPACES=true;;
      c) SPACES=true; DOTS=true; CAMEL=true;;
      C) DOTS=true;;
-     d) ALLOW_DIRS=true;;
+     d) g_ALLOW_DIRS=true;;
      m) MEDIA_FILE=true;MEDIA_FILE_TITLE=${OPTARG};;
      n) CLEAN_LEADING_DIGITS=true;;
      N) ADD_LEADING_DIGITS=true;;
@@ -922,18 +908,12 @@ fi
 
 # No options
 SEARCH_REPLACE=false
+_FIND_PATH=null
 [[ ${_ARG_LIST[1]} == 'file_dir' ]] && _FIND_PATH=${1}
 [[ ${_ARG_LIST[2]} == 'file_dir' ]] && _FIND_PATH=${2}
 [[ ${_ARG_LIST[3]} == 'file_dir' ]] && _FIND_PATH=${3}
 [[ ${_ARG_LIST[1]} == 'bare_word' ]] && g_FROM_TEXT=${1} && SEARCH_REPLACE=true
 [[ ${_ARG_LIST[2]} == 'bare_word' ]] && g_TO_TEXT=${2} && SEARCH_REPLACE=true
-
-_FIND_PATH=${_FIND_PATH:=null}
-if [[ ${MEDIA_FILE} == 'false' ]];then
-	#[[ -e ${_FIND_PATH} && ! -d ${_FIND_PATH} ]] && exit_leave $(msg_exit E "Filename detected - required arg should be path")
-	[[ ${_FIND_PATH} == 'null' ]] && _FIND_PATH=${PWD}
-	#[[ ! -d ${_FIND_PATH} ]] && exit_leave $(msg_exit E "Path:${_FIND_PATH} is invalid")
-fi
 
 if [[ ${SEARCH_REPLACE} == 'true' ]];then
 	[[ -z ${g_TO_TEXT} ]] && echo "Deleting:${WHITE_FG}${g_FROM_TEXT}${RESET}\n" >&2
@@ -941,47 +921,39 @@ if [[ ${SEARCH_REPLACE} == 'true' ]];then
 fi
 
 # Get candidate data
-[[ ${ALLOW_DIRS} == 'true' ]] && FTYPE='' || FTYPE='-type f'
-[[ ${LIMIT_EXT} == 'true' ]] && FTYPE+=" -name '*${LIMIT_EXT_TEXT}'"
+# TODO: INTERACTIVE not yet implemented in inode_ndx revision
 
 if [[ ${_PIPED} == 'true' ]];then 
 	# Grab piped input
 	g_LIST_METHOD="piped input"
 	[[ ${_FIND_PATH} != 'null' ]] && echo "${RED_FG}Warning${RESET}:${YELLOW_FG}File path ignored for piped input${RESET}" >&2
-	_FILE_IN_LIST=(${_PIPELINE})
+	# TODO: PIPE limited to a single entry - could be a list
+	_IN_LIST[1]=${_PIPELINE}
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} Input is piped"
 else
 	if [[ -f ${_FIND_PATH} ]];then
 		# Convert file name to list member
 		g_LIST_METHOD="file to path"
-		_FILE_IN_LIST=("$(realpath ${_FIND_PATH})")
-		FPATH=${_FIND_PATH:h}
-		PATHLBL=${FPATH}
-		FPATH=${FPATH:q}
+		inode_ndx "_IN_LIST" "${_FIND_PATH}"
+		PATHLBL=${_FIND_PATH:h}}
 	elif [[ ${_FIND_PATH} != 'null' ]];then
 		# Find files in path
 		g_LIST_METHOD="find in path"
-		FPATH=''
-		FGLOB=''
 		PATHLBL=${_FIND_PATH}
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} _FIND_PATH:${_FIND_PATH}"
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} ${LINENO} find ${_FIND_PATH} -maxdepth 2 ${FTYPE} ! -path ${_FIND_PATH}"
-		_FILE_IN_LIST=("${(f)$(eval "find ${(qqq)_FIND_PATH} -maxdepth 2 ${FTYPE} ! -path ${(qqq)_FIND_PATH}")}")
+		inode_ndx "_IN_LIST" "${_FIND_PATH}" 2
 	else
 		# Find files in current directory
 		g_LIST_METHOD="find in pwd"
-		FPATH=${PWD:q}
 		PATHLBL=${PWD}
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} ${LINENO} find ${FPATH} -maxdepth 1 ${FTYPE} ! -path ${FPATH}"
-		_FILE_IN_LIST=("${(f)$(eval "find ${(qqq)FPATH} -maxdepth 1 ${FTYPE} ! -path ${(qqq)FPATH}")}")
+		inode_ndx "_IN_LIST" "${PWD}"
 	fi
 
 	printf "Scanning path:%s\n" ${PATHLBL}
-	printf "Examining ${WHITE_FG}%d${RESET} files...\n" ${#_FILE_IN_LIST} >&2
+	printf "Examining ${WHITE_FG}%d${RESET} files...\n" ${#_IN_LIST} >&2
 fi
 
-if ! arr_is_populated "${_FILE_IN_LIST}";then
-	exit_leave $(msg_exit W "${_SCRIPT}:Can't continue - ${g_LIST_METHOD} failed - _FILE_IN_LIST is empty")
+if ! arr_is_populated "${_IN_LIST}";then
+	exit_leave $(msg_exit W "${_SCRIPT}:Can't continue - ${g_LIST_METHOD} failed - _IN_LIST is empty")
 fi
 
 if [[ ${_DEBUG} -gt 0 ]];then
@@ -991,7 +963,7 @@ if [[ ${_DEBUG} -gt 0 ]];then
 	echo FPATH=${FPATH}
 	echo FGLOB=${FGLOB}
 	echo OPTIONS=${OPTIONS}
-	echo ALLOW_DIRS=${ALLOW_DIRS}
+	echo g_ALLOW_DIRS=${g_ALLOW_DIRS}
 	echo g_FROM_TEXT=${g_FROM_TEXT}
 	echo g_TO_TEXT=${g_TO_TEXT}
 	echo _FIND_PATH=${_FIND_PATH}
@@ -1032,6 +1004,7 @@ fi
 # Space_Dot_Camel
 if [[ ${#_SPACE_DOT} -gt 0 ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Calling do_sdc${RESET}..."
+	{
 	for X in ${_SPACE_DOT};do
 		case ${X} in
 			B) echo "${CYAN_FG}Eliminating extended/non-ascii...${RESET}";;
@@ -1040,11 +1013,13 @@ if [[ ${#_SPACE_DOT} -gt 0 ]];then
 			C) echo "${CYAN_FG}Camel casing...${RESET}";;
 			U) echo "${CYAN_FG}UnCamel casing...${RESET}";;
 		esac
-	done >&2 | tee -a ${_LOG}
+	done
+	} | tee -a ${_LOG} >&2
 
 	do_sdc
 
 	if [[ ${?} -ne 0 ]];then
+		{
 		for X in ${_SPACE_DOT};do
 			case ${X} in
 				B) echo "No matches for extended/non-ascii";;
@@ -1053,7 +1028,8 @@ if [[ ${#_SPACE_DOT} -gt 0 ]];then
 				C) echo "No matches for camel casing";;
 				U) echo "No matches for uncamel casing";;
 			esac
-		done >&2 | tee -a ${_LOG}
+		done
+		} | tee -a ${_LOG} >&2
 	fi
 fi
 
