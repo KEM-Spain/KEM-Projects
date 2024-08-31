@@ -172,7 +172,7 @@ csf_get_year () {
 do_finalize () {
 	local RESPONSE
 	local HIT
-	local W K
+	local K
 	local LONGEST
 	local -A FINAL
 	local -a BEFORE_AFTER
@@ -187,31 +187,31 @@ do_finalize () {
 
 	LONGEST=0
 
-	for W in ${(k)_OUT_LIST};do
+	for K in ${(k)_OUT_LIST};do
 		# Avoid any downstream file errors
-		if [[ ${_IN_LIST[${W}]} == ${_OUT_LIST[${W}]} ]];then
-			MSG="${RED_FG}Warning${RESET}:candidate filename:[${WHITE_FG}${W}${RESET}] would be ${ITALIC}${BOLD}identical${RESET} to original - ${RED_FG}skipped${RESET}"
+		if [[ $(realpath ${_IN_LIST[${K}]}) == $(realpath ${_OUT_LIST[${K}]}) ]];then
+			MSG="${MAGENTA_FG}Warning${RESET}:candidate filename:\n[${WHITE_FG}${_OUT_LIST[${K}]}${RESET}]\nwould be ${ITALIC}${BOLD}identical${RESET} to original - ${MAGENTA_FG}skipped${RESET}"
 			echo ${MSG} >&2
 			[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} ${MSG}"
 			continue
 		fi
-		[[ ${_OUT_LIST[${W}]:t} == '.' || -z ${_OUT_LIST[${W}]} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
+		[[ ${_OUT_LIST[${K}]:t} == '.' || -z ${_OUT_LIST[${K}]} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
 
 		# Final array for output
-		grep -q "${DELIM}" <<<${_IN_LIST[${W}]}
+		grep -q "${DELIM}" <<<${_IN_LIST[${K}]}
 		if [[ ${?} -eq 0 ]];then
-			_IN_LIST[${W}]=$(sed "s/${DELIM}/<MASK>/g" <<<${_IN_LIST[${W}]})
-			W=$(sed "s/${DELIM}/<MASK>/g" <<<${W})
+			_IN_LIST[${K}]=$(sed "s/${DELIM}/<MASK>/g" <<<${_IN_LIST[${K}]})
+			_OUT_LIST[${K}]=$(sed "s/${DELIM}/<MASK>/g" <<<${_OUT_LIST[${K}]})
 			MASKED=true
 		fi
 
-		RESULT=$(str_diff.pl "${_IN_LIST[${W}]:t}" "${_OUT_LIST[${W}]:t}")
+		RESULT=$(str_diff.pl "${_IN_LIST[${K}]:t}" "${_OUT_LIST[${K}]:t}")
 		BEFORE=$(cut -f1 -d'|' <<<${RESULT})
 		AFTER=$(cut -f2 -d'|' <<<${RESULT} | sed -e 's/[{]//g' -e 's/[}]//g')
 		FINAL[${BEFORE}]=${AFTER}
 
 		if [[ ${MASKED} == 'true' ]];then
-			_IN_LIST[${W}]=$(sed "s/<MASK>/${DELIM}/g" <<<${_IN_LIST[${W}]})
+			_IN_LIST[${K}]=$(sed "s/<MASK>/${DELIM}/g" <<<${_IN_LIST[${K}]})
 		fi
 
 		[[ ${#BEFORE} -gt ${LONGEST} ]] && LONGEST=${#BEFORE}
@@ -239,7 +239,7 @@ do_finalize () {
 		} | dbg
 	fi
 
-	echo "${WHITE_FG}Found $(str_pluralize match ${#FINAL})${RESET}" >&2
+	echo "${WHITE_FG}Found $(str_pluralize candidate ${#FINAL})${RESET}" >&2
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} g_NO_PROMPTING:${g_NO_PROMPTING}"
 
@@ -521,8 +521,8 @@ do_sdc () {
 		done
 
 		if [[ ${HIT} == "true" ]];then
-			CPATH=${C:h} # Path
-			[[ -n ${C:e} ]] && CEXT=.${C:e} || CEXT='' # Set extension
+			CPATH=${_CHAIN_LIST[${C}]:h} # Path
+			[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=.${_CHAIN_LIST[${C}]:e} || CEXT='' # Set extension
 			_OUT_LIST[${C}]=${CPATH}/${CANDIDATE}${CEXT}
 		else
 			unset "_IN_LIST[${C}]"
@@ -548,7 +548,7 @@ do_subs () {
 
 	for C in ${(k)_CHAIN_LIST};do
 		CANDIDATE=${_CHAIN_LIST[${C}]:t} # W/o path
-		[[ -d ${C} ]] && OBJECT=Dir || OBJECT=File
+		[[ -d ${_CHAIN_LIST[${C}]} ]] && OBJECT=Dir || OBJECT=File
 		[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} grep ${GREP_OPTS} ${g_FROM_TEXT} <<<${CANDIDATE}"
 		grep ${GREP_OPTS} "${g_FROM_TEXT}" <<<${CANDIDATE}
 		if [[ $? -eq 0 ]];then
@@ -578,9 +578,9 @@ do_subs () {
 	for C in ${(k)_OUT_LIST};do
 		CPATH=${_OUT_LIST[${C}]:h} # Path
 		CANDIDATE=${_OUT_LIST[${C}]:t} # W/o path
-		[[ -n ${C:e} ]] && CEXT=.${C:e} || CEXT='' # Set extension
-		CANDIDATE=$(eval "echo \"${CANDIDATE}\" | ${SED_CMD}")
-		_OUT_LIST[${C}]="${CPATH}/${CANDIDATE}${CEXT}"
+		[[ -n ${_OUT_LIST[${C}]:e} ]] && CEXT=.${_OUT_LIST[${C}]:e} || CEXT='' # Set extension
+		CANDIDATE=$(eval "${SED_CMD} <<<${(qqq)CANDIDATE}")
+		_OUT_LIST[${C}]="${CPATH}/${CANDIDATE:r}${CEXT}"
 	done
 
 	return 0
@@ -599,12 +599,12 @@ do_trunc_fn () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
 	for C in ${(k)_CHAIN_LIST};do
-		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # Exclude the extension
+		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # W/o path & extension
 		if [[ ${TRUNC_FN_LEN} -gt 0 ]];then
 			[[ ${#CANDIDATE} -le ${TRUNC_FN_LEN} ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 			HIT=true
-			CPATH=${C:h}
-			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
+			CPATH=${_CHAIN_LIST[${C}]:h}
+			[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 			TRUNCATED=${CANDIDATE[1,${TRUNC_FN_LEN}]} # Implement fn length limit
 			TRUNCATED=$(str_trim <<<${TRUNCATED})
 			_OUT_LIST[${C}]=${CPATH}/${TRUNCATED}${CEXT}
@@ -634,8 +634,8 @@ do_trim () {
 			unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 		else
 			HIT=true
-			CPATH=${C:h}
-			[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
+			CPATH=${_CHAIN_LIST${C}]:h}
+			[[ -n ${_CHAIN_LIST${C}]:e} ]] && CEXT=".${_CHAIN_LIST${C}]:e}" || CEXT=''
 			_OUT_LIST[${C}]=${CPATH}/${TRIMMED}${CEXT}
 		fi
 	done
@@ -656,8 +656,8 @@ do_prepend () {
 
 	for C in ${(k)_CHAIN_LIST};do
 		CANDIDATE=${_CHAIN_LIST[${C}]:t} # Tail
-		CPATH=${C:h}
-		[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
+		CPATH=${_CHAIN_LIST${C}]:h}
+		[[ -n ${_CHAIN_LIST${C}]:e} ]] && CEXT=".${_CHAIN_LIST${C}]:e}" || CEXT=''
 		_OUT_LIST[${C}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
 	done
 }
@@ -674,8 +674,8 @@ do_yt_tag () {
 
 	for C in ${(k)_CHAIN_LIST};do
 		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # Exclude the extension
-		CPATH=${C:h}
-		[[ -n ${C:e} ]] && CEXT=".${C:e}" || CEXT=''
+		CPATH=${_CHAIN_LIST${C}]:h}
+		[[ -n ${_CHAIN_LIST${C}]:e} ]] && CEXT=".${_CHAIN_LIST${C}]:e}" || CEXT=''
 
 		grep -q '\-\[.*\]' <<<${CANDIDATE}
 		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
@@ -693,15 +693,15 @@ save_changes () {
 
 	echo
 	for C in ${(k)_OUT_LIST};do # Modified filenames
-		[[ ${_DEBUG} -gt 0 && ${_IN_LIST[${C}]} == ${C} ]] && dbg "${0}:${LINENO} Identical filename ${_IN_LIST[${C}]} -> ${C} - skipping"
-		if [[ ${_IN_LIST[${C}]} == ${C} ]];then
+		[[ ${_DEBUG} -gt 0 && ${_IN_LIST[${C}]} == ${_OUT_LIST[${C}]} ]] && dbg "${0}:${LINENO} Identical filename ${_IN_LIST[${C}]} -> ${_OUT_LIST[${C}]} - skipping"
+		if [[ ${_IN_LIST[${C}]} == ${_OUT_LIST[${C}]} ]];then
 			echo "${WHITE_FG}${_SCRIPT}${RESET}:${BOLD}${RED_FG}Skipping file${RESET}:${WHITE_FG}${C}${RESET} (would overwrite an existing file)"
-			echo "Not overwriting existing file:${C}" >> ${_LOG}
+			echo "Not overwriting existing file:${_OUT_LIST[${C}]}" >> ${_LOG}
 			continue # No collisions
 		fi
-		if [[ ! -e ${C} ]];then
-			[[ ${TRUNCATE} == 'true' ]] && echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_IN_LIST[${C}]:t} \n  To: ${C:t}" >&2
-			/bin/mv "${_IN_LIST[${C}]}" "${C}"
+		if [[ ! -e ${_OUT_LIST[${C}]} ]];then
+			[[ ${TRUNCATE} == 'true' ]] && echo "${WHITE_FG}${_SCRIPT}${RESET}:Truncating\nFrom: ${_IN_LIST[${C}]:t} \n  To: ${_OUT_LIST[${C}]:t}" >&2
+			/bin/mv "${_IN_LIST[${C}]}" "${_OUT_LIST[${C}]}"
 		fi
 	done
 }
@@ -926,7 +926,7 @@ fi
 if [[ ${_PIPED} == 'true' ]];then 
 	# Grab piped input
 	g_LIST_METHOD="piped input"
-	[[ ${_FIND_PATH} != 'null' ]] && echo "${RED_FG}Warning${RESET}:${YELLOW_FG}File path ignored for piped input${RESET}" >&2
+	[[ ${_FIND_PATH} != 'null' ]] && echo "${MAGENTA_FG}Warning${RESET}:${YELLOW_FG}File path ignored for piped input${RESET}" >&2
 	# TODO: PIPE limited to a single entry - could be a list
 	_IN_LIST[1]=${_PIPELINE}
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} Input is piped"

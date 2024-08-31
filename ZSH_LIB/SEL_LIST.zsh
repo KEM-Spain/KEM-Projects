@@ -327,6 +327,7 @@ sel_list () {
 
 			if [[ ${_ACTION_KEYS[(i)${KEY}]} -le ${#_ACTION_KEYS} ]];then
 				_SEL_KEY=${KEY} 
+				_SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]}
 				_RESTORE_POS=false # Possible list change - restore disallowed
 				break 2 # Pre-defined action key was pressed
 			fi

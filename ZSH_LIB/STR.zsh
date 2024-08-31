@@ -159,6 +159,7 @@ str_pluralize () {
 
 	case ${WORD:l} in
 		app) RETURN_WORD="apps";;
+		candidate) RETURN_WORD="candidates";;
 		choice) RETURN_WORD="choices";;
 		command) RETURN_WORD="commands";;
 		config) RETURN_WORD="configs";;
