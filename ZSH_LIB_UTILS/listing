@@ -290,7 +290,7 @@ typeset -a OPTIONS
 OPTSTR=":HDadeilrt"
 OPTIND=0
 
-[[ ${_CALLER} == 'llr' ]] && RECURSE=true || RECURSE=false
+[[ ${_CALLER} =~ 'llr' ]] && RECURSE=true || RECURSE=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
@@ -325,7 +325,8 @@ case ${0:t} in
 	l.) _HIDDEN_ONLY=true;;
 	ll) _HIDDEN_ONLY=false;;
 	ll.) _HIDDEN_ONLY=true;;
-	llr) RECURSE=true;;
+	llr) RECURSE=true;_HIDDEN_ONLY=false;;
+	llr.) RECURSE=true;_HIDDEN_ONLY=true;;
 esac
 
 RAW_CMD=($(cmd_get_raw | sed -E "s/${_CALLER}\s+?//"))
@@ -343,9 +344,21 @@ _LS_OPTS=$(get_ls_opts ${_CALLER})
 
 [[ ${RAW_CMD} == '~' ]] && ARGS=(${HOME}) || ARGS=(${@})
 
-if [[ ${RECURSE} == 'true' ]];then
+if [[ ${RECURSE} == 'true' && ${_HIDDEN_ONLY} == 'false' ]];then
 	[[ ${_DEBUG} -lt 2 ]] && _DEBUG=0
 	exec tree -C ${RAW_CMD} | mypager
+	exit_leave
+elif [[ ${RECURSE} == 'true' && ${_HIDDEN_ONLY} == 'true' ]];then
+	[[ ${_DEBUG} -lt 2 ]] && _DEBUG=0
+	setopt nonomatch
+	ls .* >/dev/null 2>&1
+	RC=${?}
+	setopt nomatch
+	if [[ ${RC} -eq 0 ]];then
+		exec tree -a .* 2>/dev/null | mypager
+	else
+		echo "No hidden files found"
+	fi
 	exit_leave
 else
 	RAW_CMD=$(sed -E 's/ \-[A-Za-z]*\s+?//g' <<<${RAW_CMD})

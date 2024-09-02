@@ -187,7 +187,7 @@ msg_box () {
 	# Separate headers from body
 	if [[ ${HDR_LINES} -ne 0 ]];then
 		MSG_HDRS=(${MSGS[1,$((HDR_LINES))]})
-		MSG_BODY=(${MSGS[HDR_LINES+1,-1]})
+		MSG_BODY=(${(on)MSGS[HDR_LINES+1,-1]})
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HAS HEADERS"
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HEADER CONTAINS ${#MSG_HDRS} lines"
 		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG BODY CONTAINS ${#MSG_BODY} lines"
@@ -419,6 +419,7 @@ msg_box () {
 					case ${_MSG_KEY} in
 						27) break;; # Esc - Exit
 						q) exit_request;((MSG_NDX-=PG_LINES));; # No advance if declined
+						y|n) [[ ${MSG_NDX} -eq ${#MSG_BODY} ]] && return;; # Reply to prompt
 					esac
 					MSG_NDX=$(msg_paging ${_MSG_KEY} ${MSG_NDX} ${#MSG_BODY} ${PG_LINES})
 					DTL_NDX=0

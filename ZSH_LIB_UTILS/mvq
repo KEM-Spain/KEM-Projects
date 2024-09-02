@@ -69,7 +69,7 @@ action_do () {
 	case ${_MSG_KEY} in
 		1) ddgr -n5 "${TITLE} ${YR} review";;
 		2) imdb "${TITLE} ${YR}";;
-		3) pyts "${TITLE} ${YR}";;
+		3) pyts "${TITLE:s/\'//} ${YR}";;
 		n) list_set_selected ${M} ${_AVAIL_ROW};;
 		*) msg_box -p -PK "You entered:<w>${_MSG_KEY}<N>|Valid options: 1,2,3, or n"
 	esac

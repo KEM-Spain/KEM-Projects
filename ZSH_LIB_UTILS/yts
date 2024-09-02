@@ -257,47 +257,47 @@ action_do () {
 								log_download ${M}
 								break # Exit log scan
 							fi
-						fi # Not blank
-					fi # 100% seen
+						fi # Eta seen
 
-					# Scan for errors
-					grep -q -i 'error' <<<${LOG_LINE} 2>/dev/null
-					if [[ ${?} -eq 0 ]];then
-						((ERROR_CNT++))
-						HAD_ERROR=true
+						# Scan for errors
+						grep -q -i 'error' <<<${LOG_LINE} 2>/dev/null
+						if [[ ${?} -eq 0 ]];then
+							((ERROR_CNT++))
+							HAD_ERROR=true
 
-						if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
-							TITLE=$(get_field title ${M})	
-							EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Errors:${ERROR_CNT} Network failure<N>|${LOG_LINE}" 
-							msg_box -f80 -p -PK "${EMSG}"
-							_FAILED[${M}]=true
-							_DOWNLOADS[${M}]=false
-							break 2 # Exit log scan
-						fi
+							if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
+								TITLE=$(get_field title ${M})	
+								EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Errors:${ERROR_CNT} Network failure<N>|${LOG_LINE}" 
+								msg_box -f80 -p -PK "${EMSG}"
+								_FAILED[${M}]=true
+								_DOWNLOADS[${M}]=false
+								break 2 # Exit log scan
+							fi
 
-						case ${LOG_LINE:l} in
-							*"giving up"*)	
-							ERROR_CNT=${_ERROR_LIMIT}	
-							_FAILED[${M}]=true
-							_DOWNLOADS[${M}]=false
-							break 2 # Exit scan
-							;;
-							*) msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
-								echo "$(get_field author ${M}) - Error:"${LOG_LINE} >> ${_ERROR_LOG}
-								_DEBUG=${_YTS_DBG}
-							;;
-						esac
-					else
-						HAD_ERROR=false
-						ERROR_CNT=0
-					fi # Error seen
+							case ${LOG_LINE:l} in
+								*"giving up"*)	
+								ERROR_CNT=${_ERROR_LIMIT}	
+								_FAILED[${M}]=true
+								_DOWNLOADS[${M}]=false
+								break 2 # Exit scan
+								;;
+								*) msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+									echo "$(get_field author ${M}) - Error:"${LOG_LINE} >> ${_ERROR_LOG}
+									_DEBUG=${_YTS_DBG}
+								;;
+							esac
+						else
+							HAD_ERROR=false
+							ERROR_CNT=0
+						fi # Error seen
+					fi # Headers out
 				fi # Log scan
 			fi # Monitor download
 			sleep 2 # Log fetch delay
 		done # Log scan complete
 		NDX=0
 		clear_log "action_do"
-		sleep 2 # Job request delay
+		sleep 1 # Job request delay
 	done # List complete
 	stty echo
 
@@ -311,7 +311,7 @@ action_do () {
 
 	_MARKED=()
 	
-	trap - INT # Downloads are finished; nothing to interrupt
+	trap - INT # Downloads are finished; cancel trap
 
 	return 0
 }
@@ -415,13 +415,13 @@ fav_decode () {
 	fi
 
 	if [[ ${DIR} == 'R' ]];then
-		REV_LOOKUP=${(k)_FAV_DECODE[(r)${FAV_ARG}]}
+		REV_LOOKUP=${${(k)_FAV_DECODE[(r)${FAV_ARG}]}:s/_/ /}
 		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} REV_LOOKUP:${REV_LOOKUP}"
-		[[ -n ${REV_LOOKUP} ]] && echo ${REV_LOOKUP:s/_/ /} || echo ${FAV_ARG}
+		[[ -n ${REV_LOOKUP} ]] && echo ${REV_LOOKUP} || echo ${FAV_ARG}
 	else
-		FWD_LOOKUP=${_FAV_DECODE[${FAV_ARG:s/ /_/}]}
+		FWD_LOOKUP=${${_FAV_DECODE[${FAV_ARG:s/ /_/}]}:s/_/ /}
 		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} FWD_LOOKUP:${FWD_LOOKUP}"
-		[[ -n ${FWD_LOOKUP} ]] && echo ${FWD_LOOKUP:s/_/ /} || echo ${FAV_ARG}
+		[[ -n ${FWD_LOOKUP} ]] && echo ${FWD_LOOKUP} || echo ${FAV_ARG}
 	fi
 }
 
@@ -715,6 +715,7 @@ rumble () {
 		DURATIONS=("${(f)$(pup --charset utf8 '.video-item--duration attr{data-value}' <<<${PG})}")
 		LINKS=("${(f)$(pup --charset utf8 '.video-item--a attr{href}' <<<${PG})}")
 		CHANNELS=("${(f)$(pup --charset utf8 '.video-item--by-a attr{href}' <<<${PG})}")
+		#TODO: any strict filtering should focus on CHANNEL
 
 		for ((X=1; X<=${#TITLES}; X++));do
 			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # Experimental to avoid duplicates
@@ -724,8 +725,6 @@ rumble () {
 			VID_LIST+="${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	fi
-
-	#TODO: any strict filtering should focus on CHANNEL
 	 
 	NDX=0
 	for X in ${VID_LIST};do

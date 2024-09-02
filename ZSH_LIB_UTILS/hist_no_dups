@@ -47,7 +47,7 @@ validate_cmd () {
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARGS:${@}"
 
-	grep -q ${CMD} ${_CMD_CACHE}
+	grep -q ${CMD} ${_CMD_CACHE} >/dev/null 2>&1
 	[[ ${?} -eq 0 ]] && return 0
 
 	# Validate command or alias
@@ -59,7 +59,7 @@ validate_cmd () {
 			echo ${CMD} >> ${_CMD_CACHE}
 			return 0
 	else
-		grep -q "^alias ${CMD}=" < ${_ALIAS_FILE}
+		grep -q "^alias ${CMD}=" < ${_ALIAS_FILE} >/dev/null 2>&1
 		if [[ ${?} -eq 0 ]];then
 			echo ${CMD} >> ${_CMD_CACHE}
 			return 0

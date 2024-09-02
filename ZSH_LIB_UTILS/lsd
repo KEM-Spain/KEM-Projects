@@ -77,9 +77,11 @@ action_warn () {
 		DLIST+=${FN}
 	done
 
-	[[ -n ${_INVISIBLE_ROWS_MSG} ]] && ((HDRS++))
-	msg_box -O${RED_FG} -H${HDRS} -c -p -PD "<I><w>Please respond...<N>|$(str_pluralize ${OBJTYPE} ${CNT} true) queued for deletion|${_INVISIBLE_ROWS_MSG}|$(msg_list ${(o)DLIST})"
-	if [[ ${_MSG_KEY} != 'y' ]];then
+	[[ -n ${_OFFSCREEN_ROWS_MSG} ]] && ((HDRS++))
+
+	msg_box -O${RED_FG} -H${HDRS} -c -p -PD "<I><w>Please respond...<N>|$(str_pluralize ${OBJTYPE} ${CNT} true) queued for deletion|${_OFFSCREEN_ROWS_MSG}|$(msg_list ${(o)DLIST})"
+
+	if [[ ${_MSG_KEY} == 'n' ]];then
 		for M in ${_MARKED};do
 			list_clear_selected ${M}
 		done
@@ -170,7 +172,6 @@ shift $((OPTIND -1))
 #--End GetOpts--
  
 #--Execution
-#TODO: multipage lsd not working after approval
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
 [[ ${#} -ne 0 ]] && SEARCHTERM=(${@}) || SEARCHTERM=''
 

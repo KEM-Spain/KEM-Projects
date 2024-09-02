@@ -1,10 +1,13 @@
 #!/usr/bin/zsh
+#Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
 REVERSE="\033[7m"
 STRIKE="\033[9m"
 UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
 
 BLUE_FG="\033[34m"
 CYAN_FG="\033[36m"
@@ -13,6 +16,8 @@ MAGENTA_FG="\033[35m"
 RED_FG="\033[31m"
 WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
 typeset -A _ARG_LIST
@@ -182,6 +187,7 @@ do_finalize () {
 	local DELIM="|"
 	local MASKED=false
 	local I_TAG=''
+	local RESPONSE=''
 
 	[[ ${_PIPED} == "true" ]] && echo ${_OUT_LIST} && exit_leave
 
@@ -190,7 +196,7 @@ do_finalize () {
 	for K in ${(k)_OUT_LIST};do
 		# Avoid any downstream file errors
 		if [[ $(realpath ${_IN_LIST[${K}]}) == $(realpath ${_OUT_LIST[${K}]}) ]];then
-			MSG="${MAGENTA_FG}Warning${RESET}:candidate filename:\n[${WHITE_FG}${_OUT_LIST[${K}]}${RESET}]\nwould be ${ITALIC}${BOLD}identical${RESET} to original - ${MAGENTA_FG}skipped${RESET}"
+			MSG="${MAGENTA_FG}Warning${RESET}:candidate filename:\n[${WHITE_FG}${_OUT_LIST[${K}]}${RESET}]\nwould be ${ITALIC}${BOLD}identical${RESET} to original - ${MAGENTA_FG}omitted${RESET}"
 			echo ${MSG} >&2
 			[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} ${MSG}"
 			continue
@@ -208,7 +214,14 @@ do_finalize () {
 		RESULT=$(str_diff.pl "${_IN_LIST[${K}]:t}" "${_OUT_LIST[${K}]:t}")
 		BEFORE=$(cut -f1 -d'|' <<<${RESULT})
 		AFTER=$(cut -f2 -d'|' <<<${RESULT} | sed -e 's/[{]//g' -e 's/[}]//g')
-		FINAL[${BEFORE}]=${AFTER}
+		if [[ ${INTERACTIVE} == 'true' ]];then
+			printf "${CYAN_FG}%*s${RESET} -> ${WHITE_FG}%-*s${RESET}\n" ${LONGEST} "${BEFORE}" ${LONGEST} "${AFTER}"
+			echo -n "${WHITE_FG}Approve ${RESET}(${WHITE_FG}y/n${RESET}):";read -sq RESPONSE
+			echo ${RESPONSE}
+			[[ ${RESPONSE} == 'y' ]] && FINAL[${BEFORE}]=${AFTER} || continue
+		else
+			FINAL[${BEFORE}]=${AFTER}
+		fi
 
 		if [[ ${MASKED} == 'true' ]];then
 			_IN_LIST[${K}]=$(sed "s/<MASK>/${DELIM}/g" <<<${_IN_LIST[${K}]})
@@ -634,8 +647,8 @@ do_trim () {
 			unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 		else
 			HIT=true
-			CPATH=${_CHAIN_LIST${C}]:h}
-			[[ -n ${_CHAIN_LIST${C}]:e} ]] && CEXT=".${_CHAIN_LIST${C}]:e}" || CEXT=''
+			CPATH=${_CHAIN_LIST[${C}]:h}
+			[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 			_OUT_LIST[${C}]=${CPATH}/${TRIMMED}${CEXT}
 		fi
 	done
@@ -655,9 +668,9 @@ do_prepend () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
 	for C in ${(k)_CHAIN_LIST};do
-		CANDIDATE=${_CHAIN_LIST[${C}]:t} # Tail
-		CPATH=${_CHAIN_LIST${C}]:h}
-		[[ -n ${_CHAIN_LIST${C}]:e} ]] && CEXT=".${_CHAIN_LIST${C}]:e}" || CEXT=''
+		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # W/o tail & extension
+		CPATH=${_CHAIN_LIST[${C}]:h}
+		[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 		_OUT_LIST[${C}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
 	done
 }
@@ -674,8 +687,8 @@ do_yt_tag () {
 
 	for C in ${(k)_CHAIN_LIST};do
 		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # Exclude the extension
-		CPATH=${_CHAIN_LIST${C}]:h}
-		[[ -n ${_CHAIN_LIST${C}]:e} ]] && CEXT=".${_CHAIN_LIST${C}]:e}" || CEXT=''
+		CPATH=${_CHAIN_LIST[${C}]:h}
+		[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 
 		grep -q '\-\[.*\]' <<<${CANDIDATE}
 		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
@@ -921,8 +934,6 @@ if [[ ${SEARCH_REPLACE} == 'true' ]];then
 fi
 
 # Get candidate data
-# TODO: INTERACTIVE not yet implemented in inode_ndx revision
-
 if [[ ${_PIPED} == 'true' ]];then 
 	# Grab piped input
 	g_LIST_METHOD="piped input"
@@ -996,7 +1007,7 @@ fi
 # Substitutions
 if [[ ${SEARCH_REPLACE} == 'true' ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Calling do_subs${RESET}..."
-	{ echo "${CYAN_FG}Substituting \"${g_FROM_TEXT}\" with \"${g_TO_TEXT}\"${RESET}" | tee -a ${_LOG} } >&2
+	{ echo "${WHITE_ON_GREY}Substituting \"${g_FROM_TEXT}\" with \"${g_TO_TEXT}\"${RESET}" | tee -a ${_LOG} } >&2
 	do_subs
 	[[ ${?} -ne 0 ]] && { echo "No matches for substitution" | tee -a ${_LOG} } >&2
 fi

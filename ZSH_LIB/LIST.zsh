@@ -28,7 +28,7 @@ _CURSOR_ROW=${CURSOR_ROW:=0}
 _HEADER_CALLBACK_FUNC=''
 _HOLD_CURSOR=false
 _HOLD_PAGE=false
-_INVISIBLE_ROWS_MSG=''
+_OFFSCREEN_ROWS_MSG=''
 _KEY_CALLBACK_FUNC=''
 _LIST_DELIM='|'
 _LIST_HEADER_BREAK=false
@@ -1491,13 +1491,13 @@ list_warn_invisible_rows () {
 	[[ ${LAST_ITEM} -gt ${MAX_ITEM} ]] && LAST_ITEM=${MAX_ITEM} # Partial page
 
 	# Warn user of marked rows not on current page
-	_INVISIBLE_ROWS_MSG=''
+	_OFFSCREEN_ROWS_MSG=''
 	for S in ${(k)_LIST_SELECTED};do
 		if [[ ${S} -ge ${FIRST_ITEM} && ${S} -le ${LAST_ITEM}  ]];then
 			continue 
 		else
 			[[ ${_LIST_SELECTED[${S}]} -eq 0 || ${_LIST_SELECTED[${S}]} -ge ${_GHOST_ROW} ]] && continue 
-			_INVISIBLE_ROWS_MSG="(<w><I>there are marked rows on other pages<N>)|"
+			_OFFSCREEN_ROWS_MSG="(<w><I>there are marked rows on other pages<N>)|"
 			break
 		fi
 	done
