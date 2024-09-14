@@ -189,7 +189,7 @@ do_finalize () {
 	local I_TAG=''
 	local RESPONSE=''
 
-	[[ ${_PIPED} == "true" ]] && echo ${_OUT_LIST} && exit_leave
+	[[ ${_PIPED} == "true" ]] && echo ${_OUT_LIST} && exit_leave # Client sneding piped input receives result
 
 	LONGEST=0
 
@@ -580,7 +580,7 @@ do_subs () {
 	fi
 
 	# Match
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${GREEN_FG}Matched file names for g_FROM_TEXT: ${RESET}[${WHITE_FG}${g_FROM_TEXT}${RESET}]"
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${GREEN_FG}Matched g_FROM_TEXT: ${RESET}[${WHITE_FG}${g_FROM_TEXT}${RESET}]"
 	
 	[[ ${CASE} == "I" ]] && SED_OPT=I || SED_OPT=''
 	
@@ -867,6 +867,7 @@ while getopts ${OPTSTR} OPT;do
 done
 shift $((OPTIND - 1))
 #--End GetOpts--
+
 # Execution
 [[ -e ${_LOG} ]] && /bin/rm -f ${_LOG}
 
@@ -874,15 +875,15 @@ shift $((OPTIND - 1))
 
 # Handle input method
 _PIPED=false
-if [[ ${SERVICE_MODE} == 'false' ]];then
-	if [[ ! -t 0 ]];then
-		_PIPED=true
+if [[ ! -t 0 ]];then
+	_PIPED=true
+	if [[ ${SERVICE_MODE} == 'false' ]];then
 		while read PIPE;do
-			_PIPELINE+=${PIPE}
+			_PIPELINE+=$(tut strip_ansi <<<${PIPE})
 		done
+	else
+		echo "${0:t}:SERVICE_MODE - reading pipes not allowed"
 	fi
-else
-	echo "${0:t}:SERVICE_MODE:${SERVICE_MODE}"
 fi
 
 # Record arg types
@@ -935,12 +936,12 @@ fi
 
 # Get candidate data
 if [[ ${_PIPED} == 'true' ]];then 
-	# Grab piped input
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} Input is piped"
 	g_LIST_METHOD="piped input"
 	[[ ${_FIND_PATH} != 'null' ]] && echo "${MAGENTA_FG}Warning${RESET}:${YELLOW_FG}File path ignored for piped input${RESET}" >&2
-	# TODO: PIPE limited to a single entry - could be a list
+
+	# Grab piped input
 	_IN_LIST[1]=${_PIPELINE}
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} Input is piped"
 else
 	if [[ -f ${_FIND_PATH} ]];then
 		# Convert file name to list member

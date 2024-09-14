@@ -11,6 +11,7 @@ exit_leave () {
 	local MSGS=(${@})
 
 	if [[ ${_DEBUG} -ne 0 ]];then
+		dbg "${RED_FG}${0}${RESET}: $(box_coords_dump)"
 		dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
 		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
 		dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
@@ -74,16 +75,21 @@ exit_pre_exit () {
 }
 
 exit_request () {
-	local -a COORDS=(${1} ${2} ${3})
 	local MSG="Quit application (y/n)"
+	local X=${1}
+	local Y=${2}
+	local W=${3}
+	local H=3
+	local FRAME_WIDTH=6
+	local TAG=$(instance_set EXR_BOX)
 
-	if [[ -n ${COORDS} ]];then
-		msg_box -jc -u -O ${RED_FG} -p -x ${COORDS[1]} -y ${COORDS[2]} -w ${COORDS[3]:=$(( ${#MSG} + 4 ))} ${MSG}
+	if [[ ${#} -eq 0 ]];then
+		msg_box -T ${TAG} -jc -O ${RED_FG} -p ${MSG}
 	else
-		msg_box -jc -O ${RED_FG} -p ${MSG}
+		[[ -z ${W} ]] && W=$(( ${#MSG} + ${FRAME_WIDTH} )) && Y=$(( Y-${#MSG}/2 ))
+		box_coords_set ${TAG} X $((X-1)) Y $((Y-FRAME_WIDTH/2)) W $((W+FRAME_WIDTH/2)) H ${H} # Compensate for frame dimensions
+		msg_box -T ${TAG} -jc -O ${RED_FG} -p -x ${X} -y ${Y} -w ${W} -h ${H} ${MSG}
 	fi
-
-	box_coords_set EXR X ${COORDS[1]} Y ${COORDS[2]} W ${COORDS[3]:=$(( ${#MSG} + 4 ))} H 3
 
 	if [[ ${_MSG_KEY} == 'y' ]];then
 		if [[ ${_FUNC_TRAP} == 'true' ]];then
@@ -95,7 +101,7 @@ exit_request () {
 		fi
 	else
 		_EXIT_REQUEST=true
-		msg_box_clear
+		[[ ${#} -ne 0 ]] && msg_box_clear ${TAG} 
 	fi
 }
 

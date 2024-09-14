@@ -676,10 +676,10 @@ ___EOF
 			) | sort -k1.6 -n${SORT}
 		fi
 
-		DU=$(sudo du -s 2>/dev/null | sed -e 's/\t/ /' -e 's/\./Total (including non directories)/g')
+		DU=$(sudo du -s 2>/dev/null | sed -e 's/\t/ /' -e 's/\./Total/g')
 		TSZ=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f1) # Total PWD size in bytes
 
-		DU=$(sudo du -sh 2>/dev/null | sed -e 's/\t/ /' -e 's/\./Total (including non directories)/g')
+		DU=$(sudo du -sh 2>/dev/null | sed -e 's/\t/ /' -e 's/\./Total/g')
 		SZ=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f1) # Total PWD size in human readable
 		FN=$(echo ${DU} | tr -s '[:space:]' | cut  -d' ' -f2)
 		HU=$(numfmt --to=iec $((${TSZ}*1024))) # For percentage
@@ -691,7 +691,7 @@ ___EOF
 		else
 			printf "  "
 			printf "\\u2500%.0s" {1..${#DU}}
-			printf "\n  %s\n" ${DU}
+			printf "\n  ${WHITE_FG}%s${RESET} %s\n" $(cut -d' ' -f1 <<<${DU}) $(cut -d' ' -f2 <<<${DU})
 			printf "  "
 			printf "\\u2500%.0s" {1..${#DU}}
 			printf "\n"

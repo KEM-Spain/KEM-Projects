@@ -19,7 +19,7 @@ YELLOW_FG="\033[33m"
 
 # Constants
 _LIB_DIR=/usr/local/lib
-_COL_MAX=150
+_COL_MAX=140
 
 # Imports
 _LIB_DIR=/usr/local/lib

@@ -125,8 +125,12 @@ sel_list () {
 	INIT_Y=${3}
 	INIT_CSR=${4}
 
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _RESTORE_POS:${_RESTORE_POS}"
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGS:TITLE:${TITLE}, INIT_X:${INIT_X}, INIT_Y:${INIT_Y}, INIT_CSR:${INIT_CSR}"
+
 	if [[ ${_RESTORE_POS} == 'true' && ${INIT_X} -gt 0 && ${INIT_Y} -gt 0 && ${INIT_CSR} -gt 0 ]];then
 		CLIENT_POS_REQUEST=true # Client passed position info
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} CLIENT_POS_REQUEST:${CLIENT_POS_REQUEST}"
 	fi
 
 	# Hide cursor
@@ -174,7 +178,7 @@ sel_list () {
 
 	[[ $(( SW % 2 )) -ne 0 ]] && (( SW++ )) # Even width cols
 	[[ $(( BOX_WIDTH % 2 )) -ne 0 ]] && (( BOX_WIDTH++ )) # Even width cols
-	box_coords_upd INNER W ${BOX_WIDTH}
+	box_coords_upd INNER_BOX W ${BOX_WIDTH}
 
 	SL=$(( SX+BOX_HEIGHT + (XPAD * 2) - 1 )) # Loop limit
 
@@ -203,7 +207,7 @@ sel_list () {
 
 		# Outer box w/ title
 		msg_unicode_box ${SX} ${SY} ${SW} ${SH} ${OUTER_BOX_COLOR} # OUTER box
-		box_coords_set OUTER X ${SX} Y ${SY} W ${SW} H ${SH}
+		box_coords_set OUTER_BOX X ${SX} Y ${SY} W ${SW} H ${SH}
 
 		CLEAN_TEXT=$(msg_nomarkup ${TITLE})
 		tput cup $(( SX+1 )) $(( SY+(SW/2)-(${#CLEAN_TEXT}/2) ));echo $(msg_markup ${TITLE})
@@ -254,7 +258,7 @@ sel_list () {
 		BOX_ROW=${BOX_X}
 		BOX_NDX=1
 		msg_unicode_box ${BOX_X_COORD} ${CENTER_Y} ${BOX_WIDTH} ${BOX_HEIGHT} ${INNER_BOX_COLOR} # Display INNER box for list
-		box_coords_set INNER X ${BOX_X_COORD} Y ${CENTER_Y} W ${BOX_WIDTH} H ${BOX_HEIGHT}
+		box_coords_set INNER_BOX X ${BOX_X_COORD} Y ${CENTER_Y} W ${BOX_WIDTH} H ${BOX_HEIGHT}
 
 	 # Set column widths for lists having categories
 		if [[ ${_SL_CATEGORY} == 'true' ]];then
@@ -312,8 +316,12 @@ sel_list () {
 		fi
 
 		# Restore previous cursor position if requested
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} CLIENT_POS_REQUEST:${CLIENT_POS_REQUEST}"
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _RESTORE_POS:${_RESTORE_POS}"
+
 		if [[ ${CLIENT_POS_REQUEST} == 'true' && ${_RESTORE_POS} == 'true' ]];then # Restore position if allowed
-			#sel_list_norm ${BOX_X} ${BOX_Y} ${_SEL_LIST[1]} # First item reset
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restoring position:INIT_X:${INIT_X} INIT_Y:${INIT_Y} INIT_CSR:${INIT_CSR}"
+			# sel_list_norm ${BOX_X} ${BOX_Y} ${_SEL_LIST[1]} # First item reset
 			sel_list_hilite ${INIT_X} ${INIT_Y} ${_SEL_LIST[${INIT_CSR}]} # Hilite client position
 			CURSOR_NDX=${INIT_CSR}
 			CURSOR_ROW=${INIT_X}
@@ -329,16 +337,19 @@ sel_list () {
 				_SEL_KEY=${KEY} 
 				_SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]}
 				_RESTORE_POS=false # Possible list change - restore disallowed
+				_SEL_X=0 && _SEL_Y=0 && _SEL_NDX=0
+				[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restore position disabled -menu coords cleared"
 				break 2 # Pre-defined action key was pressed
 			fi
 
 			_RESTORE_POS=true # Restore allowed
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restore position enabled"
 
 			case ${KEY} in
 				0) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && break 2;;
 				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
-				q) exit_request $(sel_list_pos_exitbox);EXIT_REQ=true;EXIT_NDX=${CURSOR_NDX};EXIT_ROW=${CURSOR_ROW};break;; # Save state
+				q) exit_request $(sel_list_ebox_coords);EXIT_REQ=true;EXIT_NDX=${CURSOR_NDX};EXIT_ROW=${CURSOR_ROW};break;; # Save state
 				1|k) (( CURSOR_ROW-- ));(( CURSOR_NDX-- ));DIR='U';;
 				2|j) (( CURSOR_ROW++ ));(( CURSOR_NDX++ ));DIR='D';;
 				3|t) DIR='T';;
@@ -378,6 +389,7 @@ sel_list () {
 			esac
 
 			_SEL_NDX=${CURSOR_NDX} # Value saved for client
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} SAVED MENU INDEX:_SEL_NDX:${_SEL_NDX}"
 
 			# Row and Page changes
 			case ${DIR} in
@@ -499,6 +511,7 @@ sel_list_hilite () {
 	_HILITE_X=${X}
 	_SEL_Y=${Y} # Value saved for client
 	_SEL_X=${X} # Value saved for client
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} SAVED MENU COORDS:_SEL_X:${_SEL_X}, _SEL_Y:${_SEL_Y}"
 }
 
 sel_list_norm () {
@@ -520,13 +533,13 @@ sel_list_norm () {
 	fi
 }
 
-sel_list_pos_exitbox () {
+sel_list_ebox_coords () {
 	local -A I_COORDS
 	local MSG_LEN=28
 	local W_ARG
 	local Y_ARG
 
-	I_COORDS=($(box_coords_get INNER))
+	I_COORDS=($(box_coords_get INNER_BOX))
 
 	if [[ $(( I_COORDS[W] + 6 )) -le ${MSG_LEN} ]];then
 		W_ARG=${MSG_LEN}
@@ -545,13 +558,13 @@ sel_list_repaint () {
 	local LX LY LT
 	local L X
 
-	E_COORDS=($(box_coords_get EXR))
+	E_COORDS=($(box_coords_get EXR_BOX))
 	for (( X=E_COORDS[X] -1; X <= ( E_COORDS[X] + E_COORDS[H] -1 ) - 1; X++ ));do
 		tput cup ${X} $(( E_COORDS[Y] -1 ))
 		tput ech $(( E_COORDS[W] ))
 	done
 
-	I_COORDS=($(box_coords_get INNER))
+	I_COORDS=($(box_coords_get INNER_BOX))
 	msg_unicode_box ${I_COORDS[X]} ${I_COORDS[Y]} ${I_COORDS[W]} ${I_COORDS[H]}
 
 	for L in ${_SEL_LIST_TEXT};do

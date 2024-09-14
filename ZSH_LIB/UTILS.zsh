@@ -12,6 +12,40 @@ _FUNC_TRAP=false
 _BAREWORD_IS_FILE=false
 _UTILS_LIB_DBG=4
 
+is_tag () {
+	local TAG=${1}
+
+	[[ -n ${_TAG_INSTANCE[${TAG}]} ]] && return 0
+
+	return 1
+}
+
+instance_set () {
+	local TAG=${1}
+	local INST=0
+
+	if is_tag ${TAG};then
+		INST=${_TAG_INSTANCE[${TAG}]}
+		_TAG_INSTANCE[${TAG}]=$((++INST))
+	else
+		_TAG_INSTANCE[${TAG}]=1
+	fi
+
+	echo ${TAG}_${_TAG_INSTANCE[${TAG}]}
+}
+
+instance_unset () {
+	local TAG=${1}
+	local INST=0
+
+	if is_tag ${TAG};then
+		INST=${_TAG_INSTANCE[${TAG}]}
+		[[ ${INST} -gt 1 ]] && _TAG_INSTANCE[${TAG}]=$((--INST))
+	fi
+
+	echo ${TAG}_${_TAG_INSTANCE[${TAG}]}
+}
+
 arg_parse () {
 	local KWD=false
 	local A
@@ -96,28 +130,19 @@ boolean_color_word () {
 box_coords_del () {
 	local TAG=${1}
 
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
+
 	assoc_del_key _BOX_COORDS ${TAG}
 }
 
 box_coords_dump () {
 	local K
 
-	echo "COORDS"
+	echo "\n--- COORDS ---"
 	for K in ${(k)_BOX_COORDS};do
-		printf "%s %s\n" ${K} ${_BOX_COORDS[${K}]}
+		printf "${WHITE_FG}TAG${RESET}:%s ${WHITE_FG}COORDS${RESET}:%s\n" ${K} ${_BOX_COORDS[${K}]}
 	done
-	echo "TEXT"
-	for K in ${_BOX_TEXT};do
-		echo ${K}
-	done
-}
-
-box_coords_get () {
-	local TAG=${1}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	echo ${(kv)_BOX_COORDS[${TAG}]}
+	echo "--- End COORDS ---"
 }
 
 box_coords_overlap () {
@@ -139,6 +164,8 @@ box_coords_overlap () {
 	local NDX=0
 	local OTAG=''
 	local -a RETURN_TAGS=()
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
 
 	for K in ${LIST};do
 		[[ ${K} == ${TAG} ]] && continue
@@ -185,14 +212,37 @@ box_coords_overlap () {
 	echo ${RETURN_TAGS}
 }
 
+box_coords_relative () {
+	local BASE_TAG=${1};shift
+	local -A OFFSETS=(${@})
+	local -A BASE_COORDS=()
+
+	BASE_COORDS=($(box_coords_get ${BASE_TAG}))
+
+	[[ -n ${OFFSETS[X]} ]] && BASE_COORDS[X]=${OFFSETS[X]}
+	[[ -n ${OFFSETS[Y]} ]] && BASE_COORDS[Y]=${OFFSETS[Y]}
+	[[ -n ${OFFSETS[W]} ]] && BASE_COORDS[W]=${OFFSETS[W]}
+	[[ -n ${OFFSETS[H]} ]] && BASE_COORDS[H]=${OFFSETS[H]}
+
+	echo ${(kv)BASE_COORDS}
+}
+
 box_coords_set () {
 	local -a ARGS=(${@})
 	local TAG=${ARGS[1]}
 	local COORDS=${ARGS[2,-1]}
 
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
 
-	_BOX_COORDS[${TAG}]="${COORDS} T $(date +%s.%N)"
+	_BOX_COORDS[${TAG}]="${COORDS}"
+}
+
+box_coords_get () {
+	local TAG=${1}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
+
+	echo ${(kv)_BOX_COORDS[${TAG}]}
 }
 
 box_coords_upd () {
@@ -201,11 +251,11 @@ box_coords_upd () {
 	local VAL=${3}
 	local -A UPD=($(box_coords_get ${TAG}))
 
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
+
 	[[ ${#UPD} -eq 0 ]] && return 1
 
 	box_coords_set ${TAG} X ${UPD[X]} Y ${UPD[Y]} W ${UPD[W]} H ${UPD[H]} ${KEY} ${VAL}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	return 0
 }
@@ -306,6 +356,8 @@ get_keys () {
 	local RESP=?;
 	local -a NUM
 	local K1 K2 K3 KEY
+
+	#TODO: only slow keyboard rate while cursor is being moved - not while idle
 		
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -313,15 +365,16 @@ get_keys () {
 
 	(tput cup $((_MAX_ROWS-2)) 0;printf "${PROMPT}")>&2 # Position cursor and display prompt to STDERR
 
-	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
 
 	while read -sk1 KEY;do
+		[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
 		[[ -z ${KEY} ]] && break
 		# Slurp input buffer
 		read -sk1 -t 0.0001 K1
 		read -sk1 -t 0.0001 K2
 		read -sk1 -t 0.0001 K3
 		KEY+=${K1}${K2}${K3}
+		[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
 
 		case "${KEY}" in 
 			$'\x0A') RESP=0;; # Return
@@ -442,6 +495,16 @@ is_symbol_dir () {
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${ARG} =~ '^[\.~]$' ]] && return 0 || return 1
+}
+
+is_tag () {
+	local TAG=${1}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TAG:${TAG}"
+
+	[[ -n ${_BOX_COORDS[${TAG}]} ]] && return 0
+
+	return 1
 }
 
 kbd_activate () {

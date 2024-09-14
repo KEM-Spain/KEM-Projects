@@ -41,10 +41,11 @@ _LOG=/tmp/mvqry.log
 _HEADERS=(A "Movies starring:" D "Movies directed by:" E "Movies for the decade:" Y "Movies for the year:")
 
 # Globals
-g_LIST_VALUE=''
+g_IS_CACHED=false
+g_LAST_QRY=''
 g_LIST_TYPE=''
+g_LIST_VALUE=''
 g_UPDATE=false
-
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -69,7 +70,7 @@ action_do () {
 	case ${_MSG_KEY} in
 		1) ddgr -n5 "${TITLE} ${YR} review";;
 		2) imdb "${TITLE} ${YR}";;
-		3) pyts "${TITLE:s/\'//} ${YR}";;
+		3) pyts "${TITLE} ${YR}";;
 		n) list_set_selected ${M} ${_AVAIL_ROW};;
 		*) msg_box -p -PK "You entered:<w>${_MSG_KEY}<N>|Valid options: 1,2,3, or n"
 	esac
@@ -87,7 +88,7 @@ action_do () {
 	done
 }
 
-get_cache () {
+is_cached () {
 	local ARGS=${@}
 	local CACHE_FN=''
 	local LINE
@@ -107,6 +108,47 @@ get_cache () {
 	else
 		return 1
 	fi
+}
+
+key_callback () {
+	local LIST
+
+	if [[ ${g_IS_CACHED} == 'true' ]];then
+		msg_box "Updating...${g_LAST_QRY}"
+		LIST=("${(f)$(do_query ${g_LAST_QRY})}")
+	fi
+
+	format_list ${LIST}
+	set_cache ${SEARCHTERM}
+}
+
+format_list () {
+	local -a LIST=(${@})
+	local NDX=0
+	local LN=0
+	local TITLE=''
+	local URL=''
+	local YR=''
+	local LEN=0
+	local L
+
+	_SLIST=()
+
+	for L in ${LIST};do
+		((NDX++))
+		((LN++))
+		case ${LN} in
+			1) TITLE=$(html2text -ascii <<<${L});;
+			2) URL=${L};;
+			3) YR=${L};;
+			4) LEN=$(sed 's/^,*//' <<<${L});;
+		esac
+		if [[ $(( NDX % 4 )) -eq 0 ]];then
+			_SLIST+="${YR}|${TITLE[1,50]}|${LEN}|${URL}"
+			LN=0
+		fi
+	done
+	_SLIST=(${(on)_SLIST}) # Sort
 }
 
 set_cache () {
@@ -152,7 +194,6 @@ cache_select () {
 
 	sel_list_set ${(k)CACHE_LIST}
 	sel_list -O ${GREEN_FG} -c -w10 "<w>Select from cache or <h>(q)uit<N>"
-
 }
 
 imdb () {
@@ -248,7 +289,11 @@ name_list_uninitialized () {
 do_query () {
 	local QRY=${1}
 
+	[[ ${_DEBUG} -gt 0 ]] && dbg "wget -O - https://www.flickchart.com/Charts.aspx?${QRY}&perpage=100"
+
 	wget -O - "https://www.flickchart.com/Charts.aspx?${QRY}&perpage=100" 2>/dev/null | pup --charset utf8 '.movieTitle text{}' | blank_lines
+
+	g_LAST_QRY=${QRY}
 }
 
 get_year () {
@@ -468,16 +513,17 @@ else
 	[[ -n ${ACTOR_ARG} ]] && QRY="actor=${ACTOR_ARG}" && HEADER=${_HEADERS[A]} && SEARCHTERM=${(C)ACTOR_ARG} && ACTOR_ARG=true
 	[[ -n ${DIRECTOR_ARG} ]] && QRY="director=${DIRECTOR_ARG}" && HEADER=${_HEADERS[D]} && SEARCHTERM=${(C)DIRECTOR_ARG} && DIRECTOR_ARG=true
 fi
+g_LAST_QRY=${QRY}
 
 HEADER="${HEADER}"
 
-IS_CACHED=false
+g_IS_CACHED=false
 if [[ ${IGNORE_CACHE} == 'false' ]];then
-	get_cache ${SEARCHTERM}
-	[[ ${?} -eq 0 ]] && IS_CACHED=true
+	is_cached ${SEARCHTERM}
+	[[ ${?} -eq 0 ]] && g_IS_CACHED=true
 fi
 
-if [[ ${IS_CACHED} == 'false' ]];then
+if [[ ${g_IS_CACHED} == 'false' ]];then
 	# Submit query
 	if [[ ${CACHE_SELECT} == 'true' && ${g_UPDATE} == 'true' ]];then	
 		msg_box -c "Updating cached query...${QRY}"
@@ -487,30 +533,13 @@ if [[ ${IS_CACHED} == 'false' ]];then
 
 	LIST=("${(f)$(do_query ${QRY})}")
 
-	[[ ${_DEBUG} -gt 0 ]] && dbg "wget -O - https://www.flickchart.com/Charts.aspx?${QRY}&perpage=100"
-
 	if ! arr_is_populated "${LIST}";then
 		exit_leave "${RED_FG}No matches for:${WHITE_FG}${QRY}"
 	fi
 
 	msg_box -c "Working...formatting data"
-	NDX=0
-	LN=0
-	for L in ${LIST};do
-		((NDX++))
-		((LN++))
-		case ${LN} in
-			1) TITLE=$(html2text -ascii <<<${L});;
-			2) URL=${L};;
-			3) YR=${L};;
-			4) LEN=$(sed 's/^,*//' <<<${L});;
-		esac
-		if [[ $(( NDX % 4 )) -eq 0 ]];then
-			_SLIST+="${YR}|${TITLE[1,50]}|${LEN}|${URL}"
-			LN=0
-		fi
-	done
-	_SLIST=(${(on)_SLIST}) # Sort
+
+	format_list ${LIST}
 	set_cache ${SEARCHTERM}
 fi
 
@@ -526,6 +555,8 @@ list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} Selected:${WHITE_FG}%-3d %
 list_add_header_break
 list_set_header_break_color ${MAGENTA_FG}
 list_set_barlines true
+list_set_key_callback u key_callback
+list_set_prompt 'Press (u)pdate to refresh page'
 
 # Set line item
 list_set_line_item ' 

@@ -21,18 +21,19 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -A _FAV_DECODE=()
 typeset -A _COORDS=(X 10 Y 38 H 10 W 86)
-typeset -A _PARTIALS
-typeset -A _DOWNLOADS
-typeset -A _FAILED
-typeset -A _FAVORITE_ENGINE
-typeset -A _FAVORITE_OPTS
-typeset -A _FIELD_LEN
-typeset -A _FUTURE
-typeset -A _REJECTS
-typeset -A _STATUS_MSGS
-typeset -a _LOCAL_LIST
+typeset -A _DOWNLOADS=()
+typeset -A _FAILED=()
+typeset -A _FAVORITE_ENGINE=()
+typeset -A _FAVORITE_OPTS=()
+typeset -A _FAV_DECODE=()
+typeset -A _FIELD_LEN=()
+typeset -A _FUTURE=()
+typeset -A _PARTIALS=()
+typeset -A _REJECTS=()
+typeset -A _SORT_DEFAULT=()
+typeset -A _STATUS_MSGS=()
+typeset -a _LOCAL_LIST=()
 
 # Constants
 _YTS_DIR=~/.yts
@@ -41,6 +42,7 @@ _SRC_DIR=/usr/local/src
 _ACTION=download
 _ALERT=.2
 _CMD_LINE_ARGS=false
+_CODE_MARKER=${_YTS_DIR}/yts-upd.lastrun
 _DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
 _DOWNLOAD_LOG=${_YTS_DIR}/yts.downloads
 _ERROR_LIMIT=5
@@ -50,9 +52,9 @@ _FIELD_LEN[agetime]=40
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
-_CODE_MARKER=${_YTS_DIR}/yts-upd.lastrun
 _OBJECT=video
 _PAUSE=2
+_SORT_DEFAULT=(youtube 2 rumble 1)
 _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
@@ -158,6 +160,7 @@ action_do () {
 				reset_job
 				start_job ${URL}
 				HAD_ERROR=false
+				ERROR_CNT=0
 			fi
 
 			# Ensure log activity
@@ -227,9 +230,6 @@ action_do () {
 				# Scan for progress
 				if [[ ${HDRS_OUT} == 'true' ]];then
 					grep -q -i 'eta\|100%\|100\.0' <<<${LOG_LINE} 2>/dev/null && RC1=${?} # Scan line
-
-					#[[ ${RC1} -ne 0 ]] && grep -q -m1 "100%" <<<${g_YTS_LOG} 2>/dev/null && RC2=${?} # Scan log
-					#if [[ ${RC1} -eq 0 || ${RC2} -eq 0 ]];then
 
 					if [[ ${RC1} -eq 0 ]];then
 						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
@@ -391,7 +391,7 @@ fav_decode () {
 		_FAV_DECODE[Dialogue_Works]="dialogueworks"
 		_FAV_DECODE[Due_Dissidence]="duedissidence"
 		_FAV_DECODE[George_Galloway]="GeorgeGallowayOfficial"
-		_FAV_DECODE[Glen_Greenwald]="GGreenwald"
+		_FAV_DECODE[Glenn_Greenwald]="GGreenwald"
 		_FAV_DECODE[Glenn_Diesen]="glenndiesen"
 		_FAV_DECODE[Going_UnderGround]="goingunderground"
 		_FAV_DECODE[Jimmy_Dore]="TheJimmyDoreShow"
@@ -401,6 +401,7 @@ fav_decode () {
 		_FAV_DECODE[Kim_Iversen]="KimIversen"
 		_FAV_DECODE[Mentour_Now]="mentournow!"
 		_FAV_DECODE[Mentour_Pilot]="mentourpilot"
+		_FAV_DECODE[Missionary_Bush_Pilot]="missionarybushpilot"
 		_FAV_DECODE[Neil_Oliver]="c-6293844"
 		_FAV_DECODE[Piano_Groove]="pianogroove"
 		_FAV_DECODE[Richard_Medhurst]="richardmedhurst"
@@ -415,11 +416,11 @@ fav_decode () {
 	fi
 
 	if [[ ${DIR} == 'R' ]];then
-		REV_LOOKUP=${${(k)_FAV_DECODE[(r)${FAV_ARG}]}:s/_/ /}
+		REV_LOOKUP=${${(k)_FAV_DECODE[(r)${FAV_ARG}]}:gs/_/ /}
 		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} REV_LOOKUP:${REV_LOOKUP}"
 		[[ -n ${REV_LOOKUP} ]] && echo ${REV_LOOKUP} || echo ${FAV_ARG}
 	else
-		FWD_LOOKUP=${${_FAV_DECODE[${FAV_ARG:s/ /_/}]}:s/_/ /}
+		FWD_LOOKUP=${${_FAV_DECODE[${FAV_ARG:s/ /_/}]}:gs/_/ /}
 		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} FWD_LOOKUP:${FWD_LOOKUP}"
 		[[ -n ${FWD_LOOKUP} ]] && echo ${FWD_LOOKUP} || echo ${FAV_ARG}
 	fi
@@ -505,6 +506,7 @@ get_field () {
 			agetime) STR=$(cut -d'|' -f4,6 <<<${_LIST[${NDX}]});STR="(${STR:s/|/ /})";;
 		esac
 
+		[[ ${FIELD} == 'author' ]] && STR=${$(fav_decode ${g_FAVORITE:gs/ /_/}):gs/_/ /}
 		[[ ${_CMD_LINE_ARGS} == 'false' && ${FIELD} == 'author' ]] && STR=$(fav_decode ${STR})
 	else
 		case ${FIELD} in
@@ -517,10 +519,15 @@ get_field () {
 		esac
 		fi
 
+
 		[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
 		
 		STR=$(html2text -ascii <<<${STR})
 		STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) # Scrub non ascii
+
+
+		[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning:${STR[1,65]}"
+
 		echo -n ${STR[1,65]}
 }
 
@@ -539,10 +546,10 @@ item_decorate () {
 	elif [[ ${_PARTIALS[${NDX}]} == 'true' ]];then
 		STR="Partial..."
 	else
-		STR="$(get_field agetime ${NDX})"
+		STR=${$(get_field agetime ${NDX})[1,${_FIELD_LEN[agetime]}]}
 	fi
 
-	echo -n ${STR[1,${_FIELD_LEN[agetime]}]}
+	echo -n ${STR}
 }
 
 kill_job () {
@@ -631,17 +638,32 @@ download_log_update () {
 }
 
 post_process () {
-	local -a KEYWORDS=("judge_napolitano_-_" "official" "afshin_rattansi_s_" "the_" "_show")
-	local K
+	local -a KEYWORDS=("judge_napolitano - " "official" "afshin rattansi" "the " " show")
+	local K D
+	local FLEN=70
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	msg_box -x$(( _COORDS[X]+1 )) "Post processing..."
+	msg_box -x$(( _COORDS[X]+4 )) "Post processing..."
 
-	for K in ${KEYWORDS};do
-		fsub -iy ${K} ${_DOWNLOAD_DIR} >/dev/null 2>&1
-		[[ ${g_QRY_ENGINE} == 'rumble' ]] && fsub -y -t65 ${_DOWNLOAD_DIR} >/dev/null 2>&1
-	done
+	{
+		for D in ${_DOWNLOAD_DIR}/*;do
+			[[ ${D:e} == 'part' ]] && continue
+			grep -q '_s_' <<<${D}
+			[[ ${?} -eq 0 ]] && fsub -y '_s_' '\x27s_' ${D} # Apostrophes
+			grep -q '_' <<<${D}
+			[[ ${?} -eq 0 ]] && fsub -y '_' ' ' ${D} # Spaces
+			grep -q '\.\.' <<<${D}
+			[[ ${?} -eq 0 ]] && fsub -y '\.\.' '\.' ${D} # File extensions
+			[[ ${#D} -gt ${FLEN} ]] && fsub -y -t${FLEN} ${D}
+		done
+
+		for K in ${KEYWORDS};do
+			[[ ${K:e} == '.part' ]] && continue
+			fsub -iy ${K} ${_DOWNLOAD_DIR}
+		done
+
+	} >>${_ERROR_LOG} 2>/dev/null
 }
 
 reset_job () {
@@ -673,7 +695,7 @@ rumble () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	KEY=${SEARCHTERM:l:s/ /_/}
+	KEY=${SEARCHTERM:l:gs/ /_/}
 	[[ -n ${_FAV_DECODE[${KEY}]} ]] && SEARCHTERM=${_FAV_DECODE[${KEY}]} # Convert friendly favorite
 
 	PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
@@ -683,7 +705,7 @@ rumble () {
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
 		[[ ${g_LIVE} == 'true' ]] && MSG="Searching livestreams..." || MSG="Searching videos..."
-		msg_box -R INNER -c ${MSG}
+		msg_box -R INNER_BOX -c ${MSG}
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams" 2>/dev/null)
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 
@@ -772,8 +794,6 @@ select_download () {
 		[[ ${g_STRICT} == 'true' ]] && SEARCHTYPE="Strict (${g_STRICT_MSG})"
 	fi
 
-	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Sort cols set:${_SORT_COLS}"
-
  # Set headings
 	list_set_header_init
 	list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} $(str_pluralize video ${#_LIST})\tPlatform:${WHITE_FG}%s${RESET}\tQuery Key:${WHITE_FG}%s${RESET}\tQuery Type:${WHITE_FG}%s${RESET}\tSelected:${WHITE_FG}%s${RESET}\t${_PG}" ${#_LIST} ${(C)g_QRY_ENGINE} ${(C)SEARCHTERM} ${(C)SEARCHTYPE} $(list_get_selected_count)'
@@ -791,10 +811,7 @@ select_download () {
 	list_set_action_msgs video download
 	list_set_sortable true
 	list_set_max_sort_col 3
-	list_set_sort_col_default 1
-	if [[ ${g_SEARCH_TYPE} == 'general' ]];then
-		list_set_sort_col_default 0
-	fi
+	list_set_sort_col_default ${_SORT_DEFAULT[${g_QRY_ENGINE}]}
 	list_set_barlines true
 	list_set_page_callback log_find 
 
@@ -920,11 +937,16 @@ youtube () {
 	local PROXY_CMD
 	local NDX
 	local STR
+	local QUERY_KEY
+	local L
+	local -a SORT_LIST
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${_FAVORITE_ENGINE[${1}]:l} == 'yns' ]] && g_STRICT=false && g_PROXY_CMD=$(sed 's/\-s//' <<<${g_PROXY_CMD}) # No strict requested
-	[[ -n ${g_FAVORITE} ]] && PROXY_CMD="${g_PROXY_CMD} ${g_FAVORITE:q}" || PROXY_CMD="${g_PROXY_CMD}"
+
+	QUERY_KEY=$(fav_decode ${g_FAVORITE:gs/ /_/} F)
+	[[ -n ${QUERY_KEY} ]] && PROXY_CMD="${g_PROXY_CMD} ${QUERY_KEY:q}" || PROXY_CMD="${g_PROXY_CMD}"
 
 	# Command line processing is in the js script - only proxy the script
 	[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} PROXY COMMAND: ${WHITE_FG}${PROXY_CMD}${RESET}"
@@ -945,7 +967,8 @@ youtube () {
 
 	[[ ${g_STRICT} == 'true' ]] && g_STRICT_MSG="$(total_rejects ${NDX})" || g_STRICT_MSG=''
 
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} _LOCAL_LIST content:\n $(for L in ${_LOCAL_LIST};do echo ${L};done)"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${_LOCAL_LIST};do printf "TITLE:%s\n" "$(cut -d'|' -f3 <<<${L})" ;done )"
 
 	[[ ${_SMCUP} == 'false' ]] && do_smcup
@@ -1017,7 +1040,7 @@ usage () {
 	echo -e "${WHITE_FG}-V${RESET} yt-search version (${MAGENTA_FG}YouTube only${RESET})"
 	echo -e "${WHITE_FG}-l${RESET} search for livestreams (${MAGENTA_FG}Rumble only${RESET})"
 	echo -e "${WHITE_FG}-a${RESET} $(opt_type a) (${MAGENTA_FG}YouTube only${RESET})"
-	echo -e "${WHITE_FG}-s${RESET} disable strict filter [author must match query] (${MAGENTA_FG}YouTube only${RESET})"
+	echo -e "${WHITE_FG}-s${RESET} enable strict filter [author must match query] (${MAGENTA_FG}YouTube only${RESET})"
 	echo -e "${WHITE_FG}-u${RESET} export the video URL"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2

@@ -421,7 +421,7 @@ list_quote_marked_elements () {
 }
 
 list_repaint () {
-	local -A MSG_COORDS=($(box_coords_get MSG))
+	local -A MSG_COORDS=($(box_coords_get MSG_BOX))
 	local ROWS=${1}
 	local PAGE=${2}
 	local CURSOR=0
@@ -618,7 +618,7 @@ list_select () {
 
 	# Default sort settings
 	if [[ ${_LIST_SORT_COL_DEFAULT} -ne 0 ]];then
-		_SORT_DIRECTION[${_LIST_SORT_COL_DEFAULT}]=a
+		_SORT_DIRECTION[${_LIST_SORT_COL_DEFAULT}]=d
 		list_sort ${_LIST_SORT_COL_DEFAULT}
 	fi
 	 
@@ -1163,8 +1163,6 @@ list_sort () {
 	list_sort_set_direction ${SORT_COL}
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort direction set:${_SORT_DIRECTION[${SORT_COL}]}"
 
-	#_LIST=("${(f)$(list_sort_flat ${_LIST_DELIM} ${SORT_COL} ${_SORT_DIRECTION[${SORT_COL}]} _LIST)}") # Forward sort default
-	
 	_LIST=("${(f)$(list_sort_flat _LIST ${SORT_COL} ${_SORT_DIRECTION[${SORT_COL}]} ${_LIST_DELIM})}") # Forward sort default
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: list SORTED:${_LIST[1]}"
@@ -1235,6 +1233,7 @@ list_sort_flat () {
 	local -A _CAL_SORT=(year G7 month F6 week E5 day D4 hour C3 minute B2 second A1)
 	local -a ARR_SORTED=()
 	local SORT_KEY=''
+	local LEAD_COL=''
 	local L
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
@@ -1242,8 +1241,10 @@ list_sort_flat () {
 	for L in ${(P)ARR_NAME};do
 		if [[ -n ${_SORT_COLS} ]];then
 			SORT_KEY=$(cut -d "${DELIM}" -f ${_SORT_COLS[${SORT_COL}]} <<<${L}) # Mapped order
+			#LEAD_COL=$(cut -d "${DELIM}" -f ${_SORT_COLS[1]} <<<${L}) # Mapped order
 		else
 			SORT_KEY=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L}) # Natural order
+			#LEAD_COL=$(cut -d "${DELIM}" -f1  <<<${L}) # Natural order
 		fi
 		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_COL:${SORT_COL} SORT_KEY:${SORT_KEY}"
 
@@ -1262,6 +1263,7 @@ list_sort_flat () {
 		[[ ${SORT_KEY} =~ ':' ]] && ARR_SORTED+="B999${DELIM}${L}" && continue
 		[[ ${SORT_KEY} =~ '-' ]] && ARR_SORTED+="A888${DELIM}${L}" && continue
 
+		#ARR_SORTED+="${SORT_KEY}${LEAD_COL}${DELIM}${L}"
 		ARR_SORTED+="${SORT_KEY}${DELIM}${L}"
 	done
 
