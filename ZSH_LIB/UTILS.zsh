@@ -21,6 +21,7 @@ is_tag () {
 }
 
 instance_set () {
+	#TODO: check the mangling
 	local TAG=${1}
 	local INST=0
 
@@ -35,6 +36,7 @@ instance_set () {
 }
 
 instance_unset () {
+	#TODO: check the mangling
 	local TAG=${1}
 	local INST=0
 
@@ -217,12 +219,22 @@ box_coords_relative () {
 	local -A OFFSETS=(${@})
 	local -A BASE_COORDS=()
 
+	# OFFSETS are in the form [+-]INT or INT
+
 	BASE_COORDS=($(box_coords_get ${BASE_TAG}))
 
-	[[ -n ${OFFSETS[X]} ]] && BASE_COORDS[X]=${OFFSETS[X]}
-	[[ -n ${OFFSETS[Y]} ]] && BASE_COORDS[Y]=${OFFSETS[Y]}
-	[[ -n ${OFFSETS[W]} ]] && BASE_COORDS[W]=${OFFSETS[W]}
-	[[ -n ${OFFSETS[H]} ]] && BASE_COORDS[H]=${OFFSETS[H]}
+	if [[ -n ${OFFSETS[X]} ]];then
+		[[ ${OFFSETS[X]} =~ '[+-]' ]] && BASE_COORDS[X]=$(( ${BASE_COORDS[X]}${OFFSETS[X]} )) || BASE_COORDS[X]=${OFFSETS[X]}
+	fi
+	if [[ -n ${OFFSETS[Y]} ]];then
+		[[ ${OFFSETS[Y]} =~ '[+-]' ]] && BASE_COORDS[Y]=$(( ${BASE_COORDS[Y]}${OFFSETS[Y]} )) || BASE_COORDS[Y]=${OFFSETS[Y]}
+	fi
+	if [[ -n ${OFFSETS[W]} ]];then
+		[[ ${OFFSETS[W]} =~ '[+-]' ]] && BASE_COORDS[W]=$(( ${BASE_COORDS[W]}${OFFSETS[W]} )) || BASE_COORDS[W]=${OFFSETS[W]}
+	fi
+	if [[ -n ${OFFSETS[H]} ]];then
+		[[ ${OFFSETS[H]} =~ '[+-]' ]] && BASE_COORDS[H]=$(( ${BASE_COORDS[H]}${OFFSETS[H]} )) || BASE_COORDS[H]=${OFFSETS[H]}
+	fi
 
 	echo ${(kv)BASE_COORDS}
 }
@@ -357,8 +369,6 @@ get_keys () {
 	local -a NUM
 	local K1 K2 K3 KEY
 
-	#TODO: only slow keyboard rate while cursor is being moved - not while idle
-		
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	PROMPT=${@}

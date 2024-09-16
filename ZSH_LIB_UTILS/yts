@@ -21,7 +21,7 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -A _COORDS=(X 10 Y 38 H 10 W 86)
+typeset -A _COORDS=(X 10 Y 33 H 10 W 86)
 typeset -A _DOWNLOADS=()
 typeset -A _FAILED=()
 typeset -A _FAVORITE_ENGINE=()
@@ -54,7 +54,7 @@ _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
 _OBJECT=video
 _PAUSE=2
-_SORT_DEFAULT=(youtube 2 rumble 1)
+_SORT_DEFAULT=(youtube 1 rumble 1)
 _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
@@ -161,6 +161,7 @@ action_do () {
 				start_job ${URL}
 				HAD_ERROR=false
 				ERROR_CNT=0
+				_DEBUG=0
 			fi
 
 			# Ensure log activity
@@ -281,12 +282,13 @@ action_do () {
 								_DOWNLOADS[${M}]=false
 								break 2 # Exit scan
 								;;
-								*) msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+								*) msg_box -T ALERT -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 									echo "$(get_field author ${M}) - Error:"${LOG_LINE} >> ${_ERROR_LOG}
 									_DEBUG=${_YTS_DBG}
 								;;
 							esac
 						else
+							_DEBUG=0
 							HAD_ERROR=false
 							ERROR_CNT=0
 						fi # Error seen
@@ -705,7 +707,8 @@ rumble () {
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
 		[[ ${g_LIVE} == 'true' ]] && MSG="Searching livestreams..." || MSG="Searching videos..."
-		msg_box -R INNER_BOX -c ${MSG}
+		_REL_COORDS=($(box_coords_relative INNER_BOX X +8 W +26 Y -12 H 3))
+		msg_box -T SEARCH -R -c ${MSG}
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams" 2>/dev/null)
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 

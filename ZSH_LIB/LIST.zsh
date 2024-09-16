@@ -12,7 +12,7 @@ typeset -a _MARKED=()
 typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
 typeset -A _SORT_TABLE=() # Sort assoc array names
 typeset -A _SORT_COLS=() # Sort column mapping
-typeset -A _SORT_DIRECTION=() # Status of list sort direction
+typeset -A _SORT_DIRECTION=() # Current list sort direction
 typeset -a _TARGETS=() # Target indexes
 
 # LIB Vars
@@ -622,7 +622,7 @@ list_select () {
 		list_sort ${_LIST_SORT_COL_DEFAULT}
 	fi
 	 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _LIST:${#_LIST}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _LIST COUNT:${#_LIST}"
 
 	[[ -z ${_LIST_TYPE} ]] && _LIST_TYPE='classic'
 	
@@ -1136,7 +1136,7 @@ list_sort () {
 	local SORT_COL=${1}
 	local FIELD_MAX
 	
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	if ! list_verify_sort_params;then
 		return 1
@@ -1158,14 +1158,10 @@ list_sort () {
 		return 1
 	fi
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: COLUMN to sort:${SORT_COL}"
-
 	list_sort_set_direction ${SORT_COL}
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort direction set:${_SORT_DIRECTION[${SORT_COL}]}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} COLUMN:${SORT_COL} DIRECTION:${_SORT_DIRECTION[${SORT_COL}]}"
 
-	_LIST=("${(f)$(list_sort_flat _LIST ${SORT_COL} ${_SORT_DIRECTION[${SORT_COL}]} ${_LIST_DELIM})}") # Forward sort default
-
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: list SORTED:${_LIST[1]}"
+	_LIST=("${(f)$(list_sort_flat _LIST ${SORT_COL} ${_SORT_DIRECTION[${SORT_COL}]} ${_LIST_DELIM})}") # Sort
 }
 
 list_sort_assoc () {
@@ -1206,7 +1202,7 @@ list_sort_assoc () {
 	[[ ${#${(P)ARRAY}} -eq 0 ]] && msg_box -p -PK "_SORT_TABLE ${(P)ARRAY} has no rows" && return 1 # Bounce
 
 	list_sort_set_direction ${SORT_COL}
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort direction set:${_SORT_DIRECTION[${SORT_COL}]}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort direction:${_SORT_DIRECTION[${SORT_COL}]}"
 
 	if [[ ${_SORT_DIRECTION[${SORT_COL}]} == "a" ]];then
 		_LIST=("${(f)$(
@@ -1233,7 +1229,6 @@ list_sort_flat () {
 	local -A _CAL_SORT=(year G7 month F6 week E5 day D4 hour C3 minute B2 second A1)
 	local -a ARR_SORTED=()
 	local SORT_KEY=''
-	local LEAD_COL=''
 	local L
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
@@ -1241,10 +1236,8 @@ list_sort_flat () {
 	for L in ${(P)ARR_NAME};do
 		if [[ -n ${_SORT_COLS} ]];then
 			SORT_KEY=$(cut -d "${DELIM}" -f ${_SORT_COLS[${SORT_COL}]} <<<${L}) # Mapped order
-			#LEAD_COL=$(cut -d "${DELIM}" -f ${_SORT_COLS[1]} <<<${L}) # Mapped order
 		else
 			SORT_KEY=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L}) # Natural order
-			#LEAD_COL=$(cut -d "${DELIM}" -f1  <<<${L}) # Natural order
 		fi
 		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_COL:${SORT_COL} SORT_KEY:${SORT_KEY}"
 
@@ -1263,7 +1256,6 @@ list_sort_flat () {
 		[[ ${SORT_KEY} =~ ':' ]] && ARR_SORTED+="B999${DELIM}${L}" && continue
 		[[ ${SORT_KEY} =~ '-' ]] && ARR_SORTED+="A888${DELIM}${L}" && continue
 
-		#ARR_SORTED+="${SORT_KEY}${LEAD_COL}${DELIM}${L}"
 		ARR_SORTED+="${SORT_KEY}${DELIM}${L}"
 	done
 
@@ -1281,27 +1273,18 @@ list_sort_flat () {
 }
 
 list_sort_set_direction () {
-	local SORT_COL=${1}
-
-	[[ -z ${SORT_COL} ]] && SORT_COL=1
+	local SORT_COL=${1:=1}
+	local -A DIR_TOGGLE=(a d d a)
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGS:SORT_COL:${SORT_COL}"
 
-	if [[ -z ${_SORT_DIRECTION[${SORT_COL}]} ]];then
-		_SORT_DIRECTION[${SORT_COL}]=a
-		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Returning:${_SORT_DIRECTION[${SORT_COL}]}" # Initialize if needed
-		return
-	fi
+	[[ -z ${_SORT_DIRECTION[${SORT_COL}]} ]] && _SORT_DIRECTION[${SORT_COL}]=a && return
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Incoming sort direction:${_SORT_DIRECTION[${SORT_COL}]}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Received:${_SORT_DIRECTION[${SORT_COL}]}"
 
-	if [[ ${_SORT_DIRECTION[${SORT_COL}]} == "a" ]];then
-		_SORT_DIRECTION[${SORT_COL}]=d
-	else
-		_SORT_DIRECTION[${SORT_COL}]=a
-	fi
+	_SORT_DIRECTION[${SORT_COL}]=${DIR_TOGGLE[${_SORT_DIRECTION[${SORT_COL}]}]}
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Returning:${_SORT_DIRECTION[${SORT_COL}]}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Toggled:${_SORT_DIRECTION[${SORT_COL}]}"
 }
 
 list_toggle_all () {

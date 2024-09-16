@@ -74,6 +74,7 @@ inode_ndx () {
 		P=$(realpath ${P})
 		FN=$(cut -d '|' -f2 <<<${L:t})
 		FN="${P}/${FN}"
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} \n${WHITE_FG}L${RESET}:${L} \n${WHITE_FG}INODE${RESET}:${INODE} \n${WHITE_FG}P${RESET}:${P} \n${WHITE_FG}FN${RESET}:${FN} \n${NDX_FN}[${INODE}]=${(qqq)FN}"
 		eval "${NDX_FN}[${INODE}]=${(qqq)FN}"
 	done
 }
@@ -195,13 +196,19 @@ do_finalize () {
 
 	for K in ${(k)_OUT_LIST};do
 		# Avoid any downstream file errors
-		if [[ $(realpath ${_IN_LIST[${K}]}) == $(realpath ${_OUT_LIST[${K}]}) ]];then
-			MSG="${MAGENTA_FG}Warning${RESET}:candidate filename:\n[${WHITE_FG}${_OUT_LIST[${K}]}${RESET}]\nwould be ${ITALIC}${BOLD}identical${RESET} to original - ${MAGENTA_FG}omitted${RESET}"
-			echo ${MSG} >&2
-			[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} ${MSG}"
+		if [[ -n ${_IN_LIST[${K}]} ]];then
+			[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} K:${K} _IN_LIST[K]: ${_IN_LIST[${K}]}"
+			if [[ $(realpath ${_IN_LIST[${K}]}) == $(realpath ${_OUT_LIST[${K}]}) ]];then
+				MSG="${MAGENTA_FG}Warning${RESET}:candidate filename:\n[${WHITE_FG}${_OUT_LIST[${K}]}${RESET}]\nwould be ${ITALIC}${BOLD}identical${RESET} to original - ${MAGENTA_FG}omitted${RESET}"
+				echo ${MSG} >&2
+				[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} ${MSG}"
+				continue
+			fi
+			[[ ${_OUT_LIST[${K}]:t} == '.' || -z ${_OUT_LIST[${K}]} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
+		else
+			exit_leave $(msg_err "Failed to resolve:_IN_LIST[K], K=${K}, _IN_LIST COUNT:${#_IN_LIST}")
 			continue
 		fi
-		[[ ${_OUT_LIST[${K}]:t} == '.' || -z ${_OUT_LIST[${K}]} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
 
 		# Final array for output
 		grep -q "${DELIM}" <<<${_IN_LIST[${K}]}
@@ -690,10 +697,10 @@ do_yt_tag () {
 		CPATH=${_CHAIN_LIST[${C}]:h}
 		[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 
-		grep -q '\-\[.*\]' <<<${CANDIDATE}
+		grep -q '\-\[.*' <<<${CANDIDATE}
 		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 
-		CFN=$(perl -p -e 's/[ -]?\[.*\] ?//g' <<<${CANDIDATE} | perl -p -e 's/_/ /g' | perl -p -e 's/\.//g')
+		CFN=$(perl -pe 's/-\[.*//' <<<${CANDIDATE} | perl -pe 's/_/ /g';'s/\.//g')
 
 		_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
 	done
