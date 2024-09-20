@@ -20,10 +20,21 @@ is_tag () {
 	return 1
 }
 
+get_tag_root () {
+	local TAG=${1}
+
+	if [[ ${TAG} =~ "_[0-9]*$" ]];then
+		echo ${TAG} | rev | cut -d'_' -f2- | rev
+	else
+		echo ${TAG}
+	fi
+}
+
 instance_set () {
-	#TODO: check the mangling
 	local TAG=${1}
 	local INST=0
+	local TAG_ROOT=$(get_tag_root ${TAG})
+
 
 	if is_tag ${TAG};then
 		INST=${_TAG_INSTANCE[${TAG}]}
@@ -32,20 +43,20 @@ instance_set () {
 		_TAG_INSTANCE[${TAG}]=1
 	fi
 
-	echo ${TAG}_${_TAG_INSTANCE[${TAG}]}
+	echo ${TAG_ROOT}_${_TAG_INSTANCE[${TAG}]}
 }
 
 instance_unset () {
-	#TODO: check the mangling
 	local TAG=${1}
 	local INST=0
+	local TAG_ROOT=$(get_tag_root ${TAG})
 
 	if is_tag ${TAG};then
 		INST=${_TAG_INSTANCE[${TAG}]}
 		[[ ${INST} -gt 1 ]] && _TAG_INSTANCE[${TAG}]=$((--INST))
 	fi
 
-	echo ${TAG}_${_TAG_INSTANCE[${TAG}]}
+	echo ${TAG_ROOT}_${_TAG_INSTANCE[${TAG}]}
 }
 
 arg_parse () {

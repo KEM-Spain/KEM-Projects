@@ -393,6 +393,7 @@ fav_decode () {
 		_FAV_DECODE[Dialogue_Works]="dialogueworks"
 		_FAV_DECODE[Due_Dissidence]="duedissidence"
 		_FAV_DECODE[George_Galloway]="GeorgeGallowayOfficial"
+		_FAV_DECODE[HIOW_George_Galloway]="haveitoutwithgalloway"
 		_FAV_DECODE[Glenn_Greenwald]="GGreenwald"
 		_FAV_DECODE[Glenn_Diesen]="glenndiesen"
 		_FAV_DECODE[Going_UnderGround]="goingunderground"
@@ -694,6 +695,9 @@ rumble () {
 	local KEY=''
 	local STR=''
 	local DECODE=''
+	local -A LAST_MSG=($(box_coords_get MSG_BOX_1))
+	local REL_W=$(( ${LAST_MSG[W]} +4 ))
+	local REL_Y=$(coord_center $(( _MAX_COLS + 3 )) ${REL_W})
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -707,13 +711,13 @@ rumble () {
 		[[ ${_FAVORITE_ENGINE[${SEARCHTERM}]:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
 		[[ ${g_LIVE} == 'true' ]] && MSG="Searching livestreams..." || MSG="Searching videos..."
-		_REL_COORDS=($(box_coords_relative INNER_BOX X +8 W +26 Y -12 H 3))
+		_REL_COORDS=($(box_coords_relative INNER_BOX X +8 W ${REL_W} Y ${REL_Y} H 3))
 		msg_box -T SEARCH -R -c ${MSG}
 		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams" 2>/dev/null)
 		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
 
 		if [[ ${PG:l} =~ "no videos found" ]];then
-			msg_box -c "<r>Livestream search failed<N> for ${SEARCHTERM}|Falling back to defaults..." 
+			msg_box -T SEARCH -R -c "<r>Livestream search failed<N> for ${SEARCHTERM}|Falling back to defaults..." 
 			PG=$(wget -q -O - "http://rumble.com/c/${SEARCHTERM}?page=1")
 		fi
 

@@ -190,7 +190,7 @@ do_finalize () {
 	local I_TAG=''
 	local RESPONSE=''
 
-	[[ ${_PIPED} == "true" ]] && echo ${_OUT_LIST} && exit_leave # Client sneding piped input receives result
+	[[ ${_PIPED} == "true" ]] && echo ${_OUT_LIST} && exit_leave # Client sending piped input receives result
 
 	LONGEST=0
 
@@ -680,6 +680,8 @@ do_prepend () {
 		[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 		_OUT_LIST[${C}]="${CPATH}/${TAG}${CANDIDATE}${CEXT}"
 	done
+
+	[[ -n ${_OUT_LIST} ]] && return 0 || return 1
 }
 
 do_yt_tag () {
@@ -694,16 +696,18 @@ do_yt_tag () {
 
 	for C in ${(k)_CHAIN_LIST};do
 		CANDIDATE=${_CHAIN_LIST[${C}]:t:r} # Exclude the extension
-		CPATH=${_CHAIN_LIST[${C}]:h}
+		CPATH=$(realpath ${_CHAIN_LIST[${C}]:h})
 		[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 
-		grep -q '\-\[.*' <<<${CANDIDATE}
+		grep -Pq '\-?\[.*' <<<${CANDIDATE}
 		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 
-		CFN=$(perl -pe 's/-\[.*//' <<<${CANDIDATE} | perl -pe 's/_/ /g';'s/\.//g')
+		CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*//' | perl -pe 's/_/ /g; s/\.//g')
 
 		_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
 	done
+
+	[[ -n ${_OUT_LIST} ]] && return 0 || return 1
 }
 
 save_changes () {
@@ -886,10 +890,10 @@ if [[ ! -t 0 ]];then
 	_PIPED=true
 	if [[ ${SERVICE_MODE} == 'false' ]];then
 		while read PIPE;do
-			_PIPELINE+=$(tut strip_ansi <<<${PIPE})
+			_PIPELINE+=$(echo ${PIPE} | tut strip_ansi)
 		done
 	else
-		echo "${0:t}:SERVICE_MODE - reading pipes not allowed"
+		echo "${0:t}:SERVICE_MODE - piped input not allowed"
 	fi
 fi
 
@@ -930,6 +934,7 @@ fi
 # No options
 SEARCH_REPLACE=false
 _FIND_PATH=null
+
 [[ ${_ARG_LIST[1]} == 'file_dir' ]] && _FIND_PATH=${1}
 [[ ${_ARG_LIST[2]} == 'file_dir' ]] && _FIND_PATH=${2}
 [[ ${_ARG_LIST[3]} == 'file_dir' ]] && _FIND_PATH=${3}

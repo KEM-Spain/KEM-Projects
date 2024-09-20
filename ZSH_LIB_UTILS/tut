@@ -63,7 +63,7 @@ ___EOF
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 		(
-		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] [<FILE|PIPE>]\n"
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [-H] [<FILE|<PIPE>]\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
@@ -101,7 +101,7 @@ ___EOF
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 		(
-		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|PIPE>]]\n"
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|<PIPE>]]\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
@@ -138,7 +138,7 @@ ___EOF
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 		(
-		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|PIPE>]\n"
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|<PIPE>]\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
@@ -160,12 +160,13 @@ ___EOF
 }
 
 strip_ansi () {
+	local TEXT=${1:=null}
 	local DESC
 	local LINE
 	local FN
 
 	read -r -d '' DESC<<___EOF
-Strip ansi escape sequences from <FILE> or <PIPE>
+Strip ansi escape sequences from <ARG>, <FILE>, or <PIPE>
 ___EOF
 
 	usage () {
@@ -175,7 +176,7 @@ ___EOF
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 		(
-		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|PIPE>]\n"
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<ARG>|<FILE|<PIPE>]\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 
@@ -185,14 +186,18 @@ ___EOF
 
 	# Execution
 	[[ ${1} == '-H' ]] && usage
+	[[ -e ${TEXT} ]] && FN=${TEXT} && TEXT=null
 
-	if [[ ! -t 0 ]];then
+	if [[ ${TEXT} != 'null' ]];then
+		echo ${TEXT} | perl -pe 's/(\e|\\C-\[)\[+[\d;]*[mK]//g' 
+	elif [[ ! -t 0 ]];then
 		while read LINE;do
 			echo ${LINE} | perl -pe 's/(\e|\\C-\[)\[+[\d;]*[mK]//g'
 		done
+	elif [[ -e ${FN} ]];then
+		perl -pne 's/(\e|\\C-\[)\[+[\d;]*[mK]//g' <${FN}
 	else
-		[[ ${#} -ne 0 ]] && FN=${1} || usage "missing required argument or piped input"
-		perl -pe 's/(\e|\\C-\[)\[+[\d;]*[mK]//g' <${FN}
+		[[ ${#} -ne 0 ]] && FN=${1} || usage "missing required argument, piped input, or valid file name"
 	fi
 }
 
@@ -211,7 +216,7 @@ ___EOF
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 		(
-		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|PIPE>]\n"
+		echo "${WHITE_FG}\nUsage${RESET}:${_WRAPPER} ${_SCRIPT} [<FILE|<PIPE>]\n"
 		echo "${WHITE_FG}Desc${RESET}:${DESC}"
 		) >&2
 

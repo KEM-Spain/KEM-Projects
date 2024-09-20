@@ -225,7 +225,7 @@ sel_list () {
 	fi
 
 	# Save box coords
-	box_coords_set MSG X ${SX} Y ${SY} W ${SW} H ${SH}
+	box_coords_set MSG_BOX X ${SX} Y ${SY} W ${SW} H ${SH}
 
 	# Initialize
 	_SEL_LIST_TEXT=()
@@ -304,6 +304,9 @@ sel_list () {
 		LIST_BOT=$(( LIST_NDX - 1 ))
 		[[ ${ROWS_OUT} -lt ${MAX_BOX} ]] && BOX_BOT=$(( BOX_ROW-1 )) || BOX_BOT=$(( BOX_X + MAX_BOX - 1 ))
 
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG}LIST_TOP${RESET}:${LIST_TOP} ${WHITE_FG}LIST_BOT${RESET}:${LIST_BOT}"
+		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG} BOX_TOP${RESET}:${BOX_TOP} ${WHITE_FG} BOX_BOT${RESET}:${BOX_BOT}"
+
 		# Initialize list cursors; maintain state if exit request aborted
 		if [[ ${EXIT_REQ} == 'true' ]];then
 			EXIT_REQ=false
@@ -320,11 +323,18 @@ sel_list () {
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _RESTORE_POS:${_RESTORE_POS}"
 
 		if [[ ${CLIENT_POS_REQUEST} == 'true' && ${_RESTORE_POS} == 'true' ]];then # Restore position if allowed
-			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restoring position:INIT_X:${INIT_X} INIT_Y:${INIT_Y} INIT_CSR:${INIT_CSR}"
-			# sel_list_norm ${BOX_X} ${BOX_Y} ${_SEL_LIST[1]} # First item reset
-			sel_list_hilite ${INIT_X} ${INIT_Y} ${_SEL_LIST[${INIT_CSR}]} # Hilite client position
-			CURSOR_NDX=${INIT_CSR}
-			CURSOR_ROW=${INIT_X}
+			if [[ ${INIT_CSR} -eq ${LIST_TOP} ]];then
+				CURSOR_NDX=${LIST_TOP} && CURSOR_ROW=${BOX_TOP}
+				sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
+			elif [[ ${INIT_CSR} -eq ${LIST_BOT} ]];then
+				CURSOR_NDX=${LIST_BOT} && CURSOR_ROW=${BOX_BOT}
+				sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
+			else
+				sel_list_hilite ${INIT_X} ${INIT_Y} ${_SEL_LIST[${INIT_CSR}]} # Hilite client position
+				CURSOR_NDX=${INIT_CSR}
+				CURSOR_ROW=${INIT_X}
+			fi
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restored position:${WHITE_FG}CURSOR_NDX${RESET}:${CURSOR_NDX} ${WHITE_FG}CURSOR_ROW${RESET}:${CURSOR_ROW}"
 		fi
 
 		# Get keypress and navigate
