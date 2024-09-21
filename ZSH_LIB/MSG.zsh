@@ -12,6 +12,7 @@ _PROC_MSG=false
 _MSG_BOX_TAG=MSG_BOX
 _PROC_BOX_TAG=PROC_BOX
 _CONT_BOX_TAG=CONT_BOX
+_DELIM='|'
 
 # Functions
 msg_box () {
@@ -36,7 +37,6 @@ msg_box () {
 	local BODY_MAX=0
 	local BOX_X_COORD=0
 	local BOX_Y_COORD=0
-	local DELIM='|'
 	local DELIM_COUNT=0
 	local DTL_NDX=0
 	local FTRS_MAX=0
@@ -161,14 +161,14 @@ msg_box () {
 	fi
 
 	# Get message delimiter
-	[[ ${DELIM_ARG} != 'false' ]] && DELIM=${DELIM_ARG} # Assign delimiter
+	[[ ${DELIM_ARG} != 'false' ]] && _DELIM=${DELIM_ARG} # Assign delimiter
 	[[ ${#DELIM} -gt 1 ]] && exit_leave $(msg_err "${functrace[1]} called ${0}:${LINENO}: Invalid delimiter:${DELIM}")
 
 	# Flash progress msg if requested
 	[[ ${_PROC_MSG} == 'true' ]] && msg_proc
 
-	MSGS=("${(f)$(msg_box_parse ${MSG} ${MAX_LINE_WIDTH} ${DELIM})}")
-	[[ -n ${MSG_FTRS} ]] && MSG_FTRS=("${(f)$(msg_box_parse ${MSG_FTRS} ${MAX_LINE_WIDTH} ${DELIM})}")
+	MSGS=("${(f)$(msg_box_parse ${MAX_LINE_WIDTH} ${MSG})}")
+	[[ -n ${MSG_FTRS} ]] && MSG_FTRS=("${(f)$(msg_box_parse ${MAX_LINE_WIDTH} ${MSG_FTRS})}")
 
 	# Separate headers and footers from body
 	if [[ ${HDR_LINES} -ne 0 ]];then
@@ -470,35 +470,36 @@ msg_box_ebox_coords () {
 }
 
 msg_box_parse () {
-	local -a MSG=(${1})
-	local MAX_WIDTH=${2}
-	local DELIM=${3:=|}
+	local MAX_WIDTH=${1};shift
+	local MSGS_IN=${@}
+
+	local -a MSGS_OUT=()
 	local DELIM_COUNT=0
-	local -a MSGS=()
-	local K L T X
+	local MSG=''
+	local K L T 
 
-	MSG=$(tr -d "\n" <<<${MSG}) # Convert to string - setup for cut
-	MSG=$(sed -E "s/[\\\][${DELIM}]/_DELIM_/g" <<<${MSG}) # Skip any escaped delimiters
+	MSGS_IN=$(tr -d "\n" <<<${MSGS_IN}) # Convert to string - setup for cut
+	MSGS_IN=$(sed -E "s/[\\\][${_DELIM}]/_DELIM_/g" <<<${MSGS_IN}) # Skip any escaped delimiters
 
-	DELIM_COUNT=$(grep --color=never -o "[${DELIM}]" <<<${MSG} | wc -l) # Slice MSG into fields and count
+	DELIM_COUNT=$(grep --color=never -o "[${_DELIM}]" <<<${MSGS_IN} | wc -l) # Slice MSG into fields and count
 
 	# Extract item by delim and fold any lines that exceed display
 	for (( X=1; X <= $((${DELIM_COUNT}+1 )); X++ ));do
-		M=$(cut -d"${DELIM}" -f${X} <<<${MSG})
-	 	M=$(sed "s/_DELIM_/${DELIM}/g" <<<${M}) # Restore escaped delimiters
-		L=$(tr -d '[:space:]' <<<${M})
+		[[ ${DELIM_COUNT} -ne 0 ]] && MSG=$(cut -d"${_DELIM}" -f${X} <<<${MSGS_IN}) || MSG=${MSGS_IN}
+	 	MSG=$(sed "s/_DELIM_/${_DELIM}/g" <<<${MSG}) # Restore escaped delimiters
+		L=$(tr -d '[:space:]' <<<${MSG})
 		[[ -z ${L} ]] && continue
-		if [[ ${#M} -gt ${MAX_WIDTH} ]];then
-			MSG_FOLD=("${(f)$(fold -s -w${MAX_WIDTH} <<<${M})}")
+		if [[ ${#MSG} -gt ${MAX_WIDTH} ]];then
+			MSG_FOLD=("${(f)$(fold -s -w${MAX_WIDTH} <<<${MSG})}")
 			for T in ${MSG_FOLD};do
-				MSGS+=$(str_trim ${T})
+				MSGS_OUT+=$(str_trim ${T})
 			done
 		else
-			MSGS+=${M}
+			MSGS_OUT+=${MSG}
 		fi
 	done
 
-	for M in ${MSGS};do
+	for M in ${MSGS_OUT};do
 		echo ${M}
 	done
 }
