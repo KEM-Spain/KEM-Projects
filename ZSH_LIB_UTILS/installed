@@ -173,7 +173,7 @@ shift $((OPTIND -1))
 # End getopts
 
 # Execution
-#[[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
 SEARCHTERM=${1}
 
@@ -205,9 +205,7 @@ fi
 
 [[ ${AWHY} == "false" ]] && _INFO_MSG+="|Dependency info is:<B><I>OFF<N>" || _INFO_MSG+="|Dependency info is:<B><I>ON<N>"
 
-set -xv
 msg_box -t 1.5 ${_INFO_MSG}
-set +xv;read
 
 tput cup 0 0
 echo "Installed package query results\tFound:${WHITE_FG}${#_PKG_KEYS}${RESET} packages\n"
