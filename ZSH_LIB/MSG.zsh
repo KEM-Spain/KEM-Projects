@@ -4,7 +4,6 @@ _DEPS_+="ARRAY.zsh DBG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 # LIB Declarations
 typeset -a _CONT_BUFFER=()
 typeset -A _CONT_DATA=(BOX false COLS 0 HDRS 0 MAX 0 OUT 0 SCR 0 TOP 0 Y 0 W 0)
-typeset -a _MSG_TEXT=()
 
 # LIB Vars
 _MSG_KEY=''
@@ -386,7 +385,6 @@ msg_box () {
 				tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 				tput ech ${MSG_COLS} # Clear line
 				echo -n "${MSG_OUT}"
-				_MSG_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
 				[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG}HEADER SCR_NDX${RESET}:${SCR_NDX}"
 			done
 		fi
@@ -403,7 +401,6 @@ msg_box () {
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
 			echo -n "${MSG_OUT}"
-			_MSG_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
 
 			#[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && echo -n "${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
 
@@ -444,7 +441,6 @@ msg_box () {
 			tput cup ${SCR_NDX} ${MSG_Y_COORD} # Place cursor
 			tput ech ${MSG_COLS} # Clear line
 			echo -n "${MSG_OUT}"
-			_MSG_TEXT+="${TAG}|${SCR_NDX}|${MSG_Y_COORD}|${MSG_OUT}|"
 			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG}FTRS SCR_NDX${RESET}:${SCR_NDX}"
 		done
 
@@ -630,26 +626,6 @@ msg_calc_gap () {
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: GAP:${GAP}"
 
 	echo ${GAP}
-}
-
-msg_get_text () {
-	local TAG=${1}
-	local -a TEXT
-	local K
-	local MT
-	local MX
-	local MY
-	local MM
-
-	for K in ${_MSG_TEXT};do
-		MT=$(cut -d'|' -f1 <<<${K})
-		MX=$(cut -d'|' -f2 <<<${K})
-		MY=$(cut -d'|' -f3 <<<${K})
-		MM=$(cut -d'|' -f4 <<<${K})
-		if [[ ${MT} == ${TAG} ]];then
-			echo "${MM}"
-		fi
-	done
 }
 
 msg_list () {
