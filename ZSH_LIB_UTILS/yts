@@ -651,6 +651,7 @@ post_process () {
 
 	{
 		for D in ${_DOWNLOAD_DIR}/*;do
+			echo "${0}: ${D}" >>${g_YTS_LOG}
 			[[ ${D:e} == 'part' ]] && continue
 			grep -q '_s_' <<<${D}
 			[[ ${?} -eq 0 ]] && fsub -y '_s_' '\x27s_' ${D} # Apostrophes

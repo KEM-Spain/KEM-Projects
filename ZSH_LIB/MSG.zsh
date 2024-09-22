@@ -734,15 +734,27 @@ msg_paging () {
 msg_proc () {
 	local BOX_W=20
 	local BOX_H=3
-	local H_CTR=$(coord_center $(( _MAX_COLS-3 )) 20) # Horiz center
-	local V_CTR=$(( _MAX_ROWS/2 - BOX_H ))
+	#local H_POS=$(coord_center $(( _MAX_COLS-3 )) 20) # Horiz center
+	#local V_POS=$(( _MAX_ROWS/2 - BOX_H ))
+	local H_POS=0
+	local V_POS=0
+	local X R C
 
-	msg_unicode_box ${V_CTR} ${H_CTR} ${BOX_W} ${BOX_H}
-	tput cup $(( V_CTR+1 )) $(( H_CTR+2 ));echo -n "${GREEN_FG}Processing...${RESET}"
+	msg_unicode_box ${V_POS} ${H_POS} ${BOX_W} ${BOX_H}
+	tput cup $(( V_POS+1 )) $(( H_POS+2 ));echo -n "${GREEN_FG}Processing...${RESET}"
 	TAG=$(instance_set ${_PROC_BOX_TAG})
-	box_coords_set ${TAG} X ${V_CTR} Y ${H_CTR} W ${BOX_W} H ${BOX_H}
+	box_coords_set ${TAG} X ${V_POS} Y ${H_POS} W ${BOX_W} H ${BOX_H}
 	_PROC_MSG=false
+
 	sleep .5
+
+	R=${V_POS}
+	C=${H_POS}
+	for (( X=${V_POS}; X<BOX_H+V_POS; X++ ));do
+		tput cup ${R} ${C} 
+		tput ech ${BOX_W}
+		((R++))
+	done
 }
 
 msg_repaint () {
