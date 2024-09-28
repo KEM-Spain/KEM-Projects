@@ -1145,7 +1145,7 @@ ______EOF
 
 			pushd ${CMD_PATH}
 
-			LIST=("${(f)$(sudo find $(pwd) -maxdepth ${FIND_DEPTH} -type f -daystart -ctime ${D})}")
+			LIST=("${(f)$(sudo find "$(pwd)" -maxdepth ${FIND_DEPTH} -type f -daystart -ctime ${D})}")
 			HDR="${#LIST} $(str_pluralize file ${#LIST}) created/${TAG}"
 
 			if [[ -n ${LIST[1]} ]];then

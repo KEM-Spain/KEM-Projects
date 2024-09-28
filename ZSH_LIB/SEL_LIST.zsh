@@ -355,6 +355,7 @@ sel_list () {
 			_RESTORE_POS=true # Restore allowed
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restore position enabled"
 
+			# TODO: Bottom DIR='B' selection corrupts list display on return
 			case ${KEY} in
 				0) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && break 2;;
 				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;

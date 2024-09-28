@@ -7,4 +7,3 @@ _arguments \
 '-D[debug]' \
 '-a[show unsupported files]' \
 '-m[process music files]' \
-'-n[no auto open]' \

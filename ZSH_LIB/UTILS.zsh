@@ -387,13 +387,14 @@ get_keys () {
 	(tput cup $((_MAX_ROWS-2)) 0;printf "${PROMPT}")>&2 # Position cursor and display prompt to STDERR
 
 
+	{
 	while read -sk1 KEY;do
 		[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
 		[[ -z ${KEY} ]] && break
 		# Slurp input buffer
-		read -sk1 -t 0.0001 K1
-		read -sk1 -t 0.0001 K2
-		read -sk1 -t 0.0001 K3
+		read -sk1 -t 0.0001 K1 >/dev/null 2>&1
+		read -sk1 -t 0.0001 K2 >/dev/null 2>&1
+		read -sk1 -t 0.0001 K3 >/dev/null 2>&1
 		KEY+=${K1}${K2}${K3}
 		[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
 
@@ -427,6 +428,7 @@ get_keys () {
 			break
 		fi
 	done
+	} 2>/dev/null
 
 	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
 }

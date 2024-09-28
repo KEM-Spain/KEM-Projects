@@ -959,7 +959,7 @@ else
 		# Convert file name to list member
 		g_LIST_METHOD="file to path"
 		inode_ndx "_IN_LIST" "${_FIND_PATH}"
-		PATHLBL=${_FIND_PATH:h}}
+		PATHLBL=${_FIND_PATH:h}
 	elif [[ ${_FIND_PATH} != 'null' ]];then
 		# Find files in path
 		g_LIST_METHOD="find in path"

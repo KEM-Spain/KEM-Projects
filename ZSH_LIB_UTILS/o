@@ -39,6 +39,8 @@ typeset -A _APP_EXE
 typeset -A _APP_TYPE
 
 # Constants
+_APP_LOG=/tmp/${_SCRIPT}.log
+
 _APP_EXE[EBOOK]="/usr/bin/python2.7 /usr/bin/ebook-viewer"
 _APP_EXE[OKULAR]=/usr/bin/okular
 _APP_EXE[MDLESS]=/usr/local/bin/mdless
@@ -79,7 +81,6 @@ action_do () {
 	local FN
 	local ARGS
 	local CMD
-	local ERRFILE=/tmp/${_SCRIPT}_app_errors
 
 
 	for M in ${_MARKED};do
@@ -95,11 +96,10 @@ action_do () {
 		fi
 
 		msg_box -t3 "Starting ${CMD}..."
-		[[ -e ${ERRFILE} ]] && rm -f ${ERRFILE}
-		eval "${CMD} 2>${ERRFILE}" &
+		eval "${CMD} 2>${_APP_LOG}" &
 
 		if [[ ${_DEBUG} -gt 0 ]];then
-			[[ -s ${ERRFILE} ]] && msg_box -p "<B><I>${0}: ${APP} returned an error<N>| |$(<${ERRFILE})| |Press any key..."
+			[[ -s ${_APP_LOG} ]] && msg_box -p "<B><I>${0}: ${APP} returned an error<N>| |$(<${_APP_LOG})| |Press any key..."
 		fi
 	done
 
@@ -304,6 +304,7 @@ shift $((OPTIND -1))
 
 #--Execution
 [[ ${_DEBUG} -eq 0 ]] && do_smcup
+[[ -e ${_APP_LOG} ]] && /bin/rm -f ${_APP_LOG} # Initialize logging
 
 # File(s) passed on command line or pipe
 typeset -a ARGS

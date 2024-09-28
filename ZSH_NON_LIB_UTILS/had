@@ -20,18 +20,16 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 ALERT="${RED_FG}Warning${RESET}"
-DESCRIPTION="setting autodock visibility to hide"
+DESCRIPTION="setting autodock visibility"
 
 [[ ${1} == "-H" ]] && echo "${WHITE_FG}Usage${RESET}:${0}\n ${WHITE_FG}Desc${RESET}:${DESCRIPTION}" && exit
 
-echo -n "\n${RED_FG}${ALERT}!${RESET} ${DESCRIPTION}${WHITE_FG}${RESET}:(${WHITE_FG}y/n${RESET})?"
-read -q RESPONSE
+echo -n "\n${RED_FG}${ALERT}!${RESET} ${DESCRIPTION}${WHITE_FG}${RESET}:${WHITE_FG}(h)ide/(s)how${RESET}?"
+read -k1 RESPONSE
 echo
-if [[ ${RESPONSE} != "n" ]];then
-	echo "${WHITE_FG}${DESCRIPTION}${RESET}"
-	gsettings set org.gnome.shell.extensions.dash-to-dock autohide false
-	gsettings set org.gnome.shell.extensions.dash-to-dock autohide true
-else
-	echo "${WHITE_FG}${0}${RESET}:${RED_FG}Operation cancelled${RESET}..."
-	exit
-fi
+case ${RESPONSE} in
+	h) gsettings set org.gnome.shell.extensions.dash-to-dock autohide true;;
+	s) gsettings set org.gnome.shell.extensions.dash-to-dock autohide false;;
+	*) echo "${WHITE_FG}${0}${RESET}:${RED_FG}Operation cancelled${RESET}..."
+esac
+
