@@ -253,12 +253,14 @@ sel_list () {
 		fi
 	done
 
+	# Save box coords
+	box_coords_set INNER_BOX X ${BOX_X_COORD} Y ${CENTER_Y} W ${BOX_WIDTH} H ${BOX_HEIGHT}
+
 	# Display list
 	while true;do
 		BOX_ROW=${BOX_X}
 		BOX_NDX=1
 		msg_unicode_box ${BOX_X_COORD} ${CENTER_Y} ${BOX_WIDTH} ${BOX_HEIGHT} ${INNER_BOX_COLOR} # Display INNER box for list
-		box_coords_set INNER_BOX X ${BOX_X_COORD} Y ${CENTER_Y} W ${BOX_WIDTH} H ${BOX_HEIGHT}
 
 	 # Set column widths for lists having categories
 		if [[ ${_SL_CATEGORY} == 'true' ]];then
@@ -348,14 +350,13 @@ sel_list () {
 				_SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]}
 				_RESTORE_POS=false # Possible list change - restore disallowed
 				_SEL_X=0 && _SEL_Y=0 && _SEL_NDX=0
-				[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restore position disabled -menu coords cleared"
+				[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${CYAN_FG}RESTORE POSITION DISABLED - MENU COORDS CLEARED${RESET}"
 				break 2 # Pre-defined action key was pressed
 			fi
 
 			_RESTORE_POS=true # Restore allowed
-			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restore position enabled"
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${CYAN_FG}RESTORE POSITION ENABLED${RESET}"
 
-			# TODO: Bottom DIR='B' selection corrupts list display on return
 			case ${KEY} in
 				0) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && break 2;;
 				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
@@ -369,8 +370,10 @@ sel_list () {
 			esac
 
 			# Ensure sane index boundaries
+			[[ ${MAX_NDX} -eq 1 && ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}MAX_NDX = 1 - BREAKING${RESET}"
 			[[ ${MAX_NDX} -eq 1 ]] && break 
 
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}PRE${RESET} BOUNDARY CHECK - CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
 			if [[ ${CURSOR_NDX} -lt ${LIST_TOP} ]];then
 				CURSOR_NDX=${LIST_BOT}
 				CURSOR_ROW=${BOX_BOT}
@@ -378,8 +381,10 @@ sel_list () {
 				CURSOR_NDX=${LIST_TOP}
 				CURSOR_ROW=${BOX_TOP}
 			fi
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${GREEN_FG}POST${RESET} BOUNDARY CHECK - CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
 
 			# Roll arounds
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}PRE${RESET} ROLL AROUND - LAST_NDX:${LAST_NDX} LAST_ROW:${LAST_ROW}"
 			case ${DIR} in
 				D)	if [[ ${CURSOR_NDX} -eq ${LIST_TOP} ]];then
 						LAST_NDX=${LIST_BOT}
@@ -398,11 +403,13 @@ sel_list () {
 					fi
 					;;
 			esac
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${GREEN_FG}POST${RESET} ROLL AROUND - LAST_NDX:${LAST_NDX} LAST_ROW:${LAST_ROW}"
 
 			_SEL_NDX=${CURSOR_NDX} # Value saved for client
-			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} SAVED MENU INDEX:_SEL_NDX:${_SEL_NDX}"
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RESTORE _SEL_NDX - _SEL_NDX:${_SEL_NDX}"
 
 			# Row and Page changes
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}PRE${RESET} ROW/PAGE - CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
 			case ${DIR} in
 				D|U)	sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
 						sel_list_norm ${LAST_ROW} ${BOX_Y} ${_SEL_LIST[${LAST_NDX}]}
@@ -446,6 +453,7 @@ sel_list () {
 					fi
 					;;
 			esac
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${GREEN_FG}POST${RESET} ROW/PAGE - CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
 		done
 	done
 	return 0

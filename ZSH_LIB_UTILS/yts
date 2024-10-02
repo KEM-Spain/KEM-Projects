@@ -339,22 +339,26 @@ clear_log () {
 		rm -f ${g_YTS_LOG}
 		echo "log ${g_YTS_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg # Debug is NOT active - clear the log
 	else
-		echo "DEBUG active - log ${g_YTS_LOG} was retained for:${g_FAVORITE}" >> /tmp/yt.log.dbg # Debug is active - retain the log
+		echo "DEBUG ${_DEBUG} active - log ${g_YTS_LOG} was retained for:${g_FAVORITE}" >> /tmp/yt.log.dbg # Debug is active - retain the log
 	fi
 }
 
 delete_favorite () {
 	local FAV=${1}
+	local FDC=$(fav_decode ${FAV} F)
 	local ENG=''
 	local F1 F2
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	cp ${_YTS_FAVORITES} ${_YTS_FAVORITES}.bak
+	echo "${0}: log ${_YTS_FAVORITES} was copied" >> /tmp/yt.log.dbg
 
 	[[ ${g_QRY_ENGINE} == 'rumble' ]] && ENG="R" || ENG="Y"
+	echo "${0}: engine:${g_QRY_ENGINE}" >> /tmp/yt.log.dbg
 
 	msg_box -p -PD "Deleting: ${FAV} for ${(C)g_QRY_ENGINE}?"
+	echo "${0}: deleting ${FAV} decoded to ${FDC}" >> /tmp/yt.log.dbg
 
 	if [[ ${_MSG_KEY} == 'y' ]];then
 		if [[ -s ${_YTS_FAVORITES} ]];then
@@ -362,10 +366,16 @@ delete_favorite () {
 			while read LINE;do
 				F1=$(cut -d '|' -f1 <<<${LINE})
 				F2=$(cut -d '|' -f2 <<<${LINE})
-				[[ ${F1} == ${FAV} && ${F2} =~ ${ENG} ]] && continue
+				[[ ${F1:l} == ${FDC} && ${F2:l} =~ ${ENG:l} ]] && continue
 				echo ${LINE} >> /tmp/favlist.new
 			done < ${_YTS_FAVORITES}
-			mv -f /tmp/favlist.new ${_YTS_FAVORITES}
+			diff -q /tmp/favlist.new ${_YTS_FAVORITES} >/dev/null 2>&1
+			if [[ ${?} -eq 0 ]];then
+				echo "${0}: log ${_YTS_FAVORITES} was NOT updated - ${FAV} not found" >> /tmp/yt.log.dbg
+			else
+				mv -f /tmp/favlist.new ${_YTS_FAVORITES}
+				echo "${0}: log ${_YTS_FAVORITES} updated" >> /tmp/yt.log.dbg
+			fi
 		else
 			exit_leave "No favorites have been saved"
 		fi

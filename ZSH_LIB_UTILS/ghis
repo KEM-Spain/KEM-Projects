@@ -1,4 +1,5 @@
 #!/usr/bin/zsh
+#TODO: after search, display selection does nothing
 RESET="\033[m"
 RED_FG="\033[31m"
 GREEN_FG="\033[32m"

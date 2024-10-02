@@ -702,7 +702,7 @@ do_yt_tag () {
 		grep -Pq '\-?\[.*' <<<${CANDIDATE}
 		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 
-		CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*//' | perl -pe 's/_s_/\x27s_/; s/_/ /g; s/\.//g')
+		CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*\]\s+?//' | perl -pe 's/_s_/\x27s_/; s/_/ /g; s/\.//g')
 
 		_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
 	done
