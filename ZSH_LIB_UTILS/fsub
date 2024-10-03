@@ -699,12 +699,14 @@ do_yt_tag () {
 		CPATH=$(realpath ${_CHAIN_LIST[${C}]:h})
 		[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 
-		grep -Pq '\-?\[.*' <<<${CANDIDATE}
-		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
+		if [[ ${CEXT} == 'mp4' ]];then
+			grep -Pq '\-?\[.*' <<<${CANDIDATE}
+			[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 
-		CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*\]\s+?//' | perl -pe 's/_s_/\x27s_/; s/_/ /g; s/\.//g')
+			CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*\]\s+?//' | perl -pe 's/_s_/\x27s_/; s/_/ /g; s/\.//g')
 
-		_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
+			_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
+		fi
 	done
 
 	[[ -n ${_OUT_LIST} ]] && return 0 || return 1

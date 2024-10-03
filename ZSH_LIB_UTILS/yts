@@ -175,9 +175,8 @@ action_do () {
 				continue
 			fi
 
-			# Scan for already downloaded
+			# Scan for 'already downloaded'
 			LOG_LINE=$(grep -m1 -i "already been" ${g_YTS_LOG} 2>/dev/null)
-
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
@@ -186,9 +185,8 @@ action_do () {
 				break # While loop
 			fi
 
-			# Scan for not yet available
+			# Scan for 'not yet available'
 			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${g_YTS_LOG} 2>/dev/null)
-
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
@@ -198,7 +196,18 @@ action_do () {
 				break # While loop
 			fi
 
-			# Scan for resume
+			# Scan for 'unable to download'
+			LOG_LINE=$(grep -m1 -i "unable to download video" ${g_YTS_LOG} 2>/dev/null)
+			if [[ ${?} -eq 0 ]];then
+				TITLE=$(get_field title ${M})
+				EMSG="<w>${TITLE[1,65]}<N>|<r>Hard Error - Unable to download<N>|<g>${LOG_LINE}<N>" 
+				msg_box -t${_PAUSE} "${EMSG}"
+				_FAILED[${M}]=true
+				_DOWNLOADS[${M}]=false
+				break # While loop
+			fi
+
+			# Scan for 'resumed'
 			RESUMED_TAG=''
 			LOG_LINE=$(grep -m1 -i "resuming download" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
@@ -224,74 +233,64 @@ action_do () {
 				HDRS_OUT=true
 			fi
 
-			if [[ ${_DOWNLOADS[${M}]} != 'true' ]];then
+			if [[ ${HDRS_OUT} == 'true' ]];then
 				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1) 
-				
-				# Scan for progress
-				if [[ ${HDRS_OUT} == 'true' ]];then
-					grep -q -i 'eta\|100%\|100\.0' <<<${LOG_LINE} 2>/dev/null && RC1=${?} # Scan line
+				echo "LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG}
+				grep -q -i 'error\|eta\|100%\|100\.0' <<<${LOG_LINE} 2>/dev/null && RC1=${?} # Scan line
+				[[ ${RC1} -ne 0 ]] && continue
 
-					if [[ ${RC1} -eq 0 ]];then
-						ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
-						if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
-							case ${ETA:l} in
-								*rumbleembed*) continue;;
-								*mib/s*) LINE_COLOR='<w>';;
-								*kib/s*) LINE_COLOR='<B><y>';;
-								*100%*) LINE_COLOR='<B><g>';;
-								*) LINE_COLOR='';;
-							esac
-							[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
-
-							msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
-
-							if [[ ${ETA} =~ '100%' ]];then
-								if [[ ${#_MARKED} -gt 1 ]];then
-									msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
-									if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-										msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
-									fi
-								fi
-								_DOWNLOADS[${M}]=true
-								post_process
-								log_download ${M}
-								break # Exit log scan
-							fi
-						fi # Eta seen
-
-						# Scan for errors
-						grep -q -i 'error' <<<${LOG_LINE} 2>/dev/null
-						if [[ ${?} -eq 0 ]];then
-							((ERROR_CNT++))
-							HAD_ERROR=true
-
-							if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
-								TITLE=$(get_field title ${M})	
-								EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Errors:${ERROR_CNT} Network failure<N>|${LOG_LINE}" 
-								msg_box -f80 -p -PK "${EMSG}"
-								_FAILED[${M}]=true
-								_DOWNLOADS[${M}]=false
-								break 2 # Exit log scan
-							fi
-
-							case ${LOG_LINE:l} in
-								*"giving up"*)	
-								ERROR_CNT=${_ERROR_LIMIT}	
-								_FAILED[${M}]=true
-								_DOWNLOADS[${M}]=false
-								break 2 # Exit scan
-								;;
-								*) msg_box -T ALERT -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+				# Parse errors
+				case ${LOG_LINE:l} in
+						*error*)	msg_box -T ALERT -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 									echo "$(get_field author ${M}) - Error:"${LOG_LINE} >> ${_ERROR_LOG}
-								;;
-							esac
-						else
-							HAD_ERROR=false
-							ERROR_CNT=0
-						fi # Error seen
-					fi # Headers out
-				fi # Log scan
-			fi # Monitor download
+									((ERROR_CNT++))
+									HAD_ERROR=true
+									;;
+			  	*'giving up'*)	ERROR_CNT=${_ERROR_LIMIT} 
+									;;
+				esac
+
+				if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
+					TITLE=$(get_field title ${M})	
+					EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Errors:${ERROR_CNT} Network failure<N>|${LOG_LINE}" 
+					msg_box -f80 -p -PK "${EMSG}"
+					_FAILED[${M}]=true
+					_DOWNLOADS[${M}]=false
+					break # While loop
+				fi
+				# Parse errors
+
+				# Parse progress
+				ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
+				if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
+					HAD_ERROR=false
+					ERROR_CNT=0
+
+					case ${ETA:l} in
+						*rumbleembed*) continue;;
+						*mib/s*) LINE_COLOR='<w>';;
+						*kib/s*) LINE_COLOR='<B><y>';;
+						*100%*) LINE_COLOR='<B><g>';;
+						*) LINE_COLOR='';;
+					esac
+					[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
+
+					msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
+
+					if [[ ${ETA} =~ '100%' ]];then
+						if [[ ${#_MARKED} -gt 1 ]];then
+							msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
+							if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+								msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+							fi
+						fi
+						_DOWNLOADS[${M}]=true
+						post_process
+						log_download ${M}
+						break # While loop
+					fi
+				fi # Parse progress
+			fi # Headers out
 			sleep 2 # Log fetch delay
 		done # Log scan complete
 		NDX=0
@@ -301,11 +300,7 @@ action_do () {
 	stty echo
 
 	for M in ${_MARKED};do
-		if [[ ${_DOWNLOADS[${M}]} == 'true' ]];then
-			list_set_selected ${M} ${_GHOST_ROW}
-		else
-			list_set_selected ${M} ${_AVAIL_ROW}
-		fi
+		[[ ${_DOWNLOADS[${M}]} == 'true' ]] && list_set_selected ${M} ${_GHOST_ROW} || list_set_selected ${M} ${_AVAIL_ROW}
 	done
 
 	_MARKED=()
@@ -538,7 +533,7 @@ get_field () {
 		esac
 	fi
 
-	[[ ${FIELD} == 'title' ]] && STR=${STR[1,75]} # Limit length
+	[[ ${FIELD} == 'title' ]] && STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\??\s+?//' <<<${STR}) # Limit length
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
 	
