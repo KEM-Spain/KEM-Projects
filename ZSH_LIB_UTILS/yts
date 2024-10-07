@@ -26,10 +26,10 @@ typeset -A _DOWNLOADS=()
 typeset -A _FAILED=()
 typeset -A _FAVORITE_ENGINE=()
 typeset -A _FAVORITE_OPTS=()
-typeset -A _FAV_DECODE=()
 typeset -A _FIELD_LEN=()
 typeset -A _FUTURE=()
 typeset -A _PARTIALS=()
+typeset -A _DISPLAY_KEYS=()
 typeset -A _REJECTS=()
 typeset -A _SORT_DEFAULT=()
 typeset -A _STATUS_MSGS=()
@@ -59,20 +59,23 @@ _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
 _YTS_URL_LOG=/tmp/yts.url.log
+_YTS_DBG_LOG=/tmp/yt.log.dbg
 
 # Globals
-g_FAVORITE=''
+g_CUSTOM_LIST=false
+g_DISPLAY_KEY=''
+g_ENGINE_KEY=''
 g_LAST_CODE_UPD=?
-g_LIST_SUBSET=false
 g_LIVE=''
 g_LIVE_OPT=''
-g_YTS_LOG=''
 g_PID=?
 g_PROXY_CMD=''
 g_QRY_ENGINE=''
+g_QUERY_KEY=''
 g_SEARCH_TYPE=''
 g_STRICT=false
 g_STRICT_MSG=''
+g_YTS_LOG=''
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -219,9 +222,9 @@ action_do () {
 			if [[ ${?} -eq 0 && ${HDRS_OUT} == 'false' ]];then
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
-				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<c>/" -e "s/:/<N>:<m>/")
+				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<w>/" -e "s/:/<N>:<m>/")
 				HDR1_TXT=$(cut -d'|' -f2 <<<${DEST})
-				HDR1_TXT="<m>Downloading<N>:<m> <c>${HDR1_TXT[1,60]}<N>"
+				HDR1_TXT="<w>Downloading<N>:<m> <c>${HDR1_TXT[1,60]}<N>"
 				HDR2_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
 				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR2_TXT})} ))
 				HDR_LEN=$((HDR_LEN + FRAME_PAD))
@@ -235,24 +238,26 @@ action_do () {
 
 			if [[ ${HDRS_OUT} == 'true' ]];then
 				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1) 
-				echo "LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG}
+				echo "LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				grep -q -i 'error\|eta\|100%\|100\.0' <<<${LOG_LINE} 2>/dev/null && RC1=${?} # Scan line
 				[[ ${RC1} -ne 0 ]] && continue
 
 				# Parse errors
 				case ${LOG_LINE:l} in
-						*error*)	msg_box -T ALERT -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
-									echo "$(get_field author ${M}) - Error:"${LOG_LINE} >> ${_ERROR_LOG}
-									((ERROR_CNT++))
+						*error*)	((ERROR_CNT++))
+									msg_box -T ALERT -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 									HAD_ERROR=true
 									;;
 			  	*'giving up'*)	ERROR_CNT=${_ERROR_LIMIT} 
+									;;
+								*) HAD_ERROR=false
+									ERROR_CNT=0
 									;;
 				esac
 
 				if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
 					TITLE=$(get_field title ${M})	
-					EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed - Errors:${ERROR_CNT} Network failure<N>|${LOG_LINE}" 
+					EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed<N>|Too many consecutive errors:${ERROR_CNT}|<r>Network failure<N>|${LOG_LINE}" 
 					msg_box -f80 -p -PK "${EMSG}"
 					_FAILED[${M}]=true
 					_DOWNLOADS[${M}]=false
@@ -263,16 +268,18 @@ action_do () {
 				# Parse progress
 				ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
 				if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
-					HAD_ERROR=false
-					ERROR_CNT=0
 
 					case ${ETA:l} in
 						*rumbleembed*) continue;;
+						*fixing*) continue;; # Fragmented job
+						*merging*) continue;; # Audio fix
+						*'deleting original'*); ETA='Audio/Video combined 100%'; LINE_COLOR='<B><g>';; # Audio fix
 						*mib/s*) LINE_COLOR='<w>';;
 						*kib/s*) LINE_COLOR='<B><y>';;
 						*100%*) LINE_COLOR='<B><g>';;
 						*) LINE_COLOR='';;
 					esac
+
 					[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
 
 					msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
@@ -281,7 +288,7 @@ action_do () {
 						if [[ ${#_MARKED} -gt 1 ]];then
 							msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
 							if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-								msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+								msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) -y$(( _COORDS[Y]+15 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
 							fi
 						fi
 						_DOWNLOADS[${M}]=true
@@ -331,29 +338,49 @@ clear_log () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	if [[ ${_DEBUG} -ge ${_YTS_DBG} && -e ${g_YTS_LOG} ]];then
-		rm -f ${g_YTS_LOG}
-		echo "log ${g_YTS_LOG} was cleared for:${g_FAVORITE} from:${FROM}" >> /tmp/yt.log.dbg # Debug is NOT active - clear the log
+		echo "DEBUG ${_DEBUG} active - log ${g_YTS_LOG} was retained for:${g_QUERY_KEY}" >> ${_YTS_DBG_LOG} # Debug is active - retain the log
 	else
-		echo "DEBUG ${_DEBUG} active - log ${g_YTS_LOG} was retained for:${g_FAVORITE}" >> /tmp/yt.log.dbg # Debug is active - retain the log
+		rm -f ${g_YTS_LOG}
+		echo "log ${g_YTS_LOG} was cleared for:${g_QUERY_KEY} from:${FROM}" >> ${_YTS_DBG_LOG} # Debug is NOT active - clear the log
 	fi
 }
 
-delete_favorite () {
-	local FAV=${1}
-	local FDC=$(fav_decode ${FAV} F)
+download_log_update () {
+	local FN_HIT=''
+	local LINE=''
+	local IN=''
+	local NEW_LOG=/tmp/log.new
+	local L
+
+	{
+		[[ -e /tmp/log.new ]] && /bin/rm -f ${NEW_LOG}
+
+		while read LINE;do
+			IN=$(cut -d'|' -f1 <<<${LINE})
+			FN_HIT=$(find ${_DOWNLOAD_DIR} -maxdepth 1 -inum ${IN})
+			[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} 2>/dev/null >> ${NEW_LOG}
+		done < ${_DOWNLOAD_LOG}
+
+		[[ -e ${NEW_LOG} ]] && sort -u -o ${NEW_LOG} ${NEW_LOG} && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
+	} 2>/dev/null
+}
+
+fav_delete () {
+	local FAV=${1:gs/ /_/:l}
 	local ENG=''
-	local F1 F2
+	local LINE
+	local F1 F2 F3
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	cp ${_YTS_FAVORITES} ${_YTS_FAVORITES}.bak
-	echo "${0}: log ${_YTS_FAVORITES} was copied" >> /tmp/yt.log.dbg
+	echo "${0}: log ${_YTS_FAVORITES} was copied" >> ${_YTS_DBG_LOG}
 
 	[[ ${g_QRY_ENGINE} == 'rumble' ]] && ENG="R" || ENG="Y"
-	echo "${0}: engine:${g_QRY_ENGINE}" >> /tmp/yt.log.dbg
+	echo "${0}: engine:${g_QRY_ENGINE}" >> ${_YTS_DBG_LOG}
 
 	msg_box -p -PD "Deleting: ${FAV} for ${(C)g_QRY_ENGINE}?"
-	echo "${0}: deleting ${FAV} decoded to ${FDC}" >> /tmp/yt.log.dbg
+	echo "${0}: deleting ${FAV} decoded to ${FAV}" >> ${_YTS_DBG_LOG}
 
 	if [[ ${_MSG_KEY} == 'y' ]];then
 		if [[ -s ${_YTS_FAVORITES} ]];then
@@ -361,15 +388,16 @@ delete_favorite () {
 			while read LINE;do
 				F1=$(cut -d '|' -f1 <<<${LINE})
 				F2=$(cut -d '|' -f2 <<<${LINE})
-				[[ ${F1:l} == ${FDC} && ${F2:l} =~ ${ENG:l} ]] && continue
+				F3=$(cut -d '|' -f3 <<<${LINE})
+				[[ ${F1:l} == ${FAV} && ${F3:l} =~ ${ENG:l} ]] && continue
 				echo ${LINE} >> /tmp/favlist.new
 			done < ${_YTS_FAVORITES}
 			diff -q /tmp/favlist.new ${_YTS_FAVORITES} >/dev/null 2>&1
 			if [[ ${?} -eq 0 ]];then
-				echo "${0}: log ${_YTS_FAVORITES} was NOT updated - ${FAV} not found" >> /tmp/yt.log.dbg
+				echo "${0}: log ${_YTS_FAVORITES} was NOT updated - ${FAV} not found" >> ${_YTS_DBG_LOG}
 			else
 				mv -f /tmp/favlist.new ${_YTS_FAVORITES}
-				echo "${0}: log ${_YTS_FAVORITES} updated" >> /tmp/yt.log.dbg
+				echo "${0}: log ${_YTS_FAVORITES} updated" >> ${_YTS_DBG_LOG}
 			fi
 		else
 			exit_leave "No favorites have been saved"
@@ -377,135 +405,168 @@ delete_favorite () {
 	fi
 }
 
-fav_decode () {
-	local FAV_ARG=${1}
-	local DIR=${2:=R}
-	local REV_LOOKUP=''
-	local FWD_LOOKUP=''
-
-	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} FAV_ARG:${FAV_ARG} DIR:${DIR}"
-
-	if [[ ${#_FAV_DECODE} -eq 0 ]];then
-		_FAV_DECODE[Alex_Christoforou]="AlexChristoforou"
-		_FAV_DECODE[Bad_Faith]="badfaith"
-		_FAV_DECODE[Blan_Colirio]="blancolirio"
-		_FAV_DECODE[Breakthrough_News]="breakthroughnews"
-		_FAV_DECODE[Chris_Hedges_Report]="thechrishedgesyoutubechannel"
-		_FAV_DECODE[Counter_Currents]="countercurrents"
-		_FAV_DECODE[Danny_Haiphong]="geopoliticshaiphong"
-		_FAV_DECODE[Dialogue_Works]="dialogueworks"
-		_FAV_DECODE[Due_Dissidence]="duedissidence"
-		_FAV_DECODE[George_Galloway]="GeorgeGallowayOfficial"
-		_FAV_DECODE[HIOW_George_Galloway]="haveitoutwithgalloway"
-		_FAV_DECODE[Glenn_Greenwald]="GGreenwald"
-		_FAV_DECODE[Glenn_Diesen]="glenndiesen"
-		_FAV_DECODE[Going_UnderGround]="goingunderground"
-		_FAV_DECODE[Jimmy_Dore]="TheJimmyDoreShow"
-		_FAV_DECODE[Joe_Rogan]="Powerfuljre"
-		_FAV_DECODE[Judging_Freedom]="judgingfreedom"
-		_FAV_DECODE[Katie_Halper]="katiehalper"
-		_FAV_DECODE[Kim_Iversen]="KimIversen"
-		_FAV_DECODE[Mentour_Now]="mentournow!"
-		_FAV_DECODE[Mentour_Pilot]="mentourpilot"
-		_FAV_DECODE[Missionary_Bush_Pilot]="missionarybushpilot"
-		_FAV_DECODE[Neil_Oliver]="c-6293844"
-		_FAV_DECODE[Piano_Groove]="pianogroove"
-		_FAV_DECODE[Richard_Medhurst]="richardmedhurst"
-		_FAV_DECODE[Rick_Beato]="rickbeato"
-		_FAV_DECODE[Ron_Paul]="RonPaulLibertyReport"
-		_FAV_DECODE[Russell_Brand]="russellbrand"
-		_FAV_DECODE[Scheer_Post]="scheerpost"
-		_FAV_DECODE[The_Duran]="theduran"
-		_FAV_DECODE[The_Grayzone]="thegrayzone"
-		_FAV_DECODE[The_New_Atlas]="thenewatlas"
-		_FAV_DECODE[Tim_Dillon]="timmdillon"
-		_FAV_DECODE[Tucker_Carlson]="tuckercarlson"
-	fi
-
-	if [[ ${DIR} == 'R' ]];then
-		REV_LOOKUP=${${(k)_FAV_DECODE[(r)${FAV_ARG}]}:gs/_/ /}
-		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} REV_LOOKUP:${REV_LOOKUP}"
-		if [[ -n ${REV_LOOKUP} ]];then
-			echo ${REV_LOOKUP} && return 0
-		else
-			echo ${FAV_ARG} && return 1
-		fi
-	else
-		FWD_LOOKUP=${${_FAV_DECODE[${FAV_ARG:s/ /_/}]}:gs/_/ /}
-		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} FWD_LOOKUP:${FWD_LOOKUP}"
-		if [[ -n ${FWD_LOOKUP} ]];then
-			echo ${FWD_LOOKUP} && return 0
-		else
-			echo ${FAV_ARG} && return 1
-		fi
-	fi
-}
-
-get_favorite () {
+fav_get () {
 	local -a _DISPLAY_LIST=()
-	local LINE
-	local FAV
-	local FAV_TYPE
 	local MSG
+	local DKEY # Display key
+	local EKEY # Engine key
+	local QKEY # Query key
+	local F
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	list_set_type select
 
-	while true;do
-		if [[ -s ${_YTS_FAVORITES} ]];then
-			_DISPLAY_LIST=()
-			while read LINE;do
-				[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _YTS_FAVORITES:${LINE}"
-				FAV=$(cut -d'|' -f1 <<<${LINE})
-				FAV_TYPE=$(cut -d'|' -f2 <<<${LINE})
-				if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
-					[[ ${FAV_TYPE:l} =~ 'r' ]] && _DISPLAY_LIST+=$(fav_decode ${FAV}) # Rumble
-				else
-					[[ ${g_LIST_SUBSET} == 'true' && ${FAV_TYPE:l} =~ 'p' ]] && _DISPLAY_LIST+=$(fav_decode ${FAV}) # YouTube custom
-					[[ ${g_LIST_SUBSET} == 'false' && ${FAV_TYPE:l} =~ 'y' && (! ${FAV_TYPE:l} =~ 'p') ]] && _DISPLAY_LIST+=$(fav_decode ${FAV}) # YouTube
-				fi
-				_FAVORITE_ENGINE[${FAV}]=${FAV_TYPE:s/P//} # Strip custom marker
-			done < ${_YTS_FAVORITES}
+	_DISPLAY_LIST=()
+	for F in ${(k)_DISPLAY_KEYS};do
+		EKEY=${$(cut -d: -f1 <<<${_DISPLAY_KEYS[${F}]}):l}
+		if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
+			if [[ ${EKEY} =~ 'r' ]];then
+				_DISPLAY_LIST+=${F:gs/_/ /}
+				_FAVORITE_ENGINE[${F}]=${EKEY}
+			fi
 		else
-			exit_leave "No favorites have been saved"
+			if [[ ${EKEY} =~ 'y' ]];then
+					if [[ ${g_CUSTOM_LIST} == 'true' ]];then
+						if [[ ${EKEY} =~ 'p' ]];then
+							_DISPLAY_LIST+=${F:gs/_/ /}
+							_FAVORITE_ENGINE[${F}]=${EKEY:s/p//} # Strip custom marker
+						fi
+					else
+						if [[ ! ${EKEY} =~ 'p' ]];then
+							_DISPLAY_LIST+=${F:gs/_/ /}
+							_FAVORITE_ENGINE[${F}]=${EKEY}
+						fi
+					fi
+			fi
 		fi
-
-		sel_list_set ${(o)_DISPLAY_LIST}
-		sel_list_set_page_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>c<N>)ustom list, (<w>d<N>)elete favorite"
-
-		clear
-
-		[[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && MSG=' (<c>livestreams toggled<w>)' || MSG=''
-
-		_SEL_VAL=?
-		sel_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>" ${_SEL_X} ${_SEL_Y} ${_SEL_NDX}
-
-		case ${_SEL_KEY} in
-			d) delete_favorite ${_SEL_VAL} && _DISPLAY_LIST=() && continue;;
-			l) if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
-					[[ ${g_LIVE_OPT} == 'true' ]] && g_LIVE_OPT=false || g_LIVE_OPT=true
-				else
-					g_LIVE_OPT=true  # Livestream toggle only applies to Rumble
-				fi
-				continue
-				;;
-			r) g_QRY_ENGINE='rumble' && g_LIST_SUBSET=false && continue;;
-			y) g_QRY_ENGINE='youtube' && g_LIST_SUBSET=false && continue;;
-			c) g_QRY_ENGINE='youtube' && g_LIST_SUBSET=true && continue;;
-		esac
-
-		break
 	done
 
-	g_FAVORITE=${_SEL_VAL} # Decoded value from select menu
+	sel_list_set ${(o)_DISPLAY_LIST}
+	sel_list_set_page_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>c<N>)ustom list, (<w>d<N>)elete favorite"
+
+	clear
+
+	[[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && MSG=' (<c>livestreams toggled<w>)' || MSG=''
+
+	_SEL_VAL=?
+	sel_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>" ${_SEL_X} ${_SEL_Y} ${_SEL_NDX}
+
+	case ${_SEL_KEY} in
+		d) fav_delete ${_SEL_VAL} && _DISPLAY_LIST=() && continue;;
+		l) if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
+				[[ ${g_LIVE_OPT} == 'true' ]] && g_LIVE_OPT=false || g_LIVE_OPT=true
+			else
+				g_LIVE_OPT=true  # Livestream toggle only applies to Rumble
+			fi
+			continue
+			;;
+		r) g_QRY_ENGINE='rumble' && g_CUSTOM_LIST=false && continue;;
+		y) g_QRY_ENGINE='youtube' && g_CUSTOM_LIST=false && continue;;
+		c) g_QRY_ENGINE='youtube' && g_CUSTOM_LIST=true && continue;;
+	esac
+
+	g_QUERY_KEY=$(cut -d: -f2 <<<${_DISPLAY_KEYS[${_SEL_VAL:gs/ /_}]})
+	g_ENGINE_KEY=$(cut -d: -f1 <<<${_DISPLAY_KEYS[${_SEL_VAL:gs/ /_}]})
+	g_DISPLAY_KEY=${_SEL_VAL}
+}
+
+fav_load () {
+	local LINE
+	local DKEY
+	local QKEY
+	local QCODE
+
+	while read LINE;do
+		DKEY=$(cut -d'|' -f1 <<<${LINE})
+		QKEY=$(cut -d'|' -f2 <<<${LINE})
+		QCODE=$(cut -d'|' -f3 <<<${LINE})
+		_DISPLAY_KEYS[${DKEY}]="${QCODE}:${QKEY}"
+	done < ${_YTS_FAVORITES}
+}
+
+fav_set () {
+	local FAV=$(str_trim ${1:gs/ /_/})
+	local -aU HISTORY
+	local LINE
+	local H
+
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: FAV:${FAV} g_QRY_ENGINE:${g_QRY_ENGINE} g_LIVE:${g_LIVE}"
+
+	msg_box -H1 -p -PC "<w><I>Please respond<N>|<Z>|Add ${FAV} to favorites?"
+	[[ ${_MSG_KEY} != 'y' ]] && return
+
+	# R    - Rumble  - general query
+	# RL   - Rumble  - livestream query
+	# Y    - YouTube - ID query
+	# YNS  - YouTube - ID no strict
+	# PYNS - YouTube - general query
+	
+	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
+		[[ ${g_LIVE} == 'true' ]] && FAV="${(C)FAV}|${FAV}|RL" || FAV="${(C)FAV}|${FAV}|R"
+	else
+		if [[ ${FAV} =~ ' ' ]];then
+			FAV="${(C)FAV}|${FAV}|PYNS" # Contains spaces
+		else
+			[[ ${g_STRICT} == 'false' ]] && FAV="${(C)FAV}|${FAV}|YNS" || FAV="${(C)FAV}|${FAV}|Y"
+		fi
+	fi
+
+	HISTORY+=${FAV}
+
+	if [[ -e ${_YTS_FAVORITES} ]];then
+		while read LINE;do
+			HISTORY+=${LINE}
+		done < ${_YTS_FAVORITES}
+
+		/bin/rm -f ${_YTS_FAVORITES}
+	fi
+
+	for H in ${(o)HISTORY};do
+		echo ${H} >> ${_YTS_FAVORITES}
+	done
+
+	sort -o ${_YTS_FAVORITES} -t'|' -k3 ${_YTS_FAVORITES} 
+}
+
+get_av_codes () {
+	URL=${1}
+
+	local -a LIST
+	local -a AUDIO
+	local -a VIDEO
+	local AUDIO_CODE
+	local VIDEO_CODE
+	local L V A
+
+	LIST=("${(f)$(yt -F ${URL} | grep 'm4a\|mp4' | grep 'https')}")
+
+	for L in ${LIST};do
+		[[ ${L:l} =~ 'audio' ]] && AUDIO+=$(tr -s '[:space:]' <<<${L} | sed 's/ /|/g' | tr -s '|' | sed 's/,//g')
+		[[ ${L:l} =~ 'video' ]] && VIDEO+=$(tr -s '[:space:]' <<<${L} | sed 's/ /|/g' | tr -s '|' | sed 's/,//g')
+	done
+
+	AUDIO_CODE=$(
+	for A in ${AUDIO};do
+		[[ ${A} =~ 'drc' ]] && continue
+		echo "$(cut -d'|' -f12 <<<${A})|$(cut -d'|' -f1 <<<${A})"
+	done | sort -nr | head -1 | cut -d'|' -f2
+	)
+
+	VIDEO_CODE=$(
+	for V in ${VIDEO};do
+		echo "$(cut -d'|' -f12 <<<${V})|$(cut -d'|' -f1 <<<${V})"
+	done | sort -nr | head -1 | cut -d'|' -f2
+	)
+
+	echo "${VIDEO_CODE}+${AUDIO_CODE}"
 }
 
 get_field () {
 	local FIELD=${1}
 	local NDX=${2}
 	local STR=''
-	local DECODE=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} ARGS:FIELD:${FIELD}, NDX:${NDX}"
@@ -520,8 +581,6 @@ get_field () {
 			time) STR=$(cut -d'|' -f6 <<<${_LIST[${NDX}]});STR="(${STR})";;
 			agetime) STR=$(cut -d'|' -f4,6 <<<${_LIST[${NDX}]});STR="(${STR:s/|/ /})";;
 		esac
-
-		[[ ${FIELD} == 'author' ]] && STR=${$(fav_decode ${g_FAVORITE:gs/ /_/}):gs/_/ /}
 	else
 		case ${FIELD} in
 			age) STR=$(cut -d'|' -f1 <<<${_LIST[${NDX}]});STR="${STR[1,${_FIELD_LEN[age]}]}";;
@@ -533,13 +592,18 @@ get_field () {
 		esac
 	fi
 
-	[[ ${FIELD} == 'title' ]] && STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\??\s+?//' <<<${STR}) # Limit length
+	if [[ ${FIELD} == 'agetime' ]];then
+		[[ ! ${STR} =~ 'ago.*[0-9][0-9]\)' ]] && STR=$(sed 's/ago.*/ago\)/' <<<${STR}) # Delimiter error
+	fi
+	
+	[[ ${FIELD} == 'author' && ${STR} =~ ${g_QUERY_KEY} ]] && STR=${g_DISPLAY_KEY}
+
+	[[ ${FIELD} == 'title' ]] && STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\?*?\s+?//' <<<${STR}) # Limit length
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
 	
 	STR=$(html2text -ascii <<<${STR})
 	STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) # Scrub non ascii
-
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning:${STR[1,65]}"
 
@@ -611,47 +675,29 @@ last_code_update () {
 log_download () {
 	local NDX=${1}
 	local ST=$(stat -c"%W|%i|%n" ${_DOWNLOAD_DIR}/* | sort -t'|' -k1 -r | head -1) # Sort by birth date; grab most recent
-	local IN=$(cut -d'|' -f2 <<<${ST})
-	local FN=$(cut -d'|' -f3 <<<${ST})
-	local TL=$(get_field title ${NDX})
-	local AT=$(get_field agetime ${NDX})
-	echo "${IN}|${TL}|${FN:t}|${AT}" >> ${_DOWNLOAD_LOG}
+	local IN=$(cut -d'|' -f2 <<<${ST}) # Inode
+	local FN=$(cut -d'|' -f3 <<<${ST}) # Filename
+	local TL=$(get_field title ${NDX}) # Title
+	local AT=$(get_field agetime ${NDX}) # Age
+	local TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<${AT}) # Video length
+	echo "${IN}|${TL}|${FN:t}|${TM}" >> ${_DOWNLOAD_LOG}
 }
 
 log_find () {
 	local NDX=${1}
-	local TITLE=$(get_field title ${NDX})
-	local AGE=$(get_field agetime ${NDX})
+	local TL=$(get_field title ${NDX}) # Title
+	local AT=$(get_field agetime ${NDX}) # Age
+	local TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<${AT}) # Video length
 	local LINE=''
 	local FN=''
 
-	if [[ -n ${TITLE} ]];then
-		LINE=$(grep -i -m1 -e ${TITLE} ${_DOWNLOAD_LOG} 2>/dev/null)
-		if [[ -n ${LINE} && ${LINE} =~ ${AGE} ]];then
+	if [[ -n ${TL} ]];then
+		LINE=$(grep -i -m1 -e ${TL} ${_DOWNLOAD_LOG} 2>/dev/null) # Match on title
+		if [[ -n ${LINE} && ${LINE} =~ ${TM} ]];then # Match on time
 			FN=$(cut -d '|' -f3 <<<${FN})
 			[[ ${FN:e} == 'part' ]] && _PARTIALS[${NDX}]=true || _DOWNLOADS[${NDX}]=true
 		fi
 	fi
-}
-
-download_log_update () {
-	local FN_HIT=''
-	local LINE=''
-	local IN=''
-	local NEW_LOG=/tmp/log.new
-	local L
-
-	{
-		[[ -e /tmp/log.new ]] && /bin/rm -f ${NEW_LOG}
-
-		while read LINE;do
-			IN=$(cut -d'|' -f1 <<<${LINE})
-			FN_HIT=$(find ${_DOWNLOAD_DIR} -maxdepth 1 -inum ${IN})
-			[[ -n ${FN_HIT} ]] && grep ${IN} ${_DOWNLOAD_LOG} 2>/dev/null >> ${NEW_LOG}
-		done < ${_DOWNLOAD_LOG}
-
-		[[ -e ${NEW_LOG} ]] && sort -u -o ${NEW_LOG} ${NEW_LOG} && mv -f ${NEW_LOG} ${_DOWNLOAD_LOG}
-	} 2>/dev/null
 }
 
 post_process () {
@@ -661,7 +707,7 @@ post_process () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	msg_box -x$(( _COORDS[X]+4 )) "Post processing..."
+	msg_box -x$(( _COORDS[X]+4 )) -y$(( _COORDS[Y]+15 )) "Post processing..."
 
 	{
 		for D in ${_DOWNLOAD_DIR}/*;do
@@ -705,22 +751,20 @@ rumble () {
 	local MSG=''
 	local X=''
 	local NDX=''
-	local QUERY_KEY=''
 	local STR=''
-	local DECODE=''
 	local -A LAST_MSG=($(box_coords_get MSG_BOX_1))
 	local REL_W=$(( ${LAST_MSG[W]} +4 ))
 	local REL_Y=$(coord_center $(( _MAX_COLS + 3 )) ${REL_W})
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	QUERY_KEY=$(fav_decode ${SEARCHTERM:gs/ /_/} F) # Convert select menu key
+	[[ -n ${SEARCHTERM} ]] && g_QUERY_KEY=${SEARCHTERM}
 
-	PG=$(wget -q -O - "http://rumble.com/c/${QUERY_KEY}?page=1")
+	PG=$(wget -q -O - "http://rumble.com/c/${g_QUERY_KEY}?page=1")
 
 	if [[ -n ${PG} ]];then # Channel search
-		[[ ${_FAVORITE_ENGINE[${QUERY_KEY}]:l} == 'r' ]] && g_LIVE=false
-		[[ ${_FAVORITE_ENGINE[${QUERY_KEY}]:l} == 'rl' ]] && g_LIVE=true
+		[[ ${g_ENGINE_KEY:l} == 'r' ]] && g_LIVE=false
+		[[ ${g_ENGINE_KEY:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
 		[[ ${g_LIVE} == 'true' ]] && MSG="Searching livestreams..." || MSG="Searching videos..."
 
@@ -731,8 +775,8 @@ rumble () {
 
 		if [[ ${PG:l} =~ "no videos found" ]];then
 			_REL_COORDS=($(box_coords_relative INNER_BOX X +6 W ${REL_W} Y ${REL_Y} H 4))
-			msg_box -T SEARCH -R -c "<r>Livestream search failed<N> for ${QUERY_KEY}|Falling back to defaults..." 
-			PG=$(wget -q -O - "http://rumble.com/c/${QUERY_KEY}?page=1")
+			msg_box -T SEARCH -R -c "<r>Livestream search failed<N> for ${g_QUERY_KEY}|Falling back to defaults..." 
+			PG=$(wget -q -O - "http://rumble.com/c/${g_QUERY_KEY}?page=1")
 		fi
 
 		g_SEARCH_TYPE=channel
@@ -744,13 +788,13 @@ rumble () {
 		for ((X=1; X<=${#TITLES}; X++));do
 			AGE=$(sed 's/ago .*/ago/' <<<${AGES[${X}]})
 			[[ -z ${AGE} ]] && continue
-			[[ ${QUERY_KEY:l} == ${TITLES[${X}]:l} ]] && continue # Experimental to avoid garbage
-			VID_LIST+="${QUERY_KEY}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
+			[[ ${g_QUERY_KEY:l} == ${TITLES[${X}]:l} ]] && continue # Experimental to avoid garbage
+			VID_LIST+="${g_QUERY_KEY}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	else # General search
 		msg_box "Channel search failed.  Performing general search..."
 		g_SEARCH_TYPE=general
-		GEN_SEARCH=$(sed 's/ /%20/g' <<<${QUERY_KEY})
+		GEN_SEARCH=$(sed 's/ /%20/g' <<<${g_QUERY_KEY})
 		PG=$(wget -q -O - "https://rumble.com/search/all?q=${GEN_SEARCH}")
 
 		TITLES=("${(f)$(pup --charset utf8 '.video-item--title text{}' <<<${PG} | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
@@ -763,7 +807,7 @@ rumble () {
 			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # Experimental to avoid duplicates
 			AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
 			CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
-			CHANNEL="${(C)QUERY_KEY} (${CHANNEL})"
+			CHANNEL="${(C)g_QUERY_KEY} (${CHANNEL})"
 			VID_LIST+="${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	fi
@@ -780,7 +824,7 @@ rumble () {
 		_LOCAL_LIST=(${VID_LIST})
 	fi
 
-	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} QUERY_KEY:${QUERY_KEY} _LOCAL_LIST count: ${#_LOCAL_LIST}, TITLES: ${#TITLES}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} g_QUERY_KEY:${g_QUERY_KEY} _LOCAL_LIST count: ${#_LOCAL_LIST}, TITLES: ${#TITLES}"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${TITLES};do printf "TITLE:%s\n" ${L};done )"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${CHANNELS};do printf "CHANNEL:%s\n" ${L};done )"
 
@@ -857,51 +901,6 @@ select_download () {
 	_FUTURE=()
 }
 
-set_favorite () {
-	local FAV=$(str_trim ${(Q)1})
-	local -aU HISTORY
-	local LINE
-	local H
-
-	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-	[[ ${_DEBUG} -ge 1 ]] && dbg "${0}:${LINENO} ARG: FAV:${FAV} g_QRY_ENGINE:${g_QRY_ENGINE} g_LIVE:${g_LIVE}"
-
-	msg_box -H1 -p -PC "<w><I>Please respond<N>|<Z>|Add ${FAV} to favorites?"
-	[[ ${_MSG_KEY} != 'y' ]] && return
-
-	# R    - Rumble  - general query
-	# RL   - Rumble  - livestream query
-	# Y    - YouTube - ID query
-	# YNS  - YouTube - ID no strict
-	# PYNS - YouTube - general query
-	
-	if [[ ${g_QRY_ENGINE:l} == 'rumble' ]];then
-		[[ ${g_LIVE} == 'true' ]] && FAV="${FAV}|RL" || FAV="${FAV}|R"
-	else
-		if [[ ${FAV} =~ ' ' ]];then
-			FAV="${FAV}|PYNS" # Contains spaces
-		else
-			[[ ${g_STRICT} == 'false' ]] && FAV="${FAV}|YNS" || FAV="${FAV}|Y"
-		fi
-	fi
-
-	HISTORY+=${FAV}
-
-	if [[ -e ${_YTS_FAVORITES} ]];then
-		while read LINE;do
-			HISTORY+=${LINE}
-		done < ${_YTS_FAVORITES}
-
-		/bin/rm -f ${_YTS_FAVORITES}
-	fi
-
-	for H in ${(o)HISTORY};do
-		echo ${H} >> ${_YTS_FAVORITES}
-	done
-
-	sort -o ${_YTS_FAVORITES} -t'|' -k2 ${_YTS_FAVORITES} 
-}
-
 set_item_color () {
 	local ITEM=${1}
 
@@ -918,15 +917,26 @@ set_item_color () {
 
 start_job () {
 	local URL=${@}
+	local CMD=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	g_YTS_LOG=$(mktemp /tmp/yt.log.XXXXXX)
 
-	nohup yt -Rinfinite -i -o "%(channel)s - %(title)s.%(ext)s" ${URL} >>${g_YTS_LOG} 2>&1 &
+	if [[ ${g_FIX_AUDIO} == 'true' ]];then
+		CMD="nohup yt -Rinfinite -f $(get_av_codes ${URL}) -i -o '%(channel)s - %(title)s.%(ext)s' ${(qqq)URL}" # Manual a/v blend
+	else
+		CMD="nohup yt -Rinfinite -i -o '%(channel)s - %(title)s.%(ext)s' ${(qqq)URL}" # Routine download
+	fi
+
+	echo "${0} CMD:${CMD}" >> ${g_YTS_LOG} # Log command
+
+	eval "${CMD} >> ${g_YTS_LOG} 2>&1" & # Start background job
 	g_PID=$!
 
-	echo "g_YTS_LOG:${g_YTS_LOG} g_PID:${g_PID}" >> ${g_YTS_LOG}
+	echo "${0} PID:${g_PID}" >> ${g_YTS_LOG} # Log pid
+
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: CMD:${CMD}"
 }
 
 total_rejects () {
@@ -958,26 +968,21 @@ youtube () {
 	local LINE=''
 	local NDX=0
 	local PROXY_CMD=''
-	local QUERY_KEY=''
 	local STR=''
 	local TITLE=''
 	local L
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
-	QUERY_KEY=$(fav_decode ${g_FAVORITE:gs/ /_/} F) # Convert key from select menu
-	if [[ ${?} -ne 0 ]];then # Decode failed
-		[[ -n ${_FAVORITE_ENGINE[${g_FAVORITE}]} ]] && QUERY_KEY=${g_FAVORITE} && CUSTOM_KEY=true # Lookup key w/o decode
-	fi
-
-	if [[ -n ${QUERY_KEY} ]];then
-		[[ ${_FAVORITE_ENGINE[${QUERY_KEY}]:l} == 'yns' ]] && g_PROXY_CMD=${g_PROXY_CMD:s/-s//} && g_STRICT=false # No strict requested
-		PROXY_CMD="${g_PROXY_CMD} ${QUERY_KEY:q}"
+	if [[ -n ${g_QUERY_KEY} ]];then
+		[[ ${g_ENGINE_KEY:l} == 'yns' ]] && g_PROXY_CMD=${g_PROXY_CMD:s/-s//} && g_STRICT=false # No strict requested
+		PROXY_CMD="${g_PROXY_CMD} ${g_QUERY_KEY:q}"
 	else
 		PROXY_CMD="${g_PROXY_CMD}"
 	fi
 
-	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} ${WHITE_FG}QUERY_KEY${RESET}:${QUERY_KEY}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} g_QUERY_KEY:${g_QUERY_KEY}"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} g_ENGINE_KEY:${g_ENGINE_KEY}"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} ${WHITE_FG}STRICT${RESET}:${g_STRICT}"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} ${WHITE_FG}PROXY COMMAND${RESET}:${PROXY_CMD}"
 
@@ -996,13 +1001,15 @@ youtube () {
 		STR=$(iconv -f utf-8 -t ascii//translit <<<${LINE}) # Scrub non ascii
 		STR=${STR:s/Streamed //}
 
+		[[ ${g_ENGINE_KEY:l} =~ 'p' ]] && CUSTOM_KEY=true
+
 		# --- BEGIN Experimental filtering
 		if [[ ${CUSTOM_KEY} == 'false' ]];then
 			HIT=false
 			AUTHOR=$(cut -d'|' -f2 <<<${LINE})
-			[[ ${AUTHOR:l} =~ ${g_FAVORITE:l} ]] && HIT=true
-			[[ ${AUTHOR:l} =~ ${QUERY_KEY:l} ]] && HIT=true
-			[[ ${AUTHOR:gs/ //:l} =~ ${QUERY_KEY:l} ]] && HIT=true
+			[[ ${AUTHOR:l} =~ ${g_DISPLAY_KEY:l} ]] && HIT=true
+			[[ ${AUTHOR:l} =~ ${g_QUERY_KEY:l} ]] && HIT=true
+			[[ ${AUTHOR:gs/ //:l} =~ ${g_QUERY_KEY:l} ]] && HIT=true
 			[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} EXPERIMENTAL FILTERING AUTHOR:${AUTHOR} HIT:${HIT}"
 			[[ ${HIT} == 'false' ]] && continue
 			# --- END Experimental filtering
@@ -1022,7 +1029,7 @@ youtube () {
 	if ! arr_is_populated "${_LOCAL_LIST}";then
 		g_PROXY_CMD=$(str_trim ${(Q)g_PROXY_CMD})
 
-		msg_box -H2 -p -PK "<r>No data for query<N>:${g_PROXY_CMD}|${g_STRICT_MSG}|Use option '<w>-S<N>' to disable strict filtering"
+		msg_box -H2 -p -PK "<r>No data for query<N>:${g_PROXY_CMD}|${g_STRICT_MSG}|Omit option '<w>-S<N>' to disable strict filtering"
 		return 1
 	fi
 
@@ -1032,12 +1039,10 @@ youtube () {
 #--Begin GetOpts--
 read -r -d '' DESC<<EOF
 Query either Youtube or Rumble for videos.
-\tyts functions as proxy for yts.js (node yt-search client)
-\tor executes and parses Rumble queries.  Queries provide
-\ta selection list of matching videos. Following selection, 
-\titems are downloaded via yt-dlp. By default, Rumble queries
-\tare for livestreams and fall back to general search if no 
-\tlivestreams are found. The -L option will override this behavior. 
+\tQueries provide a selection list of matching videos. 
+\tFollowing selection, items are downloaded via yt-dlp. 
+\tBy default, Rumble queries are for livestreams and general search
+\tif no livestreams are found. The -L option will override this behavior. 
 \tWhen saving favorites, query, platform, and search type are cached.
 \tHidden keys: 'l' during menu selection will toggle livestream search.
 \t             'r' during download will reset the connection.
@@ -1075,6 +1080,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
+	echo -e "${WHITE_FG}-A${RESET} Fix audio"
 	echo -e "${WHITE_FG}-L${RESET} toggle cached livestream option (${MAGENTA_FG}Rumble only${RESET})"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
 	echo -e "${WHITE_FG}-S${RESET} Disable strict filtering (${MAGENTA_FG}YouTube only${RESET})"
@@ -1087,23 +1093,25 @@ usage () {
 	) >&2
 }
 
-OPTSTR=":HDRSVLla:s"
+OPTSTR=":HDARSVLla:s"
 OPTIND=0
 
 HELP_OPT=false
 VERSION_OPT=false
-g_STRICT=true
+g_STRICT=false
 g_QRY_ENGINE=youtube
 g_LIVE_OPT=false
 g_LIVE=false
+g_FIX_AUDIO=false
 
 while getopts ${OPTSTR} OPTION;do
 	case $OPTION in
+     A) g_FIX_AUDIO=true;;
      H) HELP_OPT=true;;
      D) dbg_set_level;;
      V) VERSION_OPT=true;;
      R) g_QRY_ENGINE=rumble;;
-     S) g_STRICT=false;;
+     S) g_STRICT=true;;
      a) AGE=${OPTARG};;
      l) g_LIVE=true;;
      s) g_STRICT=true;;
@@ -1136,6 +1144,8 @@ fi
 
 clear
 
+fav_load ${_FAV_TAB}
+
 # Arg handling for yts.js
 if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 	ARG="${@}"
@@ -1149,6 +1159,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 
 	RCL=$(path_get_raw_cmdline | sed "s/${_SCRIPT}//")
 	RCL=$(sed 's/\-h//' <<<${RCL}) # Front end option only
+	RCL=$(sed 's/\-A//' <<<${RCL}) # Front end option only
 	RCL=$(sed 's/\-D*//' <<<${RCL}) # Front end option only
 	RCL=$(sed 's/\-S//' <<<${RCL}) # Front end option only
 	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
@@ -1180,12 +1191,12 @@ fi
 if [[ ${#} -eq 0 ]];then # NO args passed
 	while true;do
 		do_smcup
-		get_favorite
-		if [[ -n ${g_FAVORITE} ]];then
-			msg_box "Requesting videos for <B><I>${g_FAVORITE}<N>..."
-			${g_QRY_ENGINE} ${g_FAVORITE}
+		fav_get
+		if [[ -n ${g_QUERY_KEY} ]];then
+			msg_box "Requesting videos for <B><I>${g_DISPLAY_KEY}<N>..."
+			${g_QRY_ENGINE} ${g_QUERY_KEY}
 			if [[ ${?} -eq 0 ]];then
-				select_download ${g_FAVORITE}
+				select_download ${g_QUERY_KEY}
 			fi
 		fi
 	done
@@ -1194,7 +1205,7 @@ else # Args passed
 	ARG="${@}"
 	${g_QRY_ENGINE} ${ARG}
 	if [[ ${?} -eq 0 ]];then
-		set_favorite ${ARG}
+		fav_set ${ARG}
 		select_download ${ARG}
 	fi
 fi

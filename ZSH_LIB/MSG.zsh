@@ -272,7 +272,7 @@ msg_box () {
 
 	# Set box coords
 	if [[ ${RELATIVE} == 'true' ]];then
-		if [[ -n ${(kv)_REL_COORDS} ]];then
+		if [[ -n ${_REL_COORDS} ]];then
 			MSG_X_COORD=${_REL_COORDS[X]}
 			MSG_Y_COORD=${_REL_COORDS[Y]}
 			BOX_WIDTH=${_REL_COORDS[W]}
