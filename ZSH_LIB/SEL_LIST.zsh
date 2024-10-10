@@ -28,6 +28,7 @@ _SL_MAX_ITEM_LEN=0
 _RESTORE_POS=true
 
 # LIB Functions
+# TODO: Bottom/Top breaks menu
 sel_list () {
 	local -A SKEYS
 	local -a SLIST
@@ -285,7 +286,13 @@ sel_list () {
 			[[ $(( BOX_NDX++ )) -gt ${MAX_BOX} ]] && break # Increments BOX_NDX, break when page is full
 
 			tput cup ${BOX_ROW} ${BOX_Y}
-			[[ ${CLIENT_POS_REQUEST} == 'false' && ${EXIT_REQ} == 'false' && ${BOX_ROW} -eq ${BOX_X} ]] && { tput smso && _HILITE_X=${BOX_X} } || tput rmso # Highlight first item
+			[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: POSITIONING CURSOR: ROW:${BOX_ROW} COL:${BOX_Y}"
+
+			if [[ ${CLIENT_POS_REQUEST} == 'false' && ${EXIT_REQ} == 'false' && ${BOX_ROW} -eq ${BOX_X} ]];then
+				{ tput smso && _HILITE_X=${BOX_X} }
+			else
+				tput rmso # Highlight first item
+			fi
 
 			if [[ ${_SL_CATEGORY} == 'true' ]];then
 				F1=$(sel_list_get_cat ${LIST_NDX})
@@ -369,11 +376,14 @@ sel_list () {
 				27) msg_box_clear; return 2;;
 			esac
 
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: KEY PRESS:${KEY} DIR:${DIR}"
+
 			# Ensure sane index boundaries
 			[[ ${MAX_NDX} -eq 1 && ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}MAX_NDX = 1 - BREAKING${RESET}"
 			[[ ${MAX_NDX} -eq 1 ]] && break 
 
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}PRE${RESET} BOUNDARY CHECK - CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
+
 			if [[ ${CURSOR_NDX} -lt ${LIST_TOP} ]];then
 				CURSOR_NDX=${LIST_BOT}
 				CURSOR_ROW=${BOX_BOT}
@@ -385,6 +395,7 @@ sel_list () {
 
 			# Roll arounds
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}PRE${RESET} ROLL AROUND - LAST_NDX:${LAST_NDX} LAST_ROW:${LAST_ROW}"
+
 			case ${DIR} in
 				D)	if [[ ${CURSOR_NDX} -eq ${LIST_TOP} ]];then
 						LAST_NDX=${LIST_BOT}
@@ -410,6 +421,7 @@ sel_list () {
 
 			# Row and Page changes
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}PRE${RESET} ROW/PAGE - CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
+
 			case ${DIR} in
 				D|U)	sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
 						sel_list_norm ${LAST_ROW} ${BOX_Y} ${_SEL_LIST[${LAST_NDX}]}

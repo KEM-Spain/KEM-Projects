@@ -31,7 +31,8 @@ page () {
 	use Term::ReadKey;
 
 	my $BUFFER='';
-	my $LESS_CMD="less -R -F -P'COMMANDS\\: (h)elp (f,d)PgDn (b,u)PgUp (q)uit vi-keys arrows .?ltLine %lt .?e<EOF>'"; 
+	my $LN_OPT=$ENV{'LN_OPT'};
+	my $LESS_CMD="less $LN_OPT -R -F -P'COMMANDS\\: (h)elp (f,d)PgDn (b,u)PgUp (q)uit vi-keys arrows .?ltLine %lt .?e<EOF>'"; 
 	my $LINE;
 	my $LINES;
 	my $TERM_LINES = `tput lines`;
@@ -64,6 +65,7 @@ perl -e "$PERL_SCRIPT" ${1}
 }
 
 [[ ${1} == '-H' ]] && usage
+[[ ${1} == '-n' ]] && export LN_OPT='-N' || export LN_OPT=''
 
 page ${1}
 RC=${?}

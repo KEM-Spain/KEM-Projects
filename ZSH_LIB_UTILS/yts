@@ -97,6 +97,8 @@ action_do () {
 	local EMSG=''
 	local ERROR_CNT=0
 	local ETA=''
+	local ERR=''
+	local OTH=''
 	local FRAME_PAD=4
 	local HAD_ERROR=false
 	local HDR1_TXT=0
@@ -116,7 +118,7 @@ action_do () {
 	local LOG_STALLS=0
 	local NDX=0
 	local PID=0
-	local RESUMED_TAG=''
+	local INFO_TAG=''
 	local RC1=0
 	local RC2=0
 	local SCAN_LIMIT=0
@@ -211,10 +213,16 @@ action_do () {
 			fi
 
 			# Scan for 'resumed'
-			RESUMED_TAG=''
+			INFO_TAG=''
 			LOG_LINE=$(grep -m1 -i "resuming download" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
-				RESUMED_TAG=' (<w>resumed<N>)'
+				INFO_TAG=' (<w>resumed<N>)'
+			fi
+
+			# Audio fix mode
+			INFO_TAG=''
+			if [[ ${g_FIX_AUDIO} == 'true' ]];then
+				INFO_TAG=' (<w>Audio Fix Mode<N>)'
 			fi
 
 			# Process headers
@@ -225,9 +233,9 @@ action_do () {
 				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<w>/" -e "s/:/<N>:<m>/")
 				HDR1_TXT=$(cut -d'|' -f2 <<<${DEST})
 				HDR1_TXT="<w>Downloading<N>:<m> <c>${HDR1_TXT[1,60]}<N>"
-				HDR2_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${RESUMED_TAG}"
+				HDR2_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${INFO_TAG}"
 				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR2_TXT})} ))
-				HDR_LEN=$((HDR_LEN + FRAME_PAD))
+				HDR_LEN=$((HDR_LEN + FRAME_PAD + 4))
 				HRZ_CTR=$(coord_center $((_MAX_COLS-3)) ${HDR_LEN}) # Horiz center
 				[[ ${HDR_LEN} -gt ${_COORDS[W]} ]] && _COORDS[W]=${HDR_LEN} && _COORDS[Y]=${HRZ_CTR} # Adjust frame width/center
 				msg_box -c -C -I -H3 -jl -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} ${HDR1_TXT}
@@ -236,67 +244,67 @@ action_do () {
 				HDRS_OUT=true
 			fi
 
-			if [[ ${HDRS_OUT} == 'true' ]];then
-				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1) 
-				echo "LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
-				grep -q -i 'error\|eta\|100%\|100\.0' <<<${LOG_LINE} 2>/dev/null && RC1=${?} # Scan line
-				[[ ${RC1} -ne 0 ]] && continue
+			if [[ ${HDRS_OUT} == 'true' ]];then # Monitor progress
+				ETA='' && ERR='' && OTH=''
 
-				# Parse errors
-				case ${LOG_LINE:l} in
-						*error*)	((ERROR_CNT++))
-									msg_box -T ALERT -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
-									HAD_ERROR=true
-									;;
-			  	*'giving up'*)	ERROR_CNT=${_ERROR_LIMIT} 
-									;;
-								*) HAD_ERROR=false
-									ERROR_CNT=0
-									;;
-				esac
+				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1 | str_trim) 
+				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
 
-				if [[ ${ERROR_CNT} -ge ${_ERROR_LIMIT} ]];then # consecutive errors >= limit
-					TITLE=$(get_field title ${M})	
-					EMSG="<w>${TITLE[1,65]}<N>|<r>Download failed<N>|Too many consecutive errors:${ERROR_CNT}|<r>Network failure<N>|${LOG_LINE}" 
-					msg_box -f80 -p -PK "${EMSG}"
-					_FAILED[${M}]=true
-					_DOWNLOADS[${M}]=false
-					break # While loop
+				if grep -qi 'eta.*error' <<<${LOG_LINE};then # Contains both - split
+					echo "${0}: SPLITING LINE" >> ${_YTS_DBG_LOG}
+					ETA=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | head -1)
+					ERR=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | tail -1)
+				elif grep -qi 'eta' <<<${LOG_LINE};then
+					ETA=${LOG_LINE}
+				elif grep -qi 'error' <<<${LOG_LINE};then
+					ERR=${LOG_LINE}
+				else
+					OTH=${LOG_LINE}
 				fi
-				# Parse errors
 
-				# Parse progress
-				ETA=$(sed 's/^\(.*:[0-9][0-9]\)\(.*\)/\1/' <<<${LOG_LINE})
-				if [[ ! ${ETA} =~ '^[ \t]*$' ]];then # Not blank
+				HAD_ERROR=false
+				if [[ -n ${ERR} ]];then
+					((ERROR_CNT++))
+					msg_box -T ALERT -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+					HAD_ERROR=true
+				fi
 
-					case ${ETA:l} in
+				if [[ -n ${OTH} ]];then
+					case ${OTH:l} in
 						*rumbleembed*) continue;;
-						*fixing*) continue;; # Fragmented job
 						*merging*) continue;; # Audio fix
-						*'deleting original'*); ETA='Audio/Video combined 100%'; LINE_COLOR='<B><g>';; # Audio fix
+						*fixing*) ETA='Fragmented Job 100%'; LINE_COLOR='<B><g>';; # Fragmented job 
+						*'deleting original'*) ETA='Audio/Video combined 100%'; LINE_COLOR='<B><g>';; # Audio fix
+						*100%*) ETA=${OTH};;
+					esac
+				fi
+
+				LINE_COLOR=''
+				if [[ -n ${ETA} ]];then
+					case ${ETA:l} in
+						*100*) LINE_COLOR='<B><g>';;
 						*mib/s*) LINE_COLOR='<w>';;
 						*kib/s*) LINE_COLOR='<B><y>';;
-						*100%*) LINE_COLOR='<B><g>';;
-						*) LINE_COLOR='';;
 					esac
+				fi
 
-					[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
+				[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
 
-					msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
+				echo "${0}: ${LINE_COLOR}${ETA}<N>" >> ${_YTS_DBG_LOG}
+				msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
 
-					if [[ ${ETA} =~ '100%' ]];then
-						if [[ ${#_MARKED} -gt 1 ]];then
-							msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
-							if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-								msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) -y$(( _COORDS[Y]+15 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
-							fi
+				if [[ ${ETA} =~ '100%' ]];then
+					if [[ ${#_MARKED} -gt 1 ]];then
+						msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
+						if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+							msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) -y$(( _COORDS[Y]+30 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
 						fi
-						_DOWNLOADS[${M}]=true
-						post_process
-						log_download ${M}
-						break # While loop
 					fi
-				fi # Parse progress
+					_DOWNLOADS[${M}]=true
+					post_process
+					log_download ${M}
+					break # While loop
+				fi # Monitor progress
 			fi # Headers out
 			sleep 2 # Log fetch delay
 		done # Log scan complete
@@ -329,6 +337,10 @@ action_warn () {
 			_MARKED[${M}]=0
 			list_set_selected ${M} ${_AVAIL_ROW}
 		done
+	fi
+
+	if [[ ${g_FIX_AUDIO} == 'true' ]];then
+		msg_box -H1 -x${_COORDS[X]} -h${_COORDS[H]} "<w><I>Audio Fix Mode<N>|<Z>|Getting a/v codes|<Z>|<I>Please wait...<N>"
 	fi
 }
 
@@ -398,6 +410,7 @@ fav_delete () {
 			else
 				mv -f /tmp/favlist.new ${_YTS_FAVORITES}
 				echo "${0}: log ${_YTS_FAVORITES} updated" >> ${_YTS_DBG_LOG}
+				fav_load
 			fi
 		else
 			exit_leave "No favorites have been saved"
@@ -417,54 +430,57 @@ fav_get () {
 
 	list_set_type select
 
-	_DISPLAY_LIST=()
-	for F in ${(k)_DISPLAY_KEYS};do
-		EKEY=${$(cut -d: -f1 <<<${_DISPLAY_KEYS[${F}]}):l}
-		if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
-			if [[ ${EKEY} =~ 'r' ]];then
-				_DISPLAY_LIST+=${F:gs/_/ /}
-				_FAVORITE_ENGINE[${F}]=${EKEY}
-			fi
-		else
-			if [[ ${EKEY} =~ 'y' ]];then
-					if [[ ${g_CUSTOM_LIST} == 'true' ]];then
-						if [[ ${EKEY} =~ 'p' ]];then
-							_DISPLAY_LIST+=${F:gs/_/ /}
-							_FAVORITE_ENGINE[${F}]=${EKEY:s/p//} # Strip custom marker
-						fi
-					else
-						if [[ ! ${EKEY} =~ 'p' ]];then
-							_DISPLAY_LIST+=${F:gs/_/ /}
-							_FAVORITE_ENGINE[${F}]=${EKEY}
-						fi
-					fi
-			fi
-		fi
-	done
-
-	sel_list_set ${(o)_DISPLAY_LIST}
-	sel_list_set_page_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>c<N>)ustom list, (<w>d<N>)elete favorite"
-
-	clear
-
-	[[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && MSG=' (<c>livestreams toggled<w>)' || MSG=''
-
-	_SEL_VAL=?
-	sel_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>" ${_SEL_X} ${_SEL_Y} ${_SEL_NDX}
-
-	case ${_SEL_KEY} in
-		d) fav_delete ${_SEL_VAL} && _DISPLAY_LIST=() && continue;;
-		l) if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
-				[[ ${g_LIVE_OPT} == 'true' ]] && g_LIVE_OPT=false || g_LIVE_OPT=true
+	while true;do
+		_DISPLAY_LIST=()
+		for F in ${(k)_DISPLAY_KEYS};do
+			EKEY=${$(cut -d: -f1 <<<${_DISPLAY_KEYS[${F}]}):l}
+			if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
+				if [[ ${EKEY} =~ 'r' ]];then
+					_DISPLAY_LIST+=${F:gs/_/ /}
+					_FAVORITE_ENGINE[${F}]=${EKEY}
+				fi
 			else
-				g_LIVE_OPT=true  # Livestream toggle only applies to Rumble
+				if [[ ${EKEY} =~ 'y' ]];then
+						if [[ ${g_CUSTOM_LIST} == 'true' ]];then
+							if [[ ${EKEY} =~ 'p' ]];then
+								_DISPLAY_LIST+=${F:gs/_/ /}
+								_FAVORITE_ENGINE[${F}]=${EKEY:s/p//} # Strip custom marker
+							fi
+						else
+							if [[ ! ${EKEY} =~ 'p' ]];then
+								_DISPLAY_LIST+=${F:gs/_/ /}
+								_FAVORITE_ENGINE[${F}]=${EKEY}
+							fi
+						fi
+				fi
 			fi
-			continue
-			;;
-		r) g_QRY_ENGINE='rumble' && g_CUSTOM_LIST=false && continue;;
-		y) g_QRY_ENGINE='youtube' && g_CUSTOM_LIST=false && continue;;
-		c) g_QRY_ENGINE='youtube' && g_CUSTOM_LIST=true && continue;;
-	esac
+		done
+
+		sel_list_set ${(o)_DISPLAY_LIST}
+		sel_list_set_page_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>c<N>)ustom list, (<w>d<N>)elete favorite"
+
+		clear
+
+		[[ ${g_QRY_ENGINE} == 'rumble' && ${g_LIVE_OPT} == 'true' ]] && MSG=' (<c>livestreams toggled<w>)' || MSG=''
+
+		_SEL_VAL=?
+		sel_list "<w>Run ${(C)g_QRY_ENGINE} query${MSG} from history or <h>(q)uit<N>" ${_SEL_X} ${_SEL_Y} ${_SEL_NDX}
+
+		case ${_SEL_KEY} in
+			d) fav_delete ${_SEL_VAL} && continue;;
+			l) if [[ ${g_QRY_ENGINE} == 'rumble' ]];then
+					[[ ${g_LIVE_OPT} == 'true' ]] && g_LIVE_OPT=false || g_LIVE_OPT=true
+				else
+					g_LIVE_OPT=true  # Livestream toggle only applies to Rumble
+				fi
+				continue
+				;;
+			r) g_QRY_ENGINE='rumble' && g_CUSTOM_LIST=false && continue;;
+			y) g_QRY_ENGINE='youtube' && g_CUSTOM_LIST=false && continue;;
+			c) g_QRY_ENGINE='youtube' && g_CUSTOM_LIST=true && continue;;
+		esac
+		[[ -n ${_SEL_VAL} ]] && break
+	done
 
 	g_QUERY_KEY=$(cut -d: -f2 <<<${_DISPLAY_KEYS[${_SEL_VAL:gs/ /_}]})
 	g_ENGINE_KEY=$(cut -d: -f1 <<<${_DISPLAY_KEYS[${_SEL_VAL:gs/ /_}]})
@@ -476,6 +492,8 @@ fav_load () {
 	local DKEY
 	local QKEY
 	local QCODE
+
+	_DISPLAY_KEYS=()
 
 	while read LINE;do
 		DKEY=$(cut -d'|' -f1 <<<${LINE})
@@ -596,7 +614,7 @@ get_field () {
 		[[ ! ${STR} =~ 'ago.*[0-9][0-9]\)' ]] && STR=$(sed 's/ago.*/ago\)/' <<<${STR}) # Delimiter error
 	fi
 	
-	[[ ${FIELD} == 'author' && ${STR} =~ ${g_QUERY_KEY} ]] && STR=${g_DISPLAY_KEY}
+	[[ ${FIELD} == 'author' && ${g_QUERY_KEY:gs/_/:l} =~ ${STR:l} ]] && STR=${g_DISPLAY_KEY}
 
 	[[ ${FIELD} == 'title' ]] && STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\?*?\s+?//' <<<${STR}) # Limit length
 
@@ -701,13 +719,13 @@ log_find () {
 }
 
 post_process () {
-	local -a KEYWORDS=("judge_napolitano - " "official" "the " " show")
+	local -a KEYWORDS=("judge napolitano - " "official" "the " " show")
 	local K D
 	local FLEN=70
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	msg_box -x$(( _COORDS[X]+4 )) -y$(( _COORDS[Y]+15 )) "Post processing..."
+	msg_box -x$(( _COORDS[X]+4 )) -y$(( _COORDS[Y]+30 )) "Post processing..."
 
 	{
 		for D in ${_DOWNLOAD_DIR}/*;do
@@ -930,6 +948,8 @@ start_job () {
 	fi
 
 	echo "${0} CMD:${CMD}" >> ${g_YTS_LOG} # Log command
+	echo "${0} QUERY:${g_QUERY_KEY}" >> ${_YTS_DBG_LOG} # Log command
+	echo "${0} CMD:${CMD}" >> ${_YTS_DBG_LOG} # Log command
 
 	eval "${CMD} >> ${g_YTS_LOG} 2>&1" & # Start background job
 	g_PID=$!
@@ -1148,7 +1168,7 @@ fav_load ${_FAV_TAB}
 
 # Arg handling for yts.js
 if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
-	ARG="${@}"
+	g_QUERY_KEY="${@}"
 
    if [[ ${HELP_OPT} == 'true' ]];then
 		usage
@@ -1165,7 +1185,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 	RCL=$(sed 's/\-L//' <<<${RCL}) # Rumble only option
 	RCL=$(sed 's/\-l//' <<<${RCL}) # Rumble only option
 
-	[[ ${ARG} =~ ' ' ]] && g_STRICT=false # Multiword arg
+	[[ ${g_QUERY_KEY} =~ ' ' ]] && g_STRICT=false # Multiword arg
 	[[ ${g_STRICT} == 'true' ]] && RCL="${RCL} -s"
 	
 	[[ ${_DEBUG} -ne 0 ]] && RCL=$(sed 's/\-D* //' <<<${RCL}) # Front end option only
@@ -1178,9 +1198,9 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 		[[ ${?} -ne 0 ]] && exit_leave "${RED_FG}Invalid argument${RESET} - valid age arguments: ${WHITE_FG}all,min,day,week,month,year${RESET}"
 	fi
 
-	if [[ -n ${ARG} ]];then
+	if [[ -n ${g_QUERY_KEY} ]];then
 		RCL="${RCL:Q}" # Remove any quotes
-		RCL=$(sed "s/${ARG}//" <<<${RCL}) # Remove arg as passed
+		RCL=$(sed "s/${g_QUERY_KEY}//" <<<${RCL}) # Remove arg as passed
 		RCL="${RCL} ${ARG:q}" # Quote arg for any multi-word searches
 	fi
 
@@ -1202,11 +1222,11 @@ if [[ ${#} -eq 0 ]];then # NO args passed
 	done
 else # Args passed
 	_CMD_LINE_ARGS=true
-	ARG="${@}"
-	${g_QRY_ENGINE} ${ARG}
+	g_QUERY_KEY="${@}"
+	${g_QRY_ENGINE} ${g_QUERY_KEY}
 	if [[ ${?} -eq 0 ]];then
-		fav_set ${ARG}
-		select_download ${ARG}
+		fav_set ${g_QUERY_KEY}
+		select_download ${g_QUERY_KEY}
 	fi
 fi
 

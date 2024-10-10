@@ -175,22 +175,22 @@ msg_box () {
 		MSG_HDRS=(${MSGS[1,$(( HDR_LINES ))]})
 		MSG_BODY=(${MSGS[HDR_LINES+1,-1]})
 		MSG_ROWS=$(( ${#MSG_HDRS} + ${#MSG_BODY} + ${#MSG_FTRS} ))
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HAS HEADERS"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HEADER CONTAINS ${#MSG_HDRS} lines"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_HDRS:\n---\n$(for M in ${MSG_HDRS};do echo ${M};done)\n---\n"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG BODY CONTAINS ${#MSG_BODY} lines"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG MSG_FTRS: ${MSG_FTRS}"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG FTRS CONTAINS ${#MSG_FTRS} lines"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG TOTAL LINES:${MSG_ROWS}"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: HAS HEADERS"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: HEADER CONTAINS ${#MSG_HDRS} lines"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_HDRS FOLLOW:\n---\n$(for M in ${MSG_HDRS};do echo ${M};done)\n---\n"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BODY CONTAINS ${#MSG_BODY} lines"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_FTRS: ${MSG_FTRS:-null}"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FTRS CONTAINS ${#MSG_FTRS} lines"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TOTAL LINES:${MSG_ROWS}"
 	else
 		MSG_BODY=(${MSGS})
 		MSG_ROWS=$(( ${#MSG_BODY} + ${#MSG_FTRS} ))
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG HAS ${RED_FG}NO${RESET} HEADERS"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG BODY CONTAINS ${#MSG_BODY} lines"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_BODY:\n---\n$(for M in ${MSG_BODY};do echo ${M};done)\n---\n"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG MSG_FTRS: ${MSG_FTRS}"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG FTRS CONTAINS ${#MSG_FTRS} lines"
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG TOTAL LINES:${MSG_ROWS}"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: HAS ${RED_FG}NO${RESET} HEADERS"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BODY CONTAINS ${#MSG_BODY} lines"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_BODY FOLLOW:\n---\n$(for M in ${MSG_BODY};do echo ${M};done)\n---\n"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_FTRS: ${MSG_FTRS:-null}"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FTRS CONTAINS ${#MSG_FTRS} lines"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: TOTAL LINES:${MSG_ROWS}"
 	fi
 
 	# --- BEGIN COORDS SETUP ---
@@ -229,11 +229,11 @@ msg_box () {
 	MSG_COLS=$(( MAX_ELEM + 1 ))
 	MSG_SEP="<SEP>"
 
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_STR:${MSG_STR} MSG_COLS:${MSG_COLS}"
-
 	# Process various message types
 	if [[ ${MSG_PAGING}  == 'true' ]];then
 		MSG_STR=$(msg_nomarkup ${NAV_BAR}) # Strip markup
+
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_STR:${MSG_STR} MSG_COLS:${MSG_COLS}"
 
 		# Adding header lines reduces paging area (PG_LINES)
 		[[ -n ${MSG_HDRS} ]] && (( PG_LINES-=2 )) || (( PG_LINES--)) # With headers add BAR,HDR,SEP else add BAR,SEP only
@@ -267,7 +267,7 @@ msg_box () {
 		[[ ${MSG_X_COORD} -gt ${USABLE_ROWS} ]] && MSG_X_COORD=${USABLE_ROWS}
 		[[ ${MSG_Y_COORD} -lt ${MIN_Y_COORD} ]] && MSG_Y_COORD=${MIN_Y_COORD}
 		[[ ${MSG_Y_COORD} -gt ${USABLE_COLS} ]] && MSG_Y_COORD=${USABLE_COLS}
-		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_X_COORD:${MSG_X_COORD} MSG_Y_COORD:${MSG_Y_COORD} MSG_W_COORD:${MSG_W_COORD} MSG_H_COORD:${MSG_H_COORD}"
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: MSG_X_COORD:${MSG_X_COORD} MSG_Y_COORD:${MSG_Y_COORD}"
 	fi
 
 	# Set box coords
@@ -277,6 +277,7 @@ msg_box () {
 			MSG_Y_COORD=${_REL_COORDS[Y]}
 			BOX_WIDTH=${_REL_COORDS[W]}
 			BOX_HEIGHT=${_REL_COORDS[H]}
+			[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RELATIVE COORDS: MSG_X_COORD:${_REL_COORDS[X]} MSG_Y_COORD:${_REL_COORDS[Y]} BOX_WIDTH:${_REL_COORDS[W]} BOX_HEIGHT:${_REL_COORDS[H]}"
 		fi
 	else
 		[[ ${WIDTH_ARG} -eq 0 ]] && BOX_WIDTH=$(( MSG_COLS + 4 )) || BOX_WIDTH=${WIDTH_ARG}
@@ -284,11 +285,11 @@ msg_box () {
 		[[ ${MSG_X_COORD_ARG} -eq -1 ]] && MSG_X_COORD=$((  (_MAX_ROWS-BOX_HEIGHT) / 2 + 1 )) || MSG_X_COORD=${MSG_X_COORD_ARG}
 		[[ ${MSG_Y_COORD_ARG} -eq -1 ]] && MSG_Y_COORD=$(( _MAX_COLS / 2 - MSG_COLS / 2 )) || MSG_Y_COORD=${MSG_Y_COORD_ARG}
 	fi
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RELATIVE:${RELATIVE} MSG_X_COORD:${MSG_X_COORD} MSG_Y_COORD:${MSG_Y_COORD} BOX_WIDTH:${BOX_WIDTH} BOX_HEIGHT:${BOX_HEIGHT}"
 
 	# Box coords - compensate for frame
 	BOX_X_COORD=${$(( MSG_X_COORD - 1 )):=1}
 	BOX_Y_COORD=${$(( MSG_Y_COORD - 1 )):=1}
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: FRAME COMPENSATION: BOX_X_COORD:${BOX_X_COORD} BOX_Y_COORD:${BOX_Y_COORD}"
 	# --- END COORDS SETUP ---
 
 	# Save box coords

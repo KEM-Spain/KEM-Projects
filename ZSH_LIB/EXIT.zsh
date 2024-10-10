@@ -16,7 +16,7 @@ exit_leave () {
 		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
 		dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
 		dbg "${RED_FG}${0}${RESET}: _SMCUP:${_SMCUP}"
-		dbg_msg | mypager wait
+		dbg_msg | mypager -n wait
 	fi
 
 	[[ -n ${MSGS} ]] && _EXIT_MSGS=${MSGS}
