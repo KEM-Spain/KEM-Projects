@@ -12,7 +12,6 @@ typeset -a _MARKED=()
 typeset -a _SELECTION_LIST=() # Holds indices of selected items in a list
 typeset -A _SORT_TABLE=() # Sort assoc array names
 typeset -A _SORT_COLS=() # Sort column mapping
-typeset -A _SORT_DIRECTION=() # Current list sort direction
 typeset -a _TARGETS=() # Target indexes
 
 # LIB Vars
@@ -41,10 +40,12 @@ _LIST_NDX=0
 _LIST_PROMPT=''
 _LIST_SELECT_NDX=0
 _LIST_SELECT_ROW=0
+_LIST_LAST_SORT=''
 _LIST_SORT_COL_MAX=0
 _LIST_SORT_COL_DEFAULT=0
+_LIST_SORT_DIR_DEFAULT=a
 _LIST_SORT_TYPE=flat
-_LIST_TOGGLE_STATE=off
+_LIST_SORT_TOGGLE=false
 _LIST_USER_PROMPT_STYLE=none
 _MSG_KEY=n
 _NO_TOP_OFFSET=false
@@ -67,21 +68,13 @@ _AVAIL_ROW=0
 _HELD_ROW=1
 _GHOST_ROW=2 # Not selectable
 _LIST_LIB_DBG=3
+_SORT_MARKER=$(mktemp /tmp/last_sort.XXXXXX)
  
 # LIB Functions
 list_add_header_break () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	_LIST_HEADER_BREAK=true
-}
-
-list_call_sort () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	case ${_LIST_SORT_TYPE} in
-		assoc) list_sort_assoc;;
-		flat) list_sort;;
-	esac
 }
 
 list_clear_selected () {
@@ -616,12 +609,6 @@ list_select () {
 		_CURSOR_STATE=off
 	fi
 
-	# Default sort settings
-	if [[ ${_LIST_SORT_COL_DEFAULT} -ne 0 ]];then
-		_SORT_DIRECTION[${_LIST_SORT_COL_DEFAULT}]=d
-		list_sort ${_LIST_SORT_COL_DEFAULT}
-	fi
-	 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _LIST COUNT:${#_LIST}"
 
 	[[ -z ${_LIST_TYPE} ]] && _LIST_TYPE='classic'
@@ -763,8 +750,8 @@ list_select () {
 				l) DIR_KEY=b;CURSOR_NDX=${MAX_CURSOR};_LIST_NDX=${PAGE_RANGE_BOT};; # 'l' Bottom Row current page
 				n) DIR_KEY=n;PAGE_BREAK=true;break;; # 'n' Next page
 				p) DIR_KEY=p;PAGE_BREAK=true;break;; # 'p' Prev page
-				q) exit_request;;
-				s) [[ ${_LIST_IS_SORTABLE} == 'true' ]] && list_call_sort;_HOLD_PAGE=true;break;; # 's' Sort
+				q) list_clear_marker;exit_request;list_restore_marker;;
+				s) [[ ${_LIST_IS_SORTABLE} == 'true' ]] && list_sort;_HOLD_PAGE=true;break;; # 's' Sort
 				t) DIR_KEY=fp;PAGE_BREAK=true;break;; # 't' Top row first page
 				z) return -1;; # 'z' Quit loop
 				${_CB_KEY}) ${_KEY_CALLBACK_FUNC};return -2;; # Custom callback key
@@ -811,6 +798,7 @@ list_select () {
 		done
 	done
 
+	list_clear_marker
 	return $(list_get_selected_count)
 }
 
@@ -839,7 +827,6 @@ list_reset () {
 	_LIST_SELECTED=()
 	_MARKED=()
 	_SELECTION_LIST=()
-	_SORT_DIRECTION=()
 	_SORT_TABLE=()
 }
 
@@ -962,6 +949,17 @@ list_set_line_item () {
 	_LIST_LINE_ITEM=${@}
 }
 
+list_set_max_sort_col () {
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
+
+	_LIST_SORT_COL_MAX=${1}
+	if validate_is_integer ${_LIST_SORT_COL_MAX};then
+		return
+	else
+		msg_box -p -PK "echo ${0}: error _LIST_SORT_COL_MAX not integer:${_LIST_SORT_COL_MAX}"
+	fi
+}
+
 list_set_no_top_offset () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -1055,24 +1053,27 @@ list_set_sort_cols () {
 }
 
 list_set_sort_col_default () {
+	local ARG=${1}
+	local COL=''
+	local DIR=''
+
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
-	_LIST_SORT_COL_DEFAULT=${1}
+	if [[ ${ARG} =~ ':' ]];then
+		COL=$(cut -d: -f1 <<<${ARG})
+		DIR=$(cut -d: -f2 <<<${ARG})
+		_LIST_SORT_DIR_DEFAULT=${DIR}
+		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Parsed ARG - COL:${COL} DIR:${DIR}"
+	else
+		COL=${ARG}
+		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Set default COL:${COL}"
+	fi
+
+	_LIST_SORT_COL_DEFAULT=${COL}
 	if validate_is_integer ${_LIST_SORT_COL_DEFAULT};then
 		return
 	else
 		msg_box -p -PK "echo ${0}: error _LIST_SORT_COL_DEFAULT not integer:${_LIST_SORT_COL_DEFAULT}"
-	fi
-}
-
-list_set_max_sort_col () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
-
-	_LIST_SORT_COL_MAX=${1}
-	if validate_is_integer ${_LIST_SORT_COL_MAX};then
-		return
-	else
-		msg_box -p -PK "echo ${0}: error _LIST_SORT_COL_MAX not integer:${_LIST_SORT_COL_MAX}"
 	fi
 }
 
@@ -1115,13 +1116,15 @@ list_show_key () {
 }
 
 list_verify_sort_params () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
 
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Inspecting _LIST_SORT_COL_MAX:${_LIST_SORT_COL_MAX}"
 	if ! validate_is_integer ${_LIST_SORT_COL_MAX};then
 		msg_box -p -PK "Invalid sort column:${_LIST_SORT_COL_MAX}"
 		return 1
 	fi
 
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Inspecting _LIST_SORT_TYPE:${_LIST_SORT_TYPE}"
 	if [[ ${_LIST_SORT_TYPE} == 'assoc' ]];then
 		if [[ -z ${_SORT_TABLE} ]];then
 			msg_box -p -PK "_SORT_TABLE:${#_SORT_TABLE} is not populated"
@@ -1133,8 +1136,8 @@ list_verify_sort_params () {
 }
 
 list_sort () {
-	local SORT_COL=${1}
-	local FIELD_MAX
+	local FIELD_MAX=0
+	local SORT_COL=''
 	
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -1148,28 +1151,27 @@ list_sort () {
 		FIELD_MAX=${_LIST_SORT_COL_MAX}
 	fi
 
-	if [[ -z ${SORT_COL} ]];then
-		msg_box -p "Enter column to sort:|(1 through ${FIELD_MAX})"
-		SORT_COL=${_MSG_KEY}
-	fi
+	msg_box -p "Enter column to sort:|(1 through ${FIELD_MAX})"
+	SORT_COL=${_MSG_KEY}
 
 	if [[ ${SORT_COL} -lt 1 || ${SORT_COL} -gt ${FIELD_MAX} ]];then
 		msg_box -p -PK "Invalid sort column:${SORT_COL}"
 		return 1
 	fi
 
-	list_sort_set_direction ${SORT_COL}
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} COLUMN:${SORT_COL} DIRECTION:${_SORT_DIRECTION[${SORT_COL}]}"
+	list_sort_get
 
-	_LIST=("${(f)$(list_sort_flat _LIST ${SORT_COL} ${_SORT_DIRECTION[${SORT_COL}]} ${_LIST_DELIM})}") # Sort
+	case ${_LIST_SORT_TYPE} in
+		assoc) list_sort_assoc ${SORT_COL} ${_LIST_LAST_SORT};;
+		flat) list_sort_flat _LIST ${SORT_COL} ${_LIST_LAST_SORT} ${_LIST_DELIM};;
+	esac
 }
-
+ 
 list_sort_assoc () {
-	local COLUMN=${1:=null} # Direct call - no prompts
-	local ARRAY
-	local -a SLIST
-	local SORT_COL
-	local SORT_CMD
+	local SORT_COL=${1}
+	local SORT_DIR=${2}
+	local SORT_ARRAY=()
+	local SORT_DIR=''
 	local S
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
@@ -1178,53 +1180,43 @@ list_sort_assoc () {
 		return 1
 	fi
 
-	if [[ ${COLUMN} == 'null' ]];then
-		msg_box -p "Enter column to sort:|(1 through ${_LIST_SORT_COL_MAX})"
-		SORT_COL=${_MSG_KEY}
-
-		validate_is_integer ${SORT_COL}
-		if [[ ${?} -ne 0 || ${SORT_COL} -lt 1 || ${SORT_COL} -gt ${_LIST_SORT_COL_MAX} ]];then
-			msg_box -p -PK "Not integer:|Need 1 through ${_LIST_SORT_COL_MAX}"
-			return 1 # Bounce
-		fi
-	else
-		SORT_COL=${COLUMN}
-	fi
+	[[ -n ${SORT_DIR} ]] && list_sort_set ${SORT_DIR} || list_sort_get
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _SORT_TABLE:${_SORT_TABLE}"
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _SORT_COL:${SORT_COL}"
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARRAY to sort:${ARRAY}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARRAY to sort:${SORT_ARRAY}"
 
-	ARRAY=${_SORT_TABLE[${SORT_COL}]}
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _SORT_TABLE array name:${ARRAY}"
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _SORT_TABLE elements:${#${(P)ARRAY}}"
+	SORT_ARRAY=${_SORT_TABLE[${SORT_COL}]}
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _SORT_TABLE array name:${SORT_ARRAY}"
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _SORT_TABLE elements:${#${(P)SORT_ARRAY}}"
 
-	[[ ${#${(P)ARRAY}} -eq 0 ]] && msg_box -p -PK "_SORT_TABLE ${(P)ARRAY} has no rows" && return 1 # Bounce
+	[[ ${#${(P)SORT_ARRAY}} -eq 0 ]] && msg_box -p -PK "_SORT_TABLE ${(P)SORT_ARRAY} has no rows" && return 1 # Bounce
 
-	list_sort_set_direction ${SORT_COL}
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort direction:${_SORT_DIRECTION[${SORT_COL}]}"
-
-	if [[ ${_SORT_DIRECTION[${SORT_COL}]} == "a" ]];then
+	if [[ ${_LIST_LAST_SORT} == "a" ]];then
+		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT ASCENDING"
 		_LIST=("${(f)$(
-			for S in ${(k)${(P)ARRAY}};do
-				echo "${S}|${${(P)ARRAY}[${S}]}"
-				[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort line:${S}|${${(P)ARRAY}[${S}]}"
+			for S in ${(k)${(P)SORT_ARRAY}};do
+				echo "${S}|${${(P)SORT_ARRAY}[${S}]}"
+				[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort line:${S}|${${(P)SORT_ARRAY}[${S}]}"
 			done | sort -t'|' -k2 | cut -d'|' -f1
 		)}")
 	else
+		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT DESCENDING"
 		_LIST=("${(f)$(
-			for S in ${(k)${(P)ARRAY}};do
-				echo "${S}|${${(P)ARRAY}[${S}]}"
-				[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort line:${S}|${${(P)ARRAY}[${S}]}"
+			for S in ${(k)${(P)SORT_ARRAY}};do
+				echo "${S}|${${(P)SORT_ARRAY}[${S}]}"
+				[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort line:${S}|${${(P)SORT_ARRAY}[${S}]}"
 			done | sort -r -t'|' -k2 | cut -d'|' -f1
 		)}")
 	fi
+
+	list_toggle_sort
 }
 
 list_sort_flat () {
 	local ARR_NAME=${1}
-	local SORT_COL=${2:=1}
-	local DIR=${3:='a'}
+	local SORT_COL=${2}
+	local SORT_DIR=${3}
 	local DELIM=${4:='|'}
 	local -A _CAL_SORT=(year G7 month F6 week E5 day D4 hour C3 minute B2 second A1)
 	local -a ARR_SORTED=()
@@ -1233,12 +1225,15 @@ list_sort_flat () {
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
+	[[ -n ${SORT_DIR} ]] && list_sort_set ${SORT_DIR} || list_sort_get
+
 	for L in ${(P)ARR_NAME};do
 		if [[ -n ${_SORT_COLS} ]];then
 			SORT_KEY=$(cut -d "${DELIM}" -f ${_SORT_COLS[${SORT_COL}]} <<<${L}) # Mapped order
 		else
 			SORT_KEY=$(cut -d "${DELIM}" -f ${SORT_COL} <<<${L}) # Natural order
 		fi
+
 		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_COL:${SORT_COL} SORT_KEY:${SORT_KEY}"
 
 		[[ ${SORT_KEY} =~ 'year' ]] && ARR_SORTED+="${_CAL_SORT[year]}${SORT_KEY}${DELIM}${L}" && continue
@@ -1259,32 +1254,67 @@ list_sort_flat () {
 		ARR_SORTED+="${SORT_KEY}${DELIM}${L}"
 	done
 
-	if [[ ${DIR} == 'a' ]];then
-		for L in ${(on)ARR_SORTED};do
-			[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_LINE:${L}"
-			cut -d"${DELIM}" -f2- <<<${L}
-		done
+	if [[ ${_LIST_LAST_SORT} == "a" ]];then
+		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT ASCENDING"
+		_LIST=("${(f)$(
+			for L in ${(on)ARR_SORTED};do
+				cut -d"${DELIM}" -f2- <<<${L}
+			done
+		)}")
 	else
-		for L in ${(On)ARR_SORTED};do
-			[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_LINE:${L}"
-			cut -d"${DELIM}" -f2- <<<${L}
+		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT DESCENDING"
+		_LIST=("${(f)$(
+			for L in ${(On)ARR_SORTED};do
+				cut -d"${DELIM}" -f2- <<<${L}
+			done
+		)}")
+	fi
+
+	if [[ ${ARR_NAME} != "_LIST" ]];then
+		for L in ${_LIST};do
+			echo "${L}"
 		done
+	fi
+
+	list_toggle_sort
+}
+
+list_toggle_sort () {
+	local -A DIR_TOGGLE=(a d d a)
+
+	list_sort_get
+
+	_LIST_LAST_SORT=${DIR_TOGGLE[${_LIST_LAST_SORT}]}
+
+	list_sort_set ${_LIST_LAST_SORT}
+
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} TOGGLED _LIST_LAST_SORT:${_LIST_LAST_SORT}"
+}
+
+list_sort_set () {
+	local LAST_SORT=${1}
+	echo ${LAST_SORT} > ${_SORT_MARKER}
+	_LIST_LAST_SORT=${LAST_SORT}
+}
+
+list_sort_get () {
+	_LIST_LAST_SORT=$(<${_SORT_MARKER})
+	if [[ -z ${_LIST_LAST_SORT} ]];then
+		if [[ -n ${_LIST_SORT_DIR_DEFAULT} ]];then
+			_LIST_LAST_SORT=${_LIST_SORT_DIR_DEFAULT}
+		else
+			_LIST_LAST_SORT=a
+		fi
 	fi
 }
 
-list_sort_set_direction () {
-	local SORT_COL=${1:=1}
-	local -A DIR_TOGGLE=(a d d a)
+list_clear_marker () {
+	[[ -e ${_SORT_MARKER} ]] && /bin/rm -f ${_SORT_MARKER}
+}
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGS:SORT_COL:${SORT_COL}"
-
-	[[ -z ${_SORT_DIRECTION[${SORT_COL}]} ]] && _SORT_DIRECTION[${SORT_COL}]=a && return
-
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Received:${_SORT_DIRECTION[${SORT_COL}]}"
-
-	_SORT_DIRECTION[${SORT_COL}]=${DIR_TOGGLE[${_SORT_DIRECTION[${SORT_COL}]}]}
-
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Toggled:${_SORT_DIRECTION[${SORT_COL}]}"
+list_restore_marker () {
+	_SORT_MARKER=$(mktemp /tmp/last_sort.XXXXXX)
+	echo ${_LIST_LAST_SORT} > ${_SORT_MARKER}
 }
 
 list_toggle_all () {
@@ -1321,7 +1351,7 @@ list_toggle_all () {
 			case ${_MSG_KEY:l} in
 				a) SELECTED=($(list_select_range 1 ${MAX_ITEM})); _LIST_SELECTED_PAGE[0]=1;;
 				p) SELECTED=($(list_select_range ${FIRST_ITEM} ${LAST_ITEM})); _LIST_SELECTED_PAGE[0]=0;;
-				*) SELECTED=();
+				*) SELECTED=();;
 			esac
 			msg_box_clear
 

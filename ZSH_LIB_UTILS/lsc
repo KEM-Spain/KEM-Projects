@@ -240,7 +240,7 @@ if [[ ${RUNNING} == 'true' ]];then
 	fi
 
 	HDR_TYPE="Running Services"
-	_SORT_TABLE=(1 _UNIT_FILES 2 STATES 3 _DESCRIPTIONS)
+	_SORT_TABLE=(1 _UNIT_FILES 2 _STATES 3 _DESCRIPTIONS)
 
 	NDX=0
 	for L in ${(o)_RAWLIST};do
@@ -285,7 +285,7 @@ else
 	fi
 
 	HDR_TYPE="Unit Files"
-	_SORT_TABLE=(1 _UNIT_FILES 2 STATES 3 _RUN_STATES)
+	_SORT_TABLE=(1 _UNIT_FILES 2 _STATES 3 _RUN_STATES)
 
 	if [[ -n ${_STATE_SELECT} ]];then
 		REGEX="("

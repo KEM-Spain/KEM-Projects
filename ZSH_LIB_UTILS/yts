@@ -22,6 +22,7 @@ WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
 typeset -A _COORDS=(X 10 Y 33 H 10 W 86)
+typeset -A _ALERT_COORDS=(X $(( _COORDS[X] + 5 )) Y $(( _COORDS[Y] + _COORDS[W] -25 )))
 typeset -A _DOWNLOADS=()
 typeset -A _FAILED=()
 typeset -A _FAVORITE_ENGINE=()
@@ -54,7 +55,7 @@ _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
 _OBJECT=video
 _PAUSE=2
-_SORT_DEFAULT=(youtube 1 rumble 1)
+_SORT_DEFAULT=(youtube 1:d rumble 1:d)
 _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
@@ -116,6 +117,7 @@ action_do () {
 	local LOG_LINE=''
 	local LOG_SIZE=0
 	local LOG_STALLS=0
+	local MSG=''
 	local NDX=0
 	local PID=0
 	local INFO_TAG=''
@@ -174,7 +176,7 @@ action_do () {
 				LOG_STALLS=0 # Log is growing
 			else
 				((LOG_STALLS++))
-				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Job Stalled<N>"
+				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t${_ALERT} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Job Stalled<N>"
 				LAST_LOG_SIZE=${LOG_SIZE}
 				sleep 1 # Extra sleep 
 				continue
@@ -251,9 +253,9 @@ action_do () {
 				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
 
 				if grep -qi 'eta.*error' <<<${LOG_LINE};then # Contains both - split
-					echo "${0}: SPLITING LINE" >> ${_YTS_DBG_LOG}
-					ETA=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | head -1)
-					ERR=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | tail -1)
+					echo "${0}: SPLITTING LINE" >> ${_YTS_DBG_LOG}
+					ETA=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | head -1 | str_trim)
+					ERR=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | tail -1 | str_trim)
 				elif grep -qi 'eta' <<<${LOG_LINE};then
 					ETA=${LOG_LINE}
 				elif grep -qi 'error' <<<${LOG_LINE};then
@@ -265,7 +267,7 @@ action_do () {
 				HAD_ERROR=false
 				if [[ -n ${ERR} ]];then
 					((ERROR_CNT++))
-					msg_box -T ALERT -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -27)) "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+					msg_box -T ALERT -t${_ALERT} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 					HAD_ERROR=true
 				fi
 
@@ -297,7 +299,8 @@ action_do () {
 					if [[ ${#_MARKED} -gt 1 ]];then
 						msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
 						if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-							msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) -y$(( _COORDS[Y]+30 )) "Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+							MSG="Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+							msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) -y$(box_center ${MSG}) ${MSG}
 						fi
 					fi
 					_DOWNLOADS[${M}]=true
@@ -342,6 +345,27 @@ action_warn () {
 	if [[ ${g_FIX_AUDIO} == 'true' ]];then
 		msg_box -H1 -x${_COORDS[X]} -h${_COORDS[H]} "<w><I>Audio Fix Mode<N>|<Z>|Getting a/v codes|<Z>|<I>Please wait...<N>"
 	fi
+}
+
+box_center () {
+	local TXT=${@} # Text to center
+
+	local BOX=4 # Compensate for box border
+	local BOX_CTR=0
+	local BOX_LEFT=${_COORDS[Y]} # Left coord
+	local BOX_WIDTH=${_COORDS[W]} # Width coord
+	local CTR=0
+	local REM=0
+	local TXT_CTR=0
+	local TXT_LEN=$(( ${#TXT} + BOX )) # Text length
+
+	CTR=$(( TXT_LEN / 2 )) && REM=$((CTR % 2))
+	[[ ${REM} -ne 0 ]] && TXT_CTR=$((CTR+1)) || TXT_CTR=${CTR}
+
+	CTR=$(( BOX_WIDTH / 2 )) && REM=$((CTR % 2))
+	[[ ${REM} -ne 0 ]] && BOX_CTR=$((CTR+1)) || BOX_CTR=${CTR}
+
+	echo $(( BOX_LEFT + BOX_CTR - TXT_CTR ))
 }
 
 clear_log () {
@@ -581,6 +605,25 @@ get_av_codes () {
 	echo "${VIDEO_CODE}+${AUDIO_CODE}"
 }
 
+get_box_center () {
+	local OBJ=$(( ${#1} + 4 ))
+	local AREA=$(( _COORDS[Y] + _COORDS[W] ))
+	local CTR
+	local REM
+	local AC
+	local OC
+
+	CTR=$((AREA / 2))
+	REM=$((CTR % 2))
+	[[ ${REM} -ne 0 ]] && AC=$((CTR+1)) || AC=${CTR}
+
+	CTR=$((OBJ / 2))
+	REM=$((CTR % 2))
+	[[ ${REM} -ne 0 ]] && OC=$((CTR+1)) || OC=${CTR}
+
+	echo $((AC-OC+1))
+}
+
 get_field () {
 	local FIELD=${1}
 	local NDX=${2}
@@ -611,10 +654,12 @@ get_field () {
 	fi
 
 	if [[ ${FIELD} == 'agetime' ]];then
-		[[ ! ${STR} =~ 'ago.*[0-9][0-9]\)' ]] && STR=$(sed 's/ago.*/ago\)/' <<<${STR}) # Delimiter error
+		[[ ! ${STR} =~ 'ago.*[0-9][0-9]\)' ]] && STR=$(sed 's/ago.*/ago\)/' <<<${STR}) # Patch occasional delimiter error
 	fi
 	
-	[[ ${FIELD} == 'author' && ${g_QUERY_KEY:gs/_/:l} =~ ${STR:l} ]] && STR=${g_DISPLAY_KEY}
+	if [[ ${FIELD} == 'author' ]];then
+		[[ ${g_SEARCH_TYPE} == 'general' ]] && STR=${(C)STR} || STR=${g_DISPLAY_KEY:gs/_/ /}
+	fi
 
 	[[ ${FIELD} == 'title' ]] && STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\?*?\s+?//' <<<${STR}) # Limit length
 
@@ -719,13 +764,14 @@ log_find () {
 }
 
 post_process () {
-	local -a KEYWORDS=("judge napolitano - " "official" "the " " show")
+	local -a KEYWORDS=("judge napolitano - " "official" "the " " show" "have it out with galloway - ")
 	local K D
 	local FLEN=70
+	local MSG="Post Processing"
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	msg_box -x$(( _COORDS[X]+4 )) -y$(( _COORDS[Y]+30 )) "Post processing..."
+	msg_box -x$(( _COORDS[X]+4 )) -y$(box_center ${MSG}) ${MSG}
 
 	{
 		for D in ${_DOWNLOAD_DIR}/*;do
@@ -750,7 +796,7 @@ reset_job () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	kill_job
-	msg_box -t${_ALERT} -x$((_COORDS[X]+5)) -y$((_COORDS[Y] + _COORDS[W] -25)) "<m>Job Restarted<N>"
+	msg_box -t${_ALERT} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<m>Job Restarted<N>"
 }
 
 rumble () {
@@ -781,6 +827,7 @@ rumble () {
 	PG=$(wget -q -O - "http://rumble.com/c/${g_QUERY_KEY}?page=1")
 
 	if [[ -n ${PG} ]];then # Channel search
+		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} CHANNEL SEARCH"
 		[[ ${g_ENGINE_KEY:l} == 'r' ]] && g_LIVE=false
 		[[ ${g_ENGINE_KEY:l} == 'rl' ]] && g_LIVE=true
 		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
@@ -810,6 +857,7 @@ rumble () {
 			VID_LIST+="${g_QUERY_KEY}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	else # General search
+		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} GENERAL SEARCH"
 		msg_box "Channel search failed.  Performing general search..."
 		g_SEARCH_TYPE=general
 		GEN_SEARCH=$(sed 's/ /%20/g' <<<${g_QUERY_KEY})
@@ -825,7 +873,7 @@ rumble () {
 			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # Experimental to avoid duplicates
 			AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
 			CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
-			CHANNEL="${(C)g_QUERY_KEY} (${CHANNEL})"
+			#CHANNEL="${(C)g_QUERY_KEY} (${CHANNEL})"
 			VID_LIST+="${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	fi
@@ -843,8 +891,7 @@ rumble () {
 	fi
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} g_QUERY_KEY:${g_QUERY_KEY} _LOCAL_LIST count: ${#_LOCAL_LIST}, TITLES: ${#TITLES}"
-	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${TITLES};do printf "TITLE:%s\n" ${L};done )"
-	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$( for L in ${CHANNELS};do printf "CHANNEL:%s\n" ${L};done )"
+	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} \n$(for L in ${VID_LIST};do echo "VID_LIST:${L}";done)"
 
 	# Return search status
 	if ! arr_is_populated "${_LOCAL_LIST}";then
@@ -1025,6 +1072,7 @@ youtube () {
 
 		# --- BEGIN Experimental filtering
 		if [[ ${CUSTOM_KEY} == 'false' ]];then
+			g_SEARCH_TYPE='channel'
 			HIT=false
 			AUTHOR=$(cut -d'|' -f2 <<<${LINE})
 			[[ ${AUTHOR:l} =~ ${g_DISPLAY_KEY:l} ]] && HIT=true
@@ -1033,6 +1081,8 @@ youtube () {
 			[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} EXPERIMENTAL FILTERING AUTHOR:${AUTHOR} HIT:${HIT}"
 			[[ ${HIT} == 'false' ]] && continue
 			# --- END Experimental filtering
+		else
+			g_SEARCH_TYPE='general'
 		fi
 		 
 		[[ ${_REJECTS[${NDX}]} == 'false' && ${DATA} == 'true' ]] && _LOCAL_LIST+=${STR}
