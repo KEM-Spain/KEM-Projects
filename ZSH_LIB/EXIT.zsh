@@ -5,7 +5,6 @@ _DEPS_+="MSG.zsh UTILS.zsh"
 _PRE_EXIT_RAN=false
 _EXIT_CALLBACK=''
 _EXIT_LIB_DBG=1
-_EXIT_REQUEST=false
 
 exit_leave () {
 	local MSGS=(${@})
@@ -80,15 +79,17 @@ exit_request () {
 	local Y=${2}
 	local W=${3}
 	local H=3
+	local -A COORDS
 	local FRAME_WIDTH=6
 	local TAG=$(instance_set EXR_BOX)
 
 	if [[ ${#} -eq 0 ]];then
 		msg_box -T ${TAG} -jc -O ${RED_FG} -p ${MSG}
 	else
-		[[ -z ${W} ]] && W=$(( ${#MSG} + ${FRAME_WIDTH} )) && Y=$(( Y-${#MSG}/2 ))
-		box_coords_set ${TAG} X $((X-1)) Y $((Y-FRAME_WIDTH/2)) W $((W+FRAME_WIDTH/2)) H ${H} # Compensate for frame dimensions
-		msg_box -T ${TAG} -jc -O ${RED_FG} -p -x ${X} -y ${Y} -w ${W} -h ${H} ${MSG}
+		COORDS=(X ${X:=null} Y ${Y:=null} W ${W:=null} H ${H})
+		[[ ${COORDS[W]} == 'null' ]] && COORDS[W]=$(( ${#MSG} + ${FRAME_WIDTH} )) && COORDS[Y]=$(( COORDS[Y]-${#MSG}/2 ))
+		box_coords_set ${TAG} X $((COORDS[X]-1)) Y $((COORDS[Y]-FRAME_WIDTH/2)) W $((COORDS[W]+FRAME_WIDTH/2)) H ${COORDS[H]} # Compensate for frame dimensions
+		msg_box -T ${TAG} -jc -O ${RED_FG} -p -x ${COORDS[X]} -y ${COORDS[Y]} -w ${COORDS[W]} -h ${COORDS[H]} ${MSG}
 	fi
 
 	if [[ ${_MSG_KEY} == 'y' ]];then
@@ -100,7 +101,6 @@ exit_request () {
 			exit_leave
 		fi
 	else
-		_EXIT_REQUEST=true
 		[[ ${#} -ne 0 ]] && msg_box_clear ${TAG} 
 	fi
 }

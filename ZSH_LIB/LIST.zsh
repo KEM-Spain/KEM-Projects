@@ -717,8 +717,6 @@ list_select () {
 			[[ ${PAGE} -eq ${MAX_PAGE} ]] && MAX_CURSOR=$(( (MAX_ITEM-PAGE_RANGE_TOP) +1 )) || MAX_CURSOR=${MAX_DISPLAY_ROWS}
 	
 			# WAIT FOR INPUT - get list selection(s)  - if only 1 item in list, skip selection and process item
-			 
-			[[ ${_EXIT_REQUEST} == 'true' ]] && _EXIT_REQUEST=false && break
 			KEY=$(get_keys ${USER_PROMPT})
 
 			case ${KEY} in
@@ -1063,7 +1061,7 @@ list_set_sort_col_default () {
 		COL=$(cut -d: -f1 <<<${ARG})
 		DIR=$(cut -d: -f2 <<<${ARG})
 		_LIST_SORT_DIR_DEFAULT=${DIR}
-		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Parsed ARG - COL:${COL} DIR:${DIR}"
+		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Parsed ARG and set defaults - COL:${COL} DIR:${DIR}"
 	else
 		COL=${ARG}
 		[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Set default COL:${COL}"
@@ -1210,7 +1208,7 @@ list_sort_assoc () {
 		)}")
 	fi
 
-	list_toggle_sort
+	list_sort_toggle
 }
 
 list_sort_flat () {
@@ -1224,6 +1222,11 @@ list_sort_flat () {
 	local L
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
+
+
+	[[ -n ${_LIST_SORT_COL_DEFAULT} && ${_LIST_SORT_TOGGLE} == 'false' ]] && SORT_COL=${_LIST_SORT_COL_DEFAULT}
+	[[ -n ${_LIST_SORT_DIR_DEFAULT} && ${_LIST_SORT_TOGGLE} == 'false' ]] && SORT_DIR=${_LIST_SORT_DIR_DEFAULT}
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_COL:${SORT_COL} SORT_DIR:${SORT_DIR} _LIST_SORT_TOGGLE:${_LIST_SORT_TOGGLE}"
 
 	[[ -n ${SORT_DIR} ]] && list_sort_set ${SORT_DIR} || list_sort_get
 
@@ -1243,7 +1246,7 @@ list_sort_flat () {
 		[[ ${SORT_KEY} =~ 'hour' ]] && ARR_SORTED+="${_CAL_SORT[hour]}${SORT_KEY}${DELIM}${L}" && continue
 		[[ ${SORT_KEY} =~ 'min' ]] && ARR_SORTED+="${_CAL_SORT[minute]}${SORT_KEY}${DELIM}${L}" && continue
 		[[ ${SORT_KEY} =~ 'sec' ]] && ARR_SORTED+="${_CAL_SORT[second]}${SORT_KEY}${DELIM}${L}" && continue
-		[[ ${SORT_KEY} =~ '^[(]?\d{4}-\d{2}-\d{2}' ]] && ARR_SORTED+="${SORT_KEY[1,10]}${DELIM}${L}" && continue
+		[[ ${SORT_KEY} =~ '^[(]?\d{4}-\d{2}-\d{2}' ]] && ARR_SORTED+="${SORT_KEY[1,10]}${DELIM}${L}" && FLIP=true && continue
 		[[ ${SORT_KEY} =~ '\d{4}$' ]] && ARR_SORTED+="ZZZZ${DELIM}$(echo ${L} | perl -pe 's/(.*)(\d{4})$/\2\1\2/g')" && continue
 		[[ ${SORT_KEY} =~ '\d[.]\d\D' ]] && ARR_SORTED+="ZZZZ${DELIM}$(echo ${L} | perl -pe 's/([.]\d)(.*)((G|M).*)$/${1}0 ${3}/g')" && continue
 		[[ ${SORT_KEY} =~ 'Mi?B' ]] && ARR_SORTED+="A888${DELIM}${L}" && continue
@@ -1276,10 +1279,10 @@ list_sort_flat () {
 		done
 	fi
 
-	list_toggle_sort
+	list_sort_toggle
 }
 
-list_toggle_sort () {
+list_sort_toggle () {
 	local -A DIR_TOGGLE=(a d d a)
 
 	list_sort_get
@@ -1289,6 +1292,8 @@ list_toggle_sort () {
 	list_sort_set ${_LIST_LAST_SORT}
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} TOGGLED _LIST_LAST_SORT:${_LIST_LAST_SORT}"
+
+	_LIST_SORT_TOGGLE=true
 }
 
 list_sort_set () {
@@ -1310,6 +1315,7 @@ list_sort_get () {
 
 list_clear_marker () {
 	[[ -e ${_SORT_MARKER} ]] && /bin/rm -f ${_SORT_MARKER}
+	[[ ${?} -ne 0 ]] && echo "${0}: _SORT_MARKER:${_SORT_MARKER} not removed" >> /tmp/LIST.dbg
 }
 
 list_restore_marker () {

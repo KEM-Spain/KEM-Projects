@@ -2,12 +2,13 @@
 _DEPS_+="ARRAY.zsh DBG.zsh MSG.zsh STR.zsh TPUT.zsh UTILS.zsh"
 
 # LIB Declarations
-typeset -a _SEL_LIST
-typeset -a _SEL_LIST_TEXT
-typeset -A _PAGE_TOPS
-typeset -a _CENTER_COORDS
-typeset -A _COL_WIDTHS
-typeset -a _ACTION_KEYS
+typeset -A _COL_WIDTHS=()
+typeset -A _MC=()
+typeset -A _PAGE_TOPS=()
+typeset -a _ACTION_KEYS=()
+typeset -a _CENTER_COORDS=()
+typeset -a _SEL_LIST=()
+typeset -a _SEL_LIST_TEXT=()
 
 # LIB Vars
 _ACTION_KEYS=(d l r y c)
@@ -16,27 +17,23 @@ _TITLE_HL=${WHITE_ON_GREY}
 _HILITE=${WHITE_ON_GREY}
 _HILITE_X=0
 _MAX_PAGE=0
+_MC_RESTORE=false
 _PAGE_OPTION_KEY_HELP=''
-_SEL_KEY=?
 _SEL_LIST_LIB_DBG=3
-_SEL_VAL=?
-_SEL_X=0
-_SEL_Y=0
-_SEL_NDX=0
 _SL_CATEGORY=false
 _SL_MAX_ITEM_LEN=0
-_RESTORE_POS=true
+_SEL_KEY=?
+_SEL_VAL=?
 
 # LIB Functions
-# TODO: Bottom/Top breaks menu
 sel_list () {
 	local -A SKEYS
 	local -a SLIST
 	local MAX_NDX=${#_SEL_LIST}
-	local BOX_HEIGHT=$(( MAX_NDX + 2 ))
-	local MAX_X_COORD=$(( _MAX_ROWS -5 )) # Up from bottom 
+
 	local BOUNDARY_SET=false
 	local BOX_BOT=0
+	local BOX_HEIGHT=$(( MAX_NDX + 2 ))
 	local BOX_NDX=0
 	local BOX_PARTIAL=0
 	local BOX_ROW=0
@@ -46,9 +43,6 @@ sel_list () {
 	local BOX_X_COORD=0
 	local BOX_Y=0
 	local BOX_Y_COORD=0
-	local EXIT_REQ=false
-	local EXIT_NDX=0
-	local EXIT_ROW=0
 	local CENTER_Y=0
 	local CLEAN_TEXT=''
 	local CURSOR_NDX=0
@@ -60,7 +54,6 @@ sel_list () {
 	local GUIDE_ROW=0
 	local GUIDE_ROWS=1
 	local KEY=''
-	local L P Q 
 	local LAST_NDX=0
 	local LAST_ROW=0
 	local LINE=''
@@ -69,11 +62,10 @@ sel_list () {
 	local LIST_TOP=0
 	local LONGEST=0
 	local MAX_BOX=0
+	local MAX_X_COORD=$(( _MAX_ROWS -5 )) # Up from bottom 
 	local OPTION=''
 	local OPTSTR=''
 	local OPT_KEY_ROW=0
-	local XPAD=2
-	local YPAD=6
 	local PG_BOT=0
 	local PG_TOP=0
 	local REM=''
@@ -81,11 +73,10 @@ sel_list () {
 	local SX SY SW SH SL
 	local TITLE=''
 	local TOP_SET=false
+	local XPAD=2
+	local YPAD=6
 	local _SORT_KEY=false
-	local INIT_X=0
-	local INIT_Y=0
-	local INIT_CSR=0
-	local CLIENT_POS_REQUEST=false
+	local L P Q 
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -119,20 +110,6 @@ sel_list () {
 		esac
 	done
 	shift $(( OPTIND - 1 ))
-
-	# Args
-	TITLE=${1}
-	INIT_X=${2}
-	INIT_Y=${3}
-	INIT_CSR=${4}
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _RESTORE_POS:${_RESTORE_POS}"
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGS:TITLE:${TITLE}, INIT_X:${INIT_X}, INIT_Y:${INIT_Y}, INIT_CSR:${INIT_CSR}"
-
-	if [[ ${_RESTORE_POS} == 'true' && ${INIT_X} -gt 0 && ${INIT_Y} -gt 0 && ${INIT_CSR} -gt 0 ]];then
-		CLIENT_POS_REQUEST=true # Client passed position info
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} CLIENT_POS_REQUEST:${CLIENT_POS_REQUEST}"
-	fi
 
 	# Hide cursor
 	if [[ ${_CURSOR_STATE} == 'on' ]];then
@@ -288,8 +265,8 @@ sel_list () {
 			tput cup ${BOX_ROW} ${BOX_Y}
 			[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: POSITIONING CURSOR: ROW:${BOX_ROW} COL:${BOX_Y}"
 
-			if [[ ${CLIENT_POS_REQUEST} == 'false' && ${EXIT_REQ} == 'false' && ${BOX_ROW} -eq ${BOX_X} ]];then
-				{ tput smso && _HILITE_X=${BOX_X} }
+			if [[ ${BOX_ROW} -eq ${BOX_X} ]];then
+				tput smso && _HILITE_X=${BOX_X}
 			else
 				tput rmso # Highlight first item
 			fi
@@ -297,7 +274,7 @@ sel_list () {
 			if [[ ${_SL_CATEGORY} == 'true' ]];then
 				F1=$(sel_list_get_cat ${LIST_NDX})
 				F2=$(sel_list_get_label ${LIST_NDX})
-				[[ ${EXIT_REQ} == 'false' && ${LIST_NDX} -eq 1 ]] && _HILITE=${_TITLE_HL} || _HILITE=''
+				_HILITE=''
 				printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2}
 				_SEL_LIST_TEXT+="${BOX_ROW}|${BOX_Y}|$(printf "${WHITE_FG}%-*s${RESET} ${_HILITE}%-*s${RESET}\n" ${_COL_WIDTHS[1]} ${F1} ${_COL_WIDTHS[2]} ${F2})"
 			else
@@ -316,34 +293,20 @@ sel_list () {
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG}LIST_TOP${RESET}:${LIST_TOP} ${WHITE_FG}LIST_BOT${RESET}:${LIST_BOT}"
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG} BOX_TOP${RESET}:${BOX_TOP} ${WHITE_FG} BOX_BOT${RESET}:${BOX_BOT}"
 
-		# Initialize list cursors; maintain state if exit request aborted
-		if [[ ${EXIT_REQ} == 'true' ]];then
-			EXIT_REQ=false
-			CURSOR_NDX=${EXIT_NDX}
-			CURSOR_ROW=${EXIT_ROW}
-			sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
+		#msg_box -x1 -y25 "_MC_RESTORE:${_MC_RESTORE}"
+		if [[ ${_MC_RESTORE} == 'true' ]];then
+			_MC=($(box_coords_get MENU))
+			#msg_box -x1 -y1 "${(kv)_MC}"
+			#tput cup ${_MC[ROW]} 1; tput ech 10;echo -n "----->"
+			if [[ -n ${_MC} ]];then
+				CURSOR_NDX=${_MC[NDX]}
+				CURSOR_ROW=${_MC[ROW]}
+				sel_list_norm ${BOX_TOP} ${BOX_Y} ${_SEL_LIST[${LIST_TOP}]}
+				sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
+			fi
 		else
 			CURSOR_NDX=${LIST_TOP}
 			CURSOR_ROW=${BOX_TOP}
-		fi
-
-		# Restore previous cursor position if requested
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} CLIENT_POS_REQUEST:${CLIENT_POS_REQUEST}"
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _RESTORE_POS:${_RESTORE_POS}"
-
-		if [[ ${CLIENT_POS_REQUEST} == 'true' && ${_RESTORE_POS} == 'true' ]];then # Restore position if allowed
-			if [[ ${INIT_CSR} -eq ${LIST_TOP} ]];then
-				CURSOR_NDX=${LIST_TOP} && CURSOR_ROW=${BOX_TOP}
-				sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
-			elif [[ ${INIT_CSR} -eq ${LIST_BOT} ]];then
-				CURSOR_NDX=${LIST_BOT} && CURSOR_ROW=${BOX_BOT}
-				sel_list_hilite ${CURSOR_ROW} ${BOX_Y} ${_SEL_LIST[${CURSOR_NDX}]}
-			else
-				sel_list_hilite ${INIT_X} ${INIT_Y} ${_SEL_LIST[${INIT_CSR}]} # Hilite client position
-				CURSOR_NDX=${INIT_CSR}
-				CURSOR_ROW=${INIT_X}
-			fi
-			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} Restored position:${WHITE_FG}CURSOR_NDX${RESET}:${CURSOR_NDX} ${WHITE_FG}CURSOR_ROW${RESET}:${CURSOR_ROW}"
 		fi
 
 		# Get keypress and navigate
@@ -352,23 +315,19 @@ sel_list () {
 			_SEL_VAL='?'
 			_SEL_KEY='?'
 
+			_MC_RESTORE=true
 			if [[ ${_ACTION_KEYS[(i)${KEY}]} -le ${#_ACTION_KEYS} ]];then
 				_SEL_KEY=${KEY} 
 				_SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]}
-				_RESTORE_POS=false # Possible list change - restore disallowed
-				_SEL_X=0 && _SEL_Y=0 && _SEL_NDX=0
-				[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${CYAN_FG}RESTORE POSITION DISABLED - MENU COORDS CLEARED${RESET}"
+				_MC_RESTORE=false && _MC=()
 				break 2 # Pre-defined action key was pressed
 			fi
 
-			_RESTORE_POS=true # Restore allowed
-			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${CYAN_FG}RESTORE POSITION ENABLED${RESET}"
-
 			case ${KEY} in
-				0) _SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && break 2;;
+				0) sel_list_save_menu_pos;_SEL_VAL=${_SEL_LIST[${CURSOR_NDX}]} && break 2;;
 				n) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'N' ${CURSOR_NDX});DIR='N';;
 				p) CURSOR_ROW=${BOX_TOP};CURSOR_NDX=$(sel_list_set_pg 'P' ${CURSOR_NDX});DIR='P';;
-				q) exit_request $(sel_list_ebox_coords);EXIT_REQ=true;EXIT_NDX=${CURSOR_NDX};EXIT_ROW=${CURSOR_ROW};break;; # Save state
+				q) sel_list_save_menu_pos;exit_request $(sel_list_ebox_coords);break;;
 				1|k) (( CURSOR_ROW-- ));(( CURSOR_NDX-- ));DIR='U';;
 				2|j) (( CURSOR_ROW++ ));(( CURSOR_NDX++ ));DIR='D';;
 				3|t) DIR='T';;
@@ -415,9 +374,6 @@ sel_list () {
 					;;
 			esac
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${GREEN_FG}POST${RESET} ROLL AROUND - LAST_NDX:${LAST_NDX} LAST_ROW:${LAST_ROW}"
-
-			_SEL_NDX=${CURSOR_NDX} # Value saved for client
-			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: RESTORE _SEL_NDX - _SEL_NDX:${_SEL_NDX}"
 
 			# Row and Page changes
 			[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${RED_FG}PRE${RESET} ROW/PAGE - CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
@@ -469,6 +425,11 @@ sel_list () {
 		done
 	done
 	return 0
+}
+
+sel_list_save_menu_pos () {
+	#msg_box -x4 -y1 "SAVING COORDS: NDX ${CURSOR_NDX} ROW ${CURSOR_ROW}"
+	box_coords_set MENU NDX ${CURSOR_NDX} ROW ${CURSOR_ROW}
 }
 
 sel_list_get_cat () {
@@ -540,9 +501,6 @@ sel_list_hilite () {
 	tput rmso
 
 	_HILITE_X=${X}
-	_SEL_Y=${Y} # Value saved for client
-	_SEL_X=${X} # Value saved for client
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} SAVED MENU COORDS:_SEL_X:${_SEL_X}, _SEL_Y:${_SEL_Y}"
 }
 
 sel_list_norm () {
@@ -608,6 +566,7 @@ sel_list_repaint () {
 
 sel_list_set () {
 	local -a LIST=(${@})
+	_MC=()
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 

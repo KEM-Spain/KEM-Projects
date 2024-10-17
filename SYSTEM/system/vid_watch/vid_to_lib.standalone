@@ -55,11 +55,21 @@ source ${_LIB_DIR}/ARRAY.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
+box_coords_dump () {
+	local K
+
+	echo "\n--- COORDS ---"
+	for K in ${(k)_BOX_COORDS};do
+		printf "${WHITE_FG}TAG${RESET}:%s ${WHITE_FG}COORDS${RESET}:%s\n" ${K} ${_BOX_COORDS[${K}]}
+	done
+	echo "--- End COORDS ---"
+}
+
 do_rmcup () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${_SMCUP} == 'false' ]] && return
-	tput -T${TERM:=xterm} rmcup
+	tput rmcup
 	# Echo "called rmcup"
 	_SMCUP=false
 }
@@ -90,11 +100,11 @@ exit_pre_exit () {
 
 	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
 
-	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}"
+	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}\n"
 
 	[[ -n ${_EXIT_CALLBACK} ]] && ${_EXIT_CALLBACK}
 
-	tput -T${TERM:=xterm} cnorm >&2
+	tput cnorm >&2
 }
 
 set_exit_value () {
@@ -121,11 +131,12 @@ exit_leave () {
 	local MSGS=(${@})
 
 	if [[ ${_DEBUG} -ne 0 ]];then
+		dbg "${RED_FG}${0}${RESET}: $(box_coords_dump)"
 		dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
 		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
 		dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
 		dbg "${RED_FG}${0}${RESET}: _SMCUP:${_SMCUP}"
-		dbg_msg | mypager wait
+		dbg_msg | mypager -n wait
 	fi
 
 	[[ -n ${MSGS} ]] && _EXIT_MSGS=${MSGS}
@@ -137,13 +148,12 @@ exit_leave () {
 	fi
 
 	if [[ ${functrace[1]} =~ 'usage' && -z ${MSGS} ]];then
-		echo "\n"
 		set_exit_value 1
 	else
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage
 	fi
 
-	tput -T${TERM:=xterm} cnorm >&2
+	tput cnorm >&2
 
 	exit_pre_exit
 
@@ -160,17 +170,32 @@ logit () {
 	echo "${STAMP} ${MSG}" >> ${_LOG:=/tmp/${0}.log}
 }
 
+max () {
+	local N1=${1}
+	local N2=${2}
+
+	[[ ${N1} -gt ${N2} ]] && echo ${N1} || echo ${N2} 
+}
+
+min () {
+	local N1=${1}
+	local N2=${2}
+
+	[[ ${N1} -lt ${N2} ]] && echo ${N1} || echo ${N2} 
+}
+
 str_unicode_line () {
 	local LENGTH=${1}
 	local HORIZ_BAR="\\u2500%.0s"
 
 	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
 
+	tput rmso;
 	printf "\\u2500%.0s" {1..$((${LENGTH}))}
 }
 
 clean_media () {
-	local -a VIDEOS=("${(f)$(find ${_LIBRARY_DIR} -regex "${_VIDEO_REGEX}")}")
+	local -a VIDEOS=("${(f)$(find ${_LIBRARY_DIR}/movies -regex "${_VIDEO_REGEX}")}")
 	local TITLE
 	local LAST_TITLE=?
 	local V
@@ -327,8 +352,8 @@ sub_rename () {
 	# Handle naming issues for subtitles that fsub.standalone misses
 	# And some that are orphaned due to filenaming
 
-	VIDEOS=("${(f)$(find ${_LIBRARY_DIR} -type f -regex "${_VIDEO_REGEX}")}")
-	SUBS=("${(f)$(find ${_LIBRARY_DIR} -type f -name '*srt' )}")
+	VIDEOS=("${(f)$(find ${_LIBRARY_DIR}/movies -type f -regex "${_VIDEO_REGEX}")}")
+	SUBS=("${(f)$(find ${_LIBRARY_DIR}/movies -type f -name '*srt' )}")
 
 	echo "\n${WHITE_FG}${MSG}${RESET}"
 	echo "${CYAN_FG}$(str_unicode_line ${#MSG})${RESET}"

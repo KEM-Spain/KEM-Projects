@@ -68,15 +68,15 @@ usage () {
 [[ ${1} == '-d' ]] && SHOW_DEV=true || SHOW_DEV=false
 
 while read F;do
-	[[ ${F} =~ ${_THIS} ]] && continue
+	#[[ ${F} =~ ${_THIS} ]] && continue
 	FN=$(echo ${F} | cut -d \| -f2 2>/dev/null)
 	[[ ${_SEEN[${FN}]} -eq 1 ]] && continue
 	[[ ! -e ${FN} || ${FN:t} == ${_SCRIPT} ]] && continue
-	grep -d skip -qP "#TODO" ${FN}
+	grep -d skip -qP "^#TODO" ${FN}
 	if [[ $? -eq 0 ]];then
 		_SEEN[${FN}]=1
 		echo "File:${WHITE_FG}${FN}${RESET}"
-		TXT=$(grep "#[ ]*TODO" ${FN})
+		TXT=$(grep "^#[ ]*TODO" ${FN})
 		TXT=$(echo ${TXT} | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
 		echo "${MAGENTA_FG}$(str_trim ${TXT})${RESET}\n"
 	fi
@@ -89,15 +89,16 @@ for S in ${(k)_SOURCES};do
 done
 [[ ${GET_PWD} == 'true' ]] && _TODO_LIST+=("${(f)$(find ${PWD} -maxdepth 2 -type f)}")
 
+#TODO: sources are not all being tagged for PROD, DEV, and PWD
 HIT=false
 LAST_FN=?
 for F in ${_TODO_LIST};do
 	[[ ${_SEEN[${F}]} -eq 1 ]] && continue
 	[[ ${F:e} == 'bak' || ${F:e} == 'orig' ]] && continue
-	[[ ${F} =~ ${_THIS} ]] && continue
+	#[[ ${F} =~ ${_THIS} ]] && continue
 	[[ ! $(file -b ${F}) =~ 'zsh' && ! ${F:e} == 'zsh' ]] && continue
 	[[ ! -r ${F} ]] && continue
- 	grep -q "#[ ]*TODO" ${F}
+ 	grep -q "^#[ ]*TODO" ${F}
  	if [[ $? -eq 0 ]];then
 		for K in ${(k)_SOURCES};do
 			[[ ${_SOURCES[${K}]} == 'DEV' && ${SHOW_DEV} == 'false' ]] && continue
@@ -106,7 +107,7 @@ for F in ${_TODO_LIST};do
 		done
  		HIT=true
  		echo "File:${WHITE_FG}${F}${RESET}"
- 		TXT=$(grep -P "#[ ]*TODO" ${F})
+ 		TXT=$(grep -P "^#[ ]*TODO" ${F})
  		TXT=$(echo ${TXT} | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
  		echo "${MAGENTA_FG}$(str_trim ${TXT})${RESET}\n"
 		_SEEN[${F}]=1

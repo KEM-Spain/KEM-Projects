@@ -20,6 +20,16 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
+# Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/PATH.zsh
+source ${_LIB_DIR}/DATE.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/SEL_LIST.zsh
+source ${_LIB_DIR}/LIST.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh
+
 # Declarations
 typeset -A _COORDS=(X 10 Y 33 H 10 W 86)
 typeset -A _ALERT_COORDS=(X $(( _COORDS[X] + 5 )) Y $(( _COORDS[Y] + _COORDS[W] -25 )))
@@ -55,7 +65,7 @@ _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
 _OBJECT=video
 _PAUSE=2
-_SORT_DEFAULT=(youtube 1:d rumble 1:d)
+_SORT_DEFAULT=(youtube 1:a rumble 1:a)
 _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
@@ -77,15 +87,6 @@ g_SEARCH_TYPE=''
 g_STRICT=false
 g_STRICT_MSG=''
 g_YTS_LOG=''
-
-# Imports
-_LIB_DIR=/usr/local/lib
-source ${_LIB_DIR}/LIB_INIT.zsh
-source ${_LIB_DIR}/DATE.zsh
-source ${_LIB_DIR}/LIST.zsh
-source ${_LIB_DIR}/UTILS.zsh
-source ${_LIB_DIR}/SEL_LIST.zsh
-source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
 action_do () {
@@ -943,6 +944,8 @@ select_download () {
 	list_set_sort_col_default ${_SORT_DEFAULT[${g_QRY_ENGINE}]}
 	list_set_barlines true
 	list_set_page_callback log_find 
+
+	_LOCAL_LIST=("${(f)$(list_sort_flat _LOCAL_LIST 1 a ${_LIST_DELIM})}") # Sort
 
 	while true;do
 	 # Get selection
