@@ -5,9 +5,8 @@ _files -W ${PWD} bak
 _arguments \
 '-H[help]' \
 '-D[debug]' \
-'-b[backup <DEVELOPMENT>]' \
-'-c[copy <DEVELOPMENT> -> <PRODUCTION>]' \
-'-s[copy <PRODUCTION> -> <BACKUP>]' \
 '-B[diff <DEVELOPMENT> <> <BACKUP>]' \
-'-C[diff <DEVELOPMENT> <> <PRODUCTION>]' \
-'-S[diff <PRODUCTION> <> <BACKUP>]' \
+'-P[diff <DEVELOPMENT> <> <PRODUCTION>]' \
+'-b[copy <DEVELOPMENT> -> <BACKUP>]' \
+'-r[release <DEVELOPMENT> -> <PRODUCTION>]' \
+'-s[save <PRODUCTION> -> <BACKUP>]'

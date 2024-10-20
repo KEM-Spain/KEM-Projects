@@ -19,14 +19,18 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
+# Constants
 _DESKTOPS=/usr/share/applications
 
+# Arg check
+tabs 6
+[[ ${1} == '-H' || ${#} -eq 0 ]] && echo "Usage:${0:t} <APPLICATION>\n NOTE:to be used on the EXEC line of a desktop file\n\tand placed in the launchers directory" && exit
 [[ ${#} -eq 0 ]] && echo "Missing argument:<APPLICATION>" && exit 1 || APP=${1}
-
 [[ ! -e ${_DESKTOPS}/${APP}.desktop ]] && echo "Desktop file for:${APP} not found" && exit 1
 
+# Create run section
 RUNNER_FILE="run_${APP}"
-[[ ${APP} =~ "\." ]] && WM_APP=$(echo ${APP} | rev | cut -d'.' -f1 | rev)
+[[ ${APP} =~ "\." ]] && WM_APP=$(echo ${APP} | rev | cut -d'.' -f1 | rev) # Add maximize window
 
 EXEC_LINE=$(grep -m1 "^Exec=" ${_DESKTOPS}/${APP}.desktop | sed -e 's/Exec=//' -e 's/%U/\${@}/i')
 echo '#!/usr/bin/zsh' > ${RUNNER_FILE}
@@ -34,3 +38,4 @@ echo "${EXEC_LINE} &" >> ${RUNNER_FILE}
 echo "win_max ${WM_APP} &" >> ${RUNNER_FILE}
 sudo chown root:kmiller ${RUNNER_FILE}
 sudo chmod 775 ${RUNNER_FILE}
+echo "${RUNNER_FILE} created"

@@ -40,12 +40,11 @@ _LIST_NDX=0
 _LIST_PROMPT=''
 _LIST_SELECT_NDX=0
 _LIST_SELECT_ROW=0
-_LIST_LAST_SORT=''
+_LIST_SET_DEFAULTS=true
 _LIST_SORT_COL_MAX=0
 _LIST_SORT_COL_DEFAULT=0
 _LIST_SORT_DIR_DEFAULT=a
 _LIST_SORT_TYPE=flat
-_LIST_SORT_TOGGLE=false
 _LIST_USER_PROMPT_STYLE=none
 _MSG_KEY=n
 _NO_TOP_OFFSET=false
@@ -598,6 +597,7 @@ list_select () {
 	_LIST=(${@})
 	MAX_ITEM=${#_LIST}
 	_SELECT_ALL=false
+	set_exit_callback list_sort_clear_marker
 
 	# Max line
 	COLS=$(tput cols)
@@ -748,7 +748,7 @@ list_select () {
 				l) DIR_KEY=b;CURSOR_NDX=${MAX_CURSOR};_LIST_NDX=${PAGE_RANGE_BOT};; # 'l' Bottom Row current page
 				n) DIR_KEY=n;PAGE_BREAK=true;break;; # 'n' Next page
 				p) DIR_KEY=p;PAGE_BREAK=true;break;; # 'p' Prev page
-				q) list_clear_marker;exit_request;list_restore_marker;;
+				q) exit_request;;
 				s) [[ ${_LIST_IS_SORTABLE} == 'true' ]] && list_sort;_HOLD_PAGE=true;break;; # 's' Sort
 				t) DIR_KEY=fp;PAGE_BREAK=true;break;; # 't' Top row first page
 				z) return -1;; # 'z' Quit loop
@@ -796,7 +796,6 @@ list_select () {
 		done
 	done
 
-	list_clear_marker
 	return $(list_get_selected_count)
 }
 
@@ -1136,6 +1135,7 @@ list_verify_sort_params () {
 list_sort () {
 	local FIELD_MAX=0
 	local SORT_COL=''
+	local SORT_DIR=''
 	
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -1157,11 +1157,12 @@ list_sort () {
 		return 1
 	fi
 
-	list_sort_get
+	SORT_DIR=$(list_sort_toggle)
+	_LIST_SET_DEFAULTS=false # List displayed - defaults already set
 
 	case ${_LIST_SORT_TYPE} in
-		assoc) list_sort_assoc ${SORT_COL} ${_LIST_LAST_SORT};;
-		flat) list_sort_flat _LIST ${SORT_COL} ${_LIST_LAST_SORT} ${_LIST_DELIM};;
+		assoc) list_sort_assoc ${SORT_COL} ${SORT_DIR};;
+		flat) list_sort_flat _LIST ${SORT_COL} ${SORT_DIR} ${_LIST_DELIM};;
 	esac
 }
  
@@ -1178,8 +1179,6 @@ list_sort_assoc () {
 		return 1
 	fi
 
-	[[ -n ${SORT_DIR} ]] && list_sort_set ${SORT_DIR} || list_sort_get
-
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _SORT_TABLE:${_SORT_TABLE}"
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _SORT_COL:${SORT_COL}"
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARRAY to sort:${SORT_ARRAY}"
@@ -1190,7 +1189,7 @@ list_sort_assoc () {
 
 	[[ ${#${(P)SORT_ARRAY}} -eq 0 ]] && msg_box -p -PK "_SORT_TABLE ${(P)SORT_ARRAY} has no rows" && return 1 # Bounce
 
-	if [[ ${_LIST_LAST_SORT} == "a" ]];then
+	if [[ ${SORT_DIR} == "a" ]];then
 		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT ASCENDING"
 		_LIST=("${(f)$(
 			for S in ${(k)${(P)SORT_ARRAY}};do
@@ -1207,8 +1206,6 @@ list_sort_assoc () {
 			done | sort -r -t'|' -k2 | cut -d'|' -f1
 		)}")
 	fi
-
-	list_sort_toggle
 }
 
 list_sort_flat () {
@@ -1219,16 +1216,20 @@ list_sort_flat () {
 	local -A _CAL_SORT=(year G7 month F6 week E5 day D4 hour C3 minute B2 second A1)
 	local -a ARR_SORTED=()
 	local SORT_KEY=''
+	local FLIP=false
 	local L
+
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
+	# Invoke defaults if present
+	if [[ ${_LIST_SET_DEFAULTS} == 'true' ]];then # Initialize display
+		[[ -n ${_LIST_SORT_COL_DEFAULT} ]] && SORT_COL=${_LIST_SORT_COL_DEFAULT}
+		[[ -n ${_LIST_SORT_DIR_DEFAULT} ]] && SORT_DIR=${_LIST_SORT_DIR_DEFAULT}
+		[[ -n ${SORT_DIR} ]] && list_sort_set ${SORT_DIR}
+	fi
 
-	[[ -n ${_LIST_SORT_COL_DEFAULT} && ${_LIST_SORT_TOGGLE} == 'false' ]] && SORT_COL=${_LIST_SORT_COL_DEFAULT}
-	[[ -n ${_LIST_SORT_DIR_DEFAULT} && ${_LIST_SORT_TOGGLE} == 'false' ]] && SORT_DIR=${_LIST_SORT_DIR_DEFAULT}
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_COL:${SORT_COL} SORT_DIR:${SORT_DIR} _LIST_SORT_TOGGLE:${_LIST_SORT_TOGGLE}"
-
-	[[ -n ${SORT_DIR} ]] && list_sort_set ${SORT_DIR} || list_sort_get
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT_COL:${SORT_COL} SORT_DIR:${SORT_DIR}"
 
 	for L in ${(P)ARR_NAME};do
 		if [[ -n ${_SORT_COLS} ]];then
@@ -1257,7 +1258,11 @@ list_sort_flat () {
 		ARR_SORTED+="${SORT_KEY}${DELIM}${L}"
 	done
 
-	if [[ ${_LIST_LAST_SORT} == "a" ]];then
+	if [[ ${FLIP} == 'true' ]];then
+		[[ ${SORT_DIR} == 'a' ]] && SORT_DIR=d || SORT_DIR=a # Reverse sort for numeric dates
+	fi
+
+	if [[ ${SORT_DIR} == "a" ]];then
 		[[ ${_DEBUG} -gt ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: SORT ASCENDING"
 		_LIST=("${(f)$(
 			for L in ${(on)ARR_SORTED};do
@@ -1273,54 +1278,41 @@ list_sort_flat () {
 		)}")
 	fi
 
-	if [[ ${ARR_NAME} != "_LIST" ]];then
+	if [[ ${FLIP} == 'true' ]];then
+		[[ ${SORT_DIR} == 'd' ]] && SORT_DIR=a || SORT_DIR=d # Undo flip
+	fi
+
+	if [[ ${ARR_NAME} != "_LIST" ]];then # Call expects data
 		for L in ${_LIST};do
 			echo "${L}"
 		done
 	fi
-
-	list_sort_toggle
 }
 
 list_sort_toggle () {
 	local -A DIR_TOGGLE=(a d d a)
+	local SORT_DIR
 
-	list_sort_get
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} SORT_DIR:${SORT_DIR}"
 
-	_LIST_LAST_SORT=${DIR_TOGGLE[${_LIST_LAST_SORT}]}
+	SORT_DIR=$(<${_SORT_MARKER})
+	SORT_DIR=${DIR_TOGGLE[${SORT_DIR}]}
 
-	list_sort_set ${_LIST_LAST_SORT}
+	list_sort_set ${SORT_DIR}
 
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} TOGGLED _LIST_LAST_SORT:${_LIST_LAST_SORT}"
-
-	_LIST_SORT_TOGGLE=true
+	echo $(<${_SORT_MARKER})
 }
 
 list_sort_set () {
-	local LAST_SORT=${1}
-	echo ${LAST_SORT} > ${_SORT_MARKER}
-	_LIST_LAST_SORT=${LAST_SORT}
+	echo ${1} > ${_SORT_MARKER}
 }
 
 list_sort_get () {
-	_LIST_LAST_SORT=$(<${_SORT_MARKER})
-	if [[ -z ${_LIST_LAST_SORT} ]];then
-		if [[ -n ${_LIST_SORT_DIR_DEFAULT} ]];then
-			_LIST_LAST_SORT=${_LIST_SORT_DIR_DEFAULT}
-		else
-			_LIST_LAST_SORT=a
-		fi
-	fi
+	echo $(<${_SORT_MARKER})
 }
 
-list_clear_marker () {
-	[[ -e ${_SORT_MARKER} ]] && /bin/rm -f ${_SORT_MARKER}
-	[[ ${?} -ne 0 ]] && echo "${0}: _SORT_MARKER:${_SORT_MARKER} not removed" >> /tmp/LIST.dbg
-}
-
-list_restore_marker () {
-	_SORT_MARKER=$(mktemp /tmp/last_sort.XXXXXX)
-	echo ${_LIST_LAST_SORT} > ${_SORT_MARKER}
+list_sort_clear_marker () { # Called as exit_callback
+	/bin/rm -f ${_SORT_MARKER}
 }
 
 list_toggle_all () {
@@ -1333,7 +1325,7 @@ list_toggle_all () {
 	local ACTION=${7} 
 	local -a SELECTED
 	local CURSOR_NDX=1
-	local FIRST_ITEM=$(( ( (PAGE * MAX_DISPLAY_ROWS ) - MAX_DISPLAY_ROWS )+1))
+	local FIRST_ITEM=$(( (PAGE * MAX_DISPLAY_ROWS) - MAX_DISPLAY_ROWS + 1 ))
 	local LAST_ITEM=$(( PAGE * MAX_DISPLAY_ROWS ))
 	local HIGHLIGHTING=false
 	local OUT

@@ -24,8 +24,7 @@ WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 typeset -A _SRC_CLR
 typeset -A _SOURCES
 typeset -aU _TODO_LIST
-typeset -A _SEEN
-typeset GET_PWD=true
+typeset -a _TODO_TEXT
 
 # Constants
 _THIS=${0:t}
@@ -67,51 +66,32 @@ usage () {
 [[ ${1} == '-H' ]] && usage
 [[ ${1} == '-d' ]] && SHOW_DEV=true || SHOW_DEV=false
 
-while read F;do
-	#[[ ${F} =~ ${_THIS} ]] && continue
-	FN=$(echo ${F} | cut -d \| -f2 2>/dev/null)
-	[[ ${_SEEN[${FN}]} -eq 1 ]] && continue
-	[[ ! -e ${FN} || ${FN:t} == ${_SCRIPT} ]] && continue
-	grep -d skip -qP "^#TODO" ${FN}
-	if [[ $? -eq 0 ]];then
-		_SEEN[${FN}]=1
-		echo "File:${WHITE_FG}${FN}${RESET}"
-		TXT=$(grep "^#[ ]*TODO" ${FN})
-		TXT=$(echo ${TXT} | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
-		echo "${MAGENTA_FG}$(str_trim ${TXT})${RESET}\n"
-	fi
-done < ${CACHED_TARGETS}
+clear
+echo "[${WHITE_FG}${0}${RESET}] Searching for TODO items...\n"
 
-GET_PWD=true
 for S in ${(k)_SOURCES};do
 	_TODO_LIST+=("${(f)$(find ${S} -maxdepth 2 -type f)}")
-	[[ ${S} == ${PWD} ]] && GET_PWD=false
 done
-[[ ${GET_PWD} == 'true' ]] && _TODO_LIST+=("${(f)$(find ${PWD} -maxdepth 2 -type f)}")
 
-#TODO: sources are not all being tagged for PROD, DEV, and PWD
 HIT=false
-LAST_FN=?
 for F in ${_TODO_LIST};do
-	[[ ${_SEEN[${F}]} -eq 1 ]] && continue
-	[[ ${F:e} == 'bak' || ${F:e} == 'orig' ]] && continue
-	#[[ ${F} =~ ${_THIS} ]] && continue
-	[[ ! $(file -b ${F}) =~ 'zsh' && ! ${F:e} == 'zsh' ]] && continue
-	[[ ! -r ${F} ]] && continue
- 	grep -q "^#[ ]*TODO" ${F}
- 	if [[ $? -eq 0 ]];then
-		for K in ${(k)_SOURCES};do
-			[[ ${_SOURCES[${K}]} == 'DEV' && ${SHOW_DEV} == 'false' ]] && continue
-			grep -q "${K}" <<<${F}
-			[[ $? -eq 0 ]] && echo "${_SRC_CLR[${_SOURCES[${K}]}]}${_SOURCES[${K}]}${RESET}"
-		done
- 		HIT=true
- 		echo "File:${WHITE_FG}${F}${RESET}"
- 		TXT=$(grep -P "^#[ ]*TODO" ${F})
- 		TXT=$(echo ${TXT} | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
- 		echo "${MAGENTA_FG}$(str_trim ${TXT})${RESET}\n"
-		_SEEN[${F}]=1
- 	fi
+	[[ ${F:e} == 'bak' ]] && continue
+	[[ ${F:e} == 'orig' ]] && continue
+	LINE=$(grep "#TODO" ${F})
+	[[ ${?} -ne 0 ]] && continue
+	grep -q "grep" <<<${LINE} # Skip 'todo' itself
+	[[ ${?} -eq 0 ]] && continue
+	for S in ${(Ok)_SOURCES};do # Longest path first
+		[[ ${F:h} =~ ${S} ]] && echo "\n${_SRC_CLR[${_SOURCES[${MATCH}]}]}${_SOURCES[${MATCH}]}${RESET}" && break
+	done
+	echo "File:${WHITE_FG}${F}${RESET}"
+	_TODO_TEXT=("${(f)$(grep '#TODO' ${F})}")
+	for T in ${_TODO_TEXT};do
+		TXT=$(str_trim ${T})
+		TXT=$(echo ${TXT} | str_trim | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
+		echo ${TXT}
+	done
+	HIT=true
 done
 
 [[ ${HIT} == 'false' ]] && echo "No TODO tags found"

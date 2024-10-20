@@ -22,7 +22,6 @@ durable_array () {
 			_DURABLE[${KEY}]=${VAL}
 		done < /tmp/${NAME}
 	else
-	 # Echo "${0}: durable name:${NAME} not found" >&2
 		return 1
 	fi
 }
@@ -38,7 +37,6 @@ durable_get () {
 		VAL=$(grep --color=never "${KEY}:" < /tmp/${NAME} | cut -d: -f2)
 		rm -f /tmp/${NAME}
 	else
-	 # Echo "${0}: durable name:${NAME} not found" >&2
 		return 1
 	fi
 

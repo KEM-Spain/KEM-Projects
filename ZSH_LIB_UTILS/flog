@@ -9,7 +9,7 @@ WHITE_FG="\033[37m"
 
 # Constants
 SYS_LOGS=/var/log
-LOCAL_LOGS=("${(f)$(find ${HOME} -maxdepth 3 -type f -name '*.log')}")
+LOCAL_LOGS=("${(f)$(find ${HOME} -maxdepth 3 -type f -name '*.log' 2>/dev/null)}")
 
 # Declarations
 typeset -a _FILES
@@ -172,7 +172,7 @@ if [[ -n ${SEARCHTERM} ]];then
 	_FILES=($(search ${SEARCHTERM}))
 	FILTER=${SEARCHTERM}
 else
-	_FILES=($(sudo find ${_ALL_LOGS} -daystart -type f -mtime ${MTIME} | grep -Ev 'gz|[0-9]$|old' | sort))
+	_FILES=($(sudo find ${_ALL_LOGS} -daystart -type f -mtime ${MTIME} 2>/dev/null | grep -Ev 'gz|[0-9]$|old' | sort))
 	FILTER=none
 fi
 

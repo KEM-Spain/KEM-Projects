@@ -680,6 +680,8 @@ item_decorate () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
+	log_find ${NDX}
+
 	if [[ ${_DOWNLOADS[${NDX}]} == 'true' ]];then
 		STR="Downloaded..."
 	elif [[ ${_FAILED[${NDX}]} == 'true' ]];then
@@ -754,6 +756,9 @@ log_find () {
 	local TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<${AT}) # Video length
 	local LINE=''
 	local FN=''
+
+	_DOWNLOADS=()
+	_PARTIALS=()
 
 	if [[ -n ${TL} ]];then
 		LINE=$(grep -i -m1 -e ${TL} ${_DOWNLOAD_LOG} 2>/dev/null) # Match on title

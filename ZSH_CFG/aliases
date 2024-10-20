@@ -19,6 +19,7 @@ alias templates='ls /usr/local/etc/*template'
 #alias viber='/opt/viber/Viber >/dev/null 2>&1 &'
 #alias vlc='/usr/bin/vlc 2>/dev/null'
 alias wim='mono /usr/local/src/RemoteMouse/RemoteMouse.exe >/dev/null 2>&1 &'
+alias xpad='gtk-launch xpad.desktop'
 
 # misc
 alias fdsk="sudo fdisk -l | sed -e '/Disk \/dev\/loop/,+5d'"
