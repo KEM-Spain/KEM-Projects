@@ -28,7 +28,6 @@ typeset -a _TODO_TEXT
 
 # Constants
 _THIS=${0:t}
-CACHED_TARGETS=~/.tvi/cached_targets
 _SOURCES[${PWD}]=PWD
 _SOURCES[/usr/local/bin]=PROD
 _SOURCES[/usr/local/bin/system]=PROD
@@ -68,6 +67,7 @@ usage () {
 
 clear
 echo "[${WHITE_FG}${0}${RESET}] Searching for TODO items...\n"
+[[ ${SHOW_DEV} == 'false' ]] && echo "Development [-d] not selected\n"
 
 for S in ${(k)_SOURCES};do
 	_TODO_LIST+=("${(f)$(find ${S} -maxdepth 2 -type f)}")
@@ -82,16 +82,20 @@ for F in ${_TODO_LIST};do
 	grep -q "grep" <<<${LINE} # Skip 'todo' itself
 	[[ ${?} -eq 0 ]] && continue
 	for S in ${(Ok)_SOURCES};do # Longest path first
-		[[ ${F:h} =~ ${S} ]] && echo "\n${_SRC_CLR[${_SOURCES[${MATCH}]}]}${_SOURCES[${MATCH}]}${RESET}" && break
+		if [[ ${F:h} =~ ${S} ]];then
+			[[ ${SHOW_DEV} == 'false' && ${_SOURCES[${MATCH}]} == 'DEV' ]] && break 2
+			echo "${_SRC_CLR[${_SOURCES[${MATCH}]}]}${_SOURCES[${MATCH}]}${RESET}" && break
+		fi
 	done
 	echo "File:${WHITE_FG}${F}${RESET}"
 	_TODO_TEXT=("${(f)$(grep '#TODO' ${F})}")
 	for T in ${_TODO_TEXT};do
 		TXT=$(str_trim ${T})
-		TXT=$(echo ${TXT} | str_trim | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
-		echo ${TXT}
+		TXT=$(echo ${RESET}${TXT} | str_trim | sed "s/TODO/$(echo ${WHITE_FG}${ITALIC})TODO$(echo ${RESET})$(echo ${MAGENTA_FG})/g")
+		echo "${TXT}${RESET}"
 	done
 	HIT=true
+	echo
 done
 
 [[ ${HIT} == 'false' ]] && echo "No TODO tags found"
