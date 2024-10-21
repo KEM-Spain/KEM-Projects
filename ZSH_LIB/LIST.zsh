@@ -796,6 +796,7 @@ list_select () {
 		done
 	done
 
+	list_sort_clear_marker
 	return $(list_get_selected_count)
 }
 

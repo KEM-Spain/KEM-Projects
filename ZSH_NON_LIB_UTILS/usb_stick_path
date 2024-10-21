@@ -24,16 +24,7 @@ typeset -a SD_DEVS
 [[ ${1} == '-H' ]] && echo "${WHITE_FG}Usage${RESET}:${0:t} [ -D debug -H help -d quiet ]\n${WHITE_FG} Desc${RESET}:detect presence of usb sticks" && exit
 [[ ${1} == '-D' ]] && _DEBUG=true
 
-FDISK=("${(f)$(sudo fdisk -l | grep -i 'disk\|disk model')}")
-
-START_PRINT=false
-if [[ ${_DEBUG} == 'true' ]];then
-	echo "${WHITE_ON_GREY}DEBUG: fdisk info${RESET}"
-	for L in ${FDISK};do
-		[[ ${L} =~ 'sdb' ]] && START_PRINT=true
-		[[ ${START_PRINT} == 'true' ]] && printf "%s\n" ${L}
-	done
-fi
+FDISK=("${(f)$(sudo fdisk -l 2>/dev/null | grep -i 'disk\|disk model' | grep -v 'loop\|sda')}")
 
 HIT=false
 LINE=''
@@ -44,6 +35,7 @@ for F in ${FDISK};do
 done
 
 for S in ${SD_DEVS};do
+	[[ ${S:l} =~ 'gpt' ]] && continue
 	MODEL=$(cut -d: -f3 <<<${S} | sed -e 's/ [\t]*//' -e 's/[ \t]*$//')
 	DEV=$(cut -d: -f1 <<<${S} | cut -d'/' -f3)
 	DATA=$(cut -d: -f2 <<<${S} | sed 's/ [\t]*//')
@@ -51,6 +43,34 @@ for S in ${SD_DEVS};do
 	DISKS[${DEV}]=${SIZE}
 	MODELS[${DEV}]=${MODEL}
 done
+
+FOUND_USB=false
+[[ ${DEBUG} == 'true' ]] && echo "${WHITE_ON_GREY}DEBUG: BUS Info${RESET}"
+for D in ${(k)DISKS};do
+	BUS=$(udevadm info --query=all --name=${D} | grep -wi "id_bus" | cut -d'=' -f2)
+	[[ ${BUS:l} == 'usb' ]] && USB_STICKS+=${D} # Pick off usb
+	if [[ -n ${USB_STICKS} ]];then
+		FOUND_USB=true
+		if [[ ${DEBUG} == 'true' ]];then
+			echo "DISK:${D}"
+			echo "BUS:${BUS}"
+			echo "USB_STICKS:${USB_STICKS}"
+		fi
+	else
+		[[ ${DEBUG} == 'true' ]] && echo "${RED_FG}NON USB:${YELLOW_FG}${BOLD}${BUS}${RESET}"
+	fi
+done
+
+[[ ${FOUND_USB} == 'false' ]] && echo "No USB disks found" >&2 && return 1
+
+START_PRINT=false
+if [[ ${_DEBUG} == 'true' ]];then
+	echo "${WHITE_ON_GREY}DEBUG: fdisk info${RESET}"
+	for L in ${FDISK};do
+		[[ ${L} =~ 'sdb' ]] && START_PRINT=true
+		[[ ${START_PRINT} == 'true' ]] && printf "%s\n" ${L}
+	done
+fi
 
 if [[ ${_DEBUG} == 'true' ]];then
 	echo "${WHITE_ON_GREY}DEBUG: SD Devices${RESET}"
@@ -61,21 +81,6 @@ if [[ ${_DEBUG} == 'true' ]];then
 	echo "DEV:${DEV}"
 	echo "DATA:${DATA}"
 	echo "SIZE:${SIZE}"
-fi
-
-if [[ ${_DEBUG} == 'true' ]];then
-	echo "${WHITE_ON_GREY}DEBUG: BUS Info${RESET}"
-	for D in ${(k)DISKS};do
-		BUS=$(udevadm info --query=all --name=${D} | grep -wi "id_bus" | cut -d'=' -f2)
-		[[ ${BUS:l} == 'usb' ]] && USB_STICKS+=${D} # Pick off usb
-		if [[ -n ${USB_STICKS} ]];then
-			echo "DISK:${D}"
-			echo "BUS:${BUS}"
-			echo "USB_STICKS:${USB_STICKS}"
-		else
-			echo "${RED_FG}NON USB:${YELLOW_FG}${BOLD}${BUS}${RESET}"
-		fi
-	done
 fi
 
 BUS=''
@@ -144,6 +149,10 @@ else
 	else
 		if [[ -n ${USB_STICKS} ]];then
 			echo "Unmounted usb stick was detected"
+			return 2
+		else
+			echo "No mounted usb stick was detected"
+			return 1
 		fi
 	fi
 fi

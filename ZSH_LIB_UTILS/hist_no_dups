@@ -16,22 +16,13 @@ WHITE_FG="\033[37m"
 YELLOW_FG="\033[33m"
 
 # Declarations
-typeset -A TIME_CMD
-typeset -A TIME_ARG
-typeset -a CMD_UNIQ
-typeset -a HIST_NEW
-typeset -A LOCAL_EXES
-typeset -A SEEN
+typeset -A HIST
 
 # Constants
-#_HIST_FILE=./.zsh_history # For testing
 _HIST_FILE=~/.zsh_history
 _HIST_FILE_NEW=/tmp/zsh_history.new
-_ALIAS_FILE=/etc/zsh/aliases
-_LOCAL_EXE_PATH=~/Code/LOCAL
-_LIB_DIR=/usr/local/lib
-_CMD_CACHE=~/.cmd_cache
-
+_BAK_DATE=$(stat -c'%w' ${_HIST_FILE}.bak | cut -d' ' -f1)
+_TODAY=$(date +'%F')
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -40,66 +31,6 @@ source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
 
 # Functions
-validate_cmd () {
-	local CMD=${@}
-
-	[[ -z ${CMD} ]] && return 1
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARGS:${@}"
-
-	grep -q ${CMD} ${_CMD_CACHE} >/dev/null 2>&1
-	[[ ${?} -eq 0 ]] && return 0
-
-	# Validate command or alias
-	which ${CMD} >/dev/null 2>&1
-	if [[ ${?} -eq 0 ]];then
-			echo ${CMD} >> ${_CMD_CACHE}
-			return 0
-	elif [[ ${LOCAL_EXES[${CMD}]} -eq 1 ]];then
-			echo ${CMD} >> ${_CMD_CACHE}
-			return 0
-	else
-		grep -q "^alias ${CMD}=" < ${_ALIAS_FILE} >/dev/null 2>&1
-		if [[ ${?} -eq 0 ]];then
-			echo ${CMD} >> ${_CMD_CACHE}
-			return 0
-		fi
-	fi
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Invalid command:${CMD}"
-
-	return 1
-}
-
-get_last_cmd () {
-	local CMD=${@}
-	local ITEM_NDX=0
-	local -a ITEM_STACK
-	local HIT=false
-	local IN_ITEM=false
-	local V
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARGS:${@}"
-
-	# Find most recent cmd
-	for V in ${(onv)TIME_CMD};do
-		if [[ ${CMD} == "${V/\#\#*}" ]];then
-			HIT=true
-			IN_ITEM=true
-			((ITEM_NDX++))
-			ITEM_STACK[${ITEM_NDX}]=${(k)TIME_CMD[(r)${V}]} # Unique timestamp resolution
-			# Echo "CMD:${CMD} RLU:${(k)TIME_CMD[(r)${V}]} ITEM_NDX:${ITEM_NDX} ITEM_STACK:${ITEM_STACK[${ITEM_NDX}]}" >&2
-		else
-			IN_ITEM=false
-		fi
-		[[ ${HIT} == 'true' && ${IN_ITEM} == 'false' ]] && break
-	done
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Most recent:${ITEM_STACK[${ITEM_NDX}]}"
-
-	echo ${ITEM_STACK[${ITEM_NDX}]} # Return most recent instance based on timestamp
-}
-
 _cleanup () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARGS:${@}"
 
@@ -112,7 +43,7 @@ local OPTION
 local DESC
 
 read -r -d '' DESC<<EOF
-This script does...
+Remove duplicates from command history
 EOF
 
 parse_opts () {
@@ -177,82 +108,33 @@ shift $((OPTIND -1))
 #--End GetOpts--
  
 # Execution
-sort -u -o ${_CMD_CACHE} < ${_CMD_CACHE}
-sort -u -o ${_HIST_FILE} < ${_HIST_FILE}
+[[ ${_BAK_DATE} != ${_TODAY} ]] && cp ${_HIST_FILE} ${_HIST_FILE}.bak
 
-local -a LIST=("${(f)$(find ${_LOCAL_EXE_PATH} -executable)}")
+set_exit_callback _cleanup
 
-NDX=0
-tput sc
-for L in ${LIST};do
-	((NDX++))
-	# Tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX}. ${#LIST}. $(( NDX * 100. / ${#LIST}. ))
-	if [[ $(file ${L}) =~ 'zsh script' ]];then
-		LOCAL_EXES[${L:t}]=1
-	fi
-done
-tput el1
-tput rc
-
-HIST_CNT=0
-VALID_CNT=0
-INVALID_CNT=0
-DUPLICATE_CNT=0
-NDX=0
-
-NDX=0
-HF_LINES=$(wc -l ${_HIST_FILE})
+HIST_CNT=$(wc -l ${_HIST_FILE} | cut -d' ' -f1)
 
 while read LINE;do
-	((NDX++))
-#	# Tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX}. ${HF_LINES}. $(( NDX * 100. / ${HF_LINES}. ))
-	TIME=$(cut -d':' -f2 <<<${LINE} | sed 's/^ *//')
-	CMD=$(cut -d':' -f3- <<<${LINE} | sed 's/0;//' | cut -d' ' -f1)
-	ARG=$(cut -d':' -f3- <<<${LINE} | sed 's/0;//' | cut -s -d' ' -f2-)
-	if validate_cmd ${CMD};then
-		((VALID_CNT++))
-		TIME_CMD[${TIME}]="${CMD}##${NDX}" # Force unique time stamp resolution
-		TIME_ARG[${TIME}]="${ARG}"
-		CMD_UNIQ+=${CMD}
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${CYAN_FG}Unique${RESET}:${CMD}"
-	else
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${RED_FG}Eliminated${RESET}:${CMD}"
-		((INVALID_CNT++))
+	CMD_HDR=$(cut -d';' -f1 <<<${LINE})
+	CMD=$(cut -d';' -f2 <<<${LINE})
+	if [[ ! ${CMD} =~ 'grep' ]];then
+		X=$(grep -o \' <<<${CMD} | wc -l)
+		[[ $(( X % 2 )) -ne 0 ]] && continue # skip unbalanced quotes
+		X=$(grep -o \" <<<${CMD} | wc -l)
+		[[ $(( X % 2 )) -ne 0 ]] && continue # skip unbalanced quotes
 	fi
-	((HIST_CNT++))
-done < ${_HIST_FILE}
+	HIST[${CMD}]=${CMD_HDR}
+done < ${_HIST_FILE} 
 
-HIST_NEW=()
+for K in ${(k)HIST};do
+	printf "%s;%s\n" ${HIST[${K}]} ${K}
+done  | sort -n > ${_HIST_FILE_NEW}
 
-NDX=0
-for C in ${(o)CMD_UNIQ};do
-	[[ ${C} =~ '^\[' ]] && continue # Skip bracket commands
-	((NDX++))
-	# Tput el; printf "\rProcessing line ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} lines ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#CMD_UNIQ} $(( NDX * 100. / ${#CMD_UNIQ} ))
-	TIME_STAMP=$(get_last_cmd ${C})
-	CMD_ARGS=$(tr -d '[:space:]' <<<${C}${TIME_ARG[${TIME_STAMP}]}) # Cmd + args
-	[[ -n ${CMD_ARGS} && ${SEEN[${CMD_ARGS:q}]} -ge 1 ]] && continue
-	HIST_NEW+=": ${TIME_STAMP}:0;${C} ${TIME_ARG[${TIME_STAMP}]}"
-	(( SEEN[${CMD_ARGS:q}]+=1 ))
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${GREEN_FG}Added to history${RESET}: ${TIME_STAMP}:0;${C} ${TIME_ARG[${TIME_STAMP}]}"
-done
+HIST_UNIQ=${#HIST}
 
-DUPLICATE_CNT=$(( (HIST_CNT-${#HIST_NEW}) - INVALID_CNT ))
-printf "History ${WHITE_FG}%d${RESET} | (${WHITE_FG}%d${RESET}) | ${WHITE_FG}%d${RESET} lines\n" ${HIST_CNT} $(( INVALID_CNT + DUPLICATE_CNT )) ${#HIST_NEW}
+DUPLICATE_CNT=$(( HIST_CNT-HIST_UNIQ ))
+printf "History (${WHITE_FG}%d${RESET}) | ${WHITE_FG}%d${RESET} unique lines\n" ${HIST_CNT} ${HIST_UNIQ}
 
-_cleanup
-
-for L in ${(on)HIST_NEW};do
-	echo ${L} >>${_HIST_FILE_NEW}
-done
-
-if [[ -e ${_HIST_FILE_NEW} ]];then
-	cp ${_HIST_FILE} ${_HIST_FILE}.bak
-	cp ${_HIST_FILE_NEW} ${_HIST_FILE}
-fi
-
-fc -R ${_HIST_FILE}
-
-_cleanup
+[[ -e ${_HIST_FILE_NEW} && -s ${_HIST_FILE_NEW} ]] && mv -f ${_HIST_FILE_NEW} ${_HIST_FILE}
 
 exit_leave
