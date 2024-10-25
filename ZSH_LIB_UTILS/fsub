@@ -259,7 +259,7 @@ do_finalize () {
 		} | dbg
 	fi
 
-	echo "${WHITE_FG}Found $(str_pluralize candidate ${#FINAL})${RESET}" >&2
+	logit "${0}:${LINENO} Found ${#FINAL} $(str_pluralize candidate ${#FINAL})"
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} g_NO_PROMPTING:${g_NO_PROMPTING}"
 
@@ -292,7 +292,7 @@ do_clean_leading_digits () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
 	if ! arr_is_populated "${_CHAIN_LIST}";then
-		logit "${0}: Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
+		logit "${0}:${LINENO} Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
 		return 1
 	fi
 
@@ -308,7 +308,7 @@ do_clean_leading_digits () {
 		fi
 	done
 
-	[[ ${HIT} == 'false' ]] && logit "${0}: No candidates"
+	[[ ${HIT} == 'false' ]] && logit "${0}:${LINENO} No candidates"
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
@@ -323,7 +323,7 @@ do_add_leading_digits () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
 	if ! arr_is_populated "${_CHAIN_LIST}";then
-		logit "${0}: Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
+		logit "${0}:${LINENO} Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
 		return 1
 	fi
 
@@ -342,7 +342,7 @@ do_add_leading_digits () {
 		fi
 	done
 
-	[[ ${HIT} == 'false' ]] && logit "${0}: No candidates"
+	[[ ${HIT} == 'false' ]] && logit "${0}:${LINENO} No candidates"
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
@@ -355,7 +355,7 @@ do_strip_leading_digits () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
 
 	if ! arr_is_populated "${_CHAIN_LIST}";then
-		logit "${0}: Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
+		logit "${0}:${LINENO} Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
 		return 1
 	fi
 
@@ -371,7 +371,7 @@ do_strip_leading_digits () {
 		fi
 	done
 
-	[[ ${HIT} == 'false' ]] && logit "${0}: No candidates"
+	[[ ${HIT} == 'false' ]] && logit "${0}:${LINENO} No candidates"
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
@@ -392,7 +392,7 @@ do_media () {
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} TITLE:${TITLE}"
 
 	LIST=("${(f)$(clean_show_fn "${TITLE}" ${RES})}")
-	[[ ${?} -ne 0 ]] && logit "${0}: clean_show_fn failed" && return 1
+	[[ ${?} -ne 0 ]] && logit "${0}:${LINENO} clean_show_fn failed" && return 1
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LIST:${#LIST} ${LIST}"
 
@@ -549,7 +549,7 @@ do_sdc () {
 		fi
 	done
 
-	[[ ${HIT} == 'false' ]] && logit "${0}: No Candidates"
+	[[ ${HIT} == 'false' ]] && logit "${0}:${LINENO} No Candidates"
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
@@ -631,7 +631,7 @@ do_trunc_fn () {
 		fi
 	done
 
-	[[ ${HIT} == 'false' ]] && logit "${0}: No candidates"
+	[[ ${HIT} == 'false' ]] && logit "${0}:${LINENO} No candidates"
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
@@ -660,7 +660,7 @@ do_trim () {
 		fi
 	done
 
-	[[ ${HIT} == 'false' ]] && logit "${0}: No candidates"
+	[[ ${HIT} == 'false' ]] && logit "${0}:${LINENO} No candidates"
 	[[ ${HIT} == 'true' ]] && return 0 || return 1
 }
 
@@ -699,14 +699,12 @@ do_yt_tag () {
 		CPATH=$(realpath ${_CHAIN_LIST[${C}]:h})
 		[[ -n ${_CHAIN_LIST[${C}]:e} ]] && CEXT=".${_CHAIN_LIST[${C}]:e}" || CEXT=''
 
-		#if [[ ${CEXT} == '.mp4' ]];then
-			grep -Pq '\-?\[' <<<${CANDIDATE}
-			[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
+		grep -Pq '\-?\[' <<<${CANDIDATE}
+		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 
-			CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*//' | perl -pe 's/_s_/\x27s_/; s/_/ /g; s/\.//g')
+		CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*//' | perl -pe 's/_s_/\x27s_/; s/_/ /g; s/\.//g')
 
-			_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
-		#fi
+		_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
 	done
 
 	[[ -n ${_OUT_LIST} ]] && return 0 || return 1
@@ -813,7 +811,6 @@ usage () {
 	echo -e "${WHITE_FG}-u${RESET} unCamelCase (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-x${RESET} strip leading numbers (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-y${RESET} no prompting"
-	echo -e "${WHITE_FG}-Y${RESET} eliminate YouTube tags"
 	echo -e "${WHITE_FG}Note${RESET}:(${CYAN_FG}M${RESET}) - Macro option - additional args ignored"
 	echo -e "${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2

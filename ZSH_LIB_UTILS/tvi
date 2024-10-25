@@ -435,9 +435,14 @@ if [[ ${IGNORE_CACHE} == "false" ]];then
 	read_cache
 	for T in ${(k)CACHED_TARGETS};do
 		[[ ${_DEBUG} -gt 0 && ${FILE_ARG} == ${T} ]] && dbg "${0}:${LINENO} Using cached edit: ${CACHED_TARGETS[${T}]}"
-		if [[ ${FILE_ARG} == ${T} && -e ${CACHED_TARGETS[${T}]} ]];then
-			FILE_IS_CACHED=true
-			CACHED_FN=${CACHED_TARGETS[${T}]}
+		if [[ ${FILE_ARG} == ${T} ]];then
+			if [[ -e ${CACHED_TARGETS[${T}]} ]];then
+				FILE_IS_CACHED=true
+				CACHED_FN=${CACHED_TARGETS[${T}]}
+			else
+				msg_box -p -PK "Cache returned a non-existent file:${CACHED_TARGETS[${T}]}"
+				exit_leave $(msg_exit E "File:${CACHED_TARGETS[${T}]} is not editable")
+			fi
 		fi
 	done
 fi

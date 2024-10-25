@@ -12,6 +12,7 @@ _FUNC_TRAP=false
 _BAREWORD_IS_FILE=false
 _UTILS_LIB_DBG=4
 
+
 is_tag () {
 	local TAG=${1}
 
@@ -140,6 +141,24 @@ boolean_color_word () {
 	esac
 }
 
+box_coords_repaint () {
+	local TAG=${1}
+	local ARR_NAME=${2:=_LIST}
+	local -A COORDS=($(box_coords_get ${TAG}))
+	local X_LIMIT
+	local Y_LIMIT
+	local X Y
+
+	X_LIMIT=$(( COORDS[H] + COORDS[X] ))
+	Y_LIMIT=$(( COORDS[Y] + COORDS[W] ))
+
+	for (( X=${COORDS[X]}; X <= X_LIMIT; X++ ));do
+		for (( Y=${COORDS[Y]}; Y <= Y_LIMIT; Y++ ));do
+			tput cup $((X-1)) $((Y-1)); echo -n ${${(P)ARR_NAME}[${X}][${Y}]} # Offset zero based tput
+		done
+	done
+}
+
 box_coords_del () {
 	local TAG=${1}
 
@@ -264,6 +283,8 @@ box_coords_get () {
 	local TAG=${1}
 
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
+
+	[[ -z ${_BOX_COORDS[${TAG}]} ]] && return 1
 
 	echo ${(kv)_BOX_COORDS[${TAG}]}
 }

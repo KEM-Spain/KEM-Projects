@@ -716,7 +716,7 @@ list_select () {
 			# Partial page boundary
 			[[ ${PAGE} -eq ${MAX_PAGE} ]] && MAX_CURSOR=$(( (MAX_ITEM-PAGE_RANGE_TOP) +1 )) || MAX_CURSOR=${MAX_DISPLAY_ROWS}
 	
-			# WAIT FOR INPUT - get list selection(s)  - if only 1 item in list, skip selection and process item
+			# WAIT FOR INPUT
 			KEY=$(get_keys ${USER_PROMPT})
 
 			case ${KEY} in
@@ -748,7 +748,7 @@ list_select () {
 				l) DIR_KEY=b;CURSOR_NDX=${MAX_CURSOR};_LIST_NDX=${PAGE_RANGE_BOT};; # 'l' Bottom Row current page
 				n) DIR_KEY=n;PAGE_BREAK=true;break;; # 'n' Next page
 				p) DIR_KEY=p;PAGE_BREAK=true;break;; # 'p' Prev page
-				q) exit_request;;
+				q) exit_request;break;;
 				s) [[ ${_LIST_IS_SORTABLE} == 'true' ]] && list_sort;_HOLD_PAGE=true;break;; # 's' Sort
 				t) DIR_KEY=fp;PAGE_BREAK=true;break;; # 't' Top row first page
 				z) return -1;; # 'z' Quit loop

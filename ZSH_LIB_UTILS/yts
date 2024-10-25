@@ -288,6 +288,7 @@ action_do () {
 						*100*) LINE_COLOR='<B><g>';;
 						*mib/s*) LINE_COLOR='<w>';;
 						*kib/s*) LINE_COLOR='<B><y>';;
+						*) continue;; # Skip other
 					esac
 				fi
 
@@ -780,6 +781,7 @@ post_process () {
 	msg_box -x$(( _COORDS[X]+4 )) -y$(box_center ${MSG}) ${MSG}
 
 	{
+		pushd ${_DOWNLOAD_DIR}
 		for D in ${_DOWNLOAD_DIR}/*;do
 			echo "${0}: ${D}" >>${g_YTS_LOG}
 			[[ ${D:e} == 'part' ]] && continue
@@ -794,6 +796,7 @@ post_process () {
 			[[ ${K:e} == '.part' ]] && continue
 			fsub -iy ${K} ${_DOWNLOAD_DIR}
 		done
+		popd
 
 	} >>${_ERROR_LOG} 2>/dev/null
 }
@@ -1214,10 +1217,12 @@ PATHLBL=$(path_get_label 40)
 if [[ (! -f ${_CODE_MARKER}) || (-f ${_CODE_MARKER} && (! ${g_LAST_CODE_UPD:l} =~ 'today')) ]];then
 	clear
 	msg_box -t1 "Updating yts-dlp..."
-	pushd ${_YTS_GIT}
-	git pull
-	popd
-	touch ${_CODE_MARKER}
+	{
+		pushd ${_YTS_GIT}
+		git pull
+		popd
+		touch ${_CODE_MARKER}
+	} >/dev/null 2>&1
 fi
 
 clear

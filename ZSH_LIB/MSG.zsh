@@ -571,25 +571,26 @@ msg_box_align () {
 
 msg_box_clear () {
 	local -A BOX_COORDS=()
-	local TAG
 	local X_COORD_ARG=''
 	local Y_COORD_ARG=''
 	local H_COORD_ARG=''
 	local W_COORD_ARG=''
+	local TAG=''
 	local X
 
-	if [[ ${#} -eq 4 ]];then
-		X_COORD_ARG=${1}
-		Y_COORD_ARG=${2}
-		H_COORD_ARG=${3}
-		W_COORD_ARG=${4}
-	elif [[ ${#} -eq 1 ]];then
-		TAG=${1}
+	[[ ${#} -eq 1 ]] && TAG=${1}
+
+	if [[ -n ${TAG} ]];then
 		BOX_COORDS=($(box_coords_get ${TAG}))
 		X_COORD_ARG=${BOX_COORDS[X]}
 		Y_COORD_ARG=${BOX_COORDS[Y]}
 		H_COORD_ARG=${BOX_COORDS[H]}
 		W_COORD_ARG=${BOX_COORDS[W]}
+	else
+		X_COORD_ARG=${1}
+		Y_COORD_ARG=${2}
+		H_COORD_ARG=${3}
+		W_COORD_ARG=${4}
 	fi
 
 	# Handle placeholders
@@ -755,32 +756,6 @@ msg_proc () {
 		tput cup ${R} ${C} 
 		tput ech ${BOX_W}
 		((R++))
-	done
-}
-
-msg_repaint () {
-	local TAG=${1}
-	local -a TEXT=()
-	local -A TAG_COORDS
-	local NDX=0
-	local TAG_LIST=()
-	local T
-	local TAG_COORDS
-
-	TAG_LIST=($(box_coords_overlap ${TAG}))
-
-	for T in ${(on)TAG_LIST};do
-		TAG_COORDS=$(cut -d '|' -f2 <<<${T})
-		TAG_COORDS=($(box_coords_get ${TAG_COORDS}))
-		TEXT=("${(f)$(msg_get_text ${TAG_COORDS})}")
-
-		msg_unicode_box ${TAG_COORDS[X]} ${TAG_COORDS[Y]} ${TAG_COORDS[W]} ${TAG_COORDS[H]}
-
-		NDX=0
-		for (( X=$(( TAG_COORDS[X]+1 ));X<$(( TAG_COORDS[X]+TAG_COORDS[H]-1 )); X++));do
-			(( NDX++))
-			tput cup ${X} $(( TAG_COORDS[Y]+1 ));echo -n ${TEXT[${NDX}]}
-		done
 	done
 }
 
@@ -967,7 +942,7 @@ msg_exit () {
 	esac
 
 	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)/\e[m:\e[3;37m$1\e[m/g' <<<${MSG})
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)(.*)$/\e[m:\e[3;37m$1\e[m\2/' <<<${MSG})
 		printf "[${WHITE_FG}%s${RESET}]:[${LCOLOR}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }

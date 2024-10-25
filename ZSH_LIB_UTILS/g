@@ -72,57 +72,60 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} $(opt_type s)\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-I${RESET} case sensitive"
-	echo -e "${WHITE_FG}-a${RESET} no ansi color"
-	echo -e "${WHITE_FG}-e${RESET} exclude search"
-	echo -e "${WHITE_FG}-f${RESET} specify file to scan"
-	echo -e "${WHITE_FG}-l${RESET} list files"
+	echo -e "${WHITE_FG}-B${RESET} allow scanning of .bak files"
 	echo -e "${WHITE_FG}-L${RESET} list files on one line"
+	echo -e "${WHITE_FG}-a${RESET} no ansi color"
+	echo -e "${WHITE_FG}-f${RESET} specify file of search patterns"
+	echo -e "${WHITE_FG}-i${RESET} case sensitive"
+	echo -e "${WHITE_FG}-l${RESET} list files"
 	echo -e "${WHITE_FG}-m $(opt_type m)${RESET} max matches to process (default: all)"
 	echo -e "${WHITE_FG}-n${RESET} line numbers"
 	echo -e "${WHITE_FG}-o${RESET} only matched"
 	echo -e "${WHITE_FG}-p $(opt_type p)${RESET} alternate path"
 	echo -e "${WHITE_FG}-r${RESET} recurse"
+	echo -e "${WHITE_FG}-v${RESET} inverted search"
 	echo -e "${WHITE_FG}-w${RESET} whole word match"
 	echo -e "\n${WHITE_FG}Desc${RESET}:find files containing <SEARCHTERM> in or below the current directory\n"
 
 	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
-OPTSTR=":HDIaef:lLm:nop:rw"
+OPTSTR=":HDBiaf:lLm:nop:rvw"
 
-CASE_OPT='-i'
-CASE_SENSE=false
-EXCLUDE_OPT=''
+CASE_SENSE=''
+COLORS=always
+INVERT_OPT=''
+EXCLUDE_BAK='--exclude=\*bak'
 FILELIST=false
 LINENUM_OPT=''
 LISTFILES_OPT=''
-MY_PATH=${PWD}
-MY_FILE=''
-COLORS=always
+MAX_MATCHES=''
+FN_ARG=''
+PATH_ARG=${PWD}
 ONE_LINE=false
 ONLY_OPT=''
 RECURSE=false
 RECURSE_OPT=''
+SCAN_BAK=false
 WORD_OPT=''
-MAX_MATCHES=''
 
 OPTIND=0
 while getopts ${OPTSTR} OPTION;do
 	case ${OPTION} in
      H) usage;;
 	  D) dbg_set_level;;
-     I) CASE_OPT='';CASE_SENSE=true;;
+	  B) EXCLUDE_BAK='';;
+     i) CASE_SENSE='-i';;
      a) COLORS=never;;
-     e) EXCLUDE_OPT=-v;;
-     f) MY_FILE=${OPTARG};;
+     f) FN_ARG=${OPTARG};;
      l) LISTFILES_OPT=-l;FILELIST=true;;
      L) LISTFILES_OPT=-l;FILELIST=true;ONE_LINE=true;;
      m) MAX_MATCHES="-m${OPTARG}";;
      n) LINENUM_OPT=-n;;
      o) ONLY_OPT=-o;;
-     p) MY_PATH=${OPTARG};;
+     p) PATH_ARG=${OPTARG};;
      r) RECURSE_OPT=-r;RECURSE=true;;
+     v) INVERT_OPT=-v;;
      w) WORD_OPT=-w;;
      :) print -u2 "${_SCRIPT}: Option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${_SCRIPT}: ${BOLD}${RED_FG}Unknown option${RESET} - ${OPTARG}"; usage;;
@@ -138,17 +141,17 @@ SEARCHTERM=${@}
 [[ -z ${SEARCHTERM} ]] && usage "Missing argument:<SEARCHTERM>"
 [[ ! -t 0 ]] && exit_leave $(msg_exit W "Unable to accept piped input")
 
-if [[ -n ${MY_FILE} ]];then # If file was passed
-	if [[ ! -e ${MY_PATH}/${MY_FILE} ]];then # And not found
-		exit_leave $(msg_exit W "file not found:${MY_PATH}/${MY_FILE}") # Exit not found
+if [[ -n ${FN_ARG} ]];then # If file was passed
+	if [[ ! -e ${PATH_ARG}/${FN_ARG} ]];then # And not found
+		exit_leave $(msg_exit W "file not found:${PATH_ARG}/${FN_ARG}") # Exit not found
 	else
-		MY_GREP_ARG="${MY_PATH}/${MY_FILE}" # Limit to file name
+		GREP_ARG="${PATH_ARG}/${FN_ARG}" # Limit to file name
 	fi
 else
-	MY_GREP_ARG="${MY_PATH}/(*|.*)" # No file name was passed - all files in path
+	GREP_ARG="${PATH_ARG}/(*|.*)" # No file name was passed - all files in path
 fi
 
-CMD=$(echo "grep -H -r -P -I -d skip -D skip ${MAX_MATCHES} --color=never ${RECURSE_OPT} ${LINENUM_OPT} ${EXCLUDE_OPT} ${ONLY_OPT} ${WORD_OPT} ${CASE_OPT} '"${SEARCHTERM}"' ${MY_GREP_ARG} 2>/dev/null")
+CMD=$(echo "grep -H -r -P -I -d skip -D skip ${MAX_MATCHES} --color=never ${CASE_SENSE} ${RECURSE_OPT} ${LINENUM_OPT} ${INVERT_OPT} ${ONLY_OPT} ${WORD_OPT}'"${SEARCHTERM}"' ${GREP_ARG} ${EXCLUDE_BAK} 2>/dev/null")
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} CMD:${CMD}"
 
 RAWLIST=("${(f)$(eval ${CMD})}")
@@ -169,7 +172,7 @@ for L in ${(uo)RAWLIST};do
 	[[ ${_DEBUG} -gt 0 && (! ${FTYPE} =~ 'text') ]] && dbg "${0}:${LINENO} File:${FN} rejected - not text:${FTYPE}" 
 	[[ ! ${FTYPE} =~ 'text' ]] && continue
 	LN=$(cut -d: -f2- <<<${L})
-	[[ ${COLORS} == 'always' ]] && LN=$(echo ${LN} | grep --color=${COLORS} ${CASE_OPT} ${SEARCHTERM}) # Colorize
+	[[ ${COLORS} == 'always' ]] && LN=$(echo ${LN} | grep --color=${COLORS} ${CASE_SENSE} ${SEARCHTERM}) # Colorize
 	LN=${LN[1,${_COL_MAX}]} # Limit usable line length; some files have no line breaks
 	LN=$(tr -d '\012\015' <<<${LN})
 	LN=$(tr -s '[:space:]' <<<${LN})
@@ -208,8 +211,8 @@ else
 	if [[ ${FILELIST} == 'false' ]];then
 		tput cup 1 0; echo ${CMD} | tr -s '[:space:]'
 		[[ ${RECURSE} == 'true' ]] && RECURSE_MSG=" (recursive)" || RECURSE_MSG=''
-		[[ ${CASE_SENSE} == 'true' ]] && CASE_MSG=" (case sensitive)" || CASE_MSG=''
-		echo "Path:${WHITE_FG}${MY_PATH}${RECURSE_MSG}${RESET}, Search:${WHITE_FG}${SEARCHTERM}${CASE_MSG}${RESET}, Result: ${WHITE_FG}${#RAWLIST}${RESET} lines\n\n"
+		[[ -n ${CASE_SENSE} ]] && CASE_MSG=" (case sensitive)" || CASE_MSG=''
+		echo "Path:${WHITE_FG}${PATH_ARG}${RECURSE_MSG}${RESET}, Search:${WHITE_FG}${SEARCHTERM}${CASE_MSG}${RESET}, Result: ${WHITE_FG}${#RAWLIST}${RESET} lines\n\n"
 		if [[ -n ${LINENUM_OPT} ]];then
 			[[ ${LONGEST_LN} -gt $(( _COL_MAX - LONGEST_FN )) ]] && LONGEST_LN=$(( (_COL_MAX - LONGEST_FN) - 7 ))
 			REM=$(( (_COL_MAX - LONGEST_FN) - 8))
