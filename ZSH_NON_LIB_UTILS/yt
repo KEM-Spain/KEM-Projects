@@ -1,0 +1,51 @@
+#!/usr/bin/zsh
+GET_AV=false
+[[ ${1} == '-A' ]] && GET_AV=true && shift
+
+typeset -a AUDIO=()
+typeset -a VIDEO=()
+typeset -a LIST=()
+
+_DOWNLOAD_DIR="~/Downloads/Torrents/Library/web"
+
+if [[ ${GET_AV} == 'true' ]];then
+	LIST=("${(f)$(
+		while read LINE;do
+			echo ${LINE}
+		done<<<$("${PYTHON:-python3}" -Werror -Xdev "$(dirname "$(realpath "$0")")/yt_dlp/__main__.py" -F "$@")
+	)}")
+
+	for L in ${LIST};do
+		[[ ${L:l} =~ 'audio' && ${L:l} =~ 'https' ]] && AUDIO+=$(tr -s '[:space:]' <<<${L} | sed 's/ /|/g' | tr -s '|' | sed 's/,//g')
+		[[ ${L:l} =~ 'video' && ${L:l} =~ 'https' ]] && VIDEO+=$(tr -s '[:space:]' <<<${L} | sed 's/ /|/g' | tr -s '|' | sed 's/,//g')
+	done
+
+	AUDIO_CODE=$(
+	for A in ${AUDIO};do
+		[[ ${A} =~ 'drc' ]] && continue
+		echo "$(cut -d'|' -f12 <<<${A})|$(cut -d'|' -f1 <<<${A})"
+	done | sort -nr | head -1 | cut -d'|' -f2
+	)
+
+	VIDEO_CODE=$(
+	for V in ${VIDEO};do
+		echo "$(cut -d'|' -f12 <<<${V})|$(cut -d'|' -f1 <<<${V})"
+	done | sort -nr | head -1 | cut -d'|' -f2
+	)
+
+	AV_CODES="${VIDEO_CODE}+${AUDIO_CODE}"
+	echo "AV_CODES:${AV_CODES}"
+	"${PYTHON:-python3}" -Werror -Xdev "$(dirname "$(realpath "$0")")/yt_dlp/__main__.py" -f ${AV_CODES} -Rinfinite "$@"
+else
+	"${PYTHON:-python3}" -Werror -Xdev "$(dirname "$(realpath "$0")")/yt_dlp/__main__.py" -Rinfinite "$@"
+fi
+
+if [[ ${PWD} == ${_DOWNLOAD_DIR} ]];then
+	LIST=("${(f)$(ls -1 --color=never)}")
+	for L in ${LIST};do
+		grep -q -P '\-\[' <<<${L}
+		[[ ${?} -eq 0 ]] && fsub -Yy ${L}
+	done
+fi
+
+echo "yt download:${@}" >> /tmp/yts.url.log

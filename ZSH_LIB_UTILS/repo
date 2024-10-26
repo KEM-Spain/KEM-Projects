@@ -144,14 +144,10 @@ cp ./README.md ${_REPO}
 # Updater
 cp ./do_commit ${_REPO}
 
-# zsh scripts
-LIST=("${(f)$(find ${_UL_BIN_DIR} -maxdepth 1 -type f)}")
+# zsh scripts  
+LIST=("${(f)$(grep -d skip -l '/usr/bin/zsh' ${_UL_BIN_DIR}/*)}")
 for L in ${LIST};do
-	if [[ $(file ${L}) =~ 'zsh' ]];then
-		_UL_BIN_ZSH_FILES+=${L}
-	else
-		continue
-	fi
+	_UL_BIN_ZSH_FILES+=${L}
 done
 echo "Total zsh scripts:${#_UL_BIN_ZSH_FILES}"
 
