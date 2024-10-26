@@ -145,11 +145,7 @@ cp ./README.md ${_REPO}
 cp ./do_commit ${_REPO}
 
 # zsh scripts  
-LIST=("${(f)$(grep -d skip -l '/usr/bin/zsh' ${_UL_BIN_DIR}/*)}")
-for L in ${LIST};do
-	_UL_BIN_ZSH_FILES+=${L}
-done
-echo "Total zsh scripts:${#_UL_BIN_ZSH_FILES}"
+_UL_BIN_ZSH_FILES=("${(f)$(grep -d skip -l '/usr/bin/zsh' ${_UL_BIN_DIR}/*)}")
 
 # zsh libs
 LIST=("${(f)$(find ${_UL_LIB_DIR} -maxdepth 1 -type f)}")
