@@ -212,7 +212,7 @@ else
 		tput cup 1 0; echo ${CMD} | tr -s '[:space:]'
 		[[ ${RECURSE} == 'true' ]] && RECURSE_MSG=" (recursive)" || RECURSE_MSG=''
 		[[ -n ${CASE_SENSE} ]] && CASE_MSG=" (case sensitive)" || CASE_MSG=''
-		echo "Path:${WHITE_FG}${PATH_ARG}${RECURSE_MSG}${RESET}, Search:${WHITE_FG}${SEARCHTERM}${CASE_MSG}${RESET}, Result: ${WHITE_FG}${#RAWLIST}${RESET} lines\n\n"
+		echo "Path:${WHITE_FG}${PATH_ARG}${RECURSE_MSG}${RESET}, Search:${WHITE_FG}${SEARCHTERM}${CASE_MSG}${RESET}, Result:${WHITE_FG}${#RAWLIST}${RESET} lines\n\n"
 		if [[ -n ${LINENUM_OPT} ]];then
 			[[ ${LONGEST_LN} -gt $(( _COL_MAX - LONGEST_FN )) ]] && LONGEST_LN=$(( (_COL_MAX - LONGEST_FN) - 7 ))
 			REM=$(( (_COL_MAX - LONGEST_FN) - 8))
