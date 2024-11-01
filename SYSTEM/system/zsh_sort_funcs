@@ -24,7 +24,7 @@ typeset -A _BLACKLIST=(usage 1 parse_opts 1 opt_type 1 opt_exists 1)
 typeset -A SEEN
 
 # Constants
-_FUNC_REGEX='^.* () {$'
+_FUNC_REGEX='^.* () {'
 _FUNC_TAG='^# Functions'
 
 # Imports

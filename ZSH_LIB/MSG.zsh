@@ -736,10 +736,10 @@ msg_paging () {
 msg_proc () {
 	local BOX_W=20
 	local BOX_H=3
-	#local H_POS=$(coord_center $(( _MAX_COLS-3 )) 20) # Horiz center
-	#local V_POS=$(( _MAX_ROWS/2 - BOX_H ))
-	local H_POS=0
-	local V_POS=0
+	local H_POS=$(coord_center $(( _MAX_COLS-3 )) 20) # Horiz center
+	local V_POS=$(( _MAX_ROWS/2 - BOX_H ))
+	#local H_POS=0
+	#local V_POS=0
 	local X R C
 
 	msg_unicode_box ${V_POS} ${H_POS} ${BOX_W} ${BOX_H}

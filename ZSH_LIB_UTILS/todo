@@ -67,7 +67,7 @@ usage () {
 
 clear
 echo "[${WHITE_FG}${0}${RESET}] Searching for TODO items...\n"
-[[ ${SHOW_DEV} == 'false' ]] && echo "Development [-d] not selected\n"
+[[ ${SHOW_DEV} == 'false' ]] && echo "Development scan [-d] not selected\n"
 
 for S in ${(k)_SOURCES};do
 	_TODO_LIST+=("${(f)$(find ${S} -maxdepth 2 -type f)}")

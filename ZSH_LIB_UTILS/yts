@@ -87,6 +87,7 @@ g_SEARCH_TYPE=''
 g_STRICT=false
 g_STRICT_MSG=''
 g_YTS_LOG=''
+g_WHEN=''
 
 # Functions
 action_do () {
@@ -198,6 +199,7 @@ action_do () {
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
+				g_WHEN=$(sed 's/\(.*begin in \)\(.*\)\.$/\2/' <<<${LOG_LINE})
 				msg_box -t${_PAUSE} "${EMSG}"
 				_FUTURE[${M}]=true
 				_DOWNLOADS[${M}]=false
@@ -454,8 +456,6 @@ fav_get () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	list_set_type select
-
 	while true;do
 		_DISPLAY_LIST=()
 		for F in ${(k)_DISPLAY_KEYS};do
@@ -681,14 +681,12 @@ item_decorate () {
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	log_find ${NDX}
-
 	if [[ ${_DOWNLOADS[${NDX}]} == 'true' ]];then
 		STR="Downloaded..."
 	elif [[ ${_FAILED[${NDX}]} == 'true' ]];then
 		STR="Failed..."
 	elif [[ ${_FUTURE[${NDX}]} == 'true' ]];then
-		STR="Future..."
+		STR="Future...${g_WHEN}"
 	elif [[ ${_PARTIALS[${NDX}]} == 'true' ]];then
 		STR="Partial..."
 	else
@@ -750,24 +748,31 @@ log_download () {
 	echo "${IN}|${TL}|${FN:t}|${TM}" >> ${_DOWNLOAD_LOG}
 }
 
-log_find () {
-	local NDX=${1}
-	local TL=$(get_field title ${NDX}) # Title
-	local AT=$(get_field agetime ${NDX}) # Age
-	local TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<${AT}) # Video length
-	local LINE=''
+log_find () { # Page callback - pre-process list to populate download status
+	local TOP=${1} # Page top row
+	local BOT=${2} # Page bot row
+	local AT='' # Agetime
+	local TL='' # Title
 	local FN=''
+	local LINE=''
+	local TM=''
+	local R=0
 
 	_DOWNLOADS=()
 	_PARTIALS=()
 
-	if [[ -n ${TL} ]];then
-		LINE=$(grep -i -m1 -e ${TL} ${_DOWNLOAD_LOG} 2>/dev/null) # Match on title
-		if [[ -n ${LINE} && ${LINE} =~ ${TM} ]];then # Match on time
-			FN=$(cut -d '|' -f3 <<<${FN})
-			[[ ${FN:e} == 'part' ]] && _PARTIALS[${NDX}]=true || _DOWNLOADS[${NDX}]=true
+	for ((R=${TOP}; R<${BOT}; R++));do
+		TL=$(get_field title ${R}) # Title
+		AT=$(get_field agetime ${R}) # Age
+		TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<${AT}) # Video length
+		if [[ -n ${TL} ]];then
+			LINE=$(grep -i -m1 -e ${TL} ${_DOWNLOAD_LOG} 2>/dev/null) # Match on title
+			if [[ -n ${LINE} && ${LINE} =~ ${TM} ]];then # Match on time
+				FN=$(cut -d '|' -f3 <<<${FN})
+				[[ ${FN:e} == 'part' ]] && _PARTIALS[${R}]=true || _DOWNLOADS[${R}]=true
+			fi
 		fi
-	fi
+	done
 }
 
 post_process () {
@@ -882,7 +887,6 @@ rumble () {
 			[[ ${CHANNELS[${X}]} =~ 'user' ]] && continue # Experimental to avoid duplicates
 			AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
 			CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
-			#CHANNEL="${(C)g_QUERY_KEY} (${CHANNEL})"
 			VID_LIST+="${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
 	fi
@@ -918,8 +922,6 @@ select_download () {
 	local FLST
 	local STR
 
-	list_set_type classic
-
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} ${GREEN_FG}LOCAL_LIST COUNT${RESET}:${#_LOCAL_LIST}"
 
@@ -945,7 +947,7 @@ select_download () {
 	printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}${ITEM_COLOR}%-${_FIELD_LEN[age]}s${RESET}${SHADE}${BAR} %-${_FIELD_LEN[author]}s %-${_FIELD_LEN[title]}s${RESET}\n" ${_LIST_NDX} "$(item_decorate ${_LIST_NDX})"  "$(get_field author ${_LIST_NDX})"  "$(get_field title ${_LIST_NDX})" 
 	'
 
-	list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${_ACTION} ${_OBJECT}(s) or ${ITALIC}${BOLD}exit${RESET} if none selected"
+	list_set_prompt "Hit <${GREEN_FG}SPACE${RESET}> to select ${_OBJECT}(s) then <${GREEN_FG}ENTER${RESET}> to ${_ACTION} or ${ITALIC}${BOLD}exit${RESET} if none selected"
 	list_set_action_msgs video download
 	list_set_sortable true
 	list_set_max_sort_col 3
@@ -1277,7 +1279,8 @@ if [[ ${#} -eq 0 ]];then # NO args passed
 		fav_get
 		if [[ -n ${g_QUERY_KEY} ]];then
 			msg_box "Requesting videos for <B><I>${g_DISPLAY_KEY}<N>..."
-			${g_QRY_ENGINE} ${g_QUERY_KEY}
+			${g_QRY_ENGINE} ${g_QUERY_KEY} # Call the extractor
+			 
 			if [[ ${?} -eq 0 ]];then
 				select_download ${g_QUERY_KEY}
 			fi

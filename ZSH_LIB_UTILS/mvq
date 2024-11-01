@@ -190,8 +190,6 @@ cache_select () {
 		esac
 	done
 
-	list_set_type select
-
 	sel_list_set ${(k)CACHE_LIST}
 	sel_list -O ${GREEN_FG} -c -w10 "<w>Select from cache or <h>(q)uit<N>"
 }

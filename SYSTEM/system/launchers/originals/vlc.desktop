@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=vlc
+Comment=Video Player
+TryExec=/usr/bin/vlc
+Exec=/usr/bin/vlc %U
+Icon=/usr/share/icons/hicolor/128x128/apps/vlc-kb.png
+Type=Application
+Categories=Video

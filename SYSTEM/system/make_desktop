@@ -184,7 +184,7 @@ shift $((OPTIND -1))
 
 # Execution
 APPFILE=${1:l}
-APPNAME=${(C)APPFILE}
+APPNAME=${APPFILE}
 
 [[ ${#} -eq 0 ]] && usage $(msg_exit E "Missing arguments $(opt_type a)")
 

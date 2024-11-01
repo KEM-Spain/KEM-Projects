@@ -6,8 +6,6 @@ typeset -a AUDIO=()
 typeset -a VIDEO=()
 typeset -a LIST=()
 
-_DOWNLOAD_DIR="~/Downloads/Torrents/Library/web"
-
 if [[ ${GET_AV} == 'true' ]];then
 	LIST=("${(f)$(
 		while read LINE;do
@@ -40,12 +38,10 @@ else
 	"${PYTHON:-python3}" -Werror -Xdev "$(dirname "$(realpath "$0")")/yt_dlp/__main__.py" -Rinfinite "$@"
 fi
 
-if [[ ${PWD} == ${_DOWNLOAD_DIR} ]];then
-	LIST=("${(f)$(ls -1 --color=never)}")
-	for L in ${LIST};do
-		grep -q -P '\-\[' <<<${L}
-		[[ ${?} -eq 0 ]] && fsub -Yy ${L}
-	done
-fi
+LIST=("${(f)$(ls -1 --color=never)}")
+for L in ${LIST};do
+	grep -q -P '\-\[' <<<${L}
+	[[ ${?} -eq 0 ]] && fsub -yY ${L}
+done
 
 echo "yt download:${@}" >> /tmp/yts.url.log

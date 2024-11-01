@@ -80,8 +80,6 @@ sel_list () {
 
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	[[ -z ${_LIST_TYPE} ]] && _LIST_TYPE='select'
-
 	OPTSTR=":x:y:cr:w:O:I:s"
 	OPTIND=0
 
@@ -293,11 +291,8 @@ sel_list () {
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG}LIST_TOP${RESET}:${LIST_TOP} ${WHITE_FG}LIST_BOT${RESET}:${LIST_BOT}"
 		[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ${WHITE_FG} BOX_TOP${RESET}:${BOX_TOP} ${WHITE_FG} BOX_BOT${RESET}:${BOX_BOT}"
 
-		#msg_box -x1 -y25 "_MC_RESTORE:${_MC_RESTORE}"
 		if [[ ${_MC_RESTORE} == 'true' ]];then
 			_MC=($(box_coords_get MENU))
-			#msg_box -x1 -y1 "${(kv)_MC}"
-			#tput cup ${_MC[ROW]} 1; tput ech 10;echo -n "----->"
 			if [[ -n ${_MC} ]];then
 				CURSOR_NDX=${_MC[NDX]}
 				CURSOR_ROW=${_MC[ROW]}
@@ -428,7 +423,8 @@ sel_list () {
 }
 
 sel_list_save_menu_pos () {
-	#msg_box -x4 -y1 "SAVING COORDS: NDX ${CURSOR_NDX} ROW ${CURSOR_ROW}"
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
+
 	box_coords_set MENU NDX ${CURSOR_NDX} ROW ${CURSOR_ROW}
 }
 

@@ -34,13 +34,14 @@ _LOG=/tmp/${0:t}.log
 _KEYWORDS=(bluray)
 
 # Globals
-g_FROM_TEXT=?
-g_TO_TEXT=?
-g_LIST_METHOD=?
-g_NO_PROMPTING=?
 g_ALLOW_DIRS=false
-g_LIMIT_TO_EXT=false
 g_EXT_TEXT=''
+g_FROM_TEXT=''
+g_LIMIT_TO_EXT=false
+g_LIST_METHOD=''
+g_NO_PROMPTING=false
+g_TO_TEXT=''
+g_VERBOSE=false
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -200,11 +201,14 @@ do_finalize () {
 			[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} K:${K} _IN_LIST[K]: ${_IN_LIST[${K}]}"
 			if [[ $(realpath ${_IN_LIST[${K}]}) == $(realpath ${_OUT_LIST[${K}]}) ]];then
 				MSG="${MAGENTA_FG}Warning${RESET}:candidate filename:\n[${WHITE_FG}${_OUT_LIST[${K}]}${RESET}]\nwould be ${ITALIC}${BOLD}identical${RESET} to original - ${MAGENTA_FG}omitted${RESET}"
-				echo ${MSG} >&2
+				[[ ${g_VERBOSE} == 'true' ]] && echo ${MSG} >&2
 				[[ ${_DEBUG} -ne 0 ]] && dbg "${0}:${LINENO} ${MSG}"
 				continue
 			fi
-			[[ ${_OUT_LIST[${K}]:t} == '.' || -z ${_OUT_LIST[${K}]} ]] && echo "Operation would remove all characters in filename - skipping" >&2 && continue
+			if [[ ${_OUT_LIST[${K}]:t} == '.' || -z ${_OUT_LIST[${K}]} ]];then
+				[[ ${g_VERBOSE} == 'true' ]] && echo "Operation would remove all characters in filename - skipping" >&2
+				continue
+			fi
 		else
 			exit_leave $(msg_err "Failed to resolve:_IN_LIST[K], K=${K}, _IN_LIST COUNT:${#_IN_LIST}")
 			continue
@@ -702,7 +706,8 @@ do_yt_tag () {
 		grep -Pq '\-?\[' <<<${CANDIDATE}
 		[[ ${?} -ne 0 ]] && unset "_IN_LIST[${C}]" && continue # Remove non matches from original
 
-		CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*//' | perl -pe 's/_s_/\x27s_/; s/_/ /g; s/\.//g')
+		#CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*//' | perl -pe 's/_s_/\x27s_/; s/_/ /g; s/\.//g')
+		CFN=$(echo "${CANDIDATE}" | perl -pe 's/\-?\[.*//' | str_trim)
 
 		_OUT_LIST[${C}]="${CPATH}/${CFN}${CEXT}"
 	done
@@ -715,7 +720,7 @@ save_changes () {
 	local KEY
 	local C
 
-	echo
+	[[ ${g_VERBOSE} == 'true' ]] && echo
 	for C in ${(k)_OUT_LIST};do # Modified filenames
 		[[ ${_DEBUG} -gt 0 && ${_IN_LIST[${C}]} == ${_OUT_LIST[${C}]} ]] && dbg "${0}:${LINENO} Identical filename ${_IN_LIST[${C}]} -> ${_OUT_LIST[${C}]} - skipping"
 		if [[ ${_IN_LIST[${C}]} == ${_OUT_LIST[${C}]} ]];then
@@ -811,6 +816,7 @@ usage () {
 	echo -e "${WHITE_FG}-u${RESET} unCamelCase (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-x${RESET} strip leading numbers (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-y${RESET} no prompting"
+	echo -e "${WHITE_FG}-v${RESET} verbose output"
 	echo -e "${WHITE_FG}Note${RESET}:(${CYAN_FG}M${RESET}) - Macro option - additional args ignored"
 	echo -e "${WHITE_FG}Desc${RESET}:${DESC}"
 	) >&2
@@ -818,7 +824,7 @@ usage () {
 	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
-OPTSTR=":HCDINSTYabe:irscdm:p:nt:uxy"
+OPTSTR=":HCDINSTYabe:irscdm:p:nt:uxyv"
 
 ADD_LEADING_DIGITS=false
 CAMEL=false
@@ -839,9 +845,6 @@ TRUNCATE=false
 TRIM=false
 UNCAMEL=false
 YT_TAGS=false
-g_NO_PROMPTING=false
-g_FROM_TEXT=''
-g_TO_TEXT=''
 
 typeset -a OPTIONS
 OPTIND=0
@@ -870,6 +873,7 @@ while getopts ${OPTSTR} OPT;do
      x) STRIP_LEADING_DIGITS=true;;
      Y) YT_TAGS=true;;
      y) g_NO_PROMPTING=true;;
+     v) g_VERBOSE=true;;
      :) print -u2 "${0}: option: ${WHITE_FG}-${OPTARG} ${BOLD}${RED_FG}requires an argument${RESET}"; usage;;
     \?) print -u2 "${0}: hit ${BOLD}${RED_FG}Unknown option${RESET} ${OPTARG}"; usage;;
 	esac
@@ -892,7 +896,7 @@ if [[ ! -t 0 ]];then
 			_PIPELINE+=$(echo ${PIPE} | tut strip_ansi)
 		done
 	else
-		echo "${0:t}:SERVICE_MODE - piped input not allowed"
+		exit_leave $(msg_exit E "SERVICE_MODE:piped input not allowed")
 	fi
 fi
 
@@ -940,7 +944,7 @@ _FIND_PATH=null
 [[ ${_ARG_LIST[1]} == 'bare_word' ]] && g_FROM_TEXT=${1} && SEARCH_REPLACE=true
 [[ ${_ARG_LIST[2]} == 'bare_word' ]] && g_TO_TEXT=${2} && SEARCH_REPLACE=true
 
-if [[ ${SEARCH_REPLACE} == 'true' ]];then
+if [[ ${g_VERBOSE} == 'true' && ${SEARCH_REPLACE} == 'true' ]];then
 	[[ -z ${g_TO_TEXT} ]] && echo "Deleting:${WHITE_FG}${g_FROM_TEXT}${RESET}\n" >&2
 	[[ -n ${g_TO_TEXT} ]] && echo "Search:${WHITE_FG}${g_FROM_TEXT}${RESET} Replace:${WHITE_FG}${g_TO_TEXT}${RESET}\n" >&2
 fi
@@ -949,7 +953,7 @@ fi
 if [[ ${_PIPED} == 'true' ]];then 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${0} Input is piped"
 	g_LIST_METHOD="piped input"
-	[[ ${_FIND_PATH} != 'null' ]] && echo "${MAGENTA_FG}Warning${RESET}:${YELLOW_FG}File path ignored for piped input${RESET}" >&2
+	[[ ${g_VERBOSE} == 'true' && ${_FIND_PATH} != 'null' ]] && echo "${MAGENTA_FG}Warning${RESET}:${YELLOW_FG}File path ignored for piped input${RESET}" >&2
 
 	# Grab piped input
 	_IN_LIST[1]=${_PIPELINE}
@@ -971,8 +975,10 @@ else
 		inode_ndx "_IN_LIST" "${PWD}"
 	fi
 
-	printf "Scanning path:%s\n" ${PATHLBL}
-	printf "Examining ${WHITE_FG}%d${RESET} files...\n" ${#_IN_LIST} >&2
+	if [[ ${g_VERBOSE} == 'true' ]];then
+		printf "Scanning path:%s\n" ${PATHLBL}
+		printf "Examining ${WHITE_FG}%d${RESET} files...\n" ${#_IN_LIST} >&2
+	fi
 fi
 
 if ! arr_is_populated "${_IN_LIST}";then
@@ -1019,97 +1025,101 @@ fi
 # Substitutions
 if [[ ${SEARCH_REPLACE} == 'true' ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Calling do_subs${RESET}..."
-	{ echo "${WHITE_ON_GREY}Substituting \"${g_FROM_TEXT}\" with \"${g_TO_TEXT}\"${RESET}" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${WHITE_ON_GREY}Substituting \"${g_FROM_TEXT}\" with \"${g_TO_TEXT}\"${RESET}" | tee -a ${_LOG} } >&2
 	do_subs
-	[[ ${?} -ne 0 ]] && { echo "No matches for substitution" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No matches for substitution" | tee -a ${_LOG} } >&2
 fi
 
 # Space_Dot_Camel
 if [[ ${#_SPACE_DOT} -gt 0 ]];then
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${WHITE_FG}Calling do_sdc${RESET}..."
-	{
-	for X in ${_SPACE_DOT};do
-		case ${X} in
-			B) echo "${CYAN_FG}Eliminating extended/non-ascii...${RESET}";;
-			S) echo "${CYAN_FG}Eliminating spaces...${RESET}";;
-			D) echo "${CYAN_FG}Eliminating dots, dashes, and commas...${RESET}";;
-			C) echo "${CYAN_FG}Camel casing...${RESET}";;
-			U) echo "${CYAN_FG}UnCamel casing...${RESET}";;
-		esac
-	done
-	} | tee -a ${_LOG} >&2
+	if [[ ${g_VERBOSE} == 'true' ]];then
+		{
+		for X in ${_SPACE_DOT};do
+			case ${X} in
+				B) echo "${CYAN_FG}Eliminating extended/non-ascii...${RESET}";;
+				S) echo "${CYAN_FG}Eliminating spaces...${RESET}";;
+				D) echo "${CYAN_FG}Eliminating dots, dashes, and commas...${RESET}";;
+				C) echo "${CYAN_FG}Camel casing...${RESET}";;
+				U) echo "${CYAN_FG}UnCamel casing...${RESET}";;
+			esac
+		done
+		} | tee -a ${_LOG} >&2
+	fi
 
 	do_sdc
 
 	if [[ ${?} -ne 0 ]];then
-		{
-		for X in ${_SPACE_DOT};do
-			case ${X} in
-				B) echo "No matches for extended/non-ascii";;
-				S) echo "No matches for eliminating spaces";;
-				D) echo "No matches for eliminating dots, dashes, and commas";;
-				C) echo "No matches for camel casing";;
-				U) echo "No matches for uncamel casing";;
-			esac
-		done
-		} | tee -a ${_LOG} >&2
+		if [[ ${g_VERBOSE} == 'true' ]];then
+			{
+			for X in ${_SPACE_DOT};do
+				case ${X} in
+					B) echo "No matches for extended/non-ascii";;
+					S) echo "No matches for eliminating spaces";;
+					D) echo "No matches for eliminating dots, dashes, and commas";;
+					C) echo "No matches for camel casing";;
+					U) echo "No matches for uncamel casing";;
+				esac
+			done
+			} | tee -a ${_LOG} >&2
+		fi
 	fi
 fi
 
 # Clean leading digits (usually for audio files)
 if [[ ${CLEAN_LEADING_DIGITS} == "true" ]];then
-	{ echo "${CYAN_FG}Cleaning leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Cleaning leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
 	do_clean_leading_digits
-	[[ ${?} -ne 0 ]] && { echo "No matches for clean leading digits" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No matches for clean leading digits" | tee -a ${_LOG} } >&2
 fi
 
 # Add leading digits (usually for audio files)
 if [[ ${ADD_LEADING_DIGITS} == "true" ]];then
-	{ echo "${CYAN_FG}Adding leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Adding leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
 	do_add_leading_digits
-	[[ ${?} -ne 0 ]] && { echo "No matches for add leading digits" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No matches for add leading digits" | tee -a ${_LOG} } >&2
 fi
 
 # Strip leading digits (usually for audio files)
 if [[ ${STRIP_LEADING_DIGITS} == "true" ]];then
-	{ echo "${CYAN_FG}Stripping leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Stripping leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
 	do_strip_leading_digits
-	[[ ${?} -ne 0 ]] && { echo "No matches for strip leading digits" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No matches for strip leading digits" | tee -a ${_LOG} } >&2
 fi
 
 # Truncations
 if [[ ${TRUNC_FN_LEN} -gt 0 ]];then
-	{ echo "${CYAN_FG}Limiting file names to:${WHITE_FG}${TRUNC_FN_LEN}${CYAN_FG} characters${RESET}" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Limiting file names to:${WHITE_FG}${TRUNC_FN_LEN}${CYAN_FG} characters${RESET}" | tee -a ${_LOG} } >&2
 	do_trunc_fn
-	[[ ${?} -ne 0 ]] && { echo "No matches for truncation" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No matches for truncation" | tee -a ${_LOG} } >&2
 fi
 
 # Trimming
 if [[ ${TRIM} == "true" ]];then
-	{ echo "${CYAN_FG}Trimming file names" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Trimming file names" | tee -a ${_LOG} } >&2
 	do_trim
-	[[ ${?} -ne 0 ]] && { echo "No matches for trim" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No matches for trim" | tee -a ${_LOG} } >&2
 fi
 
 # Prepend
 if [[ ${PREPEND} == "true" ]];then
-	{ echo "${CYAN_FG}Prepending file names" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Prepending file names" | tee -a ${_LOG} } >&2
 	do_prepend ${PREPEND_TAG}
-	[[ ${?} -ne 0 ]] && { echo "No matches for prepend" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No matches for prepend" | tee -a ${_LOG} } >&2
 fi
 
 # YouTube tags
 if [[ ${YT_TAGS} == "true" ]];then
-	{ echo "${CYAN_FG}Eliminating YouTube tags" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Eliminating YouTube tags" | tee -a ${_LOG} } >&2
 	do_yt_tag
-	[[ ${?} -ne 0 ]] && echo "No matches for YouTube tags" >&2 | tee -a ${_LOG}
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && echo "No matches for YouTube tags" >&2 | tee -a ${_LOG}
 fi
 
 # Media
 if [[ ${MEDIA_FILE} == "true" ]];then
-	{ echo "${CYAN_FG}Cleaning media file names matching${RESET}:[${WHITE_FG}${MEDIA_FILE_TITLE}${RESET}]" | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Cleaning media file names matching${RESET}:[${WHITE_FG}${MEDIA_FILE_TITLE}${RESET}]" | tee -a ${_LOG} } >&2
 	do_media ${RES} "${MEDIA_FILE_TITLE}" # Creates it's own list
-	[[ ${?} -ne 0 ]] && { echo "No media files were processed " | tee -a ${_LOG} } >&2
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No media files were processed " | tee -a ${_LOG} } >&2
 fi
 
 # Finalize

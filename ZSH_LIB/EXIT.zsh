@@ -45,6 +45,8 @@ exit_pre_exit () {
 	
 	_PRE_EXIT_RAN=true
 
+	[[ -n ${_EXIT_CALLBACK} ]] && ${_EXIT_CALLBACK}
+
 	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}, #_EXIT_MSGS:${#_EXIT_MSGS}"
 
 	if [[ ${XDG_SESSION_TYPE:l} == 'x11' ]];then
@@ -59,16 +61,9 @@ exit_pre_exit () {
 	[[ ${$(tabs -d | grep --color=never -o "tabs 8")} != 'tabs 8' ]] && tabs 8
 	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: reset tabstops"
 
-	if typeset -f _cleanup > /dev/null; then
-		[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: cleaning up"
-		_cleanup
-	fi
-
 	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
 
 	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}\n"
-
-	[[ -n ${_EXIT_CALLBACK} ]] && ${_EXIT_CALLBACK}
 
 	tput cnorm >&2
 }

@@ -210,7 +210,6 @@ usage () {
 	local OPTS=$(parse_opts ${OPTSTR})
 	local -a PENDING_MSGS=(${@})
 	
-	tabs 5
 	[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 	(

@@ -1,5 +1,5 @@
 # Default Options
-setopt warncreateglobal # Police locals
+setopt warncreateglobal # Monitor locals
 setopt rematchpcre # Use perl regex
 
 # Perl vars
@@ -10,11 +10,6 @@ match=''
 mbegin=''
 mend=''
 
-# Shared Functions
-list_set_type () {
-	_LIST_TYPE=${1}
-}
-
 # Constants
 _GEO_KEY="key=uMibiyDeEGlYxeK3jx6J"
 _GEO_PROVIDER="https://extreme-ip-lookup.com"
@@ -23,7 +18,7 @@ _MAX_ROWS=$(tput lines)
 _SCRIPT=${$(cut -d: -f1 <<<${funcfiletrace}):t}
 _DEBUG_FILE=/tmp/${_SCRIPT}_debug.out
 _XSET_DEFAULT_RATE="r rate 500 33" # Default rate
-_XSET_LOW_RATE="r rate 200 10" # Menu rate
+_XSET_LOW_RATE="r rate 500 15" # Menu rate
 
 # LIB declarations
 typeset -aU _DEPS_
@@ -36,7 +31,6 @@ _CURSOR_STATE=on
 _DEBUG_INIT=true
 _DEBUG=0
 _EXIT_MSGS=''
-_LIST_TYPE=''
 
 # Import default LIBS
 if [[ -e ./LIB_INIT.zsh && ${LIB_TESTING} == 'true' ]];then

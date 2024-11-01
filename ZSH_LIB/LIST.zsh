@@ -69,6 +69,8 @@ _GHOST_ROW=2 # Not selectable
 _LIST_LIB_DBG=3
 _SORT_MARKER=$(mktemp /tmp/last_sort.XXXXXX)
  
+set_exit_callback list_sort_clear_marker
+
 # LIB Functions
 list_add_header_break () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -597,7 +599,6 @@ list_select () {
 	_LIST=(${@})
 	MAX_ITEM=${#_LIST}
 	_SELECT_ALL=false
-	set_exit_callback list_sort_clear_marker
 
 	# Max line
 	COLS=$(tput cols)
@@ -611,8 +612,6 @@ list_select () {
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _LIST COUNT:${#_LIST}"
 
-	[[ -z ${_LIST_TYPE} ]] && _LIST_TYPE='classic'
-	
 	# Calculate display rows based on number of header lines
 	[[ -z ${_LIST_HEADER} ]] && _LIST_HEADER+='printf "List of %-d items\tPage %-d of %-d \tSelected:%-d" ${MAX_ITEM} ${PAGE} ${MAX_PAGE} ${SELECTED_COUNT}' # Default header
 	TOP_OFFSET=${#_LIST_HEADER}
@@ -674,11 +673,11 @@ list_select () {
 		# Initialize page display
 		_LIST_NDX=$((PAGE_RANGE_TOP-1)) # Prime page top
 
+		[[ -n ${_PAGE_CALLBACK_FUNC} ]] && ${_PAGE_CALLBACK_FUNC} ${PAGE_RANGE_TOP} ${PAGE_RANGE_BOT}
+
 		for ((R=0; R<${MAX_DISPLAY_ROWS}; R++));do
 			[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} && -n ${_LIST[${_LIST_NDX}]} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: _LIST display loop - ROW:${R} _LIST_NDX:${_LIST_NDX} - _LIST:${_LIST[${_LIST_NDX}]}"
 			((_LIST_NDX++)) # Increment array index
-
-			[[ -n ${_PAGE_CALLBACK_FUNC} ]] && ${_PAGE_CALLBACK_FUNC} ${_LIST_NDX}
 
 			if [[ $_BARLINES == 'true' ]];then # Barlining 
 				[[ ${PAGE_BREAK} == 'false' ]] && BARLINE=$((_LIST_NDX % 2))
@@ -1220,7 +1219,6 @@ list_sort_flat () {
 	local FLIP=false
 	local L
 
-
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ARGV:${@}"
 
 	# Invoke defaults if present
@@ -1296,9 +1294,8 @@ list_sort_toggle () {
 
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} SORT_DIR:${SORT_DIR}"
 
-	SORT_DIR=$(<${_SORT_MARKER})
+	SORT_DIR=$(list_sort_get)
 	SORT_DIR=${DIR_TOGGLE[${SORT_DIR}]}
-
 	list_sort_set ${SORT_DIR}
 
 	echo $(<${_SORT_MARKER})
@@ -1312,8 +1309,11 @@ list_sort_get () {
 	echo $(<${_SORT_MARKER})
 }
 
-list_sort_clear_marker () { # Called as exit_callback
-	/bin/rm -f ${_SORT_MARKER}
+list_sort_clear_marker () { # Exit callback
+	if [[ -e ${_SORT_MARKER} ]];then
+		/bin/rm -f ${_SORT_MARKER}
+		[[ ${?} -ne 0 ]] && echo "WARNING: SORT MARKER not cleared" >&2
+	fi
 }
 
 list_toggle_all () {

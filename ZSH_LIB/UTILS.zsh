@@ -370,7 +370,7 @@ func_print () {
 	local FN=${1}
 	local FUNC=$(str_trim ${2})
 	
-	perl -ne "print if /^${FUNC}.*() {\s*$/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
+	perl -ne "print if /^${FUNC}.*() {/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
 }
 
 func_normalize () {
@@ -407,17 +407,16 @@ get_keys () {
 
 	(tput cup $((_MAX_ROWS-2)) 0;printf "${PROMPT}")>&2 # Position cursor and display prompt to STDERR
 
+	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
 
 	{
 	while read -sk1 KEY;do
-		[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
 		[[ -z ${KEY} ]] && break
 		# Slurp input buffer
 		read -sk1 -t 0.0001 K1 >/dev/null 2>&1
 		read -sk1 -t 0.0001 K2 >/dev/null 2>&1
 		read -sk1 -t 0.0001 K3 >/dev/null 2>&1
 		KEY+=${K1}${K2}${K3}
-		[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
 
 		case "${KEY}" in 
 			$'\x0A') RESP=0;; # Return
@@ -446,6 +445,7 @@ get_keys () {
 			else
 				echo "K${(j::)NUM}"
 			fi
+			eval "xset ${_XSET_DEFAULT_RATE}"
 			break
 		fi
 	done
