@@ -20,6 +20,7 @@ _MAX_PAGE=0
 _MC_RESTORE=false
 _PAGE_OPTION_KEY_HELP=''
 _SEL_LIST_LIB_DBG=3
+_SEL_LIST_HDR=''
 _SL_CATEGORY=false
 _SL_MAX_ITEM_LEN=0
 _SEL_KEY=?
@@ -182,6 +183,8 @@ sel_list () {
 		[[ ${_MAX_PAGE} -gt 1 && -n ${_PAGE_OPTION_KEY_HELP} ]] && (( SH++ )) && GUIDE_ROWS=2 && GUIDE_OFFSET=3
 
 		# Outer box w/ title
+		[[ -n ${_SEL_LIST_HDR} ]] && tput cup $((SX-1)) $(coord_center $(( _MAX_COLS )) ${#_SEL_LIST_HDR});echo -n ${BOLD}${(C)_SEL_LIST_HDR}${RESET}
+
 		msg_unicode_box ${SX} ${SY} ${SW} ${SH} ${OUTER_BOX_COLOR} # OUTER box
 		box_coords_set OUTER_BOX X ${SX} Y ${SY} W ${SW} H ${SH}
 
@@ -442,6 +445,10 @@ sel_list_get_label () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	cut -d: -f2 <<<${_SEL_LIST[${NDX}]}
+}
+
+sel_list_set_header() {
+	_SEL_LIST_HDR=${1}
 }
 
 sel_list_set_pg() {

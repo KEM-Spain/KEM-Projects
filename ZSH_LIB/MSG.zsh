@@ -6,6 +6,7 @@ typeset -a _CONT_BUFFER=()
 typeset -A _CONT_DATA=(BOX false COLS 0 HDRS 0 MAX 0 OUT 0 SCR 0 TOP 0 Y 0 W 0)
 
 # LIB Vars
+_BOX_LINE_WEIGHT=''
 _MSG_KEY=''
 _MSG_LIB_DBG=4
 _PROC_MSG=false
@@ -839,7 +840,7 @@ msg_unicode_box () {
 	local BOT_RIGHT
 	local HORIZ_BAR 
 	local VERT_BAR
-	local HEAVY
+	local HEAVY=false
 	local L_SPAN=0
 	local R_SPAN=0
 	local T_SPAN=0
@@ -856,8 +857,7 @@ msg_unicode_box () {
 
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	HEAVY=false
-	[[ ${1} == '-h' ]] && HEAVY=true && shift
+	[[ ${_BOX_LINE_WEIGHT} == 'heavy' ]] && HEAVY=true && shift
 
 	if [[ ${HEAVY} == 'false' ]];then
 		BOT_LEFT="\\u2514%.0s"
@@ -990,4 +990,8 @@ msg_info () {
 		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
 		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${CYAN_FG}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
+}
+
+msg_set_box_line_weight () {
+	_BOX_LINE_WEIGHT=${1}
 }

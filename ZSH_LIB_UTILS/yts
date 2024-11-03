@@ -33,6 +33,7 @@ source ${_LIB_DIR}/LIB_DEPS.zsh
 # Declarations
 typeset -A _COORDS=(X 10 Y 33 H 10 W 86)
 typeset -A _ALERT_COORDS=(X $(( _COORDS[X] + 5 )) Y $(( _COORDS[Y] + _COORDS[W] -25 )))
+typeset -A _DISPLAY_KEYS=()
 typeset -A _DOWNLOADS=()
 typeset -A _FAILED=()
 typeset -A _FAVORITE_ENGINE=()
@@ -40,7 +41,6 @@ typeset -A _FAVORITE_OPTS=()
 typeset -A _FIELD_LEN=()
 typeset -A _FUTURE=()
 typeset -A _PARTIALS=()
-typeset -A _DISPLAY_KEYS=()
 typeset -A _REJECTS=()
 typeset -A _SORT_DEFAULT=()
 typeset -A _STATUS_MSGS=()
@@ -51,7 +51,7 @@ _YTS_DIR=~/.yts
 _SRC_DIR=/usr/local/src
 
 _ACTION=download
-_ALERT=.2
+_ALERT_TM=.2
 _CMD_LINE_ARGS=false
 _CODE_MARKER=${_YTS_DIR}/yts-upd.lastrun
 _DOWNLOAD_DIR=~/Downloads/Torrents/Library/web
@@ -64,7 +64,7 @@ _FIELD_LEN[author]=26
 _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
 _OBJECT=video
-_PAUSE=2
+_PAUSE_TM=2
 _SORT_DEFAULT=(youtube 1:a rumble 1:a)
 _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
@@ -98,10 +98,9 @@ action_do () {
 	local DEST_2=''
 	local DL_CNT=0
 	local EMSG=''
+	local ERR=''
 	local ERROR_CNT=0
 	local ETA=''
-	local ERR=''
-	local OTH=''
 	local FRAME_PAD=4
 	local HAD_ERROR=false
 	local HDR1_TXT=0
@@ -110,9 +109,9 @@ action_do () {
 	local HDR_LEN=0
 	local HRZ_CTR=0
 	local H_CTR=0
+	local INFO_TAG=''
 	local JOB_STALL=10
 	local KEY=''
-	local L M S 
 	local LAST_LOG_SIZE=0
 	local LINE_COLOR=''
 	local LOG_ACTIVE=false
@@ -121,13 +120,14 @@ action_do () {
 	local LOG_STALLS=0
 	local MSG=''
 	local NDX=0
+	local OTH=''
 	local PID=0
-	local INFO_TAG=''
 	local RC1=0
 	local RC2=0
 	local SCAN_LIMIT=0
 	local TITLE=''
 	local URL=''
+	local L M S 
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -178,7 +178,7 @@ action_do () {
 				LOG_STALLS=0 # Log is growing
 			else
 				((LOG_STALLS++))
-				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t${_ALERT} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Job Stalled<N>"
+				[[ ${LOG_STALLS} -ge ${JOB_STALL} ]] && msg_box -t${_ALERT_TM} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Job Stalled<N>"
 				LAST_LOG_SIZE=${LOG_SIZE}
 				sleep 1 # Extra sleep 
 				continue
@@ -189,7 +189,7 @@ action_do () {
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
-				msg_box -t${_PAUSE} "${EMSG}"
+				msg_box -t${_PAUSE_TM} "${EMSG}"
 				_DOWNLOADS[${M}]=true
 				break # While loop
 			fi
@@ -200,7 +200,7 @@ action_do () {
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
 				g_WHEN=$(sed 's/\(.*begin in \)\(.*\)\.$/\2/' <<<${LOG_LINE})
-				msg_box -t${_PAUSE} "${EMSG}"
+				msg_box -t${_PAUSE_TM} "${EMSG}"
 				_FUTURE[${M}]=true
 				_DOWNLOADS[${M}]=false
 				break # While loop
@@ -211,7 +211,7 @@ action_do () {
 			if [[ ${?} -eq 0 ]];then
 				TITLE=$(get_field title ${M})
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Hard Error - Unable to download<N>|<g>${LOG_LINE}<N>" 
-				msg_box -t${_PAUSE} "${EMSG}"
+				msg_box -t${_PAUSE_TM} "${EMSG}"
 				_FAILED[${M}]=true
 				_DOWNLOADS[${M}]=false
 				break # While loop
@@ -270,7 +270,7 @@ action_do () {
 				HAD_ERROR=false
 				if [[ -n ${ERR} ]];then
 					((ERROR_CNT++))
-					msg_box -T ALERT -t${_ALERT} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+					msg_box -T ALERT -t${_ALERT_TM} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 					HAD_ERROR=true
 				fi
 
@@ -304,7 +304,7 @@ action_do () {
 						msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
 						if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
 							MSG="Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
-							msg_box -t${_PAUSE} -x$(( _COORDS[X]+1 )) -y$(box_center ${MSG}) ${MSG}
+							msg_box -t${_PAUSE_TM} -x$(( _COORDS[X]+1 )) -y$(box_center ${MSG}) ${MSG}
 						fi
 					fi
 					_DOWNLOADS[${M}]=true
@@ -353,7 +353,6 @@ action_warn () {
 
 box_center () {
 	local TXT=${@} # Text to center
-
 	local BOX=4 # Compensate for box border
 	local BOX_CTR=0
 	local BOX_LEFT=${_COORDS[Y]} # Left coord
@@ -387,8 +386,8 @@ clear_log () {
 
 download_log_update () {
 	local FN_HIT=''
-	local LINE=''
 	local IN=''
+	local LINE=''
 	local NEW_LOG=/tmp/log.new
 	local L
 
@@ -484,6 +483,7 @@ fav_get () {
 
 		sel_list_set ${(o)_DISPLAY_LIST}
 		sel_list_set_page_help "(<w>r<N>)umble list, (<w>y<N>)outube list, (<w>c<N>)ustom list, (<w>d<N>)elete favorite"
+		sel_list_set_header "${g_QRY_ENGINE} query"
 
 		clear
 
@@ -748,7 +748,7 @@ log_download () {
 	echo "${IN}|${TL}|${FN:t}|${TM}" >> ${_DOWNLOAD_LOG}
 }
 
-log_find () { # Page callback - pre-process list to populate download status
+log_find () { 
 	local TOP=${1} # Page top row
 	local BOT=${2} # Page bot row
 	local AT='' # Agetime
@@ -758,6 +758,8 @@ log_find () { # Page callback - pre-process list to populate download status
 	local TM=''
 	local R=0
 
+	# Page callback - pre-process list to populate download status
+	 
 	_DOWNLOADS=()
 	_PARTIALS=()
 
@@ -777,9 +779,9 @@ log_find () { # Page callback - pre-process list to populate download status
 
 post_process () {
 	local -a KEYWORDS=("judge napolitano - " "official" "the " " show" "have it out with galloway - ")
-	local K D
 	local FLEN=70
 	local MSG="Post Processing"
+	local K D
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -810,11 +812,12 @@ reset_job () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	kill_job
-	msg_box -t${_ALERT} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<m>Job Restarted<N>"
+	msg_box -t${_ALERT_TM} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<m>Job Restarted<N>"
 }
 
 rumble () {
 	local SEARCHTERM=${1}
+	local -A LAST_MSG=($(box_coords_get MSG_BOX_1))
 	local -a AGES
 	local -a CHANNELS
 	local -a DURATIONS
@@ -825,14 +828,13 @@ rumble () {
 	local CHANNEL=''
 	local GEN_SEARCH=''
 	local LIVE=''
-	local PG=''
 	local MSG=''
-	local X=''
 	local NDX=''
-	local STR=''
-	local -A LAST_MSG=($(box_coords_get MSG_BOX_1))
+	local PG=''
 	local REL_W=$(( ${LAST_MSG[W]} +4 ))
 	local REL_Y=$(coord_center $(( _MAX_COLS + 3 )) ${REL_W})
+	local STR=''
+	local X=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -1021,9 +1023,9 @@ start_job () {
 
 total_rejects () {
 	local TL_VIDS=${1}
-	local K
 	local TL_RJ=0
 	local -F1 RJ_PCT=0
+	local K
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -1296,6 +1298,6 @@ else # Args passed
 	fi
 fi
 
-clear_log "bottom exit"
+clear_log "normal exit"
 
 exit_leave
