@@ -115,15 +115,21 @@ set_exit_callback _cleanup
 HIST_CNT=$(wc -l ${_HIST_FILE} | cut -d' ' -f1)
 
 while read LINE;do
-	CMD_HDR=$(cut -d';' -f1 <<<${LINE})
-	CMD=$(cut -d';' -f2 <<<${LINE})
+	STAMP=$(cut -d';' -f1 <<<${LINE})
+	CMDSTR=$(cut -d';' -f2- <<<${LINE})
+
+	CMD=$(cut -d' ' -f2 <<<${CMDSTR})
+	which ${CMD} >/dev/null 2>&1
+	[[ ${?} -ne 0 ]] && continue
+	 
 	if [[ ! ${CMD} =~ 'grep' ]];then
-		X=$(grep -o \' <<<${CMD} | wc -l)
+		X=$(grep -o \' <<<${CMDSTR} | wc -l)
 		[[ $(( X % 2 )) -ne 0 ]] && continue # skip unbalanced quotes
-		X=$(grep -o \" <<<${CMD} | wc -l)
+		X=$(grep -o \" <<<${CMDSTR} | wc -l)
 		[[ $(( X % 2 )) -ne 0 ]] && continue # skip unbalanced quotes
 	fi
-	HIST[${CMD}]=${CMD_HDR}
+
+	HIST[${CMDSTR}]=${STAMP}
 done < ${_HIST_FILE} 
 
 for K in ${(k)HIST};do
