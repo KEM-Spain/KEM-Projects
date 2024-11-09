@@ -981,6 +981,7 @@ if [[ ${UTIL} != 'none' ]];then
 else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
+	sel_list_set_header "Disk Utilities"
 	sel_list_set ${(v)_UTILS_DESC}
 	sel_list -O ${CYAN_FG} -c -w10 "<w>Show Disk Utilities usage or <h>(q)uit<N>"
 

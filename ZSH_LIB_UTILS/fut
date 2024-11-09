@@ -1290,6 +1290,7 @@ if [[ ${UTIL} != 'none' ]];then
 else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
+	sel_list_set_header "File Utilities"
 	sel_list_set ${(v)_UTILS_DESC}
 	# Selection_list -O ${CYAN_FG} -x11 -y32 -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"
 	sel_list -O ${CYAN_FG} -c -w10 "<w>Show Files Utilities usage or <h>(q)uit<N>"

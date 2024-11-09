@@ -395,64 +395,146 @@ get_delim_field_cnt () {
 	fi
 }
 
+reset_rate () {
+	eval "xset ${_XSET_DEFAULT_RATE}"
+}
+
 get_keys () {
-	local PROMPT
-	local RESP=?;
+	local PROMPT=${@}
 	local -a NUM
-	local K1 K2 K3 KEY
+	local IDLE=0
+	local K1=''
+	local K2=''
+	local K3=''
+	local KEY=''
+	local RESP=?
+	local XSET_DATA=''
 
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	PROMPT=${@}
+	trap reset_rate INT
 
 	(tput cup $((_MAX_ROWS-2)) 0;printf "${PROMPT}")>&2 # Position cursor and display prompt to STDERR
 
-	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
-
-	{
-	while read -sk1 KEY;do
-		[[ -z ${KEY} ]] && break
-		# Slurp input buffer
-		read -sk1 -t 0.0001 K1 >/dev/null 2>&1
-		read -sk1 -t 0.0001 K2 >/dev/null 2>&1
-		read -sk1 -t 0.0001 K3 >/dev/null 2>&1
-		KEY+=${K1}${K2}${K3}
-
-		case "${KEY}" in 
-			$'\x0A') RESP=0;; # Return
-			$'\e[A') RESP=1;; # Up
-			$'\e[B') RESP=2;; # Down
-			$'\e[D') RESP=3;; # Left
-			$'\e[C') RESP=4;; # Right
-			$'\e[5~') RESP=5;; # PgUp
-			$'\e[6~') RESP=6;; # PgDn
-			$'\e[H') RESP=7;; # Home
-			$'\e[F') RESP=8;; # End
-			$'\x7F') if [[ ${#NUM} -gt 0 ]];then # BackSpace
-							NUM[${#NUM}]=()
-							echo -n " ">&2
-						fi;;
-			*) RESP=$(printf '%d' "'${KEY}");; # Ascii letter value
-		esac
-
-		if [[ ${RESP} != "?" ]];then
-			if [[ -z ${NUM} ]];then
-				case ${RESP} in
-					<48-57>) RESP=${KEY};; # Numeric
-					<65-122>) RESP=${KEY};; # Alpha
-				esac
-				echo ${RESP}
-			else
-				echo "K${(j::)NUM}"
+	while true;do
+		if [[ ${IDLE} -le 1000 ]];then # Maintain low rate while keyboard is active
+			if [[ ${XSET_DATA} != ${_XSET_LOW_RATE} ]];then
+				eval "xset ${_XSET_LOW_RATE}" # Keyboard Active
+				XSET_DATA="${_XSET_LOW_RATE}"
 			fi
-			eval "xset ${_XSET_DEFAULT_RATE}"
-			break
+		else
+			if [[ ${XSET_DATA} != ${_XSET_DEFAULT_RATE} ]];then
+				eval "xset ${_XSET_DEFAULT_RATE}" # Keyboard Inactive
+				XSET_DATA="${_XSET_DEFAULT_RATE}"
+			fi
 		fi
-	done
-	} 2>/dev/null
 
-	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
+		KEY=''; K1=''; K2=''; K3=''
+
+		while read -t1 -sk1 KEY;do
+			# Slurp input buffer
+			read -sk1 -t 0.0001 K1 >/dev/null 2>&1
+			read -sk1 -t 0.0001 K2 >/dev/null 2>&1
+			read -sk1 -t 0.0001 K3 >/dev/null 2>&1
+			KEY+=${K1}${K2}${K3}
+
+			case "${KEY}" in 
+				$'\x0A') RESP=0;; # Return
+				$'\e[A') RESP=1;; # Up
+				$'\e[B') RESP=2;; # Down
+				$'\e[D') RESP=3;; # Left
+				$'\e[C') RESP=4;; # Right
+				$'\e[5~') RESP=5;; # PgUp
+				$'\e[6~') RESP=6;; # PgDn
+				$'\e[H') RESP=7;; # Home
+				$'\e[F') RESP=8;; # End
+				$'\x7F') if [[ ${#NUM} -gt 0 ]];then # BackSpace
+								NUM[${#NUM}]=()
+								echo -n " ">&2
+							fi;;
+				*) RESP=$(printf '%d' "'${KEY}");; # Ascii letter value
+			esac
+
+			if [[ ${RESP} != "?" ]];then
+				if [[ -z ${NUM} ]];then
+					case ${RESP} in
+						<48-57>) RESP=${KEY};; # Numeric
+						<65-122>) RESP=${KEY};; # Alpha
+					esac
+					echo ${RESP}
+				else
+					echo "K${(j::)NUM}"
+				fi
+
+				if [[ -n ${KEY} ]];then
+					reset_rate
+					break 2
+				else
+					continue
+				fi
+			fi
+		done
+		IDLE=$(xprintidle)
+	done
+	trap - INT # key processed; cancel trap
 }
+
+#get_keys () {
+#	local PROMPT
+#	local RESP=?;
+#	local -a NUM
+#	local K1 K2 K3 KEY
+#
+#	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+#
+#	PROMPT=${@}
+#
+#	(tput cup $((_MAX_ROWS-2)) 0;printf "${PROMPT}")>&2 # Position cursor and display prompt to STDERR
+#
+#	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
+#
+#	{
+#	while read -sk1 KEY;do
+#		[[ -z ${KEY} ]] && break
+#		# Slurp input buffer
+#		read -sk1 -t 0.0001 K1 >/dev/null 2>&1
+#		read -sk1 -t 0.0001 K2 >/dev/null 2>&1
+#		read -sk1 -t 0.0001 K3 >/dev/null 2>&1
+#		KEY+=${K1}${K2}${K3}
+#
+#		case "${KEY}" in 
+#			$'\x0A') RESP=0;; # Return
+#			$'\e[A') RESP=1;; # Up
+#			$'\e[B') RESP=2;; # Down
+#			$'\e[D') RESP=3;; # Left
+#			$'\e[C') RESP=4;; # Right
+#			$'\e[5~') RESP=5;; # PgUp
+#			$'\e[6~') RESP=6;; # PgDn
+#			$'\e[H') RESP=7;; # Home
+#			$'\e[F') RESP=8;; # End
+#			$'\x7F') if [[ ${#NUM} -gt 0 ]];then # BackSpace
+#							NUM[${#NUM}]=()
+#							echo -n " ">&2
+#						fi;;
+#			*) RESP=$(printf '%d' "'${KEY}");; # Ascii letter value
+#		esac
+#
+#		if [[ ${RESP} != "?" ]];then
+#			if [[ -z ${NUM} ]];then
+#				case ${RESP} in
+#					<48-57>) RESP=${KEY};; # Numeric
+#					<65-122>) RESP=${KEY};; # Alpha
+#				esac
+#				echo ${RESP}
+#			else
+#				echo "K${(j::)NUM}"
+#			fi
+#			eval "xset ${_XSET_DEFAULT_RATE}"
+#			break
+#		fi
+#	done
+#	} 2>/dev/null
+#
+#	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
+#}
 
 inline_vi_edit () {
 	local PROMPT=${1}

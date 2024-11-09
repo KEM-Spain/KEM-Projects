@@ -292,11 +292,13 @@ action_do () {
 						*kib/s*) LINE_COLOR='<B><y>';;
 						*) continue;; # Skip other
 					esac
+				else
+					continue # Empty line
 				fi
 
 				[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
 
-				echo "${0}: ${LINE_COLOR}${ETA}<N>" >> ${_YTS_DBG_LOG}
+				echo "${0}: ${LINE_COLOR}${ETA}" >> ${_YTS_DBG_LOG}
 				msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
 
 				if [[ ${ETA} =~ '100%' ]];then
@@ -706,7 +708,7 @@ kill_job () {
 	RC=$?
 	
 	if [[ ${RC} -eq 0 ]];then
-		kill -9 ${g_PID} >/dev/null 2>&1
+		sudo kill -9 ${g_PID} >/dev/null 2>&1
 	else
 		echo "No process found for PID:${g_PID}" >> ${g_YTS_LOG}
 	fi

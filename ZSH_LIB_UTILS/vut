@@ -495,6 +495,7 @@ ___EOF
 
 	[[ ! -e ${FN} ]] && usage "File not found:${FN}"
 
+	sel_list_set_header "Video Utilities"
 	sel_list_set ${RESOLUTIONS}
 	sel_list -x3 -y3 "<w>Select Resolution<N>"
 	SCALE=${_SEL_VAL}

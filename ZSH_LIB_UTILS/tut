@@ -323,6 +323,7 @@ if [[ ${UTIL} != 'none' ]];then
 else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
+	sel_list_set_header "Text Utilities"
 	sel_list_set ${(v)_UTILS_DESC}
 	# Selection_list -c -O ${CYAN_FG} -x11 -y32 -w10 "<w>Show Text Utilities usage or <h>(q)uit<N>"
 	sel_list -c -O ${CYAN_FG} -w10 "<w>Show Text Utilities usage or <h>(q)uit<N>"

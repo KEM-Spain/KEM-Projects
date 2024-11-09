@@ -2474,6 +2474,7 @@ if [[ ${UTIL:=null} != 'null' ]];then
 else
 	[[ ${_DEBUG} -eq 0 ]] && do_smcup
 
+	sel_list_set_header "System Utilities"
 	sel_list_set ${(v)_UTILS_DESC}
 	sel_list -O ${GREEN_FG} -c -w10 "<w>Show System Utilities usage or <h>(q)uit<N>"
 

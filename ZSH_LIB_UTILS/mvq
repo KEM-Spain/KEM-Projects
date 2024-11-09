@@ -553,7 +553,7 @@ list_set_header 'printf "Found:${WHITE_FG}%-d${RESET} Selected:${WHITE_FG}%-3d %
 list_add_header_break
 list_set_header_break_color ${MAGENTA_FG}
 list_set_barlines true
-list_set_key_callback u key_callback
+list_set_key_callback u key_callback # The 'u' key will update the query
 list_set_prompt 'Press (u)pdate to refresh page'
 
 # Set line item
@@ -564,14 +564,13 @@ printf "${BOLD}${WHITE_FG}%4s${RESET}) ${SHADE}${BAR}%4s ${WHITE_FG}%-50s ${CYAN
 while true;do
 	# Display list
 	list_select ${_SLIST}
-	RC=${?}
-
-	[[ ${RC} -eq 0 ]] && break
 
 	if [[ $(list_get_selected_count) -ne 0 ]];then
 		# Get user selections
 		_MARKED=($(list_get_selected))
 		action_do
+	else
+		break
 	fi
 done
 
