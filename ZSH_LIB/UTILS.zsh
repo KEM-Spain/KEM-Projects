@@ -12,7 +12,6 @@ _FUNC_TRAP=false
 _BAREWORD_IS_FILE=false
 _UTILS_LIB_DBG=4
 
-
 is_tag () {
 	local TAG=${1}
 
@@ -402,20 +401,21 @@ reset_rate () {
 get_keys () {
 	local PROMPT=${@}
 	local -a NUM
-	local IDLE=0
+	#local IDLE_PPID=$(cut -d '|' -f1 < <(idle_ppid))
+	local IDLE_TIME=0
 	local K1=''
 	local K2=''
 	local K3=''
 	local KEY=''
-	local RESP=?
+	local MY_PPID=${PPID}
+	local RATE=0
+	local RESP=?;
 	local XSET_DATA=''
 
 	trap reset_rate INT
 
-	(tput cup $((_MAX_ROWS-2)) 0;printf "${PROMPT}")>&2 # Position cursor and display prompt to STDERR
-
 	while true;do
-		if [[ ${IDLE} -le 1000 ]];then # Maintain low rate while keyboard is active
+		if [[ ${IDLE_TIME} -le 1000 ]];then
 			if [[ ${XSET_DATA} != ${_XSET_LOW_RATE} ]];then
 				eval "xset ${_XSET_LOW_RATE}" # Keyboard Active
 				XSET_DATA="${_XSET_LOW_RATE}"
@@ -463,7 +463,6 @@ get_keys () {
 				else
 					echo "K${(j::)NUM}"
 				fi
-
 				if [[ -n ${KEY} ]];then
 					reset_rate
 					break 2
@@ -472,7 +471,8 @@ get_keys () {
 				fi
 			fi
 		done
-		IDLE=$(xprintidle)
+		RATE=$(xset -q | grep rate | tr -d '[:space:]' | cut -d: -f3)
+		IDLE_TIME=$(xprintidle)
 	done
 	trap - INT # key processed; cancel trap
 }
