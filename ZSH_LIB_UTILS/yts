@@ -101,6 +101,7 @@ action_do () {
 	local ERR=''
 	local ERROR_CNT=0
 	local ETA=''
+	local ETA_COMPLETE=false
 	local FRAME_PAD=4
 	local HAD_ERROR=false
 	local HDR1_TXT=0
@@ -159,6 +160,7 @@ action_do () {
 			[[ ${NDX} -gt 10 ]] && exit_leave "${g_YTS_LOG} not detected" # No activity
 		fi
 
+		ETA_COMPLETE=false
 		while true;do
 			((NDX++))
 			
@@ -285,9 +287,9 @@ action_do () {
 				fi
 
 				LINE_COLOR=''
-				if [[ -n ${ETA} ]];then
+				if [[ -n ${ETA} && ${ETA_COMPLETE} == 'false' ]];then
 					case ${ETA:l} in
-						*100*) LINE_COLOR='<B><g>';;
+						*'100% of'*) LINE_COLOR='<B><g>';ETA_COMPLETE=true;;; # Prevent doubling complete line
 						*mib/s*) LINE_COLOR='<w>';;
 						*kib/s*) LINE_COLOR='<B><y>';;
 						*) continue;; # Skip other
@@ -301,7 +303,7 @@ action_do () {
 				echo "${0}: ${LINE_COLOR}${ETA}" >> ${_YTS_DBG_LOG}
 				msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
 
-				if [[ ${ETA} =~ '100%' ]];then
+				if [[ ${ETA} =~ '100% of' ]];then
 					if [[ ${#_MARKED} -gt 1 ]];then
 						msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
 						if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
@@ -746,17 +748,19 @@ log_download () {
 	local FN=$(cut -d'|' -f3 <<<${ST}) # Filename
 	local TL=$(get_field title ${NDX}) # Title
 	local AT=$(get_field agetime ${NDX}) # Age
+	local AU=$(get_field author ${NDX}) # Author
 	local TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<${AT}) # Video length
-	echo "${IN}|${TL}|${FN:t}|${TM}" >> ${_DOWNLOAD_LOG}
+	echo "${IN}|${TL}|${FN:t}|${TM}|${AU}" >> ${_DOWNLOAD_LOG}
 }
 
 log_find () { 
 	local TOP=${1} # Page top row
 	local BOT=${2} # Page bot row
 	local AT='' # Agetime
-	local TL='' # Title
+	local AU='' # Author
 	local FN=''
 	local LINE=''
+	local TL='' # Title
 	local TM=''
 	local R=0
 
@@ -768,13 +772,14 @@ log_find () {
 	for ((R=${TOP}; R<${BOT}; R++));do
 		TL=$(get_field title ${R}) # Title
 		AT=$(get_field agetime ${R}) # Age
+		AU=$(get_field author ${R}) # Author
 		TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<${AT}) # Video length
-		if [[ -n ${TL} ]];then
-			LINE=$(grep -i -m1 -e ${TL} ${_DOWNLOAD_LOG} 2>/dev/null) # Match on title
-			if [[ -n ${LINE} && ${LINE} =~ ${TM} ]];then # Match on time
-				FN=$(cut -d '|' -f3 <<<${FN})
-				[[ ${FN:e} == 'part' ]] && _PARTIALS[${R}]=true || _DOWNLOADS[${R}]=true
-			fi
+
+		LINE=$(grep -i ${AU} ${_DOWNLOAD_LOG} | grep ${TM}) # Match on author/time
+		if [[ -n ${LINE} ]];then 
+			#echo "${0} Matched AU/TM:${LINE}" >> ${_YTS_DBG_LOG} # Debugging
+			FN=$(cut -d '|' -f3 <<<${LINE})
+			[[ ${FN:e} == 'part' ]] && _PARTIALS[${R}]=true || _DOWNLOADS[${R}]=true
 		fi
 	done
 }

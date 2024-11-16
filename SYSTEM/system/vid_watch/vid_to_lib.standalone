@@ -69,7 +69,7 @@ do_rmcup () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${_SMCUP} == 'false' ]] && return
-	tput rmcup
+	tput -Txterm rmcup
 	# Echo "called rmcup"
 	_SMCUP=false
 }
@@ -104,7 +104,7 @@ exit_pre_exit () {
 
 	[[ -n ${_EXIT_CALLBACK} ]] && ${_EXIT_CALLBACK}
 
-	tput cnorm >&2
+	tput -Txterm cnorm >&2
 }
 
 set_exit_value () {
@@ -153,7 +153,7 @@ exit_leave () {
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage
 	fi
 
-	tput cnorm >&2
+	tput -Txterm cnorm >&2
 
 	exit_pre_exit
 
@@ -190,7 +190,7 @@ str_unicode_line () {
 
 	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
 
-	tput rmso;
+	tput -Txterm rmso;
 	printf "\\u2500%.0s" {1..$((${LENGTH}))}
 }
 

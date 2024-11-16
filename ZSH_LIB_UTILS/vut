@@ -200,8 +200,12 @@ length () {
 	local -a FN_ARG=()
 	local DUR=''
 	local LONGEST=0
-	local LIST=()
+	local -a PRELIST=()
+	local -a LIST=()
 	local F=''
+	local DNUM=0
+	local TITLE=''
+	local HDR=''
 
 	read -r -d '' DESC<<___EOF
 Display video duration
@@ -231,13 +235,24 @@ ___EOF
 		file ${F} | grep -qi 'media\|matroska\|video'
 		[[ ${?} -ne 0 ]] && echo "File:${WHITE_FG}${F}${RESET} not a video file - skipping" && continue
 		[[ ${#F} -gt ${LONGEST} ]] && LONGEST=${#F}
-		LIST+=${F}
+		PRELIST+=${F}
 	done
 
 	[[ ${#LIST} -ne 0 ]] && echo "\n${CYAN_FG}Video duration info...${RESET}"
-	for F in ${LIST};do
+
+	for F in ${PRELIST};do
 		DUR=$(ffmpeg -i "${F}"  2>&1 | grep Duration | cut -d':' -f2- | cut -d',' -f1)
-		printf "${WHITE_FG}%*s${RESET}:%10s\n" ${LONGEST} ${F} ${DUR}
+		DNUM=$(sed 's/://g' <<<${DUR})
+		LIST+="${DNUM}|${DUR}|${F}"
+	done
+
+	[[ ${#F} -gt 1 ]] && HDR="Titles in Descending Length"
+	[[ -n ${HDR} ]] && echo "\n${MAGENTA_FG}${HDR}${CYAN_FG}" && echo $(str_unicode_line ${#HDR}) && echo -n "${RESET}"
+
+	for F in ${(On)LIST};do
+		TITLE=$(cut -d'|' -f3 <<<${F})
+		DUR=$(cut -d'|' -f2 <<<${F})
+		printf "${WHITE_FG}%*s${RESET}:%10s\n" ${LONGEST} ${TITLE} ${DUR}
 	done
 	echo
 }
