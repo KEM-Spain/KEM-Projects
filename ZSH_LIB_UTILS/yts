@@ -634,6 +634,7 @@ get_field () {
 	local FIELD=${1}
 	local NDX=${2}
 	local STR=''
+	local TSTR=''
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} ARGS:FIELD:${FIELD}, NDX:${NDX}"
@@ -664,7 +665,8 @@ get_field () {
 	fi
 	
 	if [[ ${FIELD} == 'author' ]];then
-		[[ ${g_SEARCH_TYPE} == 'general' ]] && STR=${(C)STR} || STR=${g_DISPLAY_KEY:gs/_/ /}
+		[[ ${g_SEARCH_TYPE} == 'general' ]] && TSTR=${(C)STR} || TSTR=${g_DISPLAY_KEY:gs/_/ /}
+		STR=${TSTR:=${STR}}
 	fi
 
 	[[ ${FIELD} == 'title' ]] && STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\?*?\s+?//' <<<${STR}) # Limit length
@@ -756,12 +758,10 @@ log_download () {
 log_find () { 
 	local TOP=${1} # Page top row
 	local BOT=${2} # Page bot row
-	local AT='' # Agetime
 	local AU='' # Author
-	local FN=''
-	local LINE=''
-	local TL='' # Title
+	local FN='' # Filename
 	local TM=''
+	local LINE=''
 	local R=0
 
 	# Page callback - pre-process list to populate download status
@@ -769,15 +769,12 @@ log_find () {
 	_DOWNLOADS=()
 	_PARTIALS=()
 
-	for ((R=${TOP}; R<${BOT}; R++));do
-		TL=$(get_field title ${R}) # Title
-		AT=$(get_field agetime ${R}) # Age
+	for ((R=${TOP}; R <= ${BOT}; R++));do
 		AU=$(get_field author ${R}) # Author
-		TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<${AT}) # Video length
-
-		LINE=$(grep -i ${AU} ${_DOWNLOAD_LOG} | grep ${TM}) # Match on author/time
+		TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<$(get_field agetime ${R})) # Video length
+		TM=$(tr -d '[()]' <<<${TM} | sed 's/undefined//')
+		LINE=$(grep -i ${AU:=null} ${_DOWNLOAD_LOG} | grep ${TM:=null}) # Match on author/time
 		if [[ -n ${LINE} ]];then 
-			#echo "${0} Matched AU/TM:${LINE}" >> ${_YTS_DBG_LOG} # Debugging
 			FN=$(cut -d '|' -f3 <<<${LINE})
 			[[ ${FN:e} == 'part' ]] && _PARTIALS[${R}]=true || _DOWNLOADS[${R}]=true
 		fi
