@@ -155,7 +155,7 @@ sel_list () {
 
 	[[ $(( SW % 2 )) -ne 0 ]] && (( SW++ )) # Even width cols
 	[[ $(( BOX_WIDTH % 2 )) -ne 0 ]] && (( BOX_WIDTH++ )) # Even width cols
-	box_coords_upd INNER_BOX W ${BOX_WIDTH}
+	box_coords_set INNER_BOX X ${BOX_X_COORD} Y ${CENTER_Y} W ${BOX_WIDTH} H ${BOX_HEIGHT}
 
 	SL=$(( SX+BOX_HEIGHT + (XPAD * 2) - 1 )) # Loop limit
 

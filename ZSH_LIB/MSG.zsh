@@ -14,6 +14,7 @@ _MSG_BOX_TAG=MSG_BOX
 _PROC_BOX_TAG=PROC_BOX
 _CONT_BOX_TAG=CONT_BOX
 _DELIM='|'
+_LAST_MSG_TAG=''
 
 # Functions
 msg_box () {
@@ -294,7 +295,6 @@ msg_box () {
 	# --- END COORDS SETUP ---
 
 	# Save box coords
-	TAG=$(instance_set ${TAG})
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "$(for L in ${(Oa)funcstack};do echo TAG:${TAG} FUNCSTACK:${L};done)"
 
 	box_coords_set ${TAG} X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}
@@ -315,7 +315,7 @@ msg_box () {
 	if [[ ${CONTINUOUS} == 'true' ]];then
 		if [[ ${_CONT_DATA[BOX]} == 'false' ]];then # Trigger initial box generation
 			msg_unicode_box ${BOX_X_COORD} ${BOX_Y_COORD} ${BOX_WIDTH} ${BOX_HEIGHT} ${FRAME_COLOR}
-			TAG=$(instance_set ${_CONT_BOX_TAG})
+			TAG=${_CONT_BOX_TAG}
 			box_coords_set ${_CONT_BOX_TAG} X ${BOX_X_COORD} Y ${BOX_Y_COORD} H ${BOX_HEIGHT} W ${BOX_WIDTH} S ${TEXT_STYLE}
 			_CONT_DATA[W]=${BOX_WIDTH}
 			_CONT_DATA[HDRS]=${HDR_LINES}
@@ -451,15 +451,14 @@ msg_box () {
 		fi
 	fi
 
-	[[ ${TIMEOUT} -gt 0 ]] && sleep ${TIMEOUT} && msg_box_clear # Display MSG for limited time
+	_LAST_MSG_TAG=${TAG}
+
+	[[ ${TIMEOUT} -gt 0 ]] && sleep ${TIMEOUT} && msg_box_clear ${TAG} # Display MSG for limited time
 	[[ ${SO} == 'true' ]] && tput rmso # Kill standout
 
 	# Restore display
 	tput rc # Restore cursor position
 	tput cup ${_MAX_ROWS} ${_MAX_COLS} # Drop cursor to bottom right corner
-
-	# Restore instance TAGS
-	TAG=$(instance_unset ${TAG})
 }
 
 msg_box_ebox_coords () {
@@ -571,42 +570,51 @@ msg_box_align () {
 }
 
 msg_box_clear () {
+	local TAG=${1}
 	local -A BOX_COORDS=()
 	local X_COORD_ARG=''
 	local Y_COORD_ARG=''
 	local H_COORD_ARG=''
 	local W_COORD_ARG=''
-	local TAG=''
 	local X
 
-	[[ ${#} -eq 1 ]] && TAG=${1}
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} PARAMS:${#} TAG:${TAG}"
 
-	if [[ -n ${TAG} ]];then
-		BOX_COORDS=($(box_coords_get ${TAG}))
-		X_COORD_ARG=${BOX_COORDS[X]}
-		Y_COORD_ARG=${BOX_COORDS[Y]}
-		H_COORD_ARG=${BOX_COORDS[H]}
-		W_COORD_ARG=${BOX_COORDS[W]}
-	else
+	# Process arguments
+	if [[ ${#} -eq 1 ]];then
+		TAG=${1}
+		BOX_COORDS=($(box_coords_get ${TAG})) # Tag passed
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} TAG:${TAG} BOX_COORDS:${(kv)BOX_COORDS}"
+		[[ -z ${BOX_COORDS} ]] && return 1
+	elif [[ ${#} -eq 4 ]];then
+		BOX_COORDS=($(box_coords_get ${_LAST_MSG_TAG})) # overrides passed - apply to last msg
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} TAG:${TAG} BOX_COORDS:${(kv)BOX_COORDS}"
+		[[ -z ${BOX_COORDS} ]] && return 1
+
 		X_COORD_ARG=${1}
 		Y_COORD_ARG=${2}
 		H_COORD_ARG=${3}
 		W_COORD_ARG=${4}
+
+		# Handle any overrides
+		[[ ${X_COORD_ARG} != 'X' ]] && BOX_COORDS[X]=${X_COORD_ARG}
+		[[ ${Y_COORD_ARG} != 'Y' ]] && BOX_COORDS[Y]=${Y_COORD_ARG}
+		[[ ${H_COORD_ARG} != 'H' ]] && BOX_COORDS[H]=${H_COORD_ARG}
+		[[ ${W_COORD_ARG} != 'W' ]] && BOX_COORDS[W]=${W_COORD_ARG}
+	else
+		BOX_COORDS=($(box_coords_get ${_LAST_MSG_TAG})) # No args passed - use last msg
+		[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} TAG:${TAG} BOX_COORDS:${(kv)BOX_COORDS}"
+		[[ -z ${BOX_COORDS} ]] && return 1
 	fi
 
-	# Handle placeholders
-	[[ ${X_COORD_ARG} == 'X' ]] && X_COORD_ARG=${BOX_COORDS[X]}
-	[[ ${Y_COORD_ARG} == 'Y' ]] && Y_COORD_ARG=${BOX_COORDS[Y]}
-	[[ ${H_COORD_ARG} == 'H' ]] && H_COORD_ARG=${BOX_COORDS[H]}
-	[[ ${W_COORD_ARG} == 'W' ]] && W_COORD_ARG=${BOX_COORDS[W]}
+	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Starting on ROW ${BOX_COORDS[X]:=null} and clearing from COL ${BOX_COORDS[Y]:=null} for ${BOX_COORDS[W]:=null} COLS for ${BOX_COORDS[H]:=null} LINES"
 
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} PARAM:${1} TAG:${TAG} BOX_COORDS:${(kv)BOX_COORDS}"
-	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Starting on ROW ${X_COORD_ARG} and clearing from COL ${Y_COORD_ARG} for ${W_COORD_ARG} COLS for ${H_COORD_ARG} LINES"
-
-	for (( X=X_COORD_ARG; X <= X_COORD_ARG + H_COORD_ARG - 1; X++));do
-		tput cup ${X} ${Y_COORD_ARG}
-		tput ech ${W_COORD_ARG}
+	for (( X=${BOX_COORDS[X]}; X <= ( ${BOX_COORDS[X]} + ${BOX_COORDS[H]} - 1 ); X++));do
+		tput cup ${X} ${BOX_COORDS[Y]}
+		tput ech ${BOX_COORDS[W]}
 	done
+
+	return 0
 }
 
 msg_calc_gap () {
@@ -745,7 +753,7 @@ msg_proc () {
 
 	msg_unicode_box ${V_POS} ${H_POS} ${BOX_W} ${BOX_H}
 	tput cup $(( V_POS+1 )) $(( H_POS+2 ));echo -n "${GREEN_FG}Processing...${RESET}"
-	TAG=$(instance_set ${_PROC_BOX_TAG})
+	TAG=${_PROC_BOX_TAG}
 	box_coords_set ${TAG} X ${V_POS} Y ${H_POS} W ${BOX_W} H ${BOX_H}
 	_PROC_MSG=false
 
@@ -992,6 +1000,6 @@ msg_info () {
 	fi
 }
 
-msg_set_box_line_weight () {
+msg_line_weight () {
 	_BOX_LINE_WEIGHT=${1}
 }

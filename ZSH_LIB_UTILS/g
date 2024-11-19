@@ -73,10 +73,10 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-B${RESET} allow scanning of .bak files"
+	echo -e "${WHITE_FG}-A${RESET} no ansi color"
+	echo -e "${WHITE_FG}-I${RESET} case sensitive"
 	echo -e "${WHITE_FG}-L${RESET} list files on one line"
-	echo -e "${WHITE_FG}-a${RESET} no ansi color"
 	echo -e "${WHITE_FG}-f${RESET} specify file of search patterns"
-	echo -e "${WHITE_FG}-i${RESET} case sensitive"
 	echo -e "${WHITE_FG}-l${RESET} list files"
 	echo -e "${WHITE_FG}-m $(opt_type m)${RESET} max matches to process (default: all)"
 	echo -e "${WHITE_FG}-n${RESET} line numbers"
@@ -90,9 +90,9 @@ usage () {
 	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
-OPTSTR=":HDBiaf:lLm:nop:rvw"
+OPTSTR=":HDBCILf:lLm:nop:rvw"
 
-CASE_SENSE=''
+CASE_SENSE='-i'
 COLORS=always
 INVERT_OPT=''
 EXCLUDE_BAK='--exclude=\*bak'
@@ -115,8 +115,8 @@ while getopts ${OPTSTR} OPTION;do
      H) usage;;
 	  D) dbg_set_level;;
 	  B) EXCLUDE_BAK='';;
-     i) CASE_SENSE='-i';;
-     a) COLORS=never;;
+     I) CASE_SENSE='';;
+     C) COLORS=never;;
      f) FN_ARG=${OPTARG};;
      l) LISTFILES_OPT=-l;FILELIST=true;;
      L) LISTFILES_OPT=-l;FILELIST=true;ONE_LINE=true;;
@@ -190,6 +190,9 @@ for L in ${(uo)RAWLIST};do
 done
 echo "\n" >&2
 
+((LONGEST_FN++))
+[[ ${LONGEST_FN} -lt 5 ]] && LONGEST_FN=4
+
 if ! arr_is_populated "${LIST}";then
 	echo "${WHITE_FG}Grep command${RESET}:${CMD}" | tr -s '[:space:]'
 	exit_leave $(msg_exit W "No file(s) found containing:${SEARCHTERM}")
@@ -211,8 +214,8 @@ else
 	if [[ ${FILELIST} == 'false' ]];then
 		tput cup 1 0; echo ${CMD} | tr -s '[:space:]'
 		[[ ${RECURSE} == 'true' ]] && RECURSE_MSG=" (recursive)" || RECURSE_MSG=''
-		[[ -n ${CASE_SENSE} ]] && CASE_MSG=" (case sensitive)" || CASE_MSG=''
-		echo "Path:${WHITE_FG}${PATH_ARG}${RECURSE_MSG}${RESET}, Search:${WHITE_FG}${SEARCHTERM}${CASE_MSG}${RESET}, Result:${WHITE_FG}${#RAWLIST}${RESET} lines\n\n"
+		[[ -n ${CASE_SENSE} ]] && CASE_MSG=" (case insensitive)" || CASE_MSG=" (case sensitive)"
+		echo "Path:${WHITE_FG}${PATH_ARG}${RECURSE_MSG}${RESET}, Search:${WHITE_FG}${SEARCHTERM}${CASE_MSG}${RESET}, Result: ${WHITE_FG}${#RAWLIST}${RESET} lines\n\n"
 		if [[ -n ${LINENUM_OPT} ]];then
 			[[ ${LONGEST_LN} -gt $(( _COL_MAX - LONGEST_FN )) ]] && LONGEST_LN=$(( (_COL_MAX - LONGEST_FN) - 7 ))
 			REM=$(( (_COL_MAX - LONGEST_FN) - 8))

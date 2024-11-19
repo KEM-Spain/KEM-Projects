@@ -763,6 +763,7 @@ log_find () {
 	local TM=''
 	local LINE=''
 	local R=0
+	local -A SEEN=()
 
 	# Page callback - pre-process list to populate download status
 	 
@@ -776,9 +777,55 @@ log_find () {
 		LINE=$(grep -i ${AU:=null} ${_DOWNLOAD_LOG} | grep ${TM:=null}) # Match on author/time
 		if [[ -n ${LINE} ]];then 
 			FN=$(cut -d '|' -f3 <<<${LINE})
-			[[ ${FN:e} == 'part' ]] && _PARTIALS[${R}]=true || _DOWNLOADS[${R}]=true
+			[[ ${SEEN[${FN}]} == 'true' ]] && continue # Only process a filename once
+			if [[ -e ${_DOWNLOAD_DIR}/${FN} ]];then
+				[[ ${FN:e} == 'part' ]] && _PARTIALS[${R}]=true || _DOWNLOADS[${R}]=true
+				SEEN[${FN}]=true
+			fi
 		fi
 	done
+}
+
+log_to_file () { 
+	local TOP=${1} # Page top row
+	local BOT=${2} # Page bot row
+	local AU='' # Author
+	local FN='' # Filename
+	local TM=''
+	local LINE=''
+	local R=0
+
+	# Page callback - pre-process list to populate download status
+	 
+	_DOWNLOADS=()
+	_PARTIALS=()
+
+	for ((R=${TOP}; R <= ${BOT}; R++));do
+		AU=$(get_field author ${R}) # Author
+		TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<$(get_field agetime ${R})) # Video length
+		TM=$(tr -d '[()]' <<<${TM} | sed 's/undefined//')
+		LINE=$(grep -i ${AU:=null} ${_DOWNLOAD_LOG} | grep ${TM:=null}) # Match on author/time
+		if [[ -n ${LINE} ]];then 
+			FN=$(cut -d '|' -f3 <<<${LINE})
+			if [[ -e ${_DOWNLOAD_DIR}/${FN} ]];then
+				break
+			fi
+		fi
+	done
+
+	echo ${FN}
+}
+
+my_key_callback () {
+	local KEY=$1}
+	local LINE=''
+	return 0
+
+	case ${KEY} in
+		d) AU=$(get_field_author ${_LIST__NDX});;
+	esac
+	echo "AU:${AU}"
+	read
 }
 
 post_process () {
@@ -821,7 +868,7 @@ reset_job () {
 
 rumble () {
 	local SEARCHTERM=${1}
-	local -A LAST_MSG=($(box_coords_get MSG_BOX_1))
+	local -A LAST_MSG=($(box_coords_get ${_LAST_MSG_TAG}))
 	local -a AGES
 	local -a CHANNELS
 	local -a DURATIONS
@@ -960,6 +1007,7 @@ select_download () {
 	list_set_sort_col_default ${_SORT_DEFAULT[${g_QRY_ENGINE}]}
 	list_set_barlines true
 	list_set_page_callback log_find 
+	list_set_key_callback 'd' my_key_callback
 
 	_LOCAL_LIST=("${(f)$(list_sort_flat _LOCAL_LIST 1 a ${_LIST_DELIM})}") # Sort
 

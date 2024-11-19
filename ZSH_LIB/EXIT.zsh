@@ -76,7 +76,7 @@ exit_request () {
 	local H=3
 	local -A COORDS
 	local FRAME_WIDTH=6
-	local TAG=$(instance_set EXR_BOX)
+	local TAG=EXR_BOX
 
 	if [[ ${#} -eq 0 ]];then
 		msg_box -T ${TAG} -jc -O ${RED_FG} -p ${MSG}

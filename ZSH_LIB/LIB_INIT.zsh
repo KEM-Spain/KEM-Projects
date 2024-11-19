@@ -24,7 +24,6 @@ _XSET_LOW_RATE="r rate 500 15" # Menu rate
 typeset -aU _DEPS_
 typeset -A _BOX_COORDS=()
 typeset -A _REL_COORDS=()
-typeset -A _TAG_INSTANCE=()
 
 # LIB var inits
 _CURSOR_STATE=on
