@@ -25,7 +25,7 @@ local DESC
 read -r -d '' DESC<<EOF
 Spell check word
 \tLanguage is optional (-l)
-\tDefault is english
+\tDefault is English
 EOF
 
 parse_opts () {
@@ -109,3 +109,6 @@ else
 	echo "\"${WORD}\" is ${RED_FG}mispelled${RESET}\n"
 	echo -n "${WHITE_FG}Suggestions${RESET}:";echo ${OUT} | grep '&' | cut -d':' -f2- | fold -80 -s | tr '[A-Z]' '[a-z]'
 fi
+
+set_exit_value ${RC}
+exit_leave

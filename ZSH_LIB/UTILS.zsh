@@ -12,7 +12,6 @@ _FUNC_TRAP=false
 _BAREWORD_IS_FILE=false
 _UTILS_LIB_DBG=4
 
-
 arg_parse () {
 	local KWD=false
 	local A
@@ -94,24 +93,6 @@ boolean_color_word () {
 	esac
 }
 
-box_coords_repaint () {
-	local TAG=${1}
-	local ARR_NAME=${2:=_LIST}
-	local -A COORDS=($(box_coords_get ${TAG}))
-	local X_LIMIT
-	local Y_LIMIT
-	local X Y
-
-	X_LIMIT=$(( COORDS[H] + COORDS[X] ))
-	Y_LIMIT=$(( COORDS[Y] + COORDS[W] ))
-
-	for (( X=${COORDS[X]}; X <= X_LIMIT; X++ ));do
-		for (( Y=${COORDS[Y]}; Y <= Y_LIMIT; Y++ ));do
-			tput cup $((X-1)) $((Y-1)); echo -n ${${(P)ARR_NAME}[${X}][${Y}]} # Offset zero based tput
-		done
-	done
-}
-
 box_coords_del () {
 	local TAG=${1}
 
@@ -128,6 +109,16 @@ box_coords_dump () {
 		printf "${WHITE_FG}TAG${RESET}:%s ${WHITE_FG}COORDS${RESET}:%s\n" ${K} ${_BOX_COORDS[${K}]}
 	done
 	echo "--- End COORDS ---"
+}
+
+box_coords_get () {
+	local TAG=${1}
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
+
+	[[ -z ${_BOX_COORDS[${TAG}]} ]] && return 1
+
+	echo ${(kv)_BOX_COORDS[${TAG}]}
 }
 
 box_coords_overlap () {
@@ -185,6 +176,24 @@ box_coords_relative () {
 	echo ${(kv)BASE_COORDS}
 }
 
+box_coords_repaint () {
+	local TAG=${1}
+	local ARR_NAME=${2:=_LIST}
+	local -A COORDS=($(box_coords_get ${TAG}))
+	local X_LIMIT
+	local Y_LIMIT
+	local X Y
+
+	X_LIMIT=$(( COORDS[H] + COORDS[X] ))
+	Y_LIMIT=$(( COORDS[Y] + COORDS[W] ))
+
+	for (( X=${COORDS[X]}; X <= X_LIMIT; X++ ));do
+		for (( Y=${COORDS[Y]}; Y <= Y_LIMIT; Y++ ));do
+			tput cup $((X-1)) $((Y-1)); echo -n ${${(P)ARR_NAME}[${X}][${Y}]} # Offset zero based tput
+		done
+	done
+}
+
 box_coords_set () {
 	local -a ARGS=(${@})
 	local TAG=${ARGS[1]}
@@ -195,31 +204,21 @@ box_coords_set () {
 	_BOX_COORDS[${TAG}]="${COORDS}"
 }
 
-box_coords_get () {
-	local TAG=${1}
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
-
-	[[ -z ${_BOX_COORDS[${TAG}]} ]] && return 1
-
-	echo ${(kv)_BOX_COORDS[${TAG}]}
-}
-
 box_coords_upd () {
 	local TAG=${1}
 	local KEY=${2}
 	local VAL=${3}
 	local -A UPD=()
-	local COORDS=''
-
-	COORDS=$(box_coords_get ${TAG})
-	[[ -z ${COORDS} ]] && return 1
-
-	UPD=(${COORDS})
+	local -a COORDS=()
 
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} TAG:${TAG}"
 
-	[[ ${#UPD} -eq 0 ]] && return 1
+	COORDS=($(box_coords_get ${TAG}))
+	[[ -z ${COORDS} ]] && return 1
+
+	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: COORDS:${COORDS}"
+
+	UPD=(${COORDS})
 
 	box_coords_set ${TAG} X ${UPD[X]} Y ${UPD[Y]} W ${UPD[W]} H ${UPD[H]} ${KEY} ${VAL}
 
@@ -288,17 +287,17 @@ func_list () {
 	grep --color=never -P "^\S.*() {\s*$" < ${FN} | cut -d'(' -f1 | sed -e 's/^[[:space:]]*//'
 }
 
+func_normalize () {
+	local FN=${1}
+	#TODO: func_normalize: identifying function signature fails if followed by comments
+	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g; s/^\s+\}\s*?$/}/' < ${FN} > ${FN}.normalized
+}
+
 func_print () {
 	local FN=${1}
 	local FUNC=$(str_trim ${2})
 	
-	perl -ne "print if /^${FUNC}.*() {/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
-}
-
-func_normalize () {
-	local FN=${1}
-
-	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g' < ${FN} > ${FN}.normalized
+	perl -ne "print if /^${FUNC}\s+\(\) {/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
 }
 
 get_delim_field_cnt () {
@@ -317,14 +316,9 @@ get_delim_field_cnt () {
 	fi
 }
 
-reset_rate () {
-	eval "xset ${_XSET_DEFAULT_RATE}"
-}
-
 get_keys () {
 	local PROMPT=${@}
 	local -a NUM
-	#local IDLE_PPID=$(cut -d '|' -f1 < <(idle_ppid))
 	local IDLE_TIME=0
 	local K1=''
 	local K2=''
@@ -399,65 +393,6 @@ get_keys () {
 	done
 	trap - INT # key processed; cancel trap
 }
-
-#get_keys () {
-#	local PROMPT
-#	local RESP=?;
-#	local -a NUM
-#	local K1 K2 K3 KEY
-#
-#	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-#
-#	PROMPT=${@}
-#
-#	(tput cup $((_MAX_ROWS-2)) 0;printf "${PROMPT}")>&2 # Position cursor and display prompt to STDERR
-#
-#	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_LOW_RATE}"
-#
-#	{
-#	while read -sk1 KEY;do
-#		[[ -z ${KEY} ]] && break
-#		# Slurp input buffer
-#		read -sk1 -t 0.0001 K1 >/dev/null 2>&1
-#		read -sk1 -t 0.0001 K2 >/dev/null 2>&1
-#		read -sk1 -t 0.0001 K3 >/dev/null 2>&1
-#		KEY+=${K1}${K2}${K3}
-#
-#		case "${KEY}" in 
-#			$'\x0A') RESP=0;; # Return
-#			$'\e[A') RESP=1;; # Up
-#			$'\e[B') RESP=2;; # Down
-#			$'\e[D') RESP=3;; # Left
-#			$'\e[C') RESP=4;; # Right
-#			$'\e[5~') RESP=5;; # PgUp
-#			$'\e[6~') RESP=6;; # PgDn
-#			$'\e[H') RESP=7;; # Home
-#			$'\e[F') RESP=8;; # End
-#			$'\x7F') if [[ ${#NUM} -gt 0 ]];then # BackSpace
-#							NUM[${#NUM}]=()
-#							echo -n " ">&2
-#						fi;;
-#			*) RESP=$(printf '%d' "'${KEY}");; # Ascii letter value
-#		esac
-#
-#		if [[ ${RESP} != "?" ]];then
-#			if [[ -z ${NUM} ]];then
-#				case ${RESP} in
-#					<48-57>) RESP=${KEY};; # Numeric
-#					<65-122>) RESP=${KEY};; # Alpha
-#				esac
-#				echo ${RESP}
-#			else
-#				echo "K${(j::)NUM}"
-#			fi
-#			eval "xset ${_XSET_DEFAULT_RATE}"
-#			break
-#		fi
-#	done
-#	} 2>/dev/null
-#
-#	[[ ${XDG_SESSION_TYPE:l} == 'x11' ]] && eval "xset ${_XSET_DEFAULT_RATE}"
-#}
 
 inline_vi_edit () {
 	local PROMPT=${1}
@@ -591,6 +526,20 @@ logit () {
 	echo "${STAMP} ${MSG}" >> ${_LOG:=/tmp/${0}.log}
 }
 
+max () {
+	local N1=${1}
+	local N2=${2}
+
+	[[ ${N1} -gt ${N2} ]] && echo ${N1} || echo ${N2} 
+}
+
+min () {
+	local N1=${1}
+	local N2=${2}
+
+	[[ ${N1} -lt ${N2} ]] && echo ${N1} || echo ${N2} 
+}
+
 num_byte_conv () {
 	local BYTES=${1}
 	local WANTED=${2}
@@ -646,16 +595,7 @@ parse_get_last_field () {
 	echo -n ${LINE} | rev | cut -d"${DELIM}" -f1 | rev
 }
 
-max () {
-	local N1=${1}
-	local N2=${2}
-
-	[[ ${N1} -gt ${N2} ]] && echo ${N1} || echo ${N2} 
+reset_rate () {
+	eval "xset ${_XSET_DEFAULT_RATE}"
 }
 
-min () {
-	local N1=${1}
-	local N2=${2}
-
-	[[ ${N1} -lt ${N2} ]] && echo ${N1} || echo ${N2} 
-}

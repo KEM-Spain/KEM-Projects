@@ -32,11 +32,8 @@ exit_leave () {
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage
 	fi
 
-	tput cnorm >&2
-
 	exit_pre_exit
 
- # Kill -SIGINT $$ # Fire the traps
 	exit ${_EXIT_VALUE}
 }
 
@@ -64,8 +61,6 @@ exit_pre_exit () {
 	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
 
 	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}\n"
-
-	tput cnorm >&2
 }
 
 exit_request () {

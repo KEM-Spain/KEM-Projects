@@ -42,8 +42,8 @@ _LIST_SELECT_NDX=0
 _LIST_SELECT_ROW=0
 _LIST_SET_DEFAULTS=true
 _LIST_SORT_COL_MAX=0
-_LIST_SORT_COL_DEFAULT=0
-_LIST_SORT_DIR_DEFAULT=a
+_LIST_SORT_COL_DEFAULT=''
+_LIST_SORT_DIR_DEFAULT=''
 _LIST_SORT_TYPE=flat
 _LIST_USER_PROMPT_STYLE=none
 _MSG_KEY=n
@@ -162,7 +162,7 @@ list_do_header () {
 			[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Header break length:${LONGEST_HDR}"
 			echo -n ${RESET}
 		fi
-	}
+}
 
 list_get_index_range () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
@@ -461,6 +461,18 @@ list_repaint () {
 		fi
 	done
 	_LIST_NDX=${SAVED_NDX}
+}
+
+list_reset () {
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	_CURSOR_ROW=0
+	_HOLD_CURSOR=false
+	_LIST_INDEX_RANGE=()
+	_LIST_SELECTED=()
+	_MARKED=()
+	_SELECTION_LIST=()
+	_SORT_TABLE=()
 }
 
 list_search () {
@@ -815,18 +827,6 @@ list_select_range () {
 	echo ${SELECTED}
 }
 
-list_reset () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	_CURSOR_ROW=0
-	_HOLD_CURSOR=false
-	_LIST_INDEX_RANGE=()
-	_LIST_SELECTED=()
-	_MARKED=()
-	_SELECTION_LIST=()
-	_SORT_TABLE=()
-}
-
 list_set_action_msgs () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -874,12 +874,6 @@ list_set_header_callback () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	_HEADER_CALLBACK_FUNC=${1}
-}
-
-list_set_page_callback () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	_PAGE_CALLBACK_FUNC=${1}
 }
 
 list_set_header_init () {
@@ -961,6 +955,12 @@ list_set_no_top_offset () {
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	_NO_TOP_OFFSET=true
+}
+
+list_set_page_callback () {
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	_PAGE_CALLBACK_FUNC=${1}
 }
 
 list_set_page_hold () {
@@ -1049,7 +1049,7 @@ list_set_sort_cols () {
 	_SORT_COLS=(${@})
 }
 
-list_set_sort_col_default () {
+list_set_sort_defaults () {
 	local ARG=${1}
 	local COL=''
 	local DIR=''
@@ -1112,26 +1112,6 @@ list_show_key () {
 	echo -n ${KEY} >&2 # Show key value
 }
 
-list_verify_sort_params () {
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
-
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Inspecting _LIST_SORT_COL_MAX:${_LIST_SORT_COL_MAX}"
-	if ! validate_is_integer ${_LIST_SORT_COL_MAX};then
-		msg_box -p -PK "Invalid sort column:${_LIST_SORT_COL_MAX}"
-		return 1
-	fi
-
-	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Inspecting _LIST_SORT_TYPE:${_LIST_SORT_TYPE}"
-	if [[ ${_LIST_SORT_TYPE} == 'assoc' ]];then
-		if [[ -z ${_SORT_TABLE} ]];then
-			msg_box -p -PK "_SORT_TABLE:${#_SORT_TABLE} is not populated"
-			return 1
-		fi
-	fi
-
-	return 0
-}
-
 list_sort () {
 	local FIELD_MAX=0
 	local SORT_COL=''
@@ -1165,7 +1145,7 @@ list_sort () {
 		flat) list_sort_flat _LIST ${SORT_COL} ${SORT_DIR} ${_LIST_DELIM};;
 	esac
 }
- 
+
 list_sort_assoc () {
 	local SORT_COL=${1}
 	local SORT_DIR=${2}
@@ -1205,6 +1185,14 @@ list_sort_assoc () {
 				[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: sort line:${S}|${${(P)SORT_ARRAY}[${S}]}"
 			done | sort -r -t'|' -k2 | cut -d'|' -f1
 		)}")
+	fi
+}
+
+list_sort_clear_marker () {
+	# Exit callback
+	if [[ -e ${_SORT_MARKER} ]];then
+		/bin/rm -f ${_SORT_MARKER}
+		[[ ${?} -ne 0 ]] && echo "WARNING: SORT MARKER not cleared" >&2
 	fi
 }
 
@@ -1288,6 +1276,14 @@ list_sort_flat () {
 	fi
 }
 
+list_sort_get () {
+	echo $(<${_SORT_MARKER})
+}
+
+list_sort_set () {
+	echo ${1} > ${_SORT_MARKER}
+}
+
 list_sort_toggle () {
 	local -A DIR_TOGGLE=(a d d a)
 	local SORT_DIR
@@ -1299,21 +1295,6 @@ list_sort_toggle () {
 	list_sort_set ${SORT_DIR}
 
 	echo $(<${_SORT_MARKER})
-}
-
-list_sort_set () {
-	echo ${1} > ${_SORT_MARKER}
-}
-
-list_sort_get () {
-	echo $(<${_SORT_MARKER})
-}
-
-list_sort_clear_marker () { # Exit callback
-	if [[ -e ${_SORT_MARKER} ]];then
-		/bin/rm -f ${_SORT_MARKER}
-		[[ ${?} -ne 0 ]] && echo "WARNING: SORT MARKER not cleared" >&2
-	fi
 }
 
 list_toggle_all () {
@@ -1493,6 +1474,26 @@ list_validate_selection () {
 	fi
 }
 
+list_verify_sort_params () {
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}"
+
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Inspecting _LIST_SORT_COL_MAX:${_LIST_SORT_COL_MAX}"
+	if ! validate_is_integer ${_LIST_SORT_COL_MAX};then
+		msg_box -p -PK "Invalid sort column:${_LIST_SORT_COL_MAX}"
+		return 1
+	fi
+
+	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO} Inspecting _LIST_SORT_TYPE:${_LIST_SORT_TYPE}"
+	if [[ ${_LIST_SORT_TYPE} == 'assoc' ]];then
+		if [[ -z ${_SORT_TABLE} ]];then
+			msg_box -p -PK "_SORT_TABLE:${#_SORT_TABLE} is not populated"
+			return 1
+		fi
+	fi
+
+	return 0
+}
+
 list_warn_invisible_rows () {
 	local MAX_DISPLAY_ROWS=${1}
 	local PAGE=${2}
@@ -1533,3 +1534,4 @@ list_write_to_file () {
 		msg_box -c -p "List is empty - nothing to write|Press any key"
 	fi
 }
+

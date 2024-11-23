@@ -70,7 +70,7 @@ _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
 _YTS_GIT=${_SRC_DIR}/yt-dlp
 _YTS_URL_LOG=/tmp/yts.url.log
-_YTS_DBG_LOG=/tmp/yt.log.dbg
+_YTS_DBG_LOG=/tmp/yt.dbg.log
 
 # Globals
 g_CUSTOM_LIST=false
@@ -142,6 +142,7 @@ action_do () {
 
 		AUTHOR=$(get_field author ${M})
 		TITLE=$(get_field title ${M})
+		TITLE=${TITLE}
 		URL=$(get_field url ${M})
 
 		echo ${AUTHOR}:${TITLE}:${URL} >> ${_YTS_URL_LOG} # Log the url
@@ -150,7 +151,7 @@ action_do () {
 
 		unsetopt localtraps # Initialize CTRL-c trap
 		trap kill_job INT
-		stty -echo
+		#stty -echo
 
 		start_job ${URL}
 		msg_box -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} "Download requested..."
@@ -189,7 +190,7 @@ action_do () {
 			# Scan for 'already downloaded'
 			LOG_LINE=$(grep -m1 -i "already been" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
-				TITLE=$(get_field title ${M})
+				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
 				msg_box -t${_PAUSE_TM} "${EMSG}"
 				_DOWNLOADS[${M}]=true
@@ -199,9 +200,9 @@ action_do () {
 			# Scan for 'not yet available'
 			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
-				TITLE=$(get_field title ${M})
+				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
-				g_WHEN=$(sed 's/\(.*begin in \)\(.*\)\.$/\2/' <<<${LOG_LINE})
+				g_WHEN=$(sed 's/\(.* in \)\(.*\)\.$/\2/' <<<${LOG_LINE})
 				msg_box -t${_PAUSE_TM} "${EMSG}"
 				_FUTURE[${M}]=true
 				_DOWNLOADS[${M}]=false
@@ -211,7 +212,7 @@ action_do () {
 			# Scan for 'unable to download'
 			LOG_LINE=$(grep -m1 -i "unable to download video" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
-				TITLE=$(get_field title ${M})
+				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				EMSG="<w>${TITLE[1,65]}<N>|<r>Hard Error - Unable to download<N>|<g>${LOG_LINE}<N>" 
 				msg_box -t${_PAUSE_TM} "${EMSG}"
 				_FAILED[${M}]=true
@@ -223,6 +224,7 @@ action_do () {
 			INFO_TAG=''
 			LOG_LINE=$(grep -m1 -i "resuming download" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
+				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				INFO_TAG=' (<w>resumed<N>)'
 			fi
 
@@ -238,7 +240,8 @@ action_do () {
 				DEST=("${(f)$(sed -e "s#${_DOWNLOAD_DIR}/#${_DOWNLOAD_DIR}|#g" -e 's/ \[.*//g' <<<${LOG_LINE})}")
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<w>/" -e "s/:/<N>:<m>/")
-				HDR1_TXT=$(cut -d'|' -f2 <<<${DEST})
+				HDR1_TXT=$(cut -d'|' -f2 <<<${DEST} | sed 's/_/ /g')
+				HDR1_TXT=$(clean_line ${HDR1_TXT})
 				HDR1_TXT="<w>Downloading<N>:<m> <c>${HDR1_TXT[1,60]}<N>"
 				HDR2_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${INFO_TAG}"
 				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR2_TXT})} ))
@@ -251,79 +254,78 @@ action_do () {
 				HDRS_OUT=true
 			fi
 
-			if [[ ${HDRS_OUT} == 'true' ]];then # Monitor progress
-				ETA='' && ERR='' && OTH=''
+			ETA='' && ERR='' && OTH=''
 
-				LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1 | str_trim) 
-				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
+			LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1 | str_trim) 
 
-				if grep -qi 'eta.*error' <<<${LOG_LINE};then # Contains both - split
-					echo "${0}: SPLITTING LINE" >> ${_YTS_DBG_LOG}
-					ETA=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | head -1 | str_trim)
-					ERR=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | tail -1 | str_trim)
-				elif grep -qi 'eta' <<<${LOG_LINE};then
-					ETA=${LOG_LINE}
-				elif grep -qi 'error' <<<${LOG_LINE};then
-					ERR=${LOG_LINE}
-				else
-					OTH=${LOG_LINE}
-				fi
+			if grep -qi 'eta.*error' <<<${LOG_LINE};then # Contains both - split
+				ETA=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | head -1 | str_trim)
+				ERR=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | tail -1 | str_trim)
+			elif grep -qi 'eta' <<<${LOG_LINE};then
+				echo "${0}: GOT ETA ${LOG_LINE}" >> ${_YTS_DBG_LOG}
+				ETA=${LOG_LINE}
+			elif grep -qi 'error' <<<${LOG_LINE};then
+				echo "${0}: GOT ERRORS ${LOG_LINE}" >> ${_YTS_DBG_LOG}
+				ERR=${LOG_LINE}
+			else
+				echo "${0}: GOT OTHER ${LOG_LINE}" >> ${_YTS_DBG_LOG}
+				OTH=${LOG_LINE}
+			fi
 
-				HAD_ERROR=false
-				if [[ -n ${ERR} ]];then
-					((ERROR_CNT++))
-					msg_box -T ALERT -t${_ALERT_TM} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
-					HAD_ERROR=true
-				fi
+			HAD_ERROR=false
+			if [[ -n ${ERR} ]];then
+				((ERROR_CNT++))
+				msg_box -T ALERT -t${_ALERT_TM} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
+				HAD_ERROR=true
+			fi
 
-				if [[ -n ${OTH} ]];then
-					case ${OTH:l} in
-						*rumbleembed*) continue;;
-						*merging*) continue;; # Audio fix
-						*fixing*) ETA='Fragmented Job 100%'; LINE_COLOR='<B><g>';; # Fragmented job 
-						*'deleting original'*) ETA='Audio/Video combined 100%'; LINE_COLOR='<B><g>';; # Audio fix
-						*100%*) ETA=${OTH};;
-					esac
-				fi
+			if [[ -n ${OTH} ]];then
+				case ${OTH:l} in
+					*rumbleembed*) continue;;
+					*merging*) continue;; # Audio fix
+					*fixing*) ETA='Fragmented Job 100%'; LINE_COLOR='<B><g>';; # Fragmented job 
+					*'deleting original'*) ETA='Audio/Video combined 100%'; LINE_COLOR='<B><g>';; # Audio fix
+					*100%*) ETA=${OTH};;
+				esac
+			fi
 
-				LINE_COLOR=''
-				if [[ -n ${ETA} && ${ETA_COMPLETE} == 'false' ]];then
-					case ${ETA:l} in
-						*'100% of'*) LINE_COLOR='<B><g>';ETA_COMPLETE=true;;; # Prevent doubling complete line
-						*mib/s*) LINE_COLOR='<w>';;
-						*kib/s*) LINE_COLOR='<B><y>';;
-						*) continue;; # Skip other
-					esac
-				else
-					continue # Empty line
-				fi
+			LINE_COLOR=''
+			if [[ -n ${ETA} && ${ETA_COMPLETE} == 'false' ]];then
+				case ${ETA:l} in
+					*'100% of'*) LINE_COLOR='<B><g>';ETA_COMPLETE=true;;; # Prevent doubling complete line
+					*mib/s*) LINE_COLOR='<w>';;
+					*kib/s*) LINE_COLOR='<B><y>';;
+					*) continue;; # Skip other
+				esac
+			else
+				continue # Empty line
+			fi
 
-				[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
+			[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
 
-				echo "${0}: ${LINE_COLOR}${ETA}" >> ${_YTS_DBG_LOG}
-				msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
+			echo "${0}: ${LINE_COLOR}${ETA}" >> ${_YTS_DBG_LOG}
+			msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
 
-				if [[ ${ETA} =~ '100% of' ]];then
-					if [[ ${#_MARKED} -gt 1 ]];then
-						msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
-						if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
-							MSG="Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
-							msg_box -t${_PAUSE_TM} -x$(( _COORDS[X]+1 )) -y$(box_center ${MSG}) ${MSG}
-						fi
+			if [[ ${ETA} =~ '100% of' ]];then
+				if [[ ${#_MARKED} -gt 1 ]];then
+					msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
+					if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
+						MSG="Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
+						msg_box -t${_PAUSE_TM} -x$(( _COORDS[X]+1 )) -y$(box_center ${MSG}) ${MSG}
 					fi
-					_DOWNLOADS[${M}]=true
-					post_process
-					log_download ${M}
-					break # While loop
-				fi # Monitor progress
-			fi # Headers out
+				fi
+				_DOWNLOADS[${M}]=true
+				post_process
+				log_download ${M}
+				break # While loop
+			fi # Monitor progress
 			sleep 2 # Log fetch delay
 		done # Log scan complete
 		NDX=0
 		clear_log "action_do"
 		sleep 1 # Job request delay
 	done # List complete
-	stty echo
+	#stty echo
 
 	for M in ${_MARKED};do
 		[[ ${_DOWNLOADS[${M}]} == 'true' ]] && list_set_selected ${M} ${_GHOST_ROW} || list_set_selected ${M} ${_AVAIL_ROW}
@@ -373,6 +375,36 @@ box_center () {
 	[[ ${REM} -ne 0 ]] && BOX_CTR=$((CTR+1)) || BOX_CTR=${CTR}
 
 	echo $(( BOX_LEFT + BOX_CTR - TXT_CTR ))
+}
+
+clean_line () {
+	local ARG=${@}
+	local -a OUT=()
+	local -a LIST=()
+	local SKIP=false
+	local A
+
+	for A in ${=ARG};do
+		LIST+=${A}
+	done
+
+	while true;do
+		spell ${LIST[-1]} > /dev/null 
+		if [[ ${?} -ne 0 ]];then
+			SKIP=true 
+		else
+			OUT=(${LIST})
+			break
+		fi
+
+		[[ ${SKIP} == 'true' ]] && OUT=(${LIST[1,-2]}) || OUT=(${LIST})
+
+		[[ -z ${OUT} ]] && OUT=(${@}) && break
+
+		LIST=(${OUT})
+	done
+
+	echo ${OUT}
 }
 
 clear_log () {
@@ -1004,7 +1036,7 @@ select_download () {
 	list_set_action_msgs video download
 	list_set_sortable true
 	list_set_max_sort_col 3
-	list_set_sort_col_default ${_SORT_DEFAULT[${g_QRY_ENGINE}]}
+	list_set_sort_defaults ${_SORT_DEFAULT[${g_QRY_ENGINE}]}
 	list_set_barlines true
 	list_set_page_callback log_find 
 	list_set_key_callback 'd' my_key_callback

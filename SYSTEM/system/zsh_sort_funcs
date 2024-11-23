@@ -30,6 +30,7 @@ _FUNC_TAG='^# Functions'
 # Imports
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/MSG.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
@@ -69,6 +70,7 @@ sort_functions () {
 	local -a LIST
 	local L
 	local -R3 NDX=0
+	local LONGEST=0
 
 	[[ ! -e ${FN}.normalized ]] && echo "Unable to proceed.  No file containing normalized functions found." && cleanup
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ${FN}.normalized was created..."
@@ -78,6 +80,11 @@ sort_functions () {
 
 	LIST=($(func_list ${FN}.normalized))
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LIST:${LIST}"
+	echo "${WHITE_FG}${#LIST}${RESET} functions identified"
+
+	for L in ${LIST};do
+		[[ ${#L} -gt ${LONGEST} ]] && LONGEST=${#L}
+	done
 
 	# Sort function alpha
 	for L in ${(o)LIST};do
@@ -87,10 +94,11 @@ sort_functions () {
 			[[ ${NDX} -eq 1 ]] && echo "${WHITE_FG}Functions in ${FN}${RESET}"
 			echo "${WHITE_FG}${NDX}${RESET}) ${L}"
 		else
-			tput el; printf "\rProcessing function ${WHITE_FG}%d${RESET} of ${WHITE_FG}%d${RESET} functions ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET}" ${NDX} ${#LIST} $(( NDX * 100. / ${#LIST} ))
+			tput el; printf "\rProcessing function ${WHITE_FG}%2d${RESET} of ${WHITE_FG}%2d${RESET} functions ${WHITE_FG}%%${BOLD}${GREEN_FG}%.2f${RESET} \t%*s\n" ${NDX} ${#LIST} $(( NDX * 100. / ${#LIST} )) ${LONGEST} ${L}
 			func_print ${FN}.normalized ${L} >>${FN}.sorted.functions
 		fi
 	done
+
 	[[ ${LIST_FUNCS} == 'false' ]] && echo "\n${WHITE_FG}${NDX}${RESET} ${FN} functions written\nto:${WHITE_FG}${FN}.sorted.functions${RESET}\nby function name in alphanumeric order"
 	echo
 }
@@ -207,7 +215,9 @@ sort_functions ${FN} # Extract sorted functions
 
 # Processing
 grep ${_FUNC_REGEX} < ${FN}.sorted.functions | sort | uniq -c | grep -v -P '\s+1\s+'
-[[ ${?} -ne 1 ]] && exit_leave $(msg_exit W "WARNING:Found duplicates")
+if [[ ${?} -ne 1 ]];then
+	exit_leave $(msg_exit W "WARNING:Found duplicates")
+fi
 
 if [[ ${REPLACE_FILE} == 'true' || ${REPLACE_SORTED} == 'true' ]];then 
 	replace_functions ${FN}

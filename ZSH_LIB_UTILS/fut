@@ -146,6 +146,11 @@ ______EOF
 		LIST+=${R}
 	done
 
+	if ! arr_is_populated "${LIST}";then
+		set_exit_value 1
+		exit_leave $(msg_exit E "No file:${FN} found")
+	fi
+
 	if [[ ${#LIST} -gt 1 ]];then
 		for L in ${LIST};do
 			[[ ! -f ${L} ]] && continue

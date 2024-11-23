@@ -40,6 +40,7 @@ typeset -U path cdpath fpath manpath # automatically remove duplicates from thes
 source ${_SYS_ALIASES}
 source ${_SYS_ZSHRC}
 source ${_USR_LOCAL_SRC}/fast-syntax-highlighting/F-Sy-H.plugin.zsh # fast-syntax-highlighting.plugin
+source ${_USR_LOCAL_SRC}/zhooks/zhooks.plugin.zsh # add zhooks command to display active hooks
 TERM=xterm-256color
 
 # Exports
@@ -54,7 +55,7 @@ export PYDEVD_DISABLE_FILE_VALIDATION=1
 [[ -o login ]] && LOGIN=login || LOGIN=''
 
 # Functions 
-_cursor_row() {
+_cursor_row () {
 	local ROW
 
 	echo -ne "\033[6n" > /dev/tty
@@ -63,6 +64,10 @@ _cursor_row() {
 	ROW="${ROW%;*}"
 	((ROW--))
 	echo ${ROW}
+}
+
+_cursor_on () {
+	tput cnorm
 }
 
 _reload_aliases () {
@@ -212,7 +217,8 @@ autoload -Uz compinit && compinit
 # Hooks
 add-zsh-hook precmd _reload_funcs # HOOK: Automatically reload any modified functions
 add-zsh-hook precmd _reload_aliases # HOOK: Automatically reload any modified aliases
-add-zsh-hook precmd _chrome_restore_tweak # HOOK: Tweak chrome to prevent restore prompt
+#add-zsh-hook precmd _chrome_restore_tweak # HOOK: Tweak chrome to prevent restore prompt
+add-zsh-hook precmd _cursor_on
 
 # Misc Cleanup
 # typeset -a CLEAN
@@ -275,14 +281,6 @@ if [[ ${_TERMS} -le 1 ]];then
 		else
 			echo "Enpass:${WHITE_FG}${ITALIC}waiting${RESET}..."
 		fi
-
-# Disabled due to gnome bug: https://gitlab.gnome.org/GNOME/mutter/-/issues/2857
-# 		if [[ -n ${DISPLAY} ]];then
-# 			if [[ ${XDG_SESSION_TYPE:l} == 'x11' ]];then
-# 				echo "Killing ${WHITE_FG}screensaver and power management for monitor...${RESET}"
-# 				xset s off -dpms # Turn off power mgt for monitor
-# 			fi
-# 		fi
 
 		dut external -b # External drive status
 
