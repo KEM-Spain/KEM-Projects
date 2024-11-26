@@ -4,22 +4,7 @@ _DEPS_+="DBG.zsh MSG.zsh STR.zsh"
 # LIB Vars
 _ARRAY_LIB_DBG=5
 
-in_array () {
-	local ELEMENT=${1};shift
-	local -a ALIST=($(tr '\x0a' ' ' <<<${@}))
-	local L
-
-	[[ -z ${ALIST} ]] && return 1
-
-	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ELEMENT:${ELEMENT} ALIST=${ALIST}"
-
-	for L in ${ALIST};do
-		[[ ${L} == ${ELEMENT} ]] && return 0
-	done
-
-	return 1
-}
-
+# LIB Functions
 arr_get_nonzero_count () {
 	local -a A=(${@})
 	local CNT=0
@@ -64,24 +49,6 @@ arr_is_populated () {
 	return ${RC}
 }
 
-arr_long_elem_len () {
-	local LIST=(${@})
-	local LONGEST=0
-	local STR
-	local L
-
-	for L in ${LIST};do
-		STR=$(msg_nomarkup ${L})
-		STR=$(str_strip_ansi <<<${STR})
-		STR=$(str_trim ${STR})
-		[[ ${#STR} -ge ${LONGEST} ]] && LONGEST=${#STR}
-	done
-
-	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LONGEST ELEMENT LEN:${LONGEST}"
-
-	echo ${LONGEST} # Trimmed/no markup
-}
-
 arr_long_elem () {
 	local LIST=(${@})
 	local LONGEST=0
@@ -101,5 +68,39 @@ arr_long_elem () {
 	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: LONGEST ELEMENT:${LONGEST} STR:${STR}"
 
 	echo ${LONGEST_STR} # Trimmed/no markup
+}
+
+arr_long_elem_len () {
+	local LIST=(${@})
+	local LONGEST=0
+	local STR
+	local L
+
+	for L in ${LIST};do
+		STR=$(msg_nomarkup ${L})
+		STR=$(str_strip_ansi <<<${STR})
+		STR=$(str_trim ${STR})
+		[[ ${#STR} -ge ${LONGEST} ]] && LONGEST=${#STR}
+	done
+
+	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}:  LONGEST ELEMENT LEN:${LONGEST}"
+
+	echo ${LONGEST} # Trimmed/no markup
+}
+
+in_array () {
+	local ELEMENT=${1};shift
+	local -a ALIST=($(tr '\x0a' ' ' <<<${@}))
+	local L
+
+	[[ -z ${ALIST} ]] && return 1
+
+	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} ELEMENT:${ELEMENT} ALIST=${ALIST}"
+
+	for L in ${ALIST};do
+		[[ ${L} == ${ELEMENT} ]] && return 0
+	done
+
+	return 1
 }
 

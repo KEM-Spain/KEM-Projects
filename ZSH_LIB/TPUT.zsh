@@ -6,6 +6,7 @@ _CURSOR=''
 _SMCUP=''
 _TPUT_LIB_DBG=5
 
+# LIB Functions
 coord_center () {
 	local AREA=${1}
 	local OBJ=${2}
@@ -27,6 +28,12 @@ coord_center () {
 	echo $((AC-OC+1))
 }
 
+cursor_home () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	tput cup $(tput lines) 0
+}
+
 cursor_off () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -41,6 +48,12 @@ cursor_on () {
 	_CURSOR=on
 }
 
+cursor_restore () {
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	tput rc # Save cursor
+}
+
 cursor_row () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -51,22 +64,10 @@ cursor_row () {
   echo $((line - 2))
 }
 
-cursor_home () {
-	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	tput cup $(tput lines) 0
-}
-
 cursor_save () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	tput sc # Save cursor
-}
-
-cursor_restore () {
-	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	tput rc # Save cursor
 }
 
 do_rmcup () {
@@ -86,3 +87,4 @@ do_smcup () {
 	tput smcup
 	_SMCUP=true
 }
+

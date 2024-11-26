@@ -1,0 +1,135 @@
+#!/usr/bin/zsh
+
+#Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLACK_BG="\033[40m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
+
+# Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh # Must be sourced last
+
+# Declarations
+typeset -a LIST
+
+# Constants
+LIB_DIR=/home/kmiller/Code/LOCAL/LIBS
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+local DESC
+
+read -r -d '' DESC<<EOF
+Inspect library files for unsorted functions
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "${WHITE_FG}-s${RESET} Sort functions to separate file from the orginal"
+	echo -e "${WHITE_FG}-r${RESET} Replace the orginal file with sorted functions"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_exit W ${PENDING_MSGS})
+}
+
+OPTSTR=":HDsr"
+OPTIND=0
+DO_SORT=false
+DO_SORT_REPLACE=false
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     s) DO_SORT=true;;
+     r) DO_SORT_REPLACE=true;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+#Execution
+[[ ${DO_SORT} == 'true' && ${DO_SORT_REPLACE} == 'true' ]] && exit_leave $(msg_exit E "Conflicting options:${OPTIONS}")
+
+LIBLIST=("${(f)$(find ${LIB_DIR} -maxdepth 1 -name '*zsh' ! -path ${LIB_DIR})}")
+
+printf "\n${CYAN_FG}Library files having functions that need sorting${RESET}\n\n" ${LIB}
+
+HIT=false
+for M in ${LIBLIST};do 
+	LIB=${M:t}
+	LIST=$(grep --color=never -E '^\w+ \(\) {' ${M})
+	echo ${LIST} >/tmp/${LIB}_LIST
+	sort <<<${LIST} >/tmp/${LIB}_SLIST
+	diff -q /tmp/${LIB}_LIST /tmp/${LIB}_SLIST >/dev/null 2>&1
+	if [[ ${?} -eq 1 ]];then
+		printf "${WHITE_FG}%s${RESET}\n" ${LIB}
+		[[ ${DO_SORT} == 'true' ]] && zsh_sort_funcs -r ${LIB}
+		[[ ${DO_SORT_REPLACE} == 'true' ]] && zsh_sort_funcs -R ${LIB}
+		HIT=true
+	fi
+	/bin/rm -f /tmp/${LIB}_LIST /tmp/${LIB}_SLIST
+	LIST=()
+done
+
+[[ ${HIT} == 'false' ]] && echo "No library files need sorting"

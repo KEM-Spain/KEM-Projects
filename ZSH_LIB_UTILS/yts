@@ -153,6 +153,7 @@ action_do () {
 		trap kill_job INT
 		#stty -echo
 
+		ERROR_CNT=0
 		start_job ${URL}
 		msg_box -x${_COORDS[X]} -y${_COORDS[Y]} -h${_COORDS[H]} -w${_COORDS[W]} "Download requested..."
 
@@ -311,7 +312,7 @@ action_do () {
 					msg_box -C -jc "<m>$(str_unicode_line 10)<N>"
 					if [[ $((${#_MARKED}-DL_CNT)) -gt 0 ]];then
 						MSG="Download ${DL_CNT} completed - $((${#_MARKED}-DL_CNT)) remaining"
-						msg_box -t${_PAUSE_TM} -x$(( _COORDS[X]+1 )) -y$(box_center ${MSG}) ${MSG}
+						msg_box -t${_PAUSE_TM} -x$(( _COORDS[X]+4 )) -y$(box_center ${MSG}) ${MSG}
 					fi
 				fi
 				_DOWNLOADS[${M}]=true

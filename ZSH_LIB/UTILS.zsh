@@ -289,8 +289,20 @@ func_list () {
 
 func_normalize () {
 	local FN=${1}
-	#TODO: func_normalize: identifying function signature fails if followed by comments
-	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g; s/([a-z])(\(\))/${1} ${2}/g; s/\(\) \(\)/\(\)/g; s/(^})(.*)/${1}/g; s/^\s+\}\s*?$/}/' < ${FN} > ${FN}.normalized
+	local NEXT_PASS=''
+
+	perl -pe 's/^(function\s+)(.*) (\{.*)/${2} () ${3}/g' < ${FN} > ${FN}_.pass_1
+
+	perl -pe 's/([a-z])(\(\))/${1} ${2}/g' < ${FN}_.pass_1 > ${FN}_.pass_2
+
+	perl -pe 's/\(\) \(\)/\(\)/g' < ${FN}_.pass_2 > ${FN}_.pass_3
+
+	perl -pe 's/(^})(.*)/${1}/g' < ${FN}_.pass_3 > ${FN}.normalized
+
+	#perl -pe 's/(^})(.*)/${1}/g' < ${FN}_.pass_3 > ${FN}_.pass_4
+	 
+	#TODO: Does not correctly detect function boundary
+	#perl -pe 's/^\s+\}\s*?$/}/' < ${FN}_.pass_4 > ${FN}.normalized 
 }
 
 func_print () {
@@ -298,6 +310,7 @@ func_print () {
 	local FUNC=$(str_trim ${2})
 	
 	perl -ne "print if /^${FUNC}\s+\(\) {/ .. /^}$/" ${FN} | perl -pe 's/^}$/}\n/g'
+	#perl -ne "print if /^${FUNC}\s+\(\) {/ .. /^}$/" ${FN}
 }
 
 get_delim_field_cnt () {

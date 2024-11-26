@@ -8,6 +8,7 @@ typeset -A _ARGS # Holds command line arguments for raw path parsing
 _RAW_CMD_LINE=false # For testing
 _PATH_LIB_DBG=5
 
+# LIB Functions
 path_abbv () {
 	local MAX_LEN=false
 	local OPTIND=0
@@ -152,15 +153,6 @@ path_get_label () {
 	echo -n ${LABEL}
 }
 
-path_get_raw_cmdline () {
-	[[ ${_DEBUG} -ge ${_PATH_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	fc -R
-	local RAW_CMD_LINE=("${(f)$(fc -lnr | head -1)}") # Parse raw cmdline
-
-	echo ${RAW_CMD_LINE}
-}
-
 path_get_raw () {
 	local RAW_CMD_LINE
 	local -a TOKENIZED
@@ -298,6 +290,15 @@ path_get_raw () {
 
 	echo -n "${PATH_HEAD}|${PATH_TAIL}" # Return result
 	return 0
+}
+
+path_get_raw_cmdline () {
+	[[ ${_DEBUG} -ge ${_PATH_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	fc -R
+	local RAW_CMD_LINE=("${(f)$(fc -lnr | head -1)}") # Parse raw cmdline
+
+	echo ${RAW_CMD_LINE}
 }
 
 path_get_raw_path () {

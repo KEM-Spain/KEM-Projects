@@ -1,4 +1,4 @@
 #!/usr/bin/zsh
-/usr/bin/okular ${@}
+/usr/bin/okular ${@} &
 sleep 2
-win_max okular &
+win_max okular

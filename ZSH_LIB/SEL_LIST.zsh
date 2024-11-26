@@ -425,10 +425,23 @@ sel_list () {
 	return 0
 }
 
-sel_list_save_menu_pos () {
-	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
+sel_list_ebox_coords () {
+	local -A I_COORDS
+	local MSG_LEN=28
+	local W_ARG
+	local Y_ARG
 
-	box_coords_set MENU NDX ${CURSOR_NDX} ROW ${CURSOR_ROW}
+	I_COORDS=($(box_coords_get INNER_BOX))
+
+	if [[ $(( I_COORDS[W] + 6 )) -le ${MSG_LEN} ]];then
+		W_ARG=${MSG_LEN}
+		Y_ARG=$(( I_COORDS[Y] - 2 ))
+	else
+		W_ARG=$(( I_COORDS[W] + 6 ))
+		Y_ARG=$(( I_COORDS[Y] - 2 ))
+	fi
+
+	echo $(( I_COORDS[X] + 1 )) ${Y_ARG} ${W_ARG} # X Y W
 }
 
 sel_list_get_cat () {
@@ -445,42 +458,6 @@ sel_list_get_label () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	cut -d: -f2 <<<${_SEL_LIST[${NDX}]}
-}
-
-sel_list_set_header() {
-	_SEL_LIST_HDR=${1}
-}
-
-sel_list_set_pg() {
-	local DIR=${1}
-	local NDX=${2}
-	local P
-
-	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	for P in ${(onk)_PAGE_TOPS};do
-		[[ ${NDX} -ge ${_PAGE_TOPS[${P}]} ]] && _CUR_PAGE=${P}
-	done
-
-	if [[ ${DIR} == 'P' ]];then
-		if [[ ${_CUR_PAGE} -eq 1 ]];then
-			echo ${NDX}
-			return
-		else
-			_CUR_PAGE=$(( _CUR_PAGE - 1 ))
-		fi
-	fi
-
-	if [[ ${DIR} == 'N' ]];then
-		if [[ ${_CUR_PAGE} -eq ${_MAX_PAGE} ]];then
-			echo ${NDX}
-			return
-		else
-			_CUR_PAGE=$(( _CUR_PAGE + 1 ))
-		fi
-	fi
-
-	echo ${_PAGE_TOPS[${_CUR_PAGE}]}
 }
 
 sel_list_hilite () {
@@ -525,25 +502,6 @@ sel_list_norm () {
 	fi
 }
 
-sel_list_ebox_coords () {
-	local -A I_COORDS
-	local MSG_LEN=28
-	local W_ARG
-	local Y_ARG
-
-	I_COORDS=($(box_coords_get INNER_BOX))
-
-	if [[ $(( I_COORDS[W] + 6 )) -le ${MSG_LEN} ]];then
-		W_ARG=${MSG_LEN}
-		Y_ARG=$(( I_COORDS[Y] - 2 ))
-	else
-		W_ARG=$(( I_COORDS[W] + 6 ))
-		Y_ARG=$(( I_COORDS[Y] - 2 ))
-	fi
-
-	echo $(( I_COORDS[X] + 1 )) ${Y_ARG} ${W_ARG} # X Y W
-}
-
 sel_list_repaint () {
 	local -A I_COORDS
 	local -A E_COORDS
@@ -567,6 +525,12 @@ sel_list_repaint () {
 	done
 }
 
+sel_list_save_menu_pos () {
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: CURSOR_NDX:${CURSOR_NDX} CURSOR_ROW:${CURSOR_ROW}"
+
+	box_coords_set MENU NDX ${CURSOR_NDX} ROW ${CURSOR_ROW}
+}
+
 sel_list_set () {
 	local -a LIST=(${@})
 	_MC=()
@@ -579,8 +543,45 @@ sel_list_set () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${0} _SEL_LIST:${#_SEL_LIST} ITEMS"
 }
 
+sel_list_set_header () {
+	_SEL_LIST_HDR=${1}
+}
+
 sel_list_set_page_help () {
 	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	_PAGE_OPTION_KEY_HELP=${@}
 }
+
+sel_list_set_pg () {
+	local DIR=${1}
+	local NDX=${2}
+	local P
+
+	[[ ${_DEBUG} -ge ${_SEL_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	for P in ${(onk)_PAGE_TOPS};do
+		[[ ${NDX} -ge ${_PAGE_TOPS[${P}]} ]] && _CUR_PAGE=${P}
+	done
+
+	if [[ ${DIR} == 'P' ]];then
+		if [[ ${_CUR_PAGE} -eq 1 ]];then
+			echo ${NDX}
+			return
+		else
+			_CUR_PAGE=$(( _CUR_PAGE - 1 ))
+		fi
+	fi
+
+	if [[ ${DIR} == 'N' ]];then
+		if [[ ${_CUR_PAGE} -eq ${_MAX_PAGE} ]];then
+			echo ${NDX}
+			return
+		else
+			_CUR_PAGE=$(( _CUR_PAGE + 1 ))
+		fi
+	fi
+
+	echo ${_PAGE_TOPS[${_CUR_PAGE}]}
+}
+

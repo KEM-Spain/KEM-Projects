@@ -26,6 +26,7 @@ typeset -A SEEN
 # Constants
 _FUNC_REGEX='^.* () {'
 _FUNC_TAG='^# Functions'
+_LIB_FUNC_TAG='^# LIB Functions'
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -46,12 +47,16 @@ replace_functions () {
 	local FN=${1}
 	local L
 	local -a LIST=()
+	local TAG=''
 
 	[[ ! -e ${FN}.sorted.functions ]] && echo "Unable to proceed.  No file containing sorted functions found." && cleanup
 
+	grep -q ${_LIB_FUNC_TAG} ${FN}.normalized >/dev/null 2>&1
+	[[ ${?} -eq 0 ]] && TAG=${_LIB_FUNC_TAG} ||  TAG=${_FUNC_TAG}
+
 	# Prepend function section if needed
-	grep -q ${_FUNC_TAG} ${FN}.normalized >/dev/null 2>&1
-	[[ ${?} -ne 0 ]] && sed -i '0,/.*() {$/s/.*() {$/# Functions\n&/' ${FN}.normalized
+	# grep -q ${TAG} ${FN}.normalized >/dev/null 2>&1
+	# [[ ${?} -ne 0 ]] && sed -i "0,/.*() {$/s/.*() {$/${TAG}\n&/" ${FN}.normalized
 
 	LIST=($(func_list ${FN}.normalized))
 
@@ -62,7 +67,7 @@ replace_functions () {
 	done
 
 	# Insert sorted funcs
-	sed -i "/${_FUNC_TAG}/r ${FN}.sorted.functions" ${FN}.normalized
+	sed -i "/${TAG}/r ${FN}.sorted.functions" ${FN}.normalized
 }
 
 sort_functions () {
@@ -157,8 +162,8 @@ usage () {
 	echo -e "${WHITE_FG}-B${RESET} no blacklist"
 	echo -e "${WHITE_FG}-b $(opt_type b)${RESET} add blacklisted function"
 	echo -e "${WHITE_FG}-l${RESET} list the functions in script file:$(opt_type f)"
-	echo -e "${WHITE_FG}-r${RESET} create a duplicate script file:$(opt_type f).new with functions sorted"
-	echo -e "${WHITE_FG}-R${RESET} replace existing script file:$(opt_type f) with functions sorted"
+	echo -e "${WHITE_FG}-r${RESET} create a duplicate script file:$(opt_type f).new with sorted functions"
+	echo -e "${WHITE_FG}-R${RESET} replace existing file:$(opt_type f) with sorted functions"
 	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
 	) >&2
 

@@ -616,12 +616,6 @@ list_select () {
 	COLS=$(tput cols)
 	MAX_LINE_WIDTH=$(((COLS - ${#${#_LIST}}) - 10)) # Display-cols minus width-of-line-number plus a 10 space margin
 
-	# Hide cursor
-	if [[ ${_CURSOR_STATE} == 'on' ]];then
-		tput civis >&2
-		_CURSOR_STATE=off
-	fi
-
 	[[ ${_DEBUG} -ge ${_LIST_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} _LIST COUNT:${#_LIST}"
 
 	# Calculate display rows based on number of header lines
@@ -652,6 +646,7 @@ list_select () {
 
 	# Display current page of list items
 	while true;do
+		tput civis >&2
 		tput clear
 
 		# Prepare page display

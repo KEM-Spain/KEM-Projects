@@ -83,7 +83,6 @@ pass_login_to_enpass () {
 
 	sleep .2
 
-
 	xdotool windowfocus ${_ENPASS_WDW_ID}
 	xdotool type --window ${_ENPASS_WDW_ID} ${_ENP_PW}
 	sleep .5

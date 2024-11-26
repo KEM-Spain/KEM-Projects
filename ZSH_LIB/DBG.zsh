@@ -12,6 +12,7 @@ if [[ ${_DEBUG_INIT} == 'true' ]];then
 	_DEBUG_INIT=false # _DBG_INIT declared in LIB_INIT
 fi
 
+# LIB Functions
 dbg () {
 	local -a ARGS=(${@})
 	local LINE
@@ -61,6 +62,20 @@ dbg_parse () {
 	) 2>/dev/null
 }
 
+dbg_record () {
+	local LINE
+
+	[[ ${_DEBUG} -ge ${_DBG_LIB_DBG} ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
+
+	_DEBUG_LINES+="-- msgs --"
+
+	while read LINE;do
+		_DEBUG_LINES+=${LINE}
+	done
+
+	_DEBUG_LINES+=$(dbg_trace)
+}
+
 dbg_set_level () {
 	((_DEBUG++))
 }
@@ -75,20 +90,6 @@ dbg_to_file () {
 	for A in ${ARGS};do
 		echo ${A} >>${_DEBUG_FILE}
 	done
-}
-
-dbg_record () {
-	local LINE
-
-	[[ ${_DEBUG} -ge ${_DBG_LIB_DBG} ]] && echo "Entered ${0} with args:${WHITE_FG}${@}${RESET}" >&2
-
-	_DEBUG_LINES+="-- msgs --"
-
-	while read LINE;do
-		_DEBUG_LINES+=${LINE}
-	done
-
-	_DEBUG_LINES+=$(dbg_trace)
 }
 
 dbg_trace () {

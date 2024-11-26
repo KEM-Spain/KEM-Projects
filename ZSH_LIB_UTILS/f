@@ -143,7 +143,7 @@ esac
 
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} LISTING:${LISTING}\nMAXDEPTH:${MAXDEPTH}\nREGEX:${REGEX}\nOBJ_TYPE:${OBJ_TYPE:-any}"
 
-CMD="sudo find ${FIND_PATH} -maxdepth ${MAXDEPTH} -iname ${INAME} -regex ${REGEX} ${TYPE}"
+CMD="sudo find ${FIND_PATH:q} -maxdepth ${MAXDEPTH} -iname ${INAME} -regex ${REGEX} ${TYPE}"
 
 LIST=("${(f)$(eval ${CMD})}")
 if ! arr_is_populated "${LIST}" ;then

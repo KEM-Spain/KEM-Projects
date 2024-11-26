@@ -6,6 +6,7 @@ _PRE_EXIT_RAN=false
 _EXIT_CALLBACK=''
 _EXIT_LIB_DBG=1
 
+# LIB Functions
 exit_leave () {
 	local MSGS=(${@})
 
@@ -111,10 +112,6 @@ exit_sigexit () {
 	exit ${SIG} # Leave the app
 }
 
-set_exit_value () {
-	_EXIT_VALUE=${1}
-}
-
 get_exit_value () {
 	echo ${_EXIT_VALUE}
 }
@@ -122,3 +119,8 @@ get_exit_value () {
 set_exit_callback () {
 	_EXIT_CALLBACK=${1}
 }
+
+set_exit_value () {
+	_EXIT_VALUE=${1}
+}
+

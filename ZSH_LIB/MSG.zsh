@@ -16,7 +16,7 @@ _CONT_BOX_TAG=CONT_BOX
 _DELIM='|'
 _LAST_MSG_TAG=''
 
-# Functions
+# LIB Functions
 msg_box () {
 	local -a MSGS=()
 	local -a MSG_HDRS=()
@@ -461,50 +461,6 @@ msg_box () {
 	tput cup ${_MAX_ROWS} ${_MAX_COLS} # Drop cursor to bottom right corner
 }
 
-msg_box_ebox_coords () {
-	local X=${1}
-	local Y=${2}
-	local W=${3}
-	local HDRS=${4}
-
-	echo $(( X+${HDRS} + 2 )) $(( Y+W/2 ))
-}
-
-msg_box_parse () {
-	local MAX_WIDTH=${1};shift
-	local MSGS_IN=${@}
-
-	local -a MSGS_OUT=()
-	local DELIM_COUNT=0
-	local MSG=''
-	local K L T 
-
-	MSGS_IN=$(tr -d "\n" <<<${MSGS_IN}) # Convert to string - setup for cut
-	MSGS_IN=$(sed -E "s/[\\\][${_DELIM}]/_DELIM_/g" <<<${MSGS_IN}) # Skip any escaped delimiters
-
-	DELIM_COUNT=$(grep --color=never -o "[${_DELIM}]" <<<${MSGS_IN} | wc -l) # Slice MSG into fields and count
-
-	# Extract item by delim and fold any lines that exceed display
-	for (( X=1; X <= $((${DELIM_COUNT}+1 )); X++ ));do
-		[[ ${DELIM_COUNT} -ne 0 ]] && MSG=$(cut -d"${_DELIM}" -f${X} <<<${MSGS_IN}) || MSG=${MSGS_IN}
-	 	MSG=$(sed "s/_DELIM_/${_DELIM}/g" <<<${MSG}) # Restore escaped delimiters
-		L=$(tr -d '[:space:]' <<<${MSG})
-		[[ -z ${L} ]] && continue
-		if [[ ${#MSG} -gt ${MAX_WIDTH} ]];then
-			MSG_FOLD=("${(f)$(fold -s -w${MAX_WIDTH} <<<${MSG})}")
-			for T in ${MSG_FOLD};do
-				MSGS_OUT+=$(str_trim ${T})
-			done
-		else
-			MSGS_OUT+=${MSG}
-		fi
-	done
-
-	for M in ${MSGS_OUT};do
-		echo ${M}
-	done
-}
-
 msg_box_align () {
 	local TAG=${1};shift
 	local MSG=${@}
@@ -617,6 +573,50 @@ msg_box_clear () {
 	return 0
 }
 
+msg_box_ebox_coords () {
+	local X=${1}
+	local Y=${2}
+	local W=${3}
+	local HDRS=${4}
+
+	echo $(( X+${HDRS} + 2 )) $(( Y+W/2 ))
+}
+
+msg_box_parse () {
+	local MAX_WIDTH=${1};shift
+	local MSGS_IN=${@}
+
+	local -a MSGS_OUT=()
+	local DELIM_COUNT=0
+	local MSG=''
+	local K L T 
+
+	MSGS_IN=$(tr -d "\n" <<<${MSGS_IN}) # Convert to string - setup for cut
+	MSGS_IN=$(sed -E "s/[\\\][${_DELIM}]/_DELIM_/g" <<<${MSGS_IN}) # Skip any escaped delimiters
+
+	DELIM_COUNT=$(grep --color=never -o "[${_DELIM}]" <<<${MSGS_IN} | wc -l) # Slice MSG into fields and count
+
+	# Extract item by delim and fold any lines that exceed display
+	for (( X=1; X <= $((${DELIM_COUNT}+1 )); X++ ));do
+		[[ ${DELIM_COUNT} -ne 0 ]] && MSG=$(cut -d"${_DELIM}" -f${X} <<<${MSGS_IN}) || MSG=${MSGS_IN}
+	 	MSG=$(sed "s/_DELIM_/${_DELIM}/g" <<<${MSG}) # Restore escaped delimiters
+		L=$(tr -d '[:space:]' <<<${MSG})
+		[[ -z ${L} ]] && continue
+		if [[ ${#MSG} -gt ${MAX_WIDTH} ]];then
+			MSG_FOLD=("${(f)$(fold -s -w${MAX_WIDTH} <<<${MSG})}")
+			for T in ${MSG_FOLD};do
+				MSGS_OUT+=$(str_trim ${T})
+			done
+		else
+			MSGS_OUT+=${MSG}
+		fi
+	done
+
+	for M in ${MSGS_OUT};do
+		echo ${M}
+	done
+}
+
 msg_calc_gap () {
 	local MSG_ROWS=${1}
 	local DISP_ROWS=${2}
@@ -638,6 +638,60 @@ msg_calc_gap () {
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: GAP:${GAP}"
 
 	echo ${GAP}
+}
+
+msg_err () {
+	local MSG=${@}
+	local LABEL='Error'
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	grep -q '|' <<<${MSG}
+	[[ ${?} -eq 0 ]] && LABEL=$(cut -d '|' -f1 <<<${MSG}) && MSG=$(cut -d '|' -f2 <<<${MSG})
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
+		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${RED_FG}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
+	fi
+}
+
+msg_exit () {
+	local LEVEL=${1:=W}
+	local MSG=${2}
+	local LABEL=''
+	local LCOLOR=''
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	case ${LEVEL} in 
+		W) LABEL="Warning";LCOLOR=${ITALIC}${BOLD}${MAGENTA_FG};;
+		E) LABEL="Error";LCOLOR=${ITALIC}${BOLD}${RED_FG};;
+		I) LABEL="Info";LCOLOR=${ITALIC}${CYAN_FG};;
+	esac
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)(.*)$/\e[m:\e[3;37m$1\e[m\2/' <<<${MSG})
+		printf "[${WHITE_FG}%s${RESET}]:[${LCOLOR}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
+	fi
+}
+
+msg_info () {
+	local MSG=${@}
+	local LABEL='Info'
+
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	grep -q '|' <<<${MSG}
+	[[ ${?} -eq 0 ]] && LABEL=$(cut -d '|' -f1 <<<${MSG}) && MSG=$(cut -d '|' -f2 <<<${MSG})
+
+	if [[ -n ${MSG} ]];then
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
+		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${CYAN_FG}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
+	fi
+}
+
+msg_line_weight () {
+	_BOX_LINE_WEIGHT=${1}
 }
 
 msg_list () {
@@ -696,17 +750,6 @@ msg_nomarkup () {
 	echo ${MSG_OUT}
 }
 
-msg_paging_page () {
-	local PAGE=${1}
-	local KEY=${2}
-
-	case ${KEY} in
-		j|d) (( PAGE++));;
-		k|u) [[ ${PAGE} -gt 1 ]] && (( PAGE--));;
-	esac
-	echo ${PAGE}
-}
-
 msg_paging () {
 	local KEY=${1}
 	local NDX=${2}
@@ -740,6 +783,17 @@ msg_paging () {
 		u|k|p) echo ${PGUP};;
 		d|j|n) echo ${PGDN};;
 	esac
+}
+
+msg_paging_page () {
+	local PAGE=${1}
+	local KEY=${2}
+
+	case ${KEY} in
+		j|d) (( PAGE++));;
+		k|u) [[ ${PAGE} -gt 1 ]] && (( PAGE--));;
+	esac
+	echo ${PAGE}
 }
 
 msg_proc () {
@@ -935,26 +989,6 @@ msg_unicode_box () {
 	[[ ${_DEBUG} -ge ${_MSG_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: BOX DIMENSIONS:$(( X-BOX_X_COORD+1 )) x $(( Y-BOX_Y_COORD+1 ))"
 }
 
-msg_exit () {
-	local LEVEL=${1:=W}
-	local MSG=${2}
-	local LABEL=''
-	local LCOLOR=''
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	case ${LEVEL} in 
-		W) LABEL="Warning";LCOLOR=${ITALIC}${BOLD}${MAGENTA_FG};;
-		E) LABEL="Error";LCOLOR=${ITALIC}${BOLD}${RED_FG};;
-		I) LABEL="Info";LCOLOR=${ITALIC}${CYAN_FG};;
-	esac
-
-	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(\w+)(.*)$/\e[m:\e[3;37m$1\e[m\2/' <<<${MSG})
-		printf "[${WHITE_FG}%s${RESET}]:[${LCOLOR}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
-	fi
-}
-
 msg_warn () {
 	local MSG=${@}
 	local LABEL='Warning'
@@ -970,36 +1004,3 @@ msg_warn () {
 	fi
 }
 
-msg_err () {
-	local MSG=${@}
-	local LABEL='Error'
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	grep -q '|' <<<${MSG}
-	[[ ${?} -eq 0 ]] && LABEL=$(cut -d '|' -f1 <<<${MSG}) && MSG=$(cut -d '|' -f2 <<<${MSG})
-
-	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
-		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${RED_FG}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
-	fi
-}
-
-msg_info () {
-	local MSG=${@}
-	local LABEL='Info'
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	grep -q '|' <<<${MSG}
-	[[ ${?} -eq 0 ]] && LABEL=$(cut -d '|' -f1 <<<${MSG}) && MSG=$(cut -d '|' -f2 <<<${MSG})
-
-	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:(.*)\s/\e[m:\e[3;37m$1\e[m /g' <<<${MSG})
-		printf "[${WHITE_FG}%s${RESET}]:[${BOLD}${CYAN_FG}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
-	fi
-}
-
-msg_line_weight () {
-	_BOX_LINE_WEIGHT=${1}
-}
