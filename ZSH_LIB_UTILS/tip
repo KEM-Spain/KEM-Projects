@@ -422,14 +422,17 @@ else
 	while true;do
 		sel_list_set ${_TIPS}
 		sel_list_set_header "Collected Tips"
+		sel_list_set_page_help "Press <Enter> to select tip or (<w>q<N>)uit"
 		sel_list -O ${CYAN_FG} "<w>Select Tip or <h>(q)uit<N>"
 		clear # wipe menu
-		if [[ ${_EXTERNAL[${_SEL_VAL}]} -eq 1 ]];then
-			tip_${_SEL_VAL}
-		else
-			tip_${_SEL_VAL} | mypager wait
+		if [[ ${${_TIPS[(i)${_SEL_VAL}]}} -le ${#_TIPS} ]];then
+			if [[ ${_EXTERNAL[${_SEL_VAL}]} -eq 1 ]];then
+				tip_${_SEL_VAL}
+			else
+				tip_${_SEL_VAL} | mypager wait
+			fi
+			clear # wipe tip
 		fi
-		clear # wipe tip
 	done
 fi
 do_rmcup

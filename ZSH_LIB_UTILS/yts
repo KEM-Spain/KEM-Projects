@@ -946,13 +946,14 @@ rumble () {
 
 		g_SEARCH_TYPE=channel
 		TITLES=("${(f)$(pup --charset utf8 '.title__link text{}' <<<${PG} | tut blank_lines | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
-		AGES=("${(f)$(pup --charset utf8 '.videostream__data text{}' <<<${PG} | tut blank_lines | tr '[\012|\015]' '[ ]' | sed -e 's/comments /comments\n/g')}")
+		AGES=("${(f)$(pup --charset utf8 '.videostream__data text{}' <<<${PG} | tut blank_lines | tr '[\012|\015]' '[ ]' | sed -e 's/\(comments\?\) /\1 \n/g')}") # Either plural or singular
 		LINKS=("${(f)$(pup --charset utf8 'a.videostream__link attr{href}' <<<${PG})}")
 		DURATIONS=("${(f)$(pup --charset utf8 '.videostream__badge text{}' <<<${PG} | tut blank_lines)}")
 
 		for ((X=1; X<=${#TITLES}; X++));do
 			AGE=$(sed 's/ago .*/ago/' <<<${AGES[${X}]})
 			[[ -z ${AGE} ]] && continue
+			[[ ! ${AGE} =~ 'ago' ]] && continue # Dump junk listings without age
 			[[ ${g_QUERY_KEY:l} == ${TITLES[${X}]:l} ]] && continue # Experimental to avoid garbage
 			VID_LIST+="${g_QUERY_KEY}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
 		done
