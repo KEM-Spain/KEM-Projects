@@ -1,5 +1,5 @@
 #!/usr/bin/zsh
-# Vim: syntax off
+ 
 BOLD="\033[1m"
 ITALIC="\033[3m"
 RESET="\033[m"
@@ -36,8 +36,8 @@ SCRIPT=${0:t}
 
 read -r -d '' DESC<<EOF
 Search the system for perl modules. 
-If a <SEARCHTERM> is specified, returns any matching path
-or module. Without a <SEARCHTERM>, all modules are listed.
+\tIf a <SEARCHTERM> is specified, returns any matching path
+\tor module. Without a <SEARCHTERM>, all modules are listed.
 EOF
 
 parse_opts () {
@@ -114,18 +114,19 @@ shift $((OPTIND -1))
 # Search for modules, prepend depth of path, sort by depth and path, remove depth
 [[ ${CASE} == 'true' ]] && MSG="(case sensitive search)" || MSG='(case insensitive)'
 if [[ -n ${SEARCHTERM} ]];then
-	echo "Searching for paths or modules matching:${WHITE_FG}${1}${RESET}..."
+	echo "Searching for paths or modules matching:${WHITE_FG}<${SEARCHTERM}>${RESET}"
 	[[ -n ${MSG} ]] && echo ${MSG}
 else
 	echo "Searching for ALL perl modules..."
 fi
 
 LIST=("${(f)$(
-/usr/bin/locate ${CASE_OPT} -r ".*${SEARCHTERM}.*\.pm$" |
+/usr/bin/locate ${CASE_OPT} -r ".*\b${SEARCHTERM}.*\.pm$" |
 while read LINE;do
 	[[ ${LINE:l} =~ "/build/" ]] && continue # Ignore
 	[[ ${LINE:l} =~ "/test/" ]] && continue # Ignore
 	[[ ${LINE:l} =~ "/work/" ]] && continue # Ignore
+	[[ ${LINE:l} =~ "/snap/" ]] && continue # Ignore
 	DEPTH=$(awk '{print gsub(/[/]/,"")}' <<<${LINE})
 	echo "${DEPTH}|${LINE}"
 done | sort -n -t'_' -k2 -k1 | cut -d'|' -f2

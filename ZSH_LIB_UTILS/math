@@ -26,8 +26,5 @@ source ${_LIB_DIR}/UTILS.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
 
 #Execution
-[[ ${#} -eq 0 ]] && exit_leave $(msg_exit W "Missing argument:<FORMULA>") || FN=${1}
-
-MATH=${@}
-
+[[ ${#} -eq 0 ]] && exit_leave $(msg_exit W "Missing argument:<FORMULA>") || MATH=${@}
 echo "scale=2; ${MATH}" | bc 

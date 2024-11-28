@@ -69,7 +69,9 @@ _GHOST_ROW=2 # Not selectable
 _LIST_LIB_DBG=3
 _SORT_MARKER=$(mktemp /tmp/last_sort.XXXXXX)
  
+# Initialization
 set_exit_callback list_sort_clear_marker
+/bin/rm -f /tmp/last_sort* >/dev/null 2>&1
 
 # LIB Functions
 list_add_header_break () {

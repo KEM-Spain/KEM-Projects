@@ -242,7 +242,8 @@ do_finalize () {
 	done
 
 	if ! arr_is_populated "${FINAL}";then
-		exit_leave $(msg_exit W "No files qualified as candidates")
+		[[ ${g_VERBOSE} == 'true' ]] && MSG="No files qualified as candidates") || MSG=''
+		exit_leave $(msg_exit W ${MSG})
 	fi
 
 	if [[ ${_DEBUG} -ne 0 ]];then

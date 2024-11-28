@@ -644,6 +644,8 @@ msg_err () {
 	local MSG=${@}
 	local LABEL='Error'
 
+	[[ -z ${MSG} ]] && return
+
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	grep -q '|' <<<${MSG}
@@ -663,6 +665,8 @@ msg_exit () {
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
+	[[ -z ${MSG} ]] && return
+
 	case ${LEVEL} in 
 		W) LABEL="Warning";LCOLOR=${ITALIC}${BOLD}${MAGENTA_FG};;
 		E) LABEL="Error";LCOLOR=${ITALIC}${BOLD}${RED_FG};;
@@ -680,6 +684,8 @@ msg_info () {
 	local LABEL='Info'
 
 	[[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	[[ -z ${MSG} ]] && return
 
 	grep -q '|' <<<${MSG}
 	[[ ${?} -eq 0 ]] && LABEL=$(cut -d '|' -f1 <<<${MSG}) && MSG=$(cut -d '|' -f2 <<<${MSG})
