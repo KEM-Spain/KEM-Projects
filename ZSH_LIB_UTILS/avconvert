@@ -36,6 +36,7 @@ local DESC
 
 read -r -d '' DESC<<EOF
 Convert audio and video files to different formats
+\tbased on file extension
 EOF
 
 parse_opts () {

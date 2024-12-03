@@ -338,22 +338,21 @@ get_keys () {
 	local K3=''
 	local KEY=''
 	local MY_PPID=${PPID}
-	local RATE=0
 	local RESP=?;
-	local XSET_DATA=''
+	local XSET_RATE=''
 
 	trap reset_rate INT
 
 	while true;do
 		if [[ ${IDLE_TIME} -le 1000 ]];then
-			if [[ ${XSET_DATA} != ${_XSET_LOW_RATE} ]];then
-				eval "xset ${_XSET_LOW_RATE}" # Keyboard Active
-				XSET_DATA="${_XSET_LOW_RATE}"
+			if [[ ${XSET_RATE} != ${_XSET_MENU_RATE} ]];then
+				eval "xset ${_XSET_MENU_RATE}" # Keyboard Active
+				XSET_RATE="${_XSET_MENU_RATE}"
 			fi
 		else
-			if [[ ${XSET_DATA} != ${_XSET_DEFAULT_RATE} ]];then
+			if [[ ${XSET_RATE} != ${_XSET_DEFAULT_RATE} ]];then
 				eval "xset ${_XSET_DEFAULT_RATE}" # Keyboard Inactive
-				XSET_DATA="${_XSET_DEFAULT_RATE}"
+				XSET_RATE="${_XSET_DEFAULT_RATE}"
 			fi
 		fi
 
@@ -394,22 +393,19 @@ get_keys () {
 					echo "K${(j::)NUM}"
 				fi
 				if [[ -n ${KEY} ]];then
-					reset_rate
+					eval "xset ${_XSET_DEFAULT_RATE}" # Restore default rate
 					break 2
 				else
 					continue
 				fi
 			fi
 		done
-		RATE=$(xset -q | grep rate | tr -d '[:space:]' | cut -d: -f3)
 		IDLE_TIME=$(xprintidle)
 	done
 	trap - INT # key processed; cancel trap
 }
 
 inline_vi_edit () {
-	local PROMPT=${1}
-	local CUR_VALUE=${2}
 	local PERL_SCRIPT
 	
 	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"

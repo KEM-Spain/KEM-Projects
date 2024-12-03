@@ -31,7 +31,9 @@ do_fix_comments () {
 	local FN=${1}
 
 	[[ ! $(file ${FN}) =~ 'zsh' ]] && return 1
-	sed -i.CMT.bak -e 's/^#\([A-Za-z]\)/# \U\1/g' -e 's/\([ \t]\)#\([A-Za-z]\)/\1# \U\2/g' -e 's/\([ \t]\)# \([a-z]\)/\1# \U\2/g' ${FN}
+
+	sed -i.CMT.bak -e 's/#\([A-Za-z]\)/# \U\1/g' -e 's/\([ \t]\)#\([A-Za-z]\)/\1# \U\2/g' -e 's/\([ \t]\)# \([a-z]\)/\1# \U\2/g' ${FN}
+
 	return 0
 }
 
@@ -124,7 +126,7 @@ if [[ ${ALL_FILES} == 'true' ]];then
 		[[ ${?} -ne 0 ]] && echo "Skipped ${L} - not a zsh script"
 	done
 else 
-	[[ -z ${1} ]] && usage "Missing arg $(opt_type f)"
+	[[ -z ${1} ]] && usage "Missing argument $(opt_type f)"
 	do_fix_comments ${1}
 fi
 

@@ -242,7 +242,7 @@ do_finalize () {
 	done
 
 	if ! arr_is_populated "${FINAL}";then
-		[[ ${g_VERBOSE} == 'true' ]] && MSG="No files qualified as candidates") || MSG=''
+		[[ ${g_VERBOSE} == 'true' ]] && MSG="No files qualified as candidates" || MSG=''
 		exit_leave $(msg_exit W ${MSG})
 	fi
 

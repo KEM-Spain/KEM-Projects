@@ -17,8 +17,8 @@ _MAX_COLS=$(tput cols)
 _MAX_ROWS=$(tput lines)
 _SCRIPT=${$(cut -d: -f1 <<<${funcfiletrace}):t}
 _DEBUG_FILE=/tmp/${_SCRIPT}_debug.out
-_XSET_DEFAULT_RATE="r rate 500 33" # Default rate
-_XSET_LOW_RATE="r rate 500 15" # Menu rate
+_XSET_DEFAULT_RATE="r rate 500 33" # Default <delay> <repeat>
+_XSET_MENU_RATE="r rate 600 20" # Menu rate <delay> <repeat>
 
 # LIB declarations
 typeset -aU _DEPS_
