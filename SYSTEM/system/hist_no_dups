@@ -1,0 +1,146 @@
+#!/usr/bin/zsh
+# Inline ansi
+BOLD="\033[1m"
+ITALIC="\033[3m"
+RESET="\033[m"
+REVERSE="\033[7m"
+STRIKE="\033[9m"
+UNDER="\033[4m"
+
+BLUE_FG="\033[34m"
+CYAN_FG="\033[36m"
+GREEN_FG="\033[32m"
+MAGENTA_FG="\033[35m"
+RED_FG="\033[31m"
+WHITE_FG="\033[37m"
+YELLOW_FG="\033[33m"
+
+# Declarations
+typeset -A HIST
+
+# Constants
+_HIST_FILE=~/.zsh_history
+_HIST_FILE_NEW=/tmp/zsh_history.new
+_BAK_DATE=$(stat -c'%w' ${_HIST_FILE}.bak | cut -d' ' -f1)
+_TODAY=$(date +'%F')
+
+# Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh # Must be first
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
+
+# Functions
+_cleanup () {
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} ARGS:${@}"
+
+	[[ -e ${_HIST_FILE_NEW} ]] && rm -f ${_HIST_FILE_NEW}
+}
+
+#--Begin GetOpts--
+local -a OPTIONS
+local OPTION
+local DESC
+
+read -r -d '' DESC<<EOF
+Remove duplicates from command history
+EOF
+
+parse_opts () {
+	local OPTS=${@}
+	local -a OPTSTR
+	local LETTER_OPT
+	local O
+
+	for O in {1..${#OPTS}};do
+		[[ ${OPTS[${O}]} =~ '[a-z]' ]] && LETTER_OPT=${OPTS[${O}]}
+		[[ ${O} -eq 1 && ${OPTS[${O}]} == ":" ]] && continue
+		[[ ${O} -gt 1 && ${OPTS[${O}]} == ":" ]] && OPTSTR+=$(opt_type ${LETTER_OPT}) && continue
+		OPTSTR+="-${OPTS[${O}]}"
+	done
+	echo ${OPTSTR}
+}
+
+opt_exists () {
+	local OPT=${1}
+	[[ $(( $OPTIONS[(Ie)${OPT}] )) -ne 0 ]] && return 0 || return 1
+}
+
+opt_type () {
+	local OPT=${1}
+	case ${OPT} in
+		d) echo "<DIR>";;
+		f) echo "<FILE>";;
+		t) echo "<FILE_TYPE>";;
+	esac
+}
+
+usage () {
+	local -a PENDING_MSGS=(${@})
+	local OPTS=$(parse_opts ${OPTSTR})
+
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+
+	tabs 5
+	(
+	echo -e "\n${WHITE_FG}\nUsage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET}\n"
+	echo -e "${WHITE_FG}-H${RESET} help"
+	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
+	echo -e "\n${WHITE_FG}DESC${RESET}:${DESC}"
+	) >&2
+
+	exit_leave $(msg_exit E "${PENDING_MSGS}")
+}
+
+OPTSTR=":HD"
+OPTIND=0
+
+while getopts ${OPTSTR} OPTION;do
+	case $OPTION in
+     H) usage;;
+     D) dbg_set_level;;
+     :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
+    \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: unknown option -${OPTARG}"; usage;;
+	esac
+	[[ ${OPTION} != 'D' ]] && OPTIONS+=${OPTION}
+done
+shift $((OPTIND -1))
+#--End GetOpts--
+ 
+# Execution
+[[ ${_BAK_DATE} != ${_TODAY} ]] && cp ${_HIST_FILE} ${_HIST_FILE}.bak
+
+set_exit_callback _cleanup
+
+HIST_CNT=$(wc -l ${_HIST_FILE} | cut -d' ' -f1)
+
+while read LINE;do
+	STAMP=$(cut -d';' -f1 <<<${LINE})
+	CMDSTR=$(cut -d';' -f2- <<<${LINE})
+
+	CMD=$(cut -d' ' -f2 <<<${CMDSTR})
+	which ${CMD} >/dev/null 2>&1
+	[[ ${?} -ne 0 ]] && continue
+	 
+	if [[ ! ${CMD} =~ 'grep' ]];then
+		X=$(grep -o \' <<<${CMDSTR} | wc -l)
+		[[ $(( X % 2 )) -ne 0 ]] && continue # skip unbalanced quotes
+		X=$(grep -o \" <<<${CMDSTR} | wc -l)
+		[[ $(( X % 2 )) -ne 0 ]] && continue # skip unbalanced quotes
+	fi
+
+	HIST[${CMDSTR}]=${STAMP}
+done < ${_HIST_FILE} 
+
+for K in ${(k)HIST};do
+	printf "%s;%s\n" ${HIST[${K}]} ${K}
+done  | sort -n > ${_HIST_FILE_NEW}
+
+HIST_UNIQ=${#HIST}
+
+DUPLICATE_CNT=$(( HIST_CNT-HIST_UNIQ ))
+printf "History (${WHITE_FG}%d${RESET}) | ${WHITE_FG}%d${RESET} unique lines\n" ${HIST_CNT} ${HIST_UNIQ}
+
+[[ -e ${_HIST_FILE_NEW} && -s ${_HIST_FILE_NEW} ]] && mv -f ${_HIST_FILE_NEW} ${_HIST_FILE}
+
+exit_leave

@@ -8,24 +8,30 @@ _EXIT_LIB_DBG=1
 
 # LIB Functions
 exit_leave () {
-	local MSGS=(${@})
+	local OPT=''
+	local -a MSGS=()
+	local RET_9=false
 
-	if [[ ${_DEBUG} -ne 0 ]];then
-		dbg "${RED_FG}${0}${RESET}: $(box_coords_dump)"
-		dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
-		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
-		dbg "${RED_FG}${0}${RESET}: _SOURCED_APP_EXIT:${_SOURCED_APP_EXIT}"
-		dbg "${RED_FG}${0}${RESET}: _SMCUP:${_SMCUP}"
-		dbg_msg | mypager -n wait
+	if [[ ${#} -eq 2 ]];then
+		OPT=${1}; shift
+		[[ ${OPT} == '-9' ]] && RET_9=true
 	fi
 
-	[[ -n ${MSGS} ]] && _EXIT_MSGS=${MSGS}
+	MSGS=(${@})
+
+	if [[ ${_DEBUG} -ne 0 ]];then
+		dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
+		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
+		dbg "${RED_FG}${0}${RESET}: RET_9:${RET_9}"
+		dbg_msg | mypager -n wait
+	fi
 	
-	if [[ ${_APP_IS_SOURCED} == 'true' ]];then
-		_SOURCED_APP_EXIT=true
+	if [[ ${RET_9} == 'true' ]];then
 		echo ${MSGS} >&2
 		return 9
 	fi
+
+	[[ -n ${MSGS} ]] && _EXIT_MSGS=${MSGS}
 
 	if [[ ${functrace[1]} =~ 'usage' && -z ${MSGS} ]];then
 		set_exit_value 1

@@ -19,6 +19,7 @@ YELLOW_FG="\033[33m"
 
 # Constants
 PATH=${PATH}:/usr/local/bin/system # add custom utils
+PATH=${PATH}:/usr/local/bin/_perl.local # add local perl
 _REL=$(lsb_release -d | cut -d: -f2- | sed 's/^[ \t]*//')
 _RLBL=$(lsb_release -c | cut -d: -f2- | sed 's/^[ \t]*//')
 _USR_LOCAL_SRC=/usr/local/src
@@ -45,7 +46,7 @@ TERM=xterm-256color
 
 # Exports
 export GREP_COLORS='ms=01;31:mc=01;31:sl=:cx=:fn=97:ln=32:bn=32:se=36' # https://askubuntu.com/questions/1042234/modifying-the-color-of-grep
-export HISTORY_IGNORE="(rm(| *)|cd(| *)|ls(| *)|tail(| *)|tvi(| *)|cp(| *)|mv(| *)|ghis(| *)|exit(| *))"
+export HISTORY_IGNORE="(rm(| *)|cd(| *)|ls(| *)|tail(| *)|tvi(| *)|cp(| *)|mv(| *)|exit(| *))"
 export MUSIC_DIR=/media/kmiller/KEM_Misc/Music/KEM-B9
 export PRINTER=ENVY-5000
 export TERM=xterm

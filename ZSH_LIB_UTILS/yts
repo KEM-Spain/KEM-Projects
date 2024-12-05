@@ -254,10 +254,9 @@ action_do () {
 				HDRS_OUT=true
 			fi
 
-			ETA='' && ERR='' && OTH=''
-
 			LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1 | str_trim) 
 
+			ETA='' && ERR='' && OTH=''
 			if grep -qi 'eta.*error' <<<${LOG_LINE};then # Contains both - split
 				ETA=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | head -1 | str_trim)
 				ERR=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | tail -1 | str_trim)
@@ -267,6 +266,9 @@ action_do () {
 			elif grep -qi 'error' <<<${LOG_LINE};then
 				echo "${0}: GOT ERRORS ${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				ERR=${LOG_LINE}
+			elif grep -qi 'Fixing MPEG-TS' <<<${LOG_LINE};then
+				echo "${0}: GOT Fragmented completion ${LOG_LINE}" >> ${_YTS_DBG_LOG}
+				ETA="100% of download completed"
 			else
 				echo "${0}: GOT OTHER ${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				OTH=${LOG_LINE}
@@ -283,7 +285,6 @@ action_do () {
 				case ${OTH:l} in
 					*rumbleembed*) continue;;
 					*merging*) continue;; # Audio fix
-					*fixing*) ETA='Fragmented Job 100%'; LINE_COLOR='<B><g>';; # Fragmented job 
 					*'deleting original'*) ETA='Audio/Video combined 100%'; LINE_COLOR='<B><g>';; # Audio fix
 					*100%*) ETA=${OTH};;
 				esac
@@ -293,15 +294,15 @@ action_do () {
 			if [[ -n ${ETA} && ${ETA_COMPLETE} == 'false' ]];then
 				case ${ETA:l} in
 					*'100% of'*) LINE_COLOR='<B><g>';ETA_COMPLETE=true;;; # Prevent doubling complete line
-					*mib/s*) LINE_COLOR='<w>';show_pos_rate;;
-					*kib/s*) LINE_COLOR='<B><y>';show_pos_rate;;
+					*mib/s*) LINE_COLOR='<w>';;
+					*kib/s*) LINE_COLOR='<B><y>';;
 					*) continue;; # Skip other
 				esac
 			else
 				continue # Empty line
 			fi
 
-			[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
+			[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' || show_down
 
 			echo "${0}: ${LINE_COLOR}${ETA}" >> ${_YTS_DBG_LOG}
 			msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
@@ -384,6 +385,7 @@ clean_line () {
 	local A
 
 	for A in ${=ARG};do
+		[[ ${A} == '-' ]] && continue
 		LIST+=${A}
 	done
 
@@ -1160,7 +1162,7 @@ set_item_color () {
 	esac
 }
 
-show_pos_rate () {
+show_down () {
 	tput cup ${_ALERT_COORDS[X]} $((_ALERT_COORDS[Y] +6));echo -n "${BOLD}${GREEN_FG}⇊ ⇊ ⇊ ⇊ ⇊ ⇊${RESET}"
 }
 

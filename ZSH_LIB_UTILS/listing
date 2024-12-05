@@ -317,7 +317,6 @@ shift $((OPTIND -1))
 
 # Execution
 clear
-echo "${WHITE_ON_GREY}${PWD}${RESET}\n"
 
 RECURSE=false
 case ${0:t} in
@@ -388,6 +387,8 @@ fi
 _LS_ARGS=$(get_filter_glob ${_LS_ARGS}) && [[ ${?} -eq 0 ]] && _GLOB=true
 
 [[ ${_GLOB} == 'true' ]] && _LS_OPTS+=' -d' # No deep listings
+
+[[ -d ${_LS_ARGS} ]] && echo "${WHITE_ON_GREY}$(realpath ${_LS_ARGS})${RESET}\n" || echo "${WHITE_ON_GREY}${PWD}${RESET}\n"
 
 # Set hidden marker
 if [[ ${_ALL_FILES} == 'false' && ${_HIDDEN_ONLY} == 'false' ]];then

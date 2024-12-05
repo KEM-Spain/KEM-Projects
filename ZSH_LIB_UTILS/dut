@@ -401,7 +401,7 @@ ___EOF
 	get_disk_info
 	if ! arr_is_populated "${_LOCAL_LIST}";then
 		set_exit_value 1
-		exit_leave "\nNo external disks found"
+		exit_leave -9 "No external disks found"
 	fi
 
 	if [[ -n ${PARTITION} ]];then # Arg was passed

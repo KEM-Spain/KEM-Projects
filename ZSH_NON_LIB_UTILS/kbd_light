@@ -8,7 +8,7 @@ fi
 
 if [[ ${#} -eq 0 ]];then
 	CURRENT=$(sudo zsh -c 'cat /sys/class/leds/asus::kbd_backlight/brightness')
-	[[ ${CURRENT} -ge 1 ]] && CURRENT=0 || CURRENT=1
+	[[ ${CURRENT} -ge 1 ]] && CURRENT=0 || CURRENT=1 # Toggle value
 else
 	CURRENT=${1}
 fi
