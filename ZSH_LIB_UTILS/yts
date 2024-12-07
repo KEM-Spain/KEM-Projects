@@ -32,6 +32,7 @@ source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Declarations
 typeset -A _COORDS=(X 10 Y 33 H 10 W 86)
+typeset -A _BREAK_COORDS=(X $((_COORDS[X]+3)) Y $((_COORDS[Y]+3)) W $((_COORDS[W]-6)))
 typeset -A _ALERT_COORDS=(X $(( _COORDS[X] + 5 )) Y $(( _COORDS[Y] + _COORDS[W] -25 )))
 typeset -A _DISPLAY_KEYS=()
 typeset -A _DOWNLOADS=()
@@ -63,8 +64,9 @@ _FIELD_LEN[agetime]=40
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
+_MAX_ERRORS=20
 _OBJECT=video
-_PAUSE_TM=2
+_PAUSE_TM=4
 _SORT_DEFAULT=(youtube 1:a rumble 1:a)
 _YTS_DBG=2
 _YTS_FAVORITES=${_YTS_DIR}/yts_favorites
@@ -192,7 +194,7 @@ action_do () {
 			if [[ ${?} -eq 0 ]];then
 				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				EMSG="<w>${TITLE[1,65]}<N>|<g>Has already been downloaded<N>" 
-				msg_box -t${_PAUSE_TM} "${EMSG}"
+				msg_box -x ${_BREAK_COORDS[X]} -y ${_BREAK_COORDS[Y]} -w ${_BREAK_COORDS[W]} -t${_PAUSE_TM} "${EMSG}"
 				_DOWNLOADS[${M}]=true
 				break # While loop
 			fi
@@ -201,9 +203,9 @@ action_do () {
 			LOG_LINE=$(grep -m1 -i "will begin\|premieres\|upcoming" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
 				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
-				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>" 
+				EMSG="<w>${TITLE[1,65]}<N>|<r>Not yet available<N>|<g>${LOG_LINE}<N>"
 				g_WHEN=$(sed 's/\(.* in \)\(.*\)\.$/\2/' <<<${LOG_LINE})
-				msg_box -t${_PAUSE_TM} "${EMSG}"
+				msg_box -x ${_BREAK_COORDS[X]} -y ${_BREAK_COORDS[Y]} -w ${_BREAK_COORDS[W]} -t${_PAUSE_TM} "${EMSG}"
 				_FUTURE[${M}]=true
 				_DOWNLOADS[${M}]=false
 				break # While loop
@@ -213,8 +215,8 @@ action_do () {
 			LOG_LINE=$(grep -m1 -i "unable to download video" ${g_YTS_LOG} 2>/dev/null)
 			if [[ ${?} -eq 0 ]];then
 				echo "${0}: LOG_LINE:${LOG_LINE}" >> ${_YTS_DBG_LOG}
-				EMSG="<w>${TITLE[1,65]}<N>|<r>Hard Error - Unable to download<N>|<g>${LOG_LINE}<N>" 
-				msg_box -t${_PAUSE_TM} "${EMSG}"
+				EMSG="<w>${TITLE[1,65]}<N>|<r>Hard Error - Unable to download<N>"
+				msg_box -x ${_BREAK_COORDS[X]} -y ${_BREAK_COORDS[Y]} -w ${_BREAK_COORDS[W]} -t${_PAUSE_TM} "${EMSG}"
 				_FAILED[${M}]=true
 				_DOWNLOADS[${M}]=false
 				break # While loop
@@ -241,7 +243,7 @@ action_do () {
 				DEST_1=$(cut -d'|' -f1 <<<${DEST})
 				DEST_1=$(cut -d']' -f2- <<<${DEST_1} | sed -e "s/^[[:space:]]/<w>/" -e "s/:/<N>:<m>/")
 				HDR1_TXT=$(cut -d'|' -f2 <<<${DEST} | sed 's/_/ /g')
-				HDR1_TXT=$(clean_line ${HDR1_TXT})
+				HDR1_TXT=$(clean_line ${HDR1_TXT[1,60]})
 				HDR1_TXT="<w>Downloading<N>:<m> <c>${HDR1_TXT[1,60]}<N>"
 				HDR2_TXT="$(str_trim ${DEST_1})<N> - <w>${DL_CNT} <N>of <w>${#_MARKED}<N>${INFO_TAG}"
 				HDR_LEN=$(( ${#$(msg_nomarkup ${HDR2_TXT})} ))
@@ -279,6 +281,10 @@ action_do () {
 				((ERROR_CNT++))
 				msg_box -T ALERT -t${_ALERT_TM} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 				HAD_ERROR=true
+				if [[ ${ERROR_CNT} -ge ${_MAX_ERRORS} ]];then
+					_FAILED[${M}]=true && break 2
+					kill_job
+				fi
 			fi
 
 			if [[ -n ${OTH} ]];then
@@ -320,7 +326,7 @@ action_do () {
 				log_download ${M}
 				break # While loop
 			fi # Monitor progress
-			sleep 2 # Log fetch delay
+			sleep 1 # Log fetch delay
 		done # Log scan complete
 		NDX=0
 		clear_log "action_do"
@@ -378,32 +384,20 @@ box_center () {
 }
 
 clean_line () {
-	local ARG=${@}
+	local LINE=${@}
 	local -a OUT=()
-	local -a LIST=()
-	local SKIP=false
-	local A
+	local L
 
-	for A in ${=ARG};do
-		[[ ${A} == '-' ]] && continue
-		LIST+=${A}
+	for L in ${=LINE};do
+		[[ ${L} == '-' ]] && OUT+=${L} && continue # Looks like option to spell
+		[[ ${#L} -eq 1 && ${L:l} == 'a' ]] && OUT+=${L} # The only single letter allowed
+		[[ ${#L} -eq 1 && ${L:l} != 'a' ]] && continue
+		[[ ${L} == ${L%%[!0-9]*} ]] && OUT+=${L} && continue # Skip spell for numbers
+		spell ${L} >/dev/null 2>&1
+		[[ ${?} -eq 0 ]] && OUT+=${L}
 	done
 
-	while true;do
-		spell ${LIST[-1]} > /dev/null 
-		if [[ ${?} -ne 0 ]];then
-			SKIP=true 
-		else
-			OUT=(${LIST})
-			break
-		fi
-
-		[[ ${SKIP} == 'true' ]] && OUT=(${LIST[1,-2]}) || OUT=(${LIST})
-
-		[[ -z ${OUT} ]] && OUT=(${@}) && break
-
-		LIST=(${OUT})
-	done
+	[[ ${OUT[-1]} =~ ',$' ]] && OUT[-1]=${OUT[-1][1,-2]} # No trailing commas
 
 	echo ${OUT}
 }
@@ -738,6 +732,7 @@ item_decorate () {
 kill_job () {
 	local JOB
 	local RC
+	local PID
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -745,7 +740,9 @@ kill_job () {
 	RC=$?
 	
 	if [[ ${RC} -eq 0 ]];then
-		sudo kill -9 ${g_PID} >/dev/null 2>&1
+		pkill -P ${g_PID} >/dev/null 2>&1
+		#PID=$(ps -aux | grep yt_dlp | tr -s '[:space:]' | cut -d' ' -f2)
+		#[[ -n ${PID} && ${PID} != "$$" ]] && kill -9 ${PID} >/dev/null 2>&1
 	else
 		echo "No process found for PID:${g_PID}" >> ${g_YTS_LOG}
 	fi
@@ -1163,7 +1160,7 @@ set_item_color () {
 }
 
 show_down () {
-	tput cup ${_ALERT_COORDS[X]} $((_ALERT_COORDS[Y] +6));echo -n "${BOLD}${GREEN_FG}⇊ ⇊ ⇊ ⇊ ⇊ ⇊${RESET}"
+	tput cup ${_ALERT_COORDS[X]} $((_ALERT_COORDS[Y] +6));echo -n "${BOLD}${GREEN_FG}⇊ ⇊ ⇊ ⇊ ⇊ ⇊${RESET}";sleep 1
 }
 
 start_job () {
