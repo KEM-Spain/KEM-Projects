@@ -64,7 +64,7 @@ _FIELD_LEN[agetime]=40
 _FIELD_LEN[author]=26
 _FIELD_LEN[title]=80
 _JS_SCRIPT=/usr/local/etc/yts.js
-_MAX_ERRORS=20
+_MAX_ERRORS=10
 _OBJECT=video
 _PAUSE_TM=4
 _SORT_DEFAULT=(youtube 1:a rumble 1:a)
@@ -78,6 +78,7 @@ _YTS_DBG_LOG=/tmp/yt.dbg.log
 g_CUSTOM_LIST=false
 g_DISPLAY_KEY=''
 g_ENGINE_KEY=''
+g_GOT_URL=false
 g_LAST_CODE_UPD=?
 g_LIVE=''
 g_LIVE_OPT=''
@@ -282,8 +283,10 @@ action_do () {
 				msg_box -T ALERT -t${_ALERT_TM} -x${_ALERT_COORDS[X]} -y${_ALERT_COORDS[Y]} "<r>Network Errors<N>:<w>${ERROR_CNT}<N>"
 				HAD_ERROR=true
 				if [[ ${ERROR_CNT} -ge ${_MAX_ERRORS} ]];then
-					_FAILED[${M}]=true && break 2
+					EMSG="<w>${TITLE[1,65]}<N>|<r>Too many errors - Unable to download<N>"
+					msg_box -x ${_BREAK_COORDS[X]} -y ${_BREAK_COORDS[Y]} -w ${_BREAK_COORDS[W]} -t${_PAUSE_TM} "${EMSG}"
 					kill_job
+					_FAILED[${M}]=true && break
 				fi
 			fi
 
@@ -311,7 +314,7 @@ action_do () {
 			[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' || show_down
 
 			echo "${0}: ${LINE_COLOR}${ETA}" >> ${_YTS_DBG_LOG}
-			msg_box -C -jl "${LINE_COLOR}${ETA}<N>" # Show progress
+			msg_box -C -jl "${LINE_COLOR}${ETA[1,59]}<N>" # Show progress
 
 			if [[ ${ETA} =~ '100% of' ]];then
 				if [[ ${#_MARKED} -gt 1 ]];then
@@ -688,7 +691,8 @@ get_field () {
 	fi
 
 	if [[ ${FIELD} == 'agetime' ]];then
-		[[ ! ${STR} =~ 'ago.*[0-9][0-9]\)' ]] && STR=$(sed 's/ago.*/ago\)/' <<<${STR}) # Patch occasional delimiter error
+		STR=$(perl -pe "s/(.*\s+)(\d{1,}\s+\w+\s+ago.*)/\2/" <<<${STR})
+		[[ ! ${STR} =~ '^\(' ]] && STR="(${STR}" # Prefix a paren if not present
 	fi
 	
 	if [[ ${FIELD} == 'author' ]];then
@@ -696,12 +700,15 @@ get_field () {
 		STR=${TSTR:=${STR}}
 	fi
 
-	[[ ${FIELD} == 'title' ]] && STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\?*?\s+?//' <<<${STR}) # Limit length
+	if [[ ${FIELD} == 'title' ]];then
+		STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\?*?\s+?//' <<<${STR}) # Strip leading space and limit length
+		STR=${(C)STR} # Proper case
+	fi
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
 	
 	STR=$(html2text -ascii <<<${STR})
-	STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) # Scrub non ascii
+	#STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) # Scrub non ascii
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning:${STR[1,65]}"
 
@@ -732,7 +739,9 @@ item_decorate () {
 kill_job () {
 	local JOB
 	local RC
+	local -a PIDS=()
 	local PID
+	local P
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -740,11 +749,14 @@ kill_job () {
 	RC=$?
 	
 	if [[ ${RC} -eq 0 ]];then
-		pkill -P ${g_PID} >/dev/null 2>&1
-		#PID=$(ps -aux | grep yt_dlp | tr -s '[:space:]' | cut -d' ' -f2)
-		#[[ -n ${PID} && ${PID} != "$$" ]] && kill -9 ${PID} >/dev/null 2>&1
+		PIDS=("${(f)$(ps -aux | grep "${g_PID}\|/usr/local/src/yt-dlp\|/usr/local/bin/yt")}")
+		for P in ${PIDS};do
+			PID=$(tr -s '[:space:]' <<<${P} | cut -d' ' -f2)
+			[[ -n ${PID} ]] && kill -9 ${PID} >/dev/null 2>&1
+			echo "${0}: Killed ${PID}" >> ${_YTS_DBG_LOG}
+		done
 	else
-		echo "No process found for PID:${g_PID}" >> ${g_YTS_LOG}
+		echo "No processes found for PID:${g_PID}" >> ${g_YTS_LOG}
 	fi
 
 	if [[ ! ${functrace[1]} =~ "reset_job" ]];then
@@ -1225,7 +1237,8 @@ opt_type () {
 	local OPT=${1}
 	case ${OPT} in
 		a) echo "<AGE_FILTER> [all,min,hour,day,week,month,year]";;
-		f) echo "<SEARCHTERM>";;
+		s) echo "<SEARCHTERM>";;
+		u) echo "<URL>";;
 	esac
 }
 
@@ -1250,13 +1263,13 @@ usage () {
 	[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 	(
-	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} $(opt_type f)\n"
+	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} [$(opt_type s)] [$(opt_type u)]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-A${RESET} Fix audio"
+	echo -e "${WHITE_FG}-A${RESET} fix audio"
 	echo -e "${WHITE_FG}-L${RESET} toggle cached livestream option (${MAGENTA_FG}Rumble only${RESET})"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
-	echo -e "${WHITE_FG}-S${RESET} Disable strict filtering (${MAGENTA_FG}YouTube only${RESET})"
+	echo -e "${WHITE_FG}-S${RESET} disable strict filtering (${MAGENTA_FG}YouTube only${RESET})"
 	echo -e "${WHITE_FG}-V${RESET} yt-search version (${MAGENTA_FG}YouTube only${RESET})"
 	echo -e "${WHITE_FG}-l${RESET} search for livestreams (${MAGENTA_FG}Rumble only${RESET})"
 	echo -e "${WHITE_FG}-a${RESET} $(opt_type a) (${MAGENTA_FG}YouTube only${RESET})"
@@ -1298,6 +1311,17 @@ shift $((OPTIND -1))
 
 # Execution
 g_LAST_CODE_UPD=$(last_code_update ${_CODE_MARKER})
+
+g_GOT_URL=false
+for A in ${@};do
+	if [[ ${A} =~ 'http' ]];then
+		g_GOT_URL=true
+		URL=${A} 
+		shift
+		[[ ${A} =~ 'youtube' ]] && g_QRY_ENGINE='youtube'
+		[[ ${A} =~ 'rumble' ]] && exit_leave "Rumble URL: Don't know how to do this yet"
+	fi
+done
 
 download_log_update
 
@@ -1363,7 +1387,7 @@ if [[ ${g_QRY_ENGINE} == 'youtube' ]];then
 fi
 
 # Run Query
-if [[ ${#} -eq 0 ]];then # NO args passed
+if [[ ${#} -eq 0 && ${g_GOT_URL} == 'false' ]];then # NO args passed
 	while true;do
 		do_smcup
 		fav_get
@@ -1378,10 +1402,15 @@ if [[ ${#} -eq 0 ]];then # NO args passed
 	done
 else # Args passed
 	_CMD_LINE_ARGS=true
-	g_QUERY_KEY="${@}"
-	query_${g_QRY_ENGINE} ${g_QUERY_KEY}
+	if [[ ${g_GOT_URL} == 'true' ]];then
+		g_QUERY_KEY="URL"
+		query_${g_QRY_ENGINE} ${URL}
+	else
+		g_QUERY_KEY="${@}"
+		query_${g_QRY_ENGINE} ${g_QUERY_KEY}
+	fi
 	if [[ ${?} -eq 0 ]];then
-		fav_set ${g_QUERY_KEY}
+		[[ ${g_GOT_URL} == 'false' ]] && fav_set ${g_QUERY_KEY}
 		select_download ${g_QUERY_KEY}
 	fi
 fi

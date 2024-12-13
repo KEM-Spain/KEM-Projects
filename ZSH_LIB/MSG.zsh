@@ -78,7 +78,6 @@ msg_box () {
 	local HDR_LINES=0
 	local HDR_FTR_LINES=0
 	local HEIGHT_ARG=0
-	local INLINE_LIST=false
 	local MSG_X_COORD_ARG=-1
 	local MSG_Y_COORD_ARG=-1
 	local PROMPT_ARG=''

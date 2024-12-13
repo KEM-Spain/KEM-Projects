@@ -1,4 +1,5 @@
 #!/usr/bin/env zsh
+
 # Inline ansi
 BOLD="\033[1m"
 ITALIC="\033[3m"
@@ -31,7 +32,7 @@ _SYS_ZSHRC=/etc/zsh/zshrc
 _WIFI_PREF="WiFi_OliveNet-Casa 7_5G"
 _BATT_LIMIT=95
 _CAL_LINES=9
-_TERMS=$(terms | cut -d' ' -f1)
+_TERMS=$(terms -c)
 
 # Declarations
 typeset -a _MOTD=()
@@ -113,7 +114,7 @@ _reload_funcs () {
 _chrome_restore_tweak () {
 	local CHROME_PREF=/home/kmiller/.config/google-chrome/Default/Preferences
 
-    [[ -e ${CHROME_PREF} ]] || return 1
+	 [[ -e ${CHROME_PREF} ]] || return 1
 
 	RUNNING=$(pgrep -c chrome)
 	[[ ${RUNNING} -ne 0 ]] && return 1
@@ -230,7 +231,7 @@ add-zsh-hook precmd _cursor_on
 # [[ -n ${CLEAN} ]] && for C in ${CLEAN};do rm -f ${C};done
 
 # Execution
-if [[ ${_TERMS} -le 1 ]];then
+if [[ ${_TERMS} -eq 1 ]];then
 	INTERACTIVE=''
 	if [[ -o interactive ]]; then
 		INTERACTIVE=interactive

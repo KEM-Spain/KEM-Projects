@@ -99,7 +99,6 @@ alias ..='cd ..'
 alias .z='cd /home/kmiller/.zsh'
 alias .zc='cd /home/kmiller/.zsh/completions'
 
-alias B1="cd /media/kmiller/KEM_Backup/$(hostname)_RSYNC"
 alias B="cd /media/kmiller/KEM_Backup/$(hostname)_RSYNC2"
 alias C='cd ~/Downloads/Torrents/Completed'
 alias D='cd ~/Documents'
@@ -127,7 +126,6 @@ alias z='cd /etc/zsh'
 
 alias mk='cd /media/kmiller'
 alias ms='cd ~/Documents/MuseScore3/Scores'
-alias pd='cd -'
 alias us='cd /usr/share/'
 
 alias ule='cd /usr/local/etc'

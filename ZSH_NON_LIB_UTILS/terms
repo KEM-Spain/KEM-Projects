@@ -1,11 +1,14 @@
 #!/usr/bin/zsh
-[[ ${1} == '-v' ]] && VERBOSE=true || VERBOSE=false
+SHOW_COUNT=false
+[[ ${1} == '-c' ]] && SHOW_COUNT=true
+
 THIS_TTY=$(tty)
-LIST=("${(@f)$(ps aux | grep pts | tr -s '[:space:]' | cut -d\  -f1,7 | sort -u)}")
+LIST=("${(@f)$(ps aux | grep -v root | grep pts | tr -s '[:space:]' | cut -d\  -f1,7 | sort -u)}")
 
-[[ ${#LIST} -eq 1 ]] && echo "1 instance" || echo "${#LIST} instances"
-
-if [[ ${VERBOSE} == 'true' ]];then
+if [[ ${SHOW_COUNT} == 'true' ]];then
+	 echo ${#LIST}
+else
+	echo "${#LIST} sessions"
 	for T in ${(no)LIST};do
 		[[ "${THIS_TTY:t}" == "${T:t}" ]] && FLAG='*' || FLAG=''
 		echo ${T} ${FLAG}

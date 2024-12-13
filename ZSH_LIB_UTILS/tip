@@ -51,8 +51,8 @@ typeset -A _EXTERNAL_FILES
 typeset -a _TIPS
 
 # Constants
-_TIP_DIR=/usr/local/etc/tips
 _EXT_DIR=/usr/local/etc
+_TIP_DIR=${_EXT_DIR}/tips
 _EXTERNAL_FILES=(
 desktop_files "${_EXT_DIR}/Desktop Entry Specification.pdf"
 sed_a "${_EXT_DIR}/StreamEditor-BasicCommands.pdf"
@@ -100,6 +100,44 @@ source ${_LIB_DIR}/SEL_LIST.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
+find_keyword () {
+	local -A OPTS=('-w' '-w' '-i' '-i' '-d' '-n')
+	local -a GREP_OPTS=()
+	local -a LIST
+	local A D F
+	local HIT=false
+	local KW=''
+	local -a DETAIL=()
+	local TEXT=''
+
+	for A in ${@};do
+		GREP_OPTS+=${OPTS[${A}]}
+	done
+	[[ -n ${GREP_OPTS} ]] && echo "OPTIONS:${WHITE_FG}${GREP_OPTS}${RESET}"
+	KW=${@[-1]}
+
+	LIST=("${(f)$(find ${_TIP_DIR} -type f ! -path ${_TIP_DIR})}")
+
+	if [[ ${GREP_OPTS} =~ '-n' ]];then
+		for F in ${LIST};do
+			DETAIL=("${(f)$(grep ${GREP_OPTS} ${KW} ${F})}")
+			[[ ${?} -eq 0 ]] && HIT=true
+			for D in ${DETAIL};do
+				LN=$(cut -d: -f1 <<<${D})
+				TEXT=$(cut -d: -f2 <<<${D})
+				printf "${MAGENTA_FG}%20s ${CYAN_FG}%4s ${WHITE_FG}%.90s${RESET}\n" ${F:t} ${LN} "$(str_trim ${TEXT} | tr -d '\n' | sed "s/${KW}/${E_RED_FG}${KW}${E_RESET}/g")"
+			done
+		done | mypager
+	else
+		for F in ${LIST};do
+			grep -q ${GREP_OPTS} ${KW} ${F}
+			[[ ${?} -eq 0 ]] && HIT=true && echo "Keyword:\"${CYAN_FG}${KW}${RESET}\" located in:${WHITE_FG}${F}${RESET}"
+		done
+	fi
+
+	[[ ${HIT} == 'false' ]] && echo "Keyword:\"${CYAN_FG}${KW}${RESET}\" not found"
+}
+
 tip_cron () {
 source ${_TIP_DIR}/cron.tip
 }
@@ -214,9 +252,7 @@ read -r -d '' DESC<<EOF
 Display collected tips on various topics
 \tFor <KEYWORD> searches, additional options
 \tmay be included to enhance search:
-\t-d line detail -w word boundary, -I case sensitive
-\nTIPS:\n
-$(for T in ${_TIPS};do echo "\t${T}";done)
+\t-d line detail -w word boundary, -i case sensitive
 EOF
 
 parse_opts () {
@@ -260,7 +296,10 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${WHITE_FG}[${RESET}${OPTS}${WHITE_FG}]${RESET} [$(opt_type t)]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug (repeats increase level)"
-	echo -e "${WHITE_FG}-k $(opt_type k)${RESET} search within tips for keyword"
+	echo -e "${WHITE_FG}-i ${RESET} keyword search is case insensitive"
+	echo -e "${WHITE_FG}-k $(opt_type k)${RESET} search for keyword (do not combine options)"
+	echo -e "${WHITE_FG}-s ${RESET} show availablel tip categories"
+	echo -e "${WHITE_FG}-w ${RESET} keyword matches whole word"
 	echo -e "\n${WHITE_FG}Desc${RESET}:${DESC}\n"
 	) >&2
 
@@ -269,22 +308,24 @@ usage () {
 }
 
 typeset -a OPTIONS
-OPTSTR=":HDdk:Iw"
+OPTSTR=":HDdk:isw"
 OPTIND=0
 
 KEYWORD=''
-KEYWORD_DETAIL=false
-WORD=false
-CASE=false
+KEYWORD_DETAIL=''
+WORD=''
+CASE=''
+SHOW_TIPS=false
 
 while getopts ${OPTSTR} OPTION;do
 	case ${OPTION} in
      H) usage;;
      D) dbg_set_level;;
-     I) CASE=true;;
-     d) KEYWORD_DETAIL=true;;
+     i) CASE='-i';;
+     d) KEYWORD_DETAIL='-d';;
      k) KEYWORD=${OPTARG};;
-     w) WORD=true;;
+     s) SHOW_TIPS=true;;
+     w) WORD='-w';;
      :) print -u2 "${RED_FG}${_SCRIPT}${RESET}: option: -${OPTARG} requires an argument"; usage;;
     \?) print -u2 "${RED_FG}${_SCRIPT}${RESET}: ${BOLD}${RED_FG}Unknown option${RESET} -${OPTARG}"; usage;;
 	esac
@@ -306,103 +347,16 @@ MAX_RANGE=${LINE}
 
 MIN_RANGE=0
 if [[ -n ${KEYWORD} ]];then
-	for T in ${_TIPS};do
-		F=$(grep -n "^tip_${T} \(\)" ${_SCRIPT_FQFN})
-		LINE=$(cut -d':' -f1 <<<${F})
-		[[ ${MIN_RANGE} -eq 0 ]] && MIN_RANGE=${LINE}
-		KEY_RANGE[${LINE}]=${T} # Build a range table
-		[[ ${_DEBUG} -gt 1 ]] && dbg "${0}:${LINENO} KEY_RANGE[${LINE}]=${T}"
+	echo "Searching for KEYWORD:${WHITE_FG}\"${KEYWORD}\"${RESET}"
+	find_keyword ${CASE} ${WORD} ${KEYWORD_DETAIL} ${KEYWORD}
+	exit_leave
+fi
+
+if [[ ${SHOW_TIPS} == 'true' ]];then
+	echo "${WHITE_FG}AVAILABLE TIPS${RESET}"
+	for T in ${_TIPS};do 
+		echo "\t \\u2022 ${T}"
 	done
-
-	[[ ${CASE} == 'true' ]] && CASE_OPT='' || CASE_OPT='-i'
-	[[ ${WORD} == 'true' ]] && WORD_OPT='-w' || WORD_OPT=''
-
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} grep --color=never -n ${CASE_OPT} ${WORD_OPT} ${KEYWORD} ${_SCRIPT_FQFN}"
-	LIST=("${(f)$(grep --color=never -n ${CASE_OPT} ${WORD_OPT} ${KEYWORD} ${_SCRIPT_FQFN})}")
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} KEYWORD:\"${KEYWORD}\" LIST count:${#LIST}"
-
-	EXTERNAL_FILE_ROWS=0
-	for E in ${(k)_EXTERNAL};do
-		ELIST=("${(f)$(pdfgrep --color=never ${CASE_OPT} ${KEYWORD} ${_EXTERNAL_FILES[${E}]})}")
-		[[ ${_DEBUG} -gt 1 ]] && dbg "${0}:${LINENO} EXTERNAL FILE:${_EXTERNAL_FILES[${E}]} - KEYWORD:\"${KEYWORD}\" ELIST count:${#ELIST}"
-		if [[ ${_DEBUG} -gt 2 ]];then
-			dbg "$(for D in ${ELIST};do echo ${D};done)"
-		fi
-		EHIT=false
-		for X in ${ELIST};do
-			echo ${X} | grep -q ${WORD_OPT} ${KEYWORD} # Enforce WORD_OPT - pdfgrep (-w not supported)
-			RC=${?}
-			if [[ ${RC} -eq 0 ]];then
-				EHIT=true
-				((EXTERNAL_FILE_ROWS++))
-				PDF_LIST+=${(k)KEY_RANGE[(r)${E}]}:${X}
-			fi
-		done
-		[[ ${_DEBUG} -gt 0 && ${EHIT} == 'true' ]] && dbg "${0}:${LINENO} EXTERNAL FILE:${_EXTERNAL_FILES[${E}]} ELIST count:${#ELIST}"
-	done
-	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} EXTERNAL_FILE_ROWS added:${EXTERNAL_FILE_ROWS}"
-
-	LIST+=(${PDF_LIST})
-	if arr_is_populated "${LIST}";then
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Aggregate LIST count:${#LIST}"
-	else
-		[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} Aggregate LIST is empty"
-	fi
-
-	for L in ${(on)LIST};do
-		LINE_NUM=$(cut -d':' -f1 <<<${L})
-		TEXT=$(cut -d':' -f2- <<<${L})
-
-		if [[ ${_DEBUG} -gt 0 ]];then
-			[[ ${TEXT} =~ "tip_${KEYWORD}" ]] && dbg "TIP_MATCH:${TEXT} - ejected ${TEXT}"
-			[[ ${LINE_NUM} -lt ${MIN_RANGE} ]] && dbg "MIN_RANGE:${MIN_RANGE} - ejected ${LINE_NUM}"
-			[[ ${LINE_NUM} -gt ${MAX_RANGE} ]] && dbg "MAX_RANGE:${MAX_RANGE} - ejected ${LINE_NUM}"
-		fi
-
-		[[ ${TEXT} =~ "tip_${KEYWORD}" ]] && continue
-		[[ ${LINE_NUM} -lt ${MIN_RANGE} ]] && continue
-		[[ ${LINE_NUM} -gt ${MAX_RANGE} ]] && continue
-
-		TEXT=$(str_trim ${TEXT})
-		TEXT=$(sed 's/\t/ /' <<<${TEXT})
-		TEXT=$(tr -s '[:space:]' <<<${TEXT})
-
-		LAST_K=0
-		for K in ${(onk)KEY_RANGE};do
-			[[ ${LAST_K} -eq 0 ]] && LAST_K=${K} && continue
-
-			if [[ ${LINE_NUM} -ge ${LAST_K} && ${LINE_NUM} -lt ${K} ]];then
-				[[ ${_DEBUG} -gt 1 ]] && dbg "${0}:${LINENO} SLOTTED LINE_NUM:${LINE_NUM} into tip_${KEY_RANGE[${LAST_K}]} -> ${LINE_NUM} -ge ${LAST_K} && ${LINE_NUM} -le ${K}"
-				SNIP=$(grep --color=always ${CASE_OPT} ${WORD_OPT} ${KEYWORD} <<<${TEXT})
-				if [[ -n ${SNIP} ]];then
-					if [[ ${KEYWORD_DETAIL} == 'true' ]];then
-						HIT="KEYWORD:${CYAN_FG}${KEYWORD}${RESET} in:[${WHITE_FG}tip_${KEY_RANGE[${LAST_K}]}${RESET}] ${SNIP[1,120]}${RESET}"
-					else
-						HIT="KEYWORD:${CYAN_FG}${KEYWORD}${RESET} in:[${WHITE_FG}tip_${KEY_RANGE[${LAST_K}]}${RESET}]"
-					fi
-					HITS+=${HIT}
-					break
-				fi
-			fi
-
-			LAST_K=${K}
-		done
-	done
-
-	if arr_is_populated "${HITS}";then
-		{
-		for H in ${HITS};do
-			TIP_LBL=$(cut -d':' -f3 <<<{$H} | cut -d' ' -f1)
-			[[ ${KEYWORD_DETAIL} == 'true' && ${TIP_LBL} != ${LAST_TIP_LBL} ]] && echo ${MAGENTA_FG}$(str_unicode_line 7)${RESET}
-			eval echo \"${H}\" 2>/dev/null
-			LAST_TIP_LBL=${TIP_LBL}
-		done
-		[[ ${KEYWORD_DETAIL} == 'true' ]] && echo ${MAGENTA_FG}$(str_unicode_line 7)${RESET}
-		} | mypager wait
-	else
-		echo "KEYWORD:\"${WHITE_FG}${KEYWORD}\" ${RED_FG}not found${RESET}" | mypager wait
-	fi
-
 	exit_leave
 fi
 
