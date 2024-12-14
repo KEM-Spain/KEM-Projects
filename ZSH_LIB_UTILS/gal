@@ -101,8 +101,8 @@ do_header () {
 	printf "${MAGENTA_FG}%s${RESET}\n"  $(str_unicode_line $(( LONGEST+8 )))
 	echo
 
-	printf "${CYAN_FG}%12s${RESET}    ${GREEN_FG}%-50s${RESET}\n"  "Alias" "Command"
-	printf "${CYAN_FG}%12s${RESET}    ${GREEN_FG}%-50s${RESET}\n"  $(str_unicode_line 5) $(str_unicode_line 7)
+	printf "${CYAN_FG}%-12s${RESET}    ${GREEN_FG}%-50s${RESET}\n"  "Alias" "Command"
+	printf "${CYAN_FG}%-12s${RESET}    ${GREEN_FG}%-50s${RESET}\n"  $(str_unicode_line 12) $(str_unicode_line 12)
 }
 
 do_match () {

@@ -19,32 +19,52 @@ YELLOW_FG="\033[33m"
 
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
-FN=/etc/zsh/aliases
-
+# Declarations
 typeset -a ALIASES=()
+
+# Constants
+FN=/etc/zsh/aliases
+HELP="${WHITE_FG}Usage${RESET}:\t${0:t} [-H] [SEARCHTERM]\n${WHITE_FG} Desc${RESET}:\tshow all or matching aliases separated by type\n\tSEARCHTERM matches leading chars of alias\n"
+
+# Vars
+SEARCHTERM=''
+
+# Executions
+[[ ${1} == '-H' ]] && echo ${HELP} && exit
+[[ ${#} -ne 0 ]] && SEARCHTERM=${1}
+[[ -n ${SEARCHTERM} ]] && TAG="${WHITE_FG}(${RESET}FILTER = \"${WHITE_FG}${SEARCHTERM}${RESET}\"${WHITE_FG})${RESET}" || TAG="${WHITE_FG}(${RESET}UNFILTERED${WHITE_FG})${RESET}"
 
 while read LINE;do
 	ALIASES+=${LINE}
 done < ${FN}
 
-
 (
-echo "${BOLD}${CYAN_FG}LIST OF DEFINED ALIASES${RESET}\n"
-echo "DIRECTORY CHANGE"
+echo "${BOLD}${CYAN_FG}List of Defined Aliases ${TAG}${RESET}\n"
+echo "Directory Change"
+
+HIT=false
 for A in ${(o)ALIASES};do
 	[[ ! ${A} =~ '=' ]] && continue
 	[[ ! ${A} =~ 'cd' ]] && continue
 	ABBV=$(cut -d'=' -f1 <<<${A} | sed 's/alias//')
+	[[ -n ${SEARCHTERM} && ! ${ABBV} =~ "^\s+?${SEARCHTERM}.*" ]] && continue
+	HIT=true
 	CMD=$(cut -d'=' -f2 <<<${A} | sed -e "s/'//g" -e 's/"//g')
-	printf "${CYAN_FG}%10s ${WHITE_FG}%-30s${RESET}\n" ${ABBV} ${CMD}
+	printf "${CYAN_FG}%15s ${WHITE_FG}%-30s${RESET}\n" ${ABBV} ${CMD}
 done
+[[ ${HIT} == 'false' ]] && echo "\t${ITALIC}${RED_FG}FILTERED${RESET}"
 
-echo "\nCOMMANDS"
+echo "\nCommands"
+HIT=false
 for A in ${(o)ALIASES};do
 	[[ ! ${A} =~ '=' ]] && continue
 	[[ ${A} =~ 'cd' ]] && continue
 	ABBV=$(cut -d'=' -f1 <<<${A} | sed 's/alias//')
+	[[ -n ${SEARCHTERM} && ! ${ABBV} =~ "^\s+?${SEARCHTERM}.*" ]] && continue
+	HIT=true
 	CMD=$(cut -d'=' -f2 <<<${A} | sed -e "s/'//g" -e 's/"//g')
-	printf "${CYAN_FG}%10s ${WHITE_FG}%-30s${RESET}\n" ${ABBV} ${CMD}
+	printf "${CYAN_FG}%15s ${WHITE_FG}%-30s${RESET}\n" ${ABBV} ${CMD}
 done
+[[ ${HIT} == 'false' ]] && echo "\t${ITALIC}${RED_FG}FILTERED${RESET}"
+
 ) | mypager

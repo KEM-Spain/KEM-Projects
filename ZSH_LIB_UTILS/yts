@@ -935,7 +935,8 @@ query_rumble () {
 		TITLES=$(pup --charset utf8 'head' 'title' text{} <<<${PG} | sed 's/|//g')
 		LINKS="/$(cut -d'/' -f4 <<<${URL})"
 		AGES="URL - "
-		DURATIONS="Unknown"
+		DURATIONS=$(pup 'div' .media-description-info-stream-time '[title]' text{} <<<${PG} | tr -d '\n' | tr -s '[:space:]' | str_trim)
+		[[ -z ${DURATIONS} ]] && DURATIONS="Unavailable"
 		g_SEARCH_TYPE="URL"
 		g_QUERY_KEY=$(pup 'div' ."media-heading-name" text{} <<<${PG} | tr -d '\n' | tr -s '[:space:]'  | str_trim)
 		VID_LIST+="${g_QUERY_KEY}|${TITLES}|${AGES}|${LINKS}|${DURATIONS}" # Unique rows
