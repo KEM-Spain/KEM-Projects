@@ -80,6 +80,7 @@ g_DISPLAY_KEY=''
 g_ENGINE_KEY=''
 g_GOT_URL=false
 g_LAST_CODE_UPD=?
+g_LAST_MASK=0
 g_LIVE=''
 g_LIVE_OPT=''
 g_PID=?
@@ -301,6 +302,7 @@ action_do () {
 
 			LINE_COLOR=''
 			if [[ -n ${ETA} && ${ETA_COMPLETE} == 'false' ]];then
+				ERROR_CNT=0
 				case ${ETA:l} in
 					*'100% of'*) LINE_COLOR='<B><g>';ETA_COMPLETE=true;;; # Prevent doubling complete line
 					*mib/s*) LINE_COLOR='<w>';;
@@ -928,57 +930,79 @@ query_rumble () {
 
 	[[ -n ${SEARCHTERM} ]] && g_QUERY_KEY=${SEARCHTERM}
 
-	PG=$(wget -q -O - "http://rumble.com/c/${g_QUERY_KEY}?page=1")
+	if [[ ${g_GOT_URL} == 'true' ]];then
+		PG=("${(f)$(wget -q -O - ${URL})}")
+		TITLES=$(pup --charset utf8 'head' 'title' text{} <<<${PG} | sed 's/|//g')
+		LINKS="/$(cut -d'/' -f4 <<<${URL})"
+		AGES="URL - "
+		DURATIONS="Unknown"
+		g_SEARCH_TYPE="URL"
+		g_QUERY_KEY=$(pup 'div' ."media-heading-name" text{} <<<${PG} | tr -d '\n' | tr -s '[:space:]'  | str_trim)
+		VID_LIST+="${g_QUERY_KEY}|${TITLES}|${AGES}|${LINKS}|${DURATIONS}" # Unique rows
+	else
+		PG=$(wget -q -O - "http://rumble.com/c/${g_QUERY_KEY}?page=1")
+	fi
 
-	if [[ -n ${PG} ]];then # Channel search
-		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} CHANNEL SEARCH"
-		[[ ${g_ENGINE_KEY:l} == 'r' ]] && g_LIVE=false
-		[[ ${g_ENGINE_KEY:l} == 'rl' ]] && g_LIVE=true
-		[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
-		[[ ${g_LIVE} == 'true' ]] && MSG="Searching livestreams..." || MSG="Searching videos..."
+	if [[ ${g_GOT_URL} == 'false' ]];then
+		if [[ -n ${PG} ]];then # Channel search
+			[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} CHANNEL SEARCH"
+			[[ ${g_ENGINE_KEY:l} == 'r' ]] && g_LIVE=false
+			[[ ${g_ENGINE_KEY:l} == 'rl' ]] && g_LIVE=true
+			[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
+			[[ ${g_LIVE} == 'true' ]] && MSG="Searching livestreams..." || MSG="Searching videos..."
 
-		_REL_COORDS=($(box_coords_relative INNER_BOX X +6 W ${REL_W} Y ${REL_Y} H 3))
-		msg_box -T SEARCH -R -c ${MSG}
-		LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams" 2>/dev/null)
-		[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
+			if [[ -n ${INNER_BOX} ]];then
+				_REL_COORDS=($(box_coords_relative INNER_BOX X +6 W ${REL_W} Y ${REL_Y} H 3))
+				msg_box -T SEARCH -R -c ${MSG}
+			else
+				msg_box -T SEARCH ${MSG}
+			fi
 
-		if [[ ${PG:l} =~ "no videos found" ]];then
-			_REL_COORDS=($(box_coords_relative INNER_BOX X +6 W ${REL_W} Y ${REL_Y} H 4))
-			msg_box -T SEARCH -R -c "<r>Livestream search failed<N> for ${g_QUERY_KEY}|Falling back to defaults..." 
-			PG=$(wget -q -O - "http://rumble.com/c/${g_QUERY_KEY}?page=1")
+			LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams" 2>/dev/null)
+			[[ ${g_LIVE} == 'true' && -n ${LIVE} ]] && PG=$(wget -q -O - "http://rumble.com${LIVE}")
+
+			if [[ ${PG:l} =~ "no videos found" ]];then
+				if [[ -n ${INNER_BOX} ]];then
+					_REL_COORDS=($(box_coords_relative INNER_BOX X +6 W ${REL_W} Y ${REL_Y} H 4))
+					msg_box -T SEARCH -R -c "<r>Livestream search failed<N> for ${g_QUERY_KEY}|Falling back to defaults..." 
+				else
+					msg_box -T SEARCH "<r>Livestream search failed<N> for ${g_QUERY_KEY}|Falling back to defaults..." 
+				fi
+				PG=$(wget -q -O - "http://rumble.com/c/${g_QUERY_KEY}?page=1")
+			fi
+
+			g_SEARCH_TYPE=channel
+			TITLES=("${(f)$(pup --charset utf8 '.title__link text{}' <<<${PG} | tut blank_lines | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
+			AGES=("${(f)$(pup --charset utf8 '.videostream__data text{}' <<<${PG} | tut blank_lines | tr '[\012|\015]' '[ ]' | sed -e 's/\(comments\?\) /\1 \n/g')}") # Either plural or singular
+			LINKS=("${(f)$(pup --charset utf8 'a.videostream__link attr{href}' <<<${PG})}")
+			DURATIONS=("${(f)$(pup --charset utf8 '.videostream__badge text{}' <<<${PG} | tut blank_lines)}")
+
+			for ((X=1; X<=${#TITLES}; X++));do
+				AGE=$(sed 's/ago .*/ago/' <<<${AGES[${X}]})
+				[[ -z ${AGE} ]] && continue
+				[[ ! ${AGE} =~ 'ago' ]] && continue # Dump junk listings without age
+				VID_LIST+="${g_QUERY_KEY}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
+			done
+		else # General search
+			[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} GENERAL SEARCH"
+			msg_box "Channel search failed.  Performing general search..."
+			g_SEARCH_TYPE=general
+			GEN_SEARCH=$(sed 's/ /%20/g' <<<${g_QUERY_KEY})
+			PG=$(wget -q -O - "https://rumble.com/search/all?q=${GEN_SEARCH}")
+
+			TITLES=("${(f)$(pup --charset utf8 '.video-item--title text{}' <<<${PG} | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
+			AGES=("${(f)$(pup --charset utf8 '.video-item--meta attr{datetime}' <<<${PG})}")
+			DURATIONS=("${(f)$(pup --charset utf8 '.video-item--duration attr{data-value}' <<<${PG})}")
+			LINKS=("${(f)$(pup --charset utf8 '.video-item--a attr{href}' <<<${PG})}")
+			CHANNELS=("${(f)$(pup --charset utf8 '.video-item--by-a attr{href}' <<<${PG})}")
+
+			for ((X=1; X<=${#TITLES}; X++));do
+				[[ ${CHANNELS[${X}]} =~ 'user' ]] && echo "Query:${g_QUERY_KEY} Skipped ${TITLES[${X}]} ${CHANNELS[${X}]}" >> /tmp/gen_filter.dbg && continue # Filter
+				AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
+				CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
+				VID_LIST+="${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
+			done
 		fi
-
-		g_SEARCH_TYPE=channel
-		TITLES=("${(f)$(pup --charset utf8 '.title__link text{}' <<<${PG} | tut blank_lines | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
-		AGES=("${(f)$(pup --charset utf8 '.videostream__data text{}' <<<${PG} | tut blank_lines | tr '[\012|\015]' '[ ]' | sed -e 's/\(comments\?\) /\1 \n/g')}") # Either plural or singular
-		LINKS=("${(f)$(pup --charset utf8 'a.videostream__link attr{href}' <<<${PG})}")
-		DURATIONS=("${(f)$(pup --charset utf8 '.videostream__badge text{}' <<<${PG} | tut blank_lines)}")
-
-		for ((X=1; X<=${#TITLES}; X++));do
-			AGE=$(sed 's/ago .*/ago/' <<<${AGES[${X}]})
-			[[ -z ${AGE} ]] && continue
-			[[ ! ${AGE} =~ 'ago' ]] && continue # Dump junk listings without age
-			VID_LIST+="${g_QUERY_KEY}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
-		done
-	else # General search
-		[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} GENERAL SEARCH"
-		msg_box "Channel search failed.  Performing general search..."
-		g_SEARCH_TYPE=general
-		GEN_SEARCH=$(sed 's/ /%20/g' <<<${g_QUERY_KEY})
-		PG=$(wget -q -O - "https://rumble.com/search/all?q=${GEN_SEARCH}")
-
-		TITLES=("${(f)$(pup --charset utf8 '.video-item--title text{}' <<<${PG} | iconv -f utf-8 -t ascii//TRANSLIT | sed 's/|//g')}")
-		AGES=("${(f)$(pup --charset utf8 '.video-item--meta attr{datetime}' <<<${PG})}")
-		DURATIONS=("${(f)$(pup --charset utf8 '.video-item--duration attr{data-value}' <<<${PG})}")
-		LINKS=("${(f)$(pup --charset utf8 '.video-item--a attr{href}' <<<${PG})}")
-		CHANNELS=("${(f)$(pup --charset utf8 '.video-item--by-a attr{href}' <<<${PG})}")
-
-		for ((X=1; X<=${#TITLES}; X++));do
-			[[ ${CHANNELS[${X}]} =~ 'user' ]] && echo "Query:${g_QUERY_KEY} Skipped ${TITLES[${X}]} ${CHANNELS[${X}]}" >> /tmp/gen_filter.dbg && continue # Filter
-			AGE=$(sed 's/T.*//' <<<${AGES[${X}]})
-			CHANNEL=$(sed 's#^.*/##' <<<${CHANNELS[${X}]})
-			VID_LIST+="${CHANNEL}|${TITLES[${X}]}|${AGE}|${LINKS[${X}]}|${DURATIONS[${X}]}" # Unique rows
-		done
 	fi
 	 
 	NDX=0
@@ -1172,7 +1196,12 @@ set_item_color () {
 }
 
 show_down () {
-	tput cup ${_ALERT_COORDS[X]} $((_ALERT_COORDS[Y] +6));echo -n "${BOLD}${GREEN_FG}⇊ ⇊ ⇊ ⇊ ⇊ ⇊${RESET}";sleep 1
+	local MASK_1="▽  ▽  ▽  ▽"
+	local MASK_2="  ▽  ▽  ▽ "
+	local MASK=''
+	[[ ${g_LAST_MASK} -eq 1 ]] && MASK=${MASK_2} || MASK=${MASK_1}
+	tput cup ${_ALERT_COORDS[X]} $((_ALERT_COORDS[Y] +6));echo -n "${BOLD}${GREEN_FG}${MASK}${RESET}";sleep .08
+	[[ ${g_LAST_MASK} -eq 1 ]] && g_LAST_MASK=2 || g_LAST_MASK=1
 }
 
 start_job () {
@@ -1266,7 +1295,7 @@ usage () {
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} [$(opt_type s)] [$(opt_type u)]\n"
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
-	echo -e "${WHITE_FG}-A${RESET} fix audio"
+	echo -e "${WHITE_FG}-A${RESET} fix audio (YouTube only)"
 	echo -e "${WHITE_FG}-L${RESET} toggle cached livestream option (${MAGENTA_FG}Rumble only${RESET})"
 	echo -e "${WHITE_FG}-R${RESET} Rumble query [default is YouTube]"
 	echo -e "${WHITE_FG}-S${RESET} disable strict filtering (${MAGENTA_FG}YouTube only${RESET})"
@@ -1311,6 +1340,7 @@ shift $((OPTIND -1))
 
 # Execution
 g_LAST_CODE_UPD=$(last_code_update ${_CODE_MARKER})
+[[ ${g_FIX_AUDIO} == 'true' && ${g_QRY_ENGINE} == 'rumble' ]] && g_FIX_AUDIO=false && msg_box -p -PK "FIX AUDIO not supported for Rumble| FIX AUDIO ignored"
 
 g_GOT_URL=false
 for A in ${@};do
@@ -1319,9 +1349,10 @@ for A in ${@};do
 		URL=${A} 
 		shift
 		[[ ${A} =~ 'youtube' ]] && g_QRY_ENGINE='youtube'
-		[[ ${A} =~ 'rumble' ]] && exit_leave "Rumble URL: Don't know how to do this yet"
+		[[ ${A} =~ 'rumble' ]] && g_QRY_ENGINE='rumble'
 	fi
 done
+
 
 download_log_update
 

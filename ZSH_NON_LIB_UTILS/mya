@@ -27,7 +27,9 @@ while read LINE;do
 	ALIASES+=${LINE}
 done < ${FN}
 
+
 (
+echo "${BOLD}${CYAN_FG}LIST OF DEFINED ALIASES${RESET}\n"
 echo "DIRECTORY CHANGE"
 for A in ${(o)ALIASES};do
 	[[ ! ${A} =~ '=' ]] && continue
