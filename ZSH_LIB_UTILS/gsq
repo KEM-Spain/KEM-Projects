@@ -31,7 +31,6 @@ action_do () {
 	local ROW
 	local LONG_VAL
 	local HDR
-	local -A M_COORDS
 
 	for M in ${_MARKED};do
 		CUR_VALUE=$(get_val ${M})
@@ -39,7 +38,6 @@ action_do () {
 		KEY=$(get_key ${M})
 
 		msg_box -H1 -p -P"Change value (y/n)" "Current value for:<y>${KEY}<N>|is:<g>${CUR_VALUE}<N>"
-		M_COORDS=($(box_coords_get MSG))
 
 		if [[ ${_MSG_KEY} == 'y' ]];then
 			LONG_VAL=false
@@ -49,24 +47,7 @@ action_do () {
 				vim /tmp/gsq # Value is too long - go to vim
 				NEW_VALUE=$(</tmp/gsq)
 			else
-				HDR="<m>$(str_unicode_line 12)<N> New Value for:<w> ${KEY} <m>$(str_unicode_line 12) (vi editor) $(str_unicode_line 12)<N>"
-				for ((ROW=-1;ROW<=7;ROW++));do
-					tput cup $((M_COORDS[X]+ROW)) $(coord_center $((_MAX_COLS-5)) ${#HDR})
-					tput ech ${#HDR}
-				done
-
-				msg_box "${HDR}"
-
-				# Tput smso
-				tput cup $((M_COORDS[X]+4)) $((M_COORDS[Y]+2))
-				PROMPT="${E_RESET}${E_BOLD}Enter value${E_RESET}:"
-				cursor_on
-				NEW_VALUE=$(inline_edit ${PROMPT} ${CUR_VALUE}) # Launch line editor
-				cursor_off
-				M_COORDS[H]=$((M_COORDS[H]+2))
-
-				tput rmso
-				msg_box_clear
+				NEW_VALUE=$(edit_box ${KEY} ${CUR_VALUE})
 			fi
 
 			if [[ ${LONG_VAL} == 'true' ]];then
@@ -82,6 +63,8 @@ action_do () {
 					gsettings set ${URL} ${KEY} ${NEW_VALUE}
 					_LOCAL_LIST=("${(@f)$(gsettings list-recursively | sort -u | egrep "${SEARCHTERM}" | sed -e 's/: /:/g')}")
 				fi
+			else
+				msg_box -H1 -p -PK "Value remains unchanged"
 			fi
 		fi
 	done
@@ -133,9 +116,40 @@ get_val () {
 	cut -d' '  -f3- <<<${_LIST[${NDX}]}
 }
 
-inline_edit () {
-	local PROMPT=${1}
+edit_box () {
+	local KEY=${1}
 	local CUR_VALUE=${2}
+	local -A M_COORDS
+	local HDR="<m>$(str_unicode_line 12)<N> New Value for:<w> ${KEY} <m>$(str_unicode_line 12) (vi editor) $(str_unicode_line 12)<N>"
+	local ROW=0
+
+	M_COORDS=($(box_coords_get MSG_BOX))
+
+	{
+	# Clear space around input
+	for ((ROW=-1;ROW<=7;ROW++));do
+		tput cup $((M_COORDS[X]+ROW)) $(coord_center $((_MAX_COLS-7)) ${#HDR})
+		tput ech ${#HDR}
+	done
+
+	msg_box -jl -h ${M_COORDS[H]} -w $((${#HDR}-25)) "${HDR}"
+
+	# tput smso
+	tput cup $((M_COORDS[X]+4)) $((M_COORDS[Y]+2))
+	cursor_on
+	NEW_VALUE=$(inline_edit ${CUR_VALUE}) # Launch line editor
+	cursor_off
+	M_COORDS[H]=$((M_COORDS[H]+2))
+	tput rmso
+	msg_box_clear
+	} >&2
+
+	echo ${NEW_VALUE}
+}
+
+inline_edit () {
+	local CUR_VALUE=${1}
+	local PROMPT="${E_RESET}${E_BOLD}Enter value${E_RESET}:"
 	local PERL_SCRIPT
 
 	read -r -d '' PERL_SCRIPT <<'___EOF'

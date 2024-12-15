@@ -302,7 +302,8 @@ action_do () {
 
 			LINE_COLOR=''
 			if [[ -n ${ETA} && ${ETA_COMPLETE} == 'false' ]];then
-				ERROR_CNT=0
+				ERROR_CNT=0 
+				show_down
 				case ${ETA:l} in
 					*'100% of'*) LINE_COLOR='<B><g>';ETA_COMPLETE=true;;; # Prevent doubling complete line
 					*mib/s*) LINE_COLOR='<w>';;
@@ -310,10 +311,10 @@ action_do () {
 					*) continue;; # Skip other
 				esac
 			else
-				continue # Empty line
+				continue # Uncaptured line
 			fi
 
-			[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>' || show_down
+			[[ ${HAD_ERROR} == 'true' ]] && LINE_COLOR='<r>'
 
 			echo "${0}: ${LINE_COLOR}${ETA}" >> ${_YTS_DBG_LOG}
 			msg_box -C -jl "${LINE_COLOR}${ETA[1,59]}<N>" # Show progress

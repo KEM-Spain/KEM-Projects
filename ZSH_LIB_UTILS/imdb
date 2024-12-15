@@ -33,9 +33,11 @@ imdb () {
 
 	msg_box "Querying imdb..."
 
+	STR=$(sed 's/ /%20/g' <<<${STR})
+
 	{
-	URL=$(wget --quiet -O - "http://www.imdb.com/find?q=${STR}" | pup '.ipc-page-content-container a attr{href}' | grep 'tt_1' | sed 's/\/?ref.*//')
-	URL="http://www.imdb.com/${URL}"
+	URL=$(wget --quiet -O - "http://www.imdb.com/find?q=${STR}" | pup 'div' .ipc-metadata-list-summary-item__t attr{href} | grep 'ttl_1' | sed 's#/?ref.*##')
+	URL="http://www.imdb.com${URL}"
 	if [[ ! $(curl --connect-timeout 2 -Is "${URL}" | head -1) =~ "404" ]];then
 		nohup google-chrome "${URL}" >/dev/null
 	else
