@@ -1099,7 +1099,7 @@ query_youtube () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} _LOCAL_LIST content:\n $(for L in ${_LOCAL_LIST};do echo ${L};done)"
 
-	#[[ ${_SMCUP} == 'false' ]] && do_smcup
+	[[ ${_SMCUP} == 'false' ]] && do_smcup
 
 	# Return search status
 	if ! arr_is_populated "${_LOCAL_LIST}";then
@@ -1309,7 +1309,7 @@ usage () {
 	local -a PENDING_MSGS=(${@})
 
 	tabs 5
-	#[[ ${_SMCUP} == 'true' ]] && do_rmcup
+	[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 	(
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} [$(opt_type s)] [$(opt_type u)]\n"
@@ -1440,7 +1440,7 @@ fi
 # Run Query
 if [[ ${#} -eq 0 && ${g_GOT_URL} == 'false' ]];then # NO args passed
 	while true;do
-		#do_smcup
+		do_smcup
 		fav_get
 		if [[ -n ${g_QUERY_KEY} ]];then
 			msg_box "Requesting videos for <B><I>${g_DISPLAY_KEY}<N>..."
