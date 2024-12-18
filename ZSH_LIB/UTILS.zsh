@@ -298,11 +298,6 @@ func_normalize () {
 	perl -pe 's/\(\) \(\)/\(\)/g' < ${FN}_.pass_2 > ${FN}_.pass_3
 
 	perl -pe 's/(^})(.*)/${1}/g' < ${FN}_.pass_3 > ${FN}.normalized
-
-	#perl -pe 's/(^})(.*)/${1}/g' < ${FN}_.pass_3 > ${FN}_.pass_4
-	 
-	#TODO: Does not correctly detect function boundary
-	#perl -pe 's/^\s+\}\s*?$/}/' < ${FN}_.pass_4 > ${FN}.normalized 
 }
 
 func_print () {

@@ -909,6 +909,7 @@ post_process () {
 query_rumble () {
 	local SEARCHTERM=${1}
 	local -A LAST_MSG=($(box_coords_get ${_LAST_MSG_TAG}))
+	local -A MSG_BOX=($(box_coords_get "MSG_BOX"))
 	local -a AGES
 	local -a CHANNELS
 	local -a DURATIONS
@@ -953,11 +954,12 @@ query_rumble () {
 			[[ ${g_LIVE_OPT} == 'true' ]] && { [[ ${g_LIVE} == 'true' ]] && g_LIVE=false || g_LIVE=true }
 			[[ ${g_LIVE} == 'true' ]] && MSG="Searching livestreams..." || MSG="Searching videos..."
 
+			#TODO Overlay previous message completely with this msg
 			if [[ -n ${INNER_BOX} ]];then
-				_REL_COORDS=($(box_coords_relative INNER_BOX X +6 W ${REL_W} Y ${REL_Y} H 3))
+				_REL_COORDS=($(box_coords_relative INNER_BOX X +6 Y ${REL_Y} H 3 W ${LAST_MSG[W]}))
 				msg_box -T SEARCH -R -c ${MSG}
 			else
-				msg_box -T SEARCH ${MSG}
+				msg_box -x $((MSG_BOX[X]+1)) -y ${MSG_BOX[Y]} -w $((MSG_BOX[W]+1)) ${MSG}
 			fi
 
 			LIVE=$(pup '.channel-subheader--menu-item attr{href}' <<<${PG} | grep "livestreams" 2>/dev/null)
@@ -1097,7 +1099,7 @@ query_youtube () {
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} _LOCAL_LIST count: ${#_LOCAL_LIST}"
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${0}:${LINENO} _LOCAL_LIST content:\n $(for L in ${_LOCAL_LIST};do echo ${L};done)"
 
-	[[ ${_SMCUP} == 'false' ]] && do_smcup
+	#[[ ${_SMCUP} == 'false' ]] && do_smcup
 
 	# Return search status
 	if ! arr_is_populated "${_LOCAL_LIST}";then
@@ -1198,17 +1200,33 @@ set_item_color () {
 }
 
 show_down () {
-	local MASK_1="▽  ▽  ▽  ▽"
-	local MASK_2="  ▽  ▽  ▽ "
 	local MASK=''
-	[[ ${g_LAST_MASK} -eq 1 ]] && MASK=${MASK_2} || MASK=${MASK_1}
-	tput cup ${_ALERT_COORDS[X]} $((_ALERT_COORDS[Y] +6));echo -n "${BOLD}${GREEN_FG}${MASK}${RESET}";sleep .08
-	[[ ${g_LAST_MASK} -eq 1 ]] && g_LAST_MASK=2 || g_LAST_MASK=1
+	local MASK_1="    ⇩⇩"
+	local MASK_2="   ⇩⇩⇩⇩"
+	local MASK_3="  ⇩⇩⇩⇩⇩⇩"
+	local MASK_4=" ⇩⇩⇩⇩⇩⇩⇩⇩"
+	local MASK_5="⇩⇩⇩⇩⇩⇩⇩⇩⇩⇩"
+
+	local X=$((_ALERT_COORDS[X]-3))
+
+	[[ ${g_LAST_MASK} -lt 5 ]] && ((g_LAST_MASK++)) || g_LAST_MASK=1
+
+	case ${g_LAST_MASK} in
+		1) X=$((X+1));MASK=${MASK_1};;
+		2) X=$((X+2));MASK=${MASK_2};;
+		3) X=$((X+3));MASK=${MASK_3};;
+		4) X=$((X+4));MASK=${MASK_4};;
+		5) X=$((X+5));MASK=${MASK_5};;
+	esac
+
+	tput cup ${X} $((_ALERT_COORDS[Y] +6));echo -n "${BOLD}${GREEN_FG}${MASK}${RESET}";sleep .06
 }
 
 start_job () {
 	local URL=${@}
 	local CMD=''
+
+	g_LAST_MASK=0
 
 	[[ ${_DEBUG} -ge ${_YTS_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
@@ -1291,7 +1309,7 @@ usage () {
 	local -a PENDING_MSGS=(${@})
 
 	tabs 5
-	[[ ${_SMCUP} == 'true' ]] && do_rmcup
+	#[[ ${_SMCUP} == 'true' ]] && do_rmcup
 
 	(
 	echo -e "\n${WHITE_FG}Usage${RESET}: ${_SCRIPT} ${OPTS} [$(opt_type s)] [$(opt_type u)]\n"
@@ -1422,7 +1440,7 @@ fi
 # Run Query
 if [[ ${#} -eq 0 && ${g_GOT_URL} == 'false' ]];then # NO args passed
 	while true;do
-		do_smcup
+		#do_smcup
 		fav_get
 		if [[ -n ${g_QUERY_KEY} ]];then
 			msg_box "Requesting videos for <B><I>${g_DISPLAY_KEY}<N>..."

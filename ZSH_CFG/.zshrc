@@ -20,6 +20,7 @@ YELLOW_FG="\033[33m"
 
 # Constants
 PATH=${PATH}:/usr/local/bin/system # add custom utils
+PATH=${PATH}:/snap/bin # add snaps
 PATH=${PATH}:/usr/local/bin/_perl.local # add local perl
 _REL=$(lsb_release -d | cut -d: -f2- | sed 's/^[ \t]*//')
 _RLBL=$(lsb_release -c | cut -d: -f2- | sed 's/^[ \t]*//')

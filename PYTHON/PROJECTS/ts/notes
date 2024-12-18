@@ -10,7 +10,7 @@ thread_complete()
 
 INTERNAL
 
-start_spinnter
+start_spinner
 	start_thread()
 
 stop_spinner
