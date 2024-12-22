@@ -23,8 +23,26 @@ WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 _LIB_DIR=/usr/local/lib
 source ${_LIB_DIR}/LIB_INIT.zsh # Must be first
 source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/VALIDATE.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
 
-#Execution
-[[ ${#} -eq 0 ]] && exit_leave $(msg_exit W "Missing argument:<FORMULA>") || MATH=${@}
-echo "scale=2; ${MATH}" | bc 
+# Execution
+[[ ${#} -eq 0 ]] && exit_leave $(msg_exit W "Missing argument:<FORMULA>")
+
+if [[ ${1} == '-H' ]];then
+	tabs 5
+	echo "\n${WHITE_FG}Usage${RESET}:${0:t} [-H -p <INT>] '<FORMULA>'"
+	echo "${WHITE_FG} Desc${RESET}:Execute mathematical formula\n"
+	echo "Options: -p precision"
+	return
+fi
+
+PRECISION=2
+[[ ${1} == '-p' ]] && shift && PRECISION=${1} && shift
+if ! validate_is_integer ${PRECISION};then
+	exit_leave $(msg_exit E "PRECISION:${PRECISION} must be integer")
+fi
+
+FORMULA=${@}
+	
+echo "scale=${PRECISION}; ${FORMULA}" | bc 

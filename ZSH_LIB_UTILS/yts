@@ -704,13 +704,15 @@ get_field () {
 	fi
 
 	if [[ ${FIELD} == 'title' ]];then
-		STR=${STR[1,75]} && STR=$(sed -E 's/^\s+?\?*?\s+?//' <<<${STR}) # Strip leading space and limit length
+		STR=${STR[1,75]} # Limit length
+		STR=$(sed -E 's/^\s+?\?*?\s+?//' <<<${STR}) # Strip leading space 
+		STR=$(html2text -ascii <<<${STR}) # HTML
 		STR=${(C)STR} # Proper case
+		STR=$(sed -E -e 's#W/#w/#g' -e 's/(\x27[[:alpha:]]+)([[:space:]].*)/\L\1\E\2/' <<<${STR}) # Misc fixups
 	fi
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning STR:${STR}"
 	
-	STR=$(html2text -ascii <<<${STR})
 	#STR=$(iconv -f utf-8 -t ascii//translit <<<${STR}) # Scrub non ascii
 
 	[[ ${_DEBUG} -ge 2 ]] && dbg "${0}:${LINENO} Returning:${STR[1,65]}"
@@ -1201,11 +1203,11 @@ set_item_color () {
 
 show_down () {
 	local MASK=''
-	local MASK_1="    ⇩⇩"
-	local MASK_2="   ⇩⇩⇩⇩"
+	local MASK_1="⇩⇩⇩⇩⇩⇩⇩⇩⇩⇩"
+	local MASK_2=" ⇩⇩⇩⇩⇩⇩⇩⇩"
 	local MASK_3="  ⇩⇩⇩⇩⇩⇩"
-	local MASK_4=" ⇩⇩⇩⇩⇩⇩⇩⇩"
-	local MASK_5="⇩⇩⇩⇩⇩⇩⇩⇩⇩⇩"
+	local MASK_4="   ⇩⇩⇩⇩"
+	local MASK_5="    ⇩⇩"
 
 	local X=$((_ALERT_COORDS[X]-3))
 

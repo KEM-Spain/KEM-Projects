@@ -125,7 +125,7 @@ alias v='cd /var'
 alias z='cd /etc/zsh'
 
 alias mk='cd /media/kmiller'
-alias ms='cd ~/Documents/MuseScore3/Scores'
+alias ms='cd ~/Documents/MuseScore4/Scores'
 alias us='cd /usr/share/'
 
 alias ule='cd /usr/local/etc'

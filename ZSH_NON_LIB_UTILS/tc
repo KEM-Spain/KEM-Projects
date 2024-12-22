@@ -19,7 +19,7 @@ YELLOW_FG="\033[33m"
 read PW < ~/.tcp
 _MOUNTPOINT=/media/truecrypt1
 _VOLUME=~/PRS1;
-_SCRIPT=${0:t}
+_SCRIPT=${0:t:s/\./}
 
 # Functions
 create_mp () {
@@ -50,16 +50,17 @@ dismount () {
 # Getopts
 read -r -d '' DESC<<EOF
 This script mounts truecrypt volumes
-\tIf no args are passed, behaves like a toggle
-\ti.e. if not mounted, mounts, and vice versa
+\t${WHITE_FG}${_SCRIPT}${RESET} behaves like a toggle:
+\t   Initial call - mounts and enters ${_MOUNTPOINT}.
+\tSubsequent call - unmounts and enters ${HOME}.
 EOF
 
 usage () {
 	tabs 5
 
 	(
-	echo -e "\nUsage: ${_SCRIPT} -hpd password \n"
-	echo "-h help"
+	echo -e "\nUsage: ${_SCRIPT} -Hpd password \n"
+	echo "-H help"
 	echo "-p personal"
 	echo "-d unmount volume"
 	echo "${WHITE_FG}\nDesc${RESET}:${DESC}"
@@ -70,13 +71,13 @@ usage () {
 
 OPTIND=0
 # Leading ":" in opts generates "?" for unknown opt
-while getopts ":hpd" opts;do
+while getopts ":Hpd" opts;do
 	case $opts in
+      H) usage;;
+      d) dismount;;
       p) _MOUNTPOINT='/media/personal'
          _VOLUME=~/PRS1;
          ;;
-      d) dismount;;
-      h) usage;;
       :) print -u2 "$0: option: -$OPTARG requires an argument"; usage ;;
      \?) print -u2 "$0: ${BOLD}${RED_FG}Unknown option${RESET} $OPTARG"; usage ;;
 	esac
@@ -90,7 +91,7 @@ if ! create_mp;then
 fi
 
 # Unmount or cd if no args passed
-if is_mounted && [[ $# -eq 0 && ${PWD} == ${_MOUNTPOINT} ]];then
+if is_mounted && [[ $# -eq 0 && ${PWD} =~ ${_MOUNTPOINT} ]];then
 	cd ~/
 	dismount
 	export TCHOME=false

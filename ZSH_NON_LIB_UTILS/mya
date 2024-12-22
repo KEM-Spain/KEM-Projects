@@ -20,7 +20,7 @@ YELLOW_FG="\033[33m"
 WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
-typeset -a ALIASES=()
+typeset -A ALIASES=()
 
 # Constants
 FN=/etc/zsh/aliases
@@ -34,37 +34,35 @@ SEARCHTERM=''
 [[ ${#} -ne 0 ]] && SEARCHTERM=${1}
 [[ -n ${SEARCHTERM} ]] && TAG="${WHITE_FG}(${RESET}FILTER = \"${WHITE_FG}${SEARCHTERM}${RESET}\"${WHITE_FG})${RESET}" || TAG="${WHITE_FG}(${RESET}UNFILTERED${WHITE_FG})${RESET}"
 
+source /usr/local/lib/STR.zsh
+
 while read LINE;do
-	ALIASES+=${LINE}
+	[[ ! ${LINE} =~ '=' ]] && continue
+	ALIAS=$(cut -d'=' -f1 <<<${LINE} | sed 's/alias//' | str_trim)
+	CMD=$(cut -d'=' -f2 <<<${LINE} | sed -e "s/'//g" -e 's/"//g')
+	ALIASES[${ALIAS}]=${CMD}
 done < ${FN}
 
-(
-echo "${BOLD}${CYAN_FG}List of Defined Aliases ${TAG}${RESET}\n"
-echo "Directory Change"
+{
+printf "\n${MAGENTA_FG}Directory Change${RESET} ${TAG}${RESET}\n\n"
 
 HIT=false
-for A in ${(o)ALIASES};do
-	[[ ! ${A} =~ '=' ]] && continue
-	[[ ! ${A} =~ 'cd' ]] && continue
-	ABBV=$(cut -d'=' -f1 <<<${A} | sed 's/alias//')
-	[[ -n ${SEARCHTERM} && ! ${ABBV} =~ "^\s+?${SEARCHTERM}.*" ]] && continue
+for A in ${(ok)ALIASES};do
+	[[ ! ${ALIASES[${A}]} =~ 'cd' ]] && continue
+	[[ ! ${A} =~ "^${SEARCHTERM}.*" ]] && continue
 	HIT=true
-	CMD=$(cut -d'=' -f2 <<<${A} | sed -e "s/'//g" -e 's/"//g')
-	printf "${CYAN_FG}%15s ${WHITE_FG}%-30s${RESET}\n" ${ABBV} ${CMD}
+	printf "${CYAN_FG}%15s ${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
 done
-[[ ${HIT} == 'false' ]] && echo "\t${ITALIC}${RED_FG}FILTERED${RESET}"
+[[ ${HIT} == 'false' ]] && echo "${RED_FG}FILTERED${RESET}"
 
-echo "\nCommands"
+printf "\n${MAGENTA_FG}Commands${RESET} ${TAG}${RESET}\n\n"
+
 HIT=false
-for A in ${(o)ALIASES};do
-	[[ ! ${A} =~ '=' ]] && continue
-	[[ ${A} =~ 'cd' ]] && continue
-	ABBV=$(cut -d'=' -f1 <<<${A} | sed 's/alias//')
-	[[ -n ${SEARCHTERM} && ! ${ABBV} =~ "^\s+?${SEARCHTERM}.*" ]] && continue
+for A in ${(ok)ALIASES};do
+	[[ ${ALIASES[${A}]} =~ 'cd' ]] && continue
+	[[ ! ${A} =~ "^${SEARCHTERM}.*" ]] && continue
 	HIT=true
-	CMD=$(cut -d'=' -f2 <<<${A} | sed -e "s/'//g" -e 's/"//g')
-	printf "${CYAN_FG}%15s ${WHITE_FG}%-30s${RESET}\n" ${ABBV} ${CMD}
+	printf "${CYAN_FG}%15s ${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
 done
-[[ ${HIT} == 'false' ]] && echo "\t${ITALIC}${RED_FG}FILTERED${RESET}"
-
-) | mypager
+[[ ${HIT} == 'false' ]] && echo "${RED_FG}FILTERED${RESET}"
+} | mypager

@@ -290,6 +290,7 @@ typeset -a OPTIONS
 OPTSTR=":HDadeilrt"
 OPTIND=0
 
+[[ ${_CALLER} =~ 'listing' ]] && _CALLER='l'
 [[ ${_CALLER} =~ 'llr' ]] && RECURSE=true || RECURSE=false
 
 while getopts ${OPTSTR} OPTION;do
