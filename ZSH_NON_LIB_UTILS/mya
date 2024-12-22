@@ -44,25 +44,35 @@ while read LINE;do
 done < ${FN}
 
 {
-printf "\n${MAGENTA_FG}Directory Change${RESET} ${TAG}${RESET}\n\n"
+printf "\n${BOLD}${WHITE_FG}Registered Aliases${RESET} ${TAG}${RESET}\n\n"
+printf "\n${MAGENTA_FG}Directory Change\n----------------\n"
 
 HIT=false
+LAST_ALIAS=?
 for A in ${(ok)ALIASES};do
 	[[ ! ${ALIASES[${A}]} =~ 'cd' ]] && continue
 	[[ ! ${A} =~ "^${SEARCHTERM}.*" ]] && continue
 	HIT=true
-	printf "${CYAN_FG}%15s ${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
+	if [[ ${A} =~ '[[:alpha:]]' && -z ${SEARCHTERM} ]];then
+		[[ ${A[1,2]:l} =~ '\.[a-z]' ]] && TOKEN=${A[2]:l} || TOKEN=${A[1]:l}
+		[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}"
+	fi
+	printf "${BOLD}${CYAN_FG}%15s ${RESET}${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
 done
 [[ ${HIT} == 'false' ]] && echo "${RED_FG}FILTERED${RESET}"
 
-printf "\n${MAGENTA_FG}Commands${RESET} ${TAG}${RESET}\n\n"
+printf "\n${MAGENTA_FG}Commands\n--------\n"
 
 HIT=false
 for A in ${(ok)ALIASES};do
 	[[ ${ALIASES[${A}]} =~ 'cd' ]] && continue
 	[[ ! ${A} =~ "^${SEARCHTERM}.*" ]] && continue
 	HIT=true
-	printf "${CYAN_FG}%15s ${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
+	if [[ ${A} =~ '[[:alpha:]]' && -z ${SEARCHTERM} ]];then
+		[[ ${A[1,2]:l} =~ '\.[a-z]' ]] && TOKEN=${A[2]:l} || TOKEN=${A[1]:l}
+		[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}"
+	fi
+	printf "${BOLD}${CYAN_FG}%15s ${RESET}${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
 done
 [[ ${HIT} == 'false' ]] && echo "${RED_FG}FILTERED${RESET}"
 } | mypager
