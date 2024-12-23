@@ -21,7 +21,7 @@ WHITE_ON_GREY="\033[0m\033[0;1;37;100m"
 
 # Declarations
 typeset -a _VID_EXT=(mov avi mkv mp4 webm)
-typeset -a _AUD_EXT=(mp3 flac wav)
+typeset -a _AUD_EXT=(mp3 flac wav m4a)
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -137,6 +137,6 @@ ETYPE=false
 
 echo "Processing ${FTYPE} file:${FN}"
 
-ffmpeg -i ${FN} ${FN:r}.${EXT}
+ffmpeg -y -i ${FN} ${FN:r}.${EXT}
 
 exit_leave

@@ -206,6 +206,7 @@ length () {
 	local DNUM=0
 	local TITLE=''
 	local HDR=''
+	local -a FLIST=()
 
 	read -r -d '' DESC<<___EOF
 Display video duration
@@ -227,11 +228,16 @@ ___EOF
 
 	# Execution
 	[[ ${1} == '-H' ]] && usage
-	[[ ${#} -eq 0 ]] && usage "missing video filename(s)" || FN_ARG=(${@})
+	[[ ${#} -eq 0 ]] && FN_ARG=${PWD} || FN_ARG=(${@})
 	
-	for F in ${FN_ARG};do
+	if [[ ${FN_ARG} == ${PWD} ]];then
+		FLIST=("${(f)$(find ${PWD} -type f ! -path ${PWD})}")
+	else
+		FLIST=${FN_ARG}
+	fi
+
+	for F in ${FLIST};do
 		[[ ! -f ${F} ]] && continue
-		[[ ! -f ${F} ]] && exit_leave $(msg_exit E "file not found:${F}")
 		file ${F} | grep -qi 'media\|matroska\|video'
 		[[ ${?} -ne 0 ]] && echo "File:${WHITE_FG}${F}${RESET} not a video file - skipping" && continue
 		[[ ${#F} -gt ${LONGEST} ]] && LONGEST=${#F}

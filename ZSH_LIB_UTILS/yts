@@ -303,7 +303,7 @@ action_do () {
 			LINE_COLOR=''
 			if [[ -n ${ETA} && ${ETA_COMPLETE} == 'false' ]];then
 				ERROR_CNT=0 
-				show_down
+				show_down ${ETA}
 				case ${ETA:l} in
 					*'100% of'*) LINE_COLOR='<B><g>';ETA_COMPLETE=true;;; # Prevent doubling complete line
 					*mib/s*) LINE_COLOR='<w>';;
@@ -1202,12 +1202,14 @@ set_item_color () {
 }
 
 show_down () {
+	local LINE=${@}
 	local MASK=''
 	local MASK_1="⇩⇩⇩⇩⇩⇩⇩⇩⇩⇩"
 	local MASK_2="⇩⇩⇩⇩⇩⇩⇩⇩"
 	local MASK_3="⇩⇩⇩⇩⇩⇩"
 	local MASK_4="⇩⇩⇩⇩"
 	local MASK_5="⇩⇩"
+	local LINE_COLOR=''
 
 	local X=$((_ALERT_COORDS[X]-3))
 
@@ -1221,7 +1223,12 @@ show_down () {
 		5) X=$((X+5));MASK=${MASK_5};;
 	esac
 
-	tput cup ${X} $((_ALERT_COORDS[Y] +6));echo -n "${BOLD}${GREEN_FG}${MASK}${RESET}";sleep .06
+	case ${ETA:l} in
+		*mib/s*) LINE_COLOR="${BOLD}${GREEN_FG}";;
+		*kib/s*) LINE_COLOR="${BOLD}${YELLOW_FG}";;
+	esac
+
+	tput cup ${X} $((_ALERT_COORDS[Y] +6));echo -n "${LINE_COLOR}${MASK}${RESET}";sleep .06
 }
 
 start_job () {
