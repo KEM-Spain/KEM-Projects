@@ -261,16 +261,16 @@ action_do () {
 			LOG_LINE=$(sed -e 's//\n/g' -e '/./!d' ${g_YTS_LOG} | tail -1 | str_trim) 
 
 			ETA='' && ERR='' && OTH=''
-			if grep -qi 'eta.*error' <<<${LOG_LINE};then # Contains both - split
+			if grep -qi 'eta.*error' <<<${LOG_LINE} 2>/dev/null;then # Contains both - split
 				ETA=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | head -1 | str_trim)
 				ERR=$(sed -E 's/([0-9])(\[.*)/\1\n\2/g' <<<${LOG_LINE} | tail -1 | str_trim)
-			elif grep -q 'ETA' <<<${LOG_LINE};then # Uppercase ETA
+			elif grep -q 'ETA' <<<${LOG_LINE} 2>/dev/null;then # Uppercase ETA
 				echo "${0}: GOT ETA ${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				ETA=${LOG_LINE}
-			elif grep -qi 'error' <<<${LOG_LINE};then
+			elif grep -qi 'error' <<<${LOG_LINE} 2>/dev/null;then
 				echo "${0}: GOT ERRORS ${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				ERR=${LOG_LINE}
-			elif grep -qi 'Fixing MPEG-TS' <<<${LOG_LINE};then
+			elif grep -qi 'Fixing MPEG-TS' <<<${LOG_LINE} 2>/dev/null;then
 				echo "${0}: GOT Fragmented completion ${LOG_LINE}" >> ${_YTS_DBG_LOG}
 				ETA="100% of download completed"
 			else
@@ -621,7 +621,7 @@ get_av_codes () {
 	local VIDEO_CODE
 	local L V A
 
-	LIST=("${(f)$(yt -F ${URL} | grep 'm4a\|mp4' | grep 'https')}")
+	LIST=("${(f)$(yt -F ${URL} | grep 'm4a\|mp4' 2>/dev/null | grep 'https' 2>/dev/null)}")
 
 	for L in ${LIST};do
 		[[ ${L:l} =~ 'audio' ]] && AUDIO+=$(tr -s '[:space:]' <<<${L} | sed 's/ /|/g' | tr -s '|' | sed 's/,//g')
@@ -754,7 +754,7 @@ kill_job () {
 	RC=$?
 	
 	if [[ ${RC} -eq 0 ]];then
-		PIDS=("${(f)$(ps -aux | grep "${g_PID}\|/usr/local/src/yt-dlp\|/usr/local/bin/yt")}")
+		PIDS=("${(f)$(ps -aux | grep "${g_PID}\|/usr/local/src/yt-dlp\|/usr/local/bin/yt" 2>/dev/null)}")
 		for P in ${PIDS};do
 			PID=$(tr -s '[:space:]' <<<${P} | cut -d' ' -f2)
 			[[ -n ${PID} ]] && kill -9 ${PID} >/dev/null 2>&1
@@ -823,7 +823,7 @@ log_find () {
 		TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<$(get_field agetime ${R})) # Video length
 		TM=$(tr -d '[()]' <<<${TM} | sed 's/undefined//')
 		TITLE=$(get_field title ${R}) # Title
-		LINE=$(grep -i ${AU:=null} ${_DOWNLOAD_LOG} | grep ${TM:=null} | grep ${TITLE}) # Match on author/time/title
+		LINE=$(grep -i ${AU:=null 2>/dev/null} ${_DOWNLOAD_LOG} | grep ${TM:=null} 2>/dev/null | grep ${TITLE} 2>/dev/null) # Match on author/time/title
 		if [[ -n ${LINE} ]];then 
 			FN=$(cut -d '|' -f3 <<<${LINE})
 			[[ ${SEEN[${FN}]} == 'true' ]] && continue # Only process a filename once
@@ -853,7 +853,7 @@ log_to_file () {
 		AU=$(get_field author ${R}) # Author
 		TM=$(sed -E 's/^.*ago\s+(.*)\)/\1/' <<<$(get_field agetime ${R})) # Video length
 		TM=$(tr -d '[()]' <<<${TM} | sed 's/undefined//')
-		LINE=$(grep -i ${AU:=null} ${_DOWNLOAD_LOG} | grep ${TM:=null}) # Match on author/time
+		LINE=$(grep -i ${AU:=null} ${_DOWNLOAD_LOG} 2>/dev/null | grep ${TM:=null} 2>/dev/null) # Match on author/time
 		if [[ -n ${LINE} ]];then 
 			FN=$(cut -d '|' -f3 <<<${LINE})
 			if [[ -e ${_DOWNLOAD_DIR}/${FN} ]];then
@@ -1204,10 +1204,10 @@ set_item_color () {
 show_down () {
 	local MASK=''
 	local MASK_1="⇩⇩⇩⇩⇩⇩⇩⇩⇩⇩"
-	local MASK_2=" ⇩⇩⇩⇩⇩⇩⇩⇩"
-	local MASK_3="  ⇩⇩⇩⇩⇩⇩"
-	local MASK_4="   ⇩⇩⇩⇩"
-	local MASK_5="    ⇩⇩"
+	local MASK_2="⇩⇩⇩⇩⇩⇩⇩⇩"
+	local MASK_3="⇩⇩⇩⇩⇩⇩"
+	local MASK_4="⇩⇩⇩⇩"
+	local MASK_5="⇩⇩"
 
 	local X=$((_ALERT_COORDS[X]-3))
 

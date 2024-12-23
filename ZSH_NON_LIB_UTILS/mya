@@ -55,7 +55,7 @@ for A in ${(ok)ALIASES};do
 	HIT=true
 	if [[ ${A} =~ '[[:alpha:]]' && -z ${SEARCHTERM} ]];then
 		[[ ${A[1,2]:l} =~ '\.[a-z]' ]] && TOKEN=${A[2]:l} || TOKEN=${A[1]:l}
-		[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}"
+		[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "[${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}]"
 	fi
 	printf "${BOLD}${CYAN_FG}%15s ${RESET}${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
 done
@@ -70,7 +70,7 @@ for A in ${(ok)ALIASES};do
 	HIT=true
 	if [[ ${A} =~ '[[:alpha:]]' && -z ${SEARCHTERM} ]];then
 		[[ ${A[1,2]:l} =~ '\.[a-z]' ]] && TOKEN=${A[2]:l} || TOKEN=${A[1]:l}
-		[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}"
+		[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "[${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}]"
 	fi
 	printf "${BOLD}${CYAN_FG}%15s ${RESET}${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
 done

@@ -674,7 +674,7 @@ msg_exit () {
 	esac
 
 	if [[ -n ${MSG} ]];then
-		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:([[:print:]]+?\s)(\w+.*)$/\e[m:\e[3;37m$1\e[m\2/' <<<${MSG})
+		[[ ${MSG} =~ ":" ]] && MSG=$(perl -p -e 's/:([[:print:]]+?\s)(\w+.*)?$/\e[m:\e[3;37m$1\e[m\2/' <<<${MSG})
 		printf "[${WHITE_FG}%s${RESET}]:[${LCOLOR}${LABEL}${RESET}] %s" ${_SCRIPT} "${MSG}"
 	fi
 }
