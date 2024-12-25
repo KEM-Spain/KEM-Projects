@@ -10,6 +10,7 @@ _MUSIC=~/Downloads/Torrents/Music
 _PID_FN=/tmp/${0:t}.pid
 _VIDEO_REGEX='.*\(mkv\|mp4\|avi\)$'
 _VW=/usr/local/bin/system/vid_watch
+_GTKUI_STATE=~/.config/deluge/gtk3ui.conf
 
 # Declarations
 typeset -a _QUEUE
@@ -35,6 +36,17 @@ on_exit () {
 	/bin/rm -f ${_PID_FN}
 
 	exit
+}
+
+tweak_deluge_gtk () {
+	local TP=''
+
+	TP=$(grep 'tabsbar_position' ${_GTKUI_STATE})
+
+	if [[ ! ${TP} =~ ": 0," ]];then
+		sed -i '/tabsbar_position/s/:.*/: 0,/' ${_GTKUI_STATE}
+		echo "Tweaked Deluge GTK state...$(date)" | tee -a >>${_LOG}
+	fi
 }
 
 # Execution
@@ -109,6 +121,7 @@ while true;do
 		sleep 2
 		ps -p ${_INOT_PID} >/dev/null 2>&1
 		[[ ${?} -ne 0 ]] && echo "inotifywait died - restarting" && start_inot && sleep 3
+		tweak_deluge_gtk
 	fi
 	[[ ${NDX} -eq 100 ]] && NDX=0
 done >>${_LOG}

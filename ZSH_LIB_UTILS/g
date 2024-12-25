@@ -151,7 +151,7 @@ else
 	GREP_ARG="${PATH_ARG}/(*|.*)" # No file name was passed - all files in path
 fi
 
-CMD=$(echo "grep -H -r -P -I -d skip -D skip ${MAX_MATCHES} --color=never ${CASE_SENSE} ${RECURSE_OPT} ${LINENUM_OPT} ${INVERT_OPT} ${ONLY_OPT} ${WORD_OPT}'"${SEARCHTERM}"' ${GREP_ARG} ${EXCLUDE_BAK} 2>/dev/null")
+CMD=$(echo "grep -H -r -P -I -d skip -D skip ${MAX_MATCHES} --color=never ${CASE_SENSE} ${RECURSE_OPT} ${LINENUM_OPT} ${INVERT_OPT} ${ONLY_OPT} ${WORD_OPT} '"${SEARCHTERM}"' ${GREP_ARG} ${EXCLUDE_BAK} 2>/dev/null")
 [[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} CMD:${CMD}"
 
 RAWLIST=("${(f)$(eval ${CMD})}")

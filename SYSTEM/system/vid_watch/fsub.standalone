@@ -71,7 +71,7 @@ arr_is_populated () {
 
 do_rmcup () {
 	[[ ${_SMCUP} == 'false' ]] && return
-	tput rmcup
+	tput -T xterm rmcup
 	# Echo "called rmcup"
 	_SMCUP=false
 }
@@ -103,7 +103,7 @@ exit_leave () {
 		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage
 	fi
 
-	tput cnorm >&2
+	tput -T xterm cnorm >&2
 
 	kill -SIGINT $$ # Fire the traps
 }

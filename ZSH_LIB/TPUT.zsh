@@ -31,27 +31,27 @@ coord_center () {
 cursor_home () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput cup $(tput lines) 0
+	tput -T xterm cup $(tput lines) 0
 }
 
 cursor_off () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput civis >&2 # Hide cursor
+	tput -T xterm civis >&2 # Hide cursor
 	_CURSOR=off
 }
 
 cursor_on () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput cnorm >&2 # Normal cursor
+	tput -T xterm cnorm >&2 # Normal cursor
 	_CURSOR=on
 }
 
 cursor_restore () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput rc # Save cursor
+	tput -T xterm rc # Save cursor
 }
 
 cursor_row () {
@@ -67,14 +67,14 @@ cursor_row () {
 cursor_save () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput sc # Save cursor
+	tput -T xterm sc # Save cursor
 }
 
 do_rmcup () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${_SMCUP} == 'false' ]] && return
-	tput rmcup
+	tput -T xterm rmcup
 	# Echo "called rmcup"
 	_SMCUP=false
 }
@@ -84,7 +84,7 @@ do_smcup () {
 
 	[[ ${_SMCUP} == 'true' ]] && return
 	# Echo "calling smcup"
-	tput smcup
+	tput -T xterm smcup
 	_SMCUP=true
 }
 
