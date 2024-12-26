@@ -46,6 +46,7 @@ g_LAST_QRY=''
 g_LIST_TYPE=''
 g_LIST_VALUE=''
 g_UPDATE=false
+g_REDISPLAY=false
 
 # Imports
 _LIB_DIR=/usr/local/lib
@@ -163,15 +164,15 @@ set_cache () {
 	[[ ${DECADE_ARG} == 'true' ]] && CACHE_FN+="_DEC_${1}"
 	[[ ${YEAR_ARG} == 'true' ]] && CACHE_FN+="_YR_${1}"
 
-	if [[ ! -e "${_CACHE_DIR}/${CACHE_FN}" || ${g_UPDATE} == 'true' ]];then
-		[[ ${g_UPDATE} == 'true' ]] && /bin/rm -f ${_CACHE_DIR}/${CACHE_FN}
-		for S in ${_SLIST};do
-			echo ${S} >> ${_CACHE_DIR}/${CACHE_FN}
-		done
-		return 0
-	else
-		return 1
-	fi
+	CACHE_FN=${_CACHE_DIR}/${CACHE_FN}
+
+	[[ -e ${CACHE_FN} && ${g_UPDATE} == 'true' ]] && /bin/rm -f ${CACHE_FN}
+
+	for S in ${_SLIST};do
+		echo ${S} >> ${CACHE_FN}
+	done
+
+	g_REDISPLAY=true
 }
 
 cache_select () {
@@ -570,7 +571,8 @@ while true;do
 		_MARKED=($(list_get_selected))
 		action_do
 	else
-		break
+		[[ ${g_REDISPLAY} == 'false' ]] && break
+		g_REDISPLAY=false # List updates require a redisplay - clear state
 	fi
 done
 
