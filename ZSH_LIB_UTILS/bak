@@ -105,7 +105,7 @@ prod_to_local () {
 		do_copy ${g_LOCAL_VERSION} ${g_BACKUP_VERSION}
 	else
 		[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Found development"
-		echo "\nSOURCE"
+		echo "\nOVERWRITE DEVELOPMENT"
 		echo ${g_LOCAL_EXISTS_PROD}
 
 		diff -b ${g_PROD_VERSION} ${g_LOCAL_VERSION} >/dev/null 2>&1
@@ -122,11 +122,8 @@ prod_to_local () {
 			get_response "Overwrite the ${_EM}local${RESET} version?\n(the ${_EM}local${RESET} version will be backed up first)"
 			if [[ ${?} -eq 0 ]];then
 				[[ ${_DEBUG} -ge 0 ]] && dbg "${0}:${LINENO} Local backed up; production will overwrite local"
-				echo "\nBACKUP"
 				do_copy ${g_LOCAL_VERSION} ${g_LOCAL_VERSION}.bak no_prompt
 				chmod 666 ${g_LOCAL_VERSION}.bak
-
-				echo "\nSOURCE"
 				echo "Copying production:${WHITE_FG}${g_PROD_NAME}${RESET}..."
 				do_copy ${g_PROD_VERSION} ${g_LOCAL_VERSION} no_prompt
 			else
@@ -240,6 +237,7 @@ prod_to_backup () {
 }
 
 local_to_prod () {
+	echo "RELEASE"
 	if [[ ${g_IS_INITIAL_PRODUCTION} == 'false' ]];then
 		# Existing production copy
 		get_response "Overwrite the ${_EM}production${RESET} version: ${WHITE_FG}${g_PROD_NAME}${RESET}\nwith the ${_EM}development${RESET} version: ${WHITE_FG}${g_LOCAL_NAME}${RESET}"

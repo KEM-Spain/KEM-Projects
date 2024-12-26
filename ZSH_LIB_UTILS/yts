@@ -1205,10 +1205,10 @@ show_down () {
 	local LINE=${@}
 	local MASK=''
 	local MASK_1="⇩⇩⇩⇩⇩⇩⇩⇩⇩⇩"
-	local MASK_2="⇩⇩⇩⇩⇩⇩⇩⇩"
-	local MASK_3="⇩⇩⇩⇩⇩⇩"
-	local MASK_4="⇩⇩⇩⇩"
-	local MASK_5="⇩⇩"
+	local MASK_2="   ⇩⇩⇩⇩⇩  "
+	local MASK_3="    ⇩⇩⇩   "
+	local MASK_4="   ⇩⇩⇩⇩⇩  "
+	local MASK_5="⇩⇩⇩⇩⇩⇩⇩⇩⇩⇩"
 	local LINE_COLOR=''
 
 	local X=$((_ALERT_COORDS[X]-3))

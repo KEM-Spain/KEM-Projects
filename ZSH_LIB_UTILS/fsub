@@ -466,6 +466,37 @@ do_media () {
 	return 0
 }
 
+do_proper_case () {
+	local RESULT
+	local HEAD TAIL EXT
+	local HIT=false
+	local C
+
+	[[ -z ${_OUT_LIST} ]] && _CHAIN_LIST=(${(kv)_IN_LIST}) || _CHAIN_LIST=((kv)${_OUT_LIST})
+	[[ ${_DEBUG} -gt 0 ]] && dbg "${0}:${LINENO} _CHAIN_LIST:${WHITE_FG}${(kv)_CHAIN_LIST}${RESET}]"
+
+	if ! arr_is_populated "${_CHAIN_LIST}";then
+		logit "${0}:${LINENO} Error: _CHAIN_LIST not populated, _OUT_LIST:${#_OUT_LIST}, _IN_LIST:${#_IN_LIST}"
+		return 1
+	fi
+
+	for C in ${(k)_CHAIN_LIST};do
+		HEAD=${_CHAIN_LIST[${C}]:h}
+		TAIL=$(str_trim ${(C)_CHAIN_LIST[${C}]:t:r})
+		EXT=${_CHAIN_LIST[${C}]:e:l}
+		if [[ -n ${TAIL} ]];then
+			HIT=true
+			RESULT=$(echo "${TAIL}.${EXT}" | tr -s '[:space:]')
+			_OUT_LIST[${C}]=${HEAD}/${RESULT}
+		else
+			unset "_IN_LIST[${C}]" # Remove non matches from original
+		fi
+	done
+
+	[[ ${HIT} == 'false' ]] && logit "${0}:${LINENO} No candidates"
+	[[ ${HIT} == 'true' ]] && return 0 || return 1
+}
+
 do_sdc () {
 	local CPATH
 	local CANDIDATE
@@ -797,6 +828,7 @@ usage () {
 	echo -e "${WHITE_FG}-H${RESET} help"
 	echo -e "${WHITE_FG}-D${RESET} debug"
 	echo -e "${WHITE_FG}-I${RESET} interactive changes"
+	echo -e "${WHITE_FG}-P${RESET} proper case"
 	echo -e "${WHITE_FG}-S${RESET} if not running in a terminal (background job)"
 	echo -e "${WHITE_FG}-Y${RESET} eliminate YouTube tags"
 	echo -e "${WHITE_FG}-a${RESET} automatically apply changes (no prompting)"
@@ -825,7 +857,7 @@ usage () {
 	exit_leave $(msg_exit W ${PENDING_MSGS})
 }
 
-OPTSTR=":HCDINSTYabe:irscdm:p:nt:uxyv"
+OPTSTR=":HCDINPSTYabe:irscdm:p:nt:uxyv"
 
 ADD_LEADING_DIGITS=false
 CAMEL=false
@@ -838,6 +870,7 @@ GREP_OPTS='-Eq'
 INTERACTIVE=false
 MEDIA_FILE=false
 PREPEND_TAG=''
+PROPER_CASE=false
 RES=false
 SPACES=false
 STRIP_LEADING_DIGITS=false
@@ -855,6 +888,7 @@ while getopts ${OPTSTR} OPT;do
      H) usage;;
      D) dbg_set_level;;
      I) INTERACTIVE=true;;
+     P) PROPER_CASE=true;;
      S) SERVICE_MODE=true;;
      b) EXTENDED=true;;
      e) g_LIMIT_TO_EXT=true;g_EXT_TEXT=${OPTARG};;
@@ -1001,6 +1035,7 @@ if [[ ${_DEBUG} -gt 0 ]];then
 	echo CAMEL=${CAMEL}
 	echo CASE=${CASE}
 	echo DOTS=${DOTS}
+	echo PROPER_CASE=${PROPER_CASE}
 	echo TRUNC_FN_LEN=${TRUNC_FN_LEN}
 	echo GREP_OPTS=${GREP_OPTS}
 	echo CLEAN_LEADING_DIGITS=${CLEAN_LEADING_DIGITS}
@@ -1067,6 +1102,12 @@ if [[ ${#_SPACE_DOT} -gt 0 ]];then
 	fi
 fi
 
+# Proper case
+if [[ ${PROPER_CASE} == "true" ]];then
+	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Proper casing files${RESET}" | tee -a ${_LOG} } >&2
+	do_proper_case
+	[[ ${g_VERBOSE} == 'true' && ${?} -ne 0 ]] && { echo "No matches for proper case" | tee -a ${_LOG} } >&2
+fi
 # Clean leading digits (usually for audio files)
 if [[ ${CLEAN_LEADING_DIGITS} == "true" ]];then
 	[[ ${g_VERBOSE} == 'true' ]] && { echo "${CYAN_FG}Cleaning leading digits with hyphen${RESET}" | tee -a ${_LOG} } >&2
