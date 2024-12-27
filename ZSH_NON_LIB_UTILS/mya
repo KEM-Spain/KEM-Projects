@@ -28,11 +28,18 @@ HELP="${WHITE_FG}Usage${RESET}:\t${0:t} [-H] [SEARCHTERM]\n${WHITE_FG} Desc${RES
 
 # Vars
 SEARCHTERM=''
+DIRCHANGE=false
+CMDS=false
+OPTS=false
 
 # Executions
 [[ ${1} == '-H' ]] && echo ${HELP} && exit
+[[ ${1} == '-d' ]] && DIRCHANGE=true && OPTS=true && shift
+[[ ${1} == '-c' ]] && CMDS=true && OPTS=true && shift
 [[ ${#} -ne 0 ]] && SEARCHTERM=${1}
 [[ -n ${SEARCHTERM} ]] && TAG="${WHITE_FG}(${RESET}FILTER = \"${WHITE_FG}${SEARCHTERM}${RESET}\"${WHITE_FG})${RESET}" || TAG="${WHITE_FG}(${RESET}UNFILTERED${WHITE_FG})${RESET}"
+
+[[ ${OPTS} == 'false' ]] && DIRCHANGE=true && CMDS=true
 
 source /usr/local/lib/STR.zsh
 
@@ -44,35 +51,40 @@ while read LINE;do
 done < ${FN}
 
 {
-printf "\n${BOLD}${WHITE_FG}Registered Aliases${RESET} ${TAG}${RESET}\n\n"
-printf "\n${MAGENTA_FG}Directory Change\n----------------\n"
+	printf "\n${BOLD}${WHITE_FG}Registered Aliases${RESET} ${TAG}${RESET}\n\n"
 
-HIT=false
-LAST_ALIAS=?
-for A in ${(ok)ALIASES};do
-	[[ ! ${ALIASES[${A}]} =~ 'cd' ]] && continue
-	[[ ! ${A} =~ "^${SEARCHTERM}.*" ]] && continue
-	HIT=true
-	if [[ ${A} =~ '[[:alpha:]]' && -z ${SEARCHTERM} ]];then
-		[[ ${A[1,2]:l} =~ '\.[a-z]' ]] && TOKEN=${A[2]:l} || TOKEN=${A[1]:l}
-		[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "[${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}]"
+	if [[ ${DIRCHANGE} == 'true' ]];then
+		printf "\n${MAGENTA_FG}Directory Change\n----------------\n"
+
+		HIT=false
+		LAST_ALIAS=?
+		for A in ${(ok)ALIASES};do
+			[[ ! ${ALIASES[${A}]} =~ 'cd' ]] && continue
+			[[ ! ${A} =~ "^${SEARCHTERM}.*" ]] && continue
+			HIT=true
+			if [[ ${A} =~ '[[:alpha:]]' && -z ${SEARCHTERM} ]];then
+				[[ ${A[1,2]:l} =~ '\.[a-z]' ]] && TOKEN=${A[2]:l} || TOKEN=${A[1]:l}
+				[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "[${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}]"
+			fi
+			printf "${BOLD}${CYAN_FG}%15s ${RESET}${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
+		done
+		[[ ${HIT} == 'false' ]] && echo "${RED_FG}FILTERED${RESET}"
 	fi
-	printf "${BOLD}${CYAN_FG}%15s ${RESET}${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
-done
-[[ ${HIT} == 'false' ]] && echo "${RED_FG}FILTERED${RESET}"
 
-printf "\n${MAGENTA_FG}Commands\n--------\n"
+	if [[ ${CMDS} == 'true' ]];then
+		printf "\n${MAGENTA_FG}Commands\n--------\n"
 
-HIT=false
-for A in ${(ok)ALIASES};do
-	[[ ${ALIASES[${A}]} =~ 'cd' ]] && continue
-	[[ ! ${A} =~ "^${SEARCHTERM}.*" ]] && continue
-	HIT=true
-	if [[ ${A} =~ '[[:alpha:]]' && -z ${SEARCHTERM} ]];then
-		[[ ${A[1,2]:l} =~ '\.[a-z]' ]] && TOKEN=${A[2]:l} || TOKEN=${A[1]:l}
-		[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "[${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}]"
+		HIT=false
+		for A in ${(ok)ALIASES};do
+			[[ ${ALIASES[${A}]} =~ 'cd' ]] && continue
+			[[ ! ${A} =~ "^${SEARCHTERM}.*" ]] && continue
+			HIT=true
+			if [[ ${A} =~ '[[:alpha:]]' && -z ${SEARCHTERM} ]];then
+				[[ ${A[1,2]:l} =~ '\.[a-z]' ]] && TOKEN=${A[2]:l} || TOKEN=${A[1]:l}
+				[[ ${TOKEN} != ${LAST_ALIAS} ]] && LAST_ALIAS=${TOKEN} && echo "[${BOLD}${WHITE_FG}${LAST_ALIAS:u}${RESET}]"
+			fi
+			printf "${BOLD}${CYAN_FG}%15s ${RESET}${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
+		done
+		[[ ${HIT} == 'false' ]] && echo "${RED_FG}FILTERED${RESET}"
 	fi
-	printf "${BOLD}${CYAN_FG}%15s ${RESET}${WHITE_FG}%-50s${RESET}\n" ${A} ${ALIASES[${A}]}
-done
-[[ ${HIT} == 'false' ]] && echo "${RED_FG}FILTERED${RESET}"
 } | mypager

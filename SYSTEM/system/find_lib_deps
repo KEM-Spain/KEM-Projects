@@ -50,13 +50,13 @@ app_scan () {
 	local CNT=0
 	local FUNC=''
 	local HDR=''
-	local K L N S V F
 	local LIB=''
 	local LIB_CNT=0
 	local LINE_COL=0
 	local LINE_LEN=24
 	local NDX=0
 	local SCORE=0
+	local K L N S V F
 
 	# All functions defined in application
 	APP_FUNCS=("${(f)$(grep -PH --color=never '() {\s?$' ${FN} | sed -E 's/\s+[(][)] \{//' | sort)}")
@@ -84,6 +84,7 @@ app_scan () {
 	for K in ${(ok)_LIB_FUNC_LIST};do
 		F=$(grep -w -m1 -o --color=never ${K} ${FN}) # find lib function
 		[[ ${?} -ne 0 ]] && continue
+		[[ ${F} =~ '\n' ]] && F=$(head -1 <<<${F})
 		((NDX++))
 		APP_LIB_FUNC_LIST[${F}]=${_LIB_FUNC_LIST[${K}]}
 		printf "${WHITE_FG}%2d${RESET}) ${CYAN_FG}%s ${WHITE_FG}${ITALIC}%s${RESET} is provided by:${WHITE_FG}%s${RESET}\n" ${NDX} ${FN:t} ${F} ${${APP_LIB_FUNC_LIST[${F}]}:t}

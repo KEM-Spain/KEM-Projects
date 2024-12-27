@@ -1203,7 +1203,7 @@ set_item_color () {
 
 show_down () {
 	local LINE=${@}
-	local MASK=''
+	local MASK="🡇"
 	local MASK_1="🡇"
 	local MASK_2="     🡇"
 	local MASK_3="          🡇"
@@ -1212,15 +1212,24 @@ show_down () {
 	local LINE_COLOR=''
 
 	local X=$((_ALERT_COORDS[X]-3))
+	local MASK_Y=$(( ( RANDOM % 10 )  + 1 ))
 
 	[[ ${g_LAST_MASK} -lt 5 ]] && ((g_LAST_MASK++)) || g_LAST_MASK=1
 
+#	case ${g_LAST_MASK} in
+#		1) X=$((X+1));MASK=${MASK_1};;
+#		2) X=$((X+2));MASK=${MASK_2};;
+#		3) X=$((X+3));MASK=${MASK_3};;
+#		4) X=$((X+4));MASK=${MASK_4};;
+#		5) X=$((X+5));MASK=${MASK_5};;
+#	esac
+
 	case ${g_LAST_MASK} in
-		1) X=$((X+1));MASK=${MASK_1};;
-		2) X=$((X+2));MASK=${MASK_2};;
-		3) X=$((X+3));MASK=${MASK_3};;
-		4) X=$((X+4));MASK=${MASK_4};;
-		5) X=$((X+5));MASK=${MASK_5};;
+		1) X=$((X+1));;
+		2) X=$((X+2));;
+		3) X=$((X+3));;
+		4) X=$((X+4));;
+		5) X=$((X+5));;
 	esac
 
 	case ${ETA:l} in
@@ -1228,7 +1237,8 @@ show_down () {
 		*kib/s*) LINE_COLOR="${BOLD}${YELLOW_FG}";;
 	esac
 
-	tput cup ${X} $((_ALERT_COORDS[Y] +6));echo -n "${LINE_COLOR}${MASK}${RESET}";sleep .06
+#	tput cup ${X} $((_ALERT_COORDS[Y] +6));echo -n "${LINE_COLOR}${MASK}${RESET}";sleep .06
+ 	tput cup ${X} $((_ALERT_COORDS[Y] + MASK_Y + 6));echo -n "${LINE_COLOR}${MASK}${RESET}";sleep .06
 }
 
 start_job () {

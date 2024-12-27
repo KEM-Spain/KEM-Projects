@@ -5,6 +5,7 @@ _DEPS_+="DBG.zsh"
 _CURSOR=''
 _SMCUP=''
 _TPUT_LIB_DBG=5
+_TERM=xterm
 
 # LIB Functions
 coord_center () {
@@ -31,27 +32,27 @@ coord_center () {
 cursor_home () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput -T xterm cup $(tput lines) 0
+	tput -T ${_TERM} cup $(tput lines) 0
 }
 
 cursor_off () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput -T xterm civis >&2 # Hide cursor
+	tput -T ${_TERM} civis >&2 # Hide cursor
 	_CURSOR=off
 }
 
 cursor_on () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput -T xterm cnorm >&2 # Normal cursor
+	tput -T ${_TERM} cnorm >&2 # Normal cursor
 	_CURSOR=on
 }
 
 cursor_restore () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput -T xterm rc # Save cursor
+	tput -T ${_TERM} rc # Save cursor
 }
 
 cursor_row () {
@@ -67,15 +68,14 @@ cursor_row () {
 cursor_save () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
-	tput -T xterm sc # Save cursor
+	tput -T ${_TERM} sc # Save cursor
 }
 
 do_rmcup () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${_SMCUP} == 'false' ]] && return
-	tput -T xterm rmcup
-	# Echo "called rmcup"
+	tput -T ${_TERM} rmcup
 	_SMCUP=false
 }
 
@@ -83,8 +83,16 @@ do_smcup () {
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 
 	[[ ${_SMCUP} == 'true' ]] && return
-	# Echo "calling smcup"
-	tput -T xterm smcup
+	tput -T ${_TERM} smcup
 	_SMCUP=true
+}
+
+tcup () {
+	X=${1:=0}
+	Y=${2:=0}
+
+	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
+
+	tput -T ${_TERM} cup ${X} ${Y}
 }
 
