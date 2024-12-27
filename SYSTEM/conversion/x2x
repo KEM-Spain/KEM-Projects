@@ -1,0 +1,125 @@
+#!/usr/bin/zsh
+
+RESET="\033[m"
+RED_FG="\033[31m"
+GREEN_FG="\033[32m"
+YELLOW_FG="\033[33m"
+BLUE_FG="\033[34m"
+MAGENTA_FG="\033[35m"
+CYAN_FG="\033[36m"
+WHITE_FG="\033[37m"
+
+# Imports
+_LIB_DIR=/usr/local/lib
+source ${_LIB_DIR}/LIB_INIT.zsh # Must be first
+source ${_LIB_DIR}/UTILS.zsh
+source ${_LIB_DIR}/STR.zsh
+source ${_LIB_DIR}/LIB_DEPS.zsh # Must be last
+
+typeset -i INT
+typeset -F FRACTION
+
+typeset -A EXECS=(
+c2f "Celsius to Farenheit" \
+c2g "Cups to Grams" \
+f2c "Farenheit to Celsius" \
+k2p "Kilos to Pounds" \
+p2k "Pounds to Kilos" \
+m2f "Meters to Feet" \
+f2m "Feet to Meters" \
+c2i "Centimeters to Inches" \
+i2c "Inches to Centimeters" \
+m2k "Miles to Kilometers" \
+k2m "Kilometers to Miles" \
+m2o "Milliliters to Ounces" \
+o2m "Ounces to Milliliters" \
+)
+
+usage () {
+	local E
+
+	echo "Usage: xxx ${WHITE_FG}<value to convert>${RESET}"
+	for E in ${(ok)EXECS};do
+		echo "${CYAN_FG}${E}${RESET} -> ${EXECS[$E]}"
+	done
+	exit
+}
+
+if [[ ${1} == "-h" ]];then
+	usage
+fi
+
+[[ $# -eq 0 ]] && usage
+
+case ${0:t} in
+	c2f) 	echo "Celsius to Farenheit"
+				((FRACTION = (${1} * 9/5) + 32 ))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize degree ${1}) celsius is ${WHITE_FG}%3.2f${RESET} $(str_pluralize degree ${FRACTION}) fahrenheit" ${1} ${FRACTION}
+				;;
+	f2c) 	echo "Farenheit to Celsius"
+				((FRACTION = (${1} - 32) * 5/9))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize degree ${1}) fahrenheit is ${WHITE_FG}%3.2f${RESET} $(str_pluralize degree ${FRACTION}) celsius" ${1} ${FRACTION}
+				;;
+	k2p) echo "Kilos to Pounds"
+				((FRACTION = ${1} * 2.20462262185))
+				INT=$FRACTION; LBS=$INT
+				RMD=$((FRACTION-INT))
+				OZ=$((RMD * 16))
+				INT=$OZ; OUNCES=$INT
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize kilo ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize pound ${LBS}) or ${WHITE_FG}%d${RESET} $(str_pluralize pound ${LBS}) ${WHITE_FG}%d${RESET} $(str_pluralize ounce ${OUNCES})" ${1} ${FRACTION} ${LBS} ${OUNCES}
+				;;
+	p2k) echo "Pounds to Kilos"
+				((FRACTION = ${1} / 2.20462262185))
+				GRAMS=$((FRACTION * 1000))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize pound ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize kilo ${FRACTION}), ${WHITE_FG}%3.2f${RESET} $(str_pluralize gram ${GRAMS})" $1 ${FRACTION} ${GRAMS}
+				;;
+	m2f) echo "Meters to Feet"
+				((FRACTION = ${1} / .3048))
+				INT=$FRACTION; FEET=$INT
+				SF=$((${1} / .093))
+				RMD=$((FRACTION-INT))
+				IN=$((RMD * 12))
+				INT=$IN; INCHES=$INT
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize meter ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize feet ${FEET}), or ${WHITE_FG}%d${RESET} $(str_pluralize feet ${1}) ${WHITE_FG}%d${RESET} $(str_pluralize inch ${INCHES}) or ${WHITE_FG}%d${RESET} square $(str_pluralize meter ${1}) is ${WHITE_FG}%3.2f${RESET} square feet" ${1} ${FRACTION} ${FEET} ${INCHES} ${1} ${SF}
+				;;
+	f2m) echo "Feet to Meters"
+				((FRACTION = ${1} * 0.3048))
+				((SM = ${1} / 10.76))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize feet ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize meter ${FRACTION}) or ${WHITE_FG}%d${RESET} square $(str_pluralize feet ${1}) is ${WHITE_FG}%3.2f${RESET} square $(str_pluralize meter ${SM})" ${1} ${FRACTION} ${1} ${SM}
+				;;
+	c2i) echo "Centimeters to Inches"
+				((FRACTION = ${1} * 0.3937007874))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize centimeter ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize inch ${FRACTION})" ${1} ${FRACTION}
+				;;
+	c2g) echo "Cups to Grams"
+				((FRACTION = ${1} / 0.00496))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize cup ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize gram ${FRACTION})" ${1} ${FRACTION}
+				;;
+	i2c) echo "Inches to Centimeters"
+				((FRACTION = ${1} / 0.3937007874))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize inch ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize centimeter ${FRACTION})" ${1} ${FRACTION}
+				;;
+	m2k) echo "Miles to Kilometers"
+				((FRACTION = ${1} * 1.609344))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize mile ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize kilometer ${FRACTION})" ${1} ${FRACTION}
+				;;
+	k2m) echo "Kilometers to Miles"
+				((FRACTION = ${1} / 1.609344))
+				INT=$FRACTION; MILES=$INT
+				RMD=$((FRACTION-INT))
+				FT=$((RMD * 5280))
+				INT=$FT; FEET=$INT
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize kilometer ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize mile ${FRACTION}), or ${WHITE_FG}%d${RESET} $(str_pluralize miles ${MILES})${WHITE_FG}%d${RESET} $(str_pluralize feet ${FEET})" ${1} ${FRACTION} ${MILES} ${FEET}
+				;;
+	m2o) echo "Milliliters to Ounces"
+				((FRACTION = ${1} * .0338))
+				OZ=$FRACTION
+				((GM = $OZ * 28.35))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize milliliter ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize ounce ${OZ})or ${WHITE_FG}%3.2f${RESET} $(str_pluralize gram ${GM})" ${1} ${OZ} ${GM}
+				;;
+	o2m) echo "Ounces to Milliliters"
+				((ML = ${1} * 29.57353))
+				printf "${WHITE_FG} %3.2f ${RESET}$(str_pluralize ounce ${1}) is ${WHITE_FG}%3.2f${RESET} $(str_pluralize milliliter ${ML})" ${1} ${ML}
+				;;
+esac
+

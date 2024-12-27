@@ -33,6 +33,7 @@ _ZSH_NON_LIB_UTILS=${_REPO}/ZSH_NON_LIB_UTILS
 _PYTHON_DIR=/home/kmiller/Code/LANG/Python/PROJECTS
 _UL_BIN_DIR=/usr/local/bin
 _UL_BIN_SYS_DIR=/usr/local/bin/system
+_UL_BIN_CONV_DIR=/usr/local/bin/conversion
 _UL_ETC_DIR=/usr/local/etc
 _UL_LIB_DIR=/usr/local/lib
 _VIM_DIR=/home/kmiller/.vim
@@ -76,6 +77,11 @@ copy_zsh_libs () {
 copy_sys_files () {
 	echo "${WHITE_FG}SYSTEM FILES${RESET}" >&2
 	rsync -a ${_UL_BIN_SYS_DIR} ${_SYSTEM}
+}
+
+copy_conv_files () {
+	echo "${WHITE_FG}CONVERSION FILES${RESET}" >&2
+	rsync -a ${_UL_BIN_CONV_DIR} ${_SYSTEM}
 }
 
 copy_etc_files () {
@@ -160,6 +166,7 @@ copy_zsh_libs
 # system
 copy_sys_files # Clone /usr/local/bin/system
 copy_user_files # Clone /home/kmiller
+copy_conv_files # Clone /usr/local/bin/conversion
 
 # etc
 _UL_ETC_FILES=("${(f)$(find ${_UL_ETC_DIR} -maxdepth 1 -type f)}")
