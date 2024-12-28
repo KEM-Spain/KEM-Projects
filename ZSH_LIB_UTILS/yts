@@ -1212,7 +1212,9 @@ show_down () {
 	local LINE_COLOR=''
 
 	local X=$((_ALERT_COORDS[X]-3))
-	local MASK_Y=$(( ( RANDOM % 10 )  + 1 ))
+	local MASK_Y=$(( ( RANDOM % 20 )  + 1 ))
+
+	[[ ${MASK_Y} -gt 10 ]] && (( MASK_Y -= 10 ))
 
 	[[ ${g_LAST_MASK} -lt 5 ]] && ((g_LAST_MASK++)) || g_LAST_MASK=1
 
@@ -1237,8 +1239,8 @@ show_down () {
 		*kib/s*) LINE_COLOR="${BOLD}${YELLOW_FG}";;
 	esac
 
-#	tput cup ${X} $((_ALERT_COORDS[Y] +6));echo -n "${LINE_COLOR}${MASK}${RESET}";sleep .06
- 	tput cup ${X} $((_ALERT_COORDS[Y] + MASK_Y + 6));echo -n "${LINE_COLOR}${MASK}${RESET}";sleep .06
+#	tcup ${X} $((_ALERT_COORDS[Y] +6));echo -n "${LINE_COLOR}${MASK}${RESET}";sleep .06
+ 	tcup ${X} $((_ALERT_COORDS[Y] + MASK_Y + 6));echo -n "${LINE_COLOR}${MASK}${RESET}";sleep .06
 }
 
 start_job () {

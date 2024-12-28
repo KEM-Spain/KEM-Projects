@@ -1,0 +1,129 @@
+#!/usr/bin/zsh
+
+# Constants
+_MUSIC_REGEX='.*\(\.ape\|\.mp3\|\.m4a\|\.flac\|\.ogg\|\.wav\)$'
+_COMPLETED=~/Downloads/Torrents/Completed
+_FIFO=/tmp/${0:t}.fifo
+_INOT_PID=''
+_LOG=/tmp/${0:t}.log
+_MUSIC=~/Downloads/Torrents/Music
+_PID_FN=/tmp/${0:t}.pid
+_VIDEO_REGEX='.*\(mkv\|mp4\|avi\)$'
+_VW=/usr/local/bin
+_GTKUI_STATE=~/.config/deluge/gtk3ui.conf
+
+# Declarations
+typeset -a _QUEUE
+typeset -aU _M_DIRS
+
+# Functions
+start_inot () {
+	inotifywait -m -e create -e moved_to "${_COMPLETED}" >${_FIFO} &
+	[[ ${?} -eq 0 ]] && _INOT_PID=$! || (echo "inotifywait failed to start" >>${_LOG} && exit)
+	echo "Starting inotifywait...$(date)" | tee -a >>${_LOG}
+}
+
+on_event() {
+	_QUEUE+=${1}
+}
+
+on_exit () {
+	local RC
+
+	ps -p ${_INOT_PID} >/dev/null 2>&1
+	[[ ${?} -eq 0 ]] && kill ${_INOT_PID}
+
+	/bin/rm -f ${_PID_FN}
+
+	exit
+}
+
+tweak_deluge_gtk () {
+	local TP=''
+
+	TP=$(grep 'tabsbar_position' ${_GTKUI_STATE})
+
+	if [[ ! ${TP} =~ ": 0," ]];then
+		sed -i '/tabsbar_position/s/:.*/: 0,/' ${_GTKUI_STATE}
+		echo "Tweaked Deluge GTK state...$(date)" | tee -a >>${_LOG}
+	fi
+}
+
+# Execution
+# Start instance or reject multiple instances
+[[ ! -e ${_PID_FN} ]] && echo $$ >${_PID_FN}
+
+# Block additional instance
+while read PID;do
+	ps -p ${PID} >/dev/null 2>&1
+	if [[ ${?} -eq 0 ]];then # Valid pid
+		[[ "$$" != "${PID}" ]] && echo "Only one instance of ${0} allowed" && return
+	else
+		echo $$ >${_PID_FN} # Replace stale pid
+	fi
+done<${_PID_FN}
+
+trap "on_exit" EXIT INT TERM
+
+# Create fifo
+[[ -e ${_LOG} ]] && /bin/rm ${_LOG}
+if [[ ! -e ${_FIFO} ]];then
+	mkfifo ${_FIFO}
+	echo "Created fifo:${FIFO}..." | tee -a >>${_LOG}
+fi
+
+# Start monitoring files
+echo "Starting ${0:t}...$(date)" | tee -a >>${_LOG}
+start_inot
+
+# Loop over fifo
+EVENT=0
+NDX=0
+while true;do
+	((NDX++))
+	[[ ${NDX} -eq 1 ]] && echo "Reading fifo...$(date +'%T %D')"
+
+	while read -t5 LINE;do # 10 sec timeout
+		((EVENT++))
+		echo "Queuing event..."
+		on_event "${EVENT}:${LINE}"
+	done < ${_FIFO}
+
+	# If inot dies, activity is missed; count any existing files
+	VID_CNT=$(find ${_COMPLETED} -type f -iregex "${_VIDEO_REGEX}" ! -path ${_COMPLETED} | wc -l) 
+	AUD_CNT=$(find ${_COMPLETED} -type f -iregex "${_MUSIC_REGEX}" ! -path ${_COMPLETED} | wc -l) 
+
+	if [[ ${#_QUEUE} -ne 0 || ${VID_CNT} -ne 0 ]];then
+		echo "Calling vid_to_lib with ${VID_CNT} files..."
+		${_VW}/vid_to_lib -S 2>&1 # Designate as system service
+		_QUEUE=()
+		EVENT=0
+		NDX=0
+	elif [[ ${#_QUEUE} -ne 0 || ${AUD_CNT} -ne 0 ]];then
+		echo "Moving ${AUD_CNT} audio files to:${_MUSIC}"
+
+		MUSIC=("${(f)$(find ${_COMPLETED} -iregex "${_MUSIC_REGEX}" ! -path ${_COMPLETED})}")
+		for M in ${MUSIC};do
+			_M_DIRS+=${M:h} # All dirs that contain MUSIC
+		done
+
+		for M in ${_M_DIRS};do
+			mv ${M} ${_MUSIC}
+		done
+
+		echo "Clearing deluge.."
+		${_VW}/vid_to_lib -c 2>&1 # Clear deluge state
+		_QUEUE=()
+		EVENT=0
+		NDX=0
+	else
+		[[ ${NDX} -eq 1 ]] && echo "No activity, paused..."
+		sleep 2
+		ps -p ${_INOT_PID} >/dev/null 2>&1
+		[[ ${?} -ne 0 ]] && echo "inotifywait died - restarting" && start_inot && sleep 3
+		tweak_deluge_gtk
+	fi
+	[[ ${NDX} -eq 100 ]] && NDX=0
+done >>${_LOG}
+
+echo "Stopped ${0:t}...$(date)" | tee -a >>${_LOG}

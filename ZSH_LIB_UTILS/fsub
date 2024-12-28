@@ -831,7 +831,6 @@ usage () {
 	echo -e "${WHITE_FG}-P${RESET} proper case"
 	echo -e "${WHITE_FG}-S${RESET} if not running in a terminal (background job)"
 	echo -e "${WHITE_FG}-Y${RESET} eliminate YouTube tags"
-	echo -e "${WHITE_FG}-a${RESET} automatically apply changes (no prompting)"
 	echo -e "${WHITE_FG}-b${RESET} eliminate extended/non-ascii (${CYAN_FG}M${RESET})"
 	echo -e "${WHITE_FG}-e $(opt_type e)${RESET} limit operations to files having $(opt_type e)"
 	echo -e "${WHITE_FG}-C${RESET} eliminate quotes, parens, dots, dashes, commas, and non-ascii (${CYAN_FG}M${RESET})"
@@ -955,11 +954,11 @@ fi
 if [[ ${#OPTIONS} -ge 1 && $(( $OPTIONS[(Ie)m] )) -ne 0 ]];then
 	for O in ${OPTIONS};do
 		case ${O} in
-			S|m|r|d|a) HIT=true;;
+			S|m|r|d|y) HIT=true;;
 			*) HIT=false;break;;
 		esac
 	done
-	[[ ${HIT} == 'false' ]] && usage "Option: -m only compatible with -S -r -d -a"
+	[[ ${HIT} == 'false' ]] && usage "Option: -m only compatible with -S -r -d -y"
 fi
 
 # Prep for space dot camel

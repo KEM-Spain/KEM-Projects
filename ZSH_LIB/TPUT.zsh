@@ -88,8 +88,8 @@ do_smcup () {
 }
 
 tcup () {
-	X=${1:=0}
-	Y=${2:=0}
+	local X=${1:=0}
+	local Y=${2:=0}
 
 	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
 

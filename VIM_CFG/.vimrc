@@ -27,9 +27,9 @@ if !has("gui_running")
 
 	"Sort by text width
 	function! SortLines() range
-		 execute a:firstline . "," . a:lastline . 's/^\(.*\)$/\=strdisplaywidth( submatch(0) ) . " " . submatch(0)/'
-		 execute a:firstline . "," . a:lastline . 'sort n'
-		 execute a:firstline . "," . a:lastline . 's/^\d\+\s//'
+		execute a:firstline . "," . a:lastline . 's/^\(.*\)$/\=strdisplaywidth( submatch(0) ) . " " . submatch(0)/'
+		execute a:firstline . "," . a:lastline . 'sort n'
+		execute a:firstline . "," . a:lastline . 's/^\d\+\s//'
 	endfunction
 
 	filetype plugin on "detect filetype
@@ -49,17 +49,20 @@ if !has("gui_running")
 	iabbrev ZDB [[ ${_DEBUG} -gt 0 ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"<ESC>
 	iabbrev MW $(msg_warn <ESC>
 	iabbrev ME $(msg_err <ESC>
+	iabbrev MX $(msg_exit <ESC>
 
-	"function key mappings
+	"Function Keys
+
+	"line numbering toggle
 	nnoremap <F1> :set number!<CR>
-	nnoremap <F2> :set invpaste paste?<CR>
-	nnoremap <F3> :echom expand('%:p')<CR>
-	nnoremap <F7> gg=G<C-o><C-o>
+
+	"show current path
+	nnoremap <F2> :echom "Current File:" .. expand('%:p')<CR> 
 
 	nm <silent> <F4> :echo "hi<" . synIDattr(synID(line("."),col("."),1),"name")
-    \ . '> trans<' . synIDattr(synID(line("."),col("."),0),"name")
-    \ . "> lo<" . synIDattr(synIDtrans(synID(line("."),col("."),1)),"name")
-    \ . ">"<CR>
+				\ . '> trans<' . synIDattr(synID(line("."),col("."),0),"name")
+				\ . "> lo<" . synIDattr(synIDtrans(synID(line("."),col("."),1)),"name")
+				\ . ">"<CR>
 
 	"activate Ansi plugin
 	nnoremap <c-a> :AnsiEsc<CR>
@@ -70,9 +73,13 @@ if !has("gui_running")
 	"delimit all words with colon
 	nnoremap <c-d> 0A<space><Esc>0y$$p<Esc>0:1,$s/ /:/g<CR>0:1,$s/:$//g<CR>:s/\(.*\)_\(.*\):/\1\2:/g<CR>:s/\(.*\)_\(.*\):/\1\2:/g<CR>:s/\(.*\)_\(.*\):/\1\2:/g<CR>
 
-	"add app shebangs
+	"add zsh shebang
 	nnoremap <c-e> ggi#!/usr/bin/zsh<CR> <ESC>
+
+	"add python shebang
 	nnoremap <c-p> ggi#!/usr/bin/env python3<CR> <ESC>
+
+	"add perl shebang
 	nnoremap <c-l> ggi#!/usr/bin/env perl<CR> <ESC>
 
 	"find left anchored
@@ -81,32 +88,32 @@ if !has("gui_running")
 	"use range
 	nnoremap <c-n> :'a,'b
 
-	"not sure: nnoremap <c-f> :s/.*:/\L&/g<CR>
-	
 	"wrap long text
 	nnoremap <c-g> :%!fmt -100 -s<CR>
 
-	"indent/outdent
+	"indent
 	nnoremap <c-i> :'a,'b> <CR>
+
+	"outdent
 	nnoremap <c-o> :'a,'b< <CR>
 
 	"sort marked
 	nnoremap <c-s> :'a,'bsort <CR>
 
-	"comment/uncomment marked
+	"comment marked
 	nnoremap <c-u> :'a,'bs/^/#/g <CR>
+
+	"uncomment marked
 	nnoremap <c-y> :'a,'bs/^#//g <CR>
 
 	"wrap long lines
 	nnoremap <c-w> <esc>gqq
-	
-	"delete/yank marked
-	nnoremap <c-x> :'a,'bd <CR>
-	nnoremap <c-c> :'a,'by <CR>
 
-	"copy/move marked to current pos
-	"nnoremap <C-S-m> :'a,'bm . <CR>
-	"nnoremap <C-S-c> :'a,'bco . <CR>
+	"delete marked
+	nnoremap <c-x> :'a,'bd <CR>
+
+	"yank marked
+	nnoremap <c-c> :'a,'by <CR>
 
 	set autoindent "automatic code indent
 	set backspace=2 "backspace del all
@@ -115,6 +122,7 @@ if !has("gui_running")
 	set fileencodings^=utf-8
 	set history=500
 	set incsearch "show search in real time as it is typed
+	set invpaste paste
 	set laststatus=2 "always show status line
 	set lazyredraw "no updates to screen during script processing
 	set lcs=tab:>.,eol:$ "show non printing chars

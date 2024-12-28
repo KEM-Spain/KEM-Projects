@@ -22,7 +22,7 @@ typeset -AU TITLES_PROCESSED
 
 # Constants
 _LIB=/usr/local/lib
-_VW=/usr/local/bin/system/vid_watch
+_VW=/usr/local/bin
 
 #_BASEDIR=${PWD} # Test mode
 _BASEDIR=~/Downloads/Torrents # All target dirs are relative to BASEDIR
@@ -55,130 +55,6 @@ source ${_LIB_DIR}/ARRAY.zsh
 source ${_LIB_DIR}/LIB_DEPS.zsh
 
 # Functions
-do_rmcup () {
-	[[ ${_DEBUG} -ge ${_TPUT_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	[[ ${_SMCUP} == 'false' ]] && return
-	tput -T ${_TERM} rmcup
-	_SMCUP=false
-}
-
-exit_pre_exit () {
-	[[ ${_PRE_EXIT_RAN} == 'true' ]] && return
-	
-	_PRE_EXIT_RAN=true
-
-	[[ -n ${_EXIT_CALLBACK} ]] && ${_EXIT_CALLBACK}
-
-	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}, #_EXIT_MSGS:${#_EXIT_MSGS}"
-
-	if [[ ${XDG_SESSION_TYPE:l} == 'x11' ]];then
-		xset r on # Reset key repeat
-		eval "xset ${_XSET_DEFAULT_RATE}" # Reset key rate
-		[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: reset key rate:${_XSET_DEFAULT_RATE}"
-	fi
-
-	kbd_activate
-	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: activated keyboard"
-
-	[[ ${$(tabs -d | grep --color=never -o "tabs 8")} != 'tabs 8' ]] && tabs 8
-	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: reset tabstops"
-
-	[[ ${_DEBUG} -ge ${_EXIT_LIB_DBG} ]] && echo "${0}: _EXIT_VALUE:${_EXIT_VALUE}"
-
-	[[ -n ${_EXIT_MSGS} ]] && echo "\n${_EXIT_MSGS}\n"
-}
-
-set_exit_value () {
-	_EXIT_VALUE=${1}
-}
-
-arr_is_populated () {
-	local -a ARR=(${@})
-	local RC
-	
-	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}, ARR:${#ARR}"
-	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARR:${ARR}"
-
-	[[ ${#} -eq 0 ]] && echo "${0}: ${RED_FG}requires an argument${RESET} of type <ARRAY> ${#}" >&2
-
-	[[ ${ARR[@]} =~ "^ *$" ]] && RC=1 || RC=0
-
-	[[ ${_DEBUG} -ge ${_ARRAY_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: Returning:${RC}"
-
-	return ${RC}
-}
-
-exit_leave () {
-	local OPT=''
-	local -a MSGS=()
-	local RET_9=false
-
-	if [[ ${#} -eq 2 ]];then
-		OPT=${1}; shift
-		[[ ${OPT} == '-9' ]] && RET_9=true
-	fi
-
-	MSGS=(${@})
-
-	if [[ ${_DEBUG} -ne 0 ]];then
-		dbg "${RED_FG}${0}${RESET}: CALLER:${functrace[1]}"
-		dbg "${RED_FG}${0}${RESET}: #_MSGS:${#_MSGS}"
-		dbg "${RED_FG}${0}${RESET}: RET_9:${RET_9}"
-		dbg_msg | mypager -n wait
-	fi
-	
-	if [[ ${RET_9} == 'true' ]];then
-		echo ${MSGS} >&2
-		return 9
-	fi
-
-	[[ -n ${MSGS} ]] && _EXIT_MSGS=${MSGS}
-
-	if [[ ${functrace[1]} =~ 'usage' && -z ${MSGS} ]];then
-		set_exit_value 1
-	else
-		[[ ${_SMCUP} == 'true' ]] && do_rmcup # Screen restore if not usage
-	fi
-
-	exit_pre_exit
-
-	exit ${_EXIT_VALUE}
-}
-
-logit () {
-	local MSG=${@}
-	local STAMP=$(date +'%Y-%m-%d:%T')
-
-	[[ ${_DEBUG} -ge ${_UTILS_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@}"
-
-	echo "${STAMP} ${MSG}" >> ${_LOG:=/tmp/${0}.log}
-}
-
-max () {
-	local N1=${1}
-	local N2=${2}
-
-	[[ ${N1} -gt ${N2} ]] && echo ${N1} || echo ${N2} 
-}
-
-min () {
-	local N1=${1}
-	local N2=${2}
-
-	[[ ${N1} -lt ${N2} ]] && echo ${N1} || echo ${N2} 
-}
-
-str_unicode_line () {
-	local LENGTH=${1}
-	local HORIZ_BAR="\\u2500%.0s"
-
-	[[ ${_DEBUG} -ge ${_STR_LIB_DBG} ]] && dbg "${functrace[1]} called ${0}:${LINENO}: ARGC:${#@} LENGTH:${LENGTH}"
-
-	tput rmso;
-	printf "\\u2500%.0s" {1..$((${LENGTH}))}
-}
-
 clean_media () {
 	local -a VIDEOS=("${(f)$(find ${_LIBRARY_DIR}/movies -regex "${_VIDEO_REGEX}")}")
 	local TITLE
@@ -199,10 +75,10 @@ clean_media () {
 			pushd ${V:h}
 			echo "Cleaning title:${WHITE_FG}${TITLE}${RESET}"
 			[[ ${SERVICE_MODE} == 'true' ]] && FSUB_OPTS="-Syrm" || FSUB_OPTS="-yrm"
-			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: Calling: ${_VW}/fsub.standalone ${FSUB_OPTS} ${TITLE}"
-			logit "${0} calling fsub.standalone ${FSUB_OPTS} ${TITLE}"
-			${_VW}/fsub.standalone "${FSUB_OPTS} ${TITLE}"
-			[[ ${?} -ne 0 ]] && logit "${0}: fsub.standalone returned an error"
+			[[ ${_DEBUG} -gt 0 ]] && dbg "${0}: Calling: ${_VW}/fsub ${FSUB_OPTS} ${TITLE}"
+			logit "${0} calling fsub ${FSUB_OPTS} ${TITLE}"
+			${_VW}/fsub "${FSUB_OPTS} ${TITLE}"
+			[[ ${?} -ne 0 ]] && logit "${0}: fsub returned an error"
 			popd
 		else
 			echo "${0}: Failed to extract a title from: ${V:t:r}"
@@ -334,7 +210,7 @@ sub_rename () {
 	local HIT=false
 	local MSG="Scanning subtitles for naming errors..."
 
-	# Handle naming issues for subtitles that fsub.standalone misses
+	# Handle naming issues for subtitles that fsub misses
 	# And some that are orphaned due to filenaming
 
 	VIDEOS=("${(f)$(find ${_LIBRARY_DIR}/movies -type f -regex "${_VIDEO_REGEX}")}")
